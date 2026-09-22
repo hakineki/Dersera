@@ -50,8 +50,8 @@ export const stops: Stop[] = [
     order: 4,
     name: "Kütüphane",
     emoji: "📚",
-    subject: "Türk Edebiyatı",
-    dersKey: "edebiyat",
+    subject: "Türk Dili ve Edebiyatı",
+    dersKey: "turk-dili",
     nextStopId: "mudur-odasi",
     nextClue:
       "🎉 Edebiyat dahisi! Son durak çok önemli bir yerde: Okulun kalbinde, en önemli kararların alındığı kapının önünde son meydan okuma seni bekliyor. Müdür Odası'nın kapısına git! 🚪",

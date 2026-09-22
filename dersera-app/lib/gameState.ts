@@ -3,6 +3,7 @@ export const STORAGE_KEYS = {
   START_TIME: "dersera:startTime",
   PROGRESS: "dersera:progress",
   END_TIME: "dersera:endTime",
+  CUSTOM_STOPS: "dersera:custom-stops",
 } as const;
 
 export interface StopProgress {
@@ -11,6 +12,17 @@ export interface StopProgress {
 }
 
 export type GameProgress = Record<string, StopProgress>;
+
+export interface CustomStop {
+  id: string;
+  order: number;
+  name: string;
+  emoji: string;
+  subject: string;
+  dersKey: string;
+  nextStopId: string | null;
+  nextClue: string;
+}
 
 function safeGet(key: string): string | null {
   try {
@@ -69,6 +81,34 @@ export function saveEndTime(ts: number): void {
   safeSet(STORAGE_KEYS.END_TIME, String(ts));
 }
 
+export function loadCustomStops(): CustomStop[] {
+  try {
+    const raw = safeGet(STORAGE_KEYS.CUSTOM_STOPS);
+    return raw ? (JSON.parse(raw) as CustomStop[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCustomStops(customStops: CustomStop[]): void {
+  safeSet(STORAGE_KEYS.CUSTOM_STOPS, JSON.stringify(customStops));
+}
+
+export function addCustomStop(stop: CustomStop): void {
+  saveCustomStops([...loadCustomStops(), stop]);
+}
+
+/** Önceki tüm durakların tamamlanıp tamamlanmadığını kontrol eder */
+export function isPreviousStopsComplete(
+  currentOrder: number,
+  progress: GameProgress,
+  orderedStops: { id: string; order: number }[]
+): boolean {
+  return orderedStops
+    .filter((s) => s.order < currentOrder)
+    .every((s) => s.id in progress);
+}
+
 export function formatElapsed(seconds: number): string {
   const m = Math.floor(seconds / 60)
     .toString()
@@ -79,7 +119,12 @@ export function formatElapsed(seconds: number): string {
 
 export function clearGameState(): void {
   try {
-    Object.values(STORAGE_KEYS).forEach((k) => localStorage.removeItem(k));
+    [
+      STORAGE_KEYS.NICKNAME,
+      STORAGE_KEYS.START_TIME,
+      STORAGE_KEYS.PROGRESS,
+      STORAGE_KEYS.END_TIME,
+    ].forEach((k) => localStorage.removeItem(k));
   } catch {
     /* ignore */
   }
