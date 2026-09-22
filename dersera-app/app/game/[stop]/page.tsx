@@ -4,6 +4,7 @@ import GameWrapper from "./GameWrapper";
 
 interface Props {
   params: Promise<{ stop: string }>;
+  searchParams: Promise<{ ay?: string }>;
 }
 
 export async function generateStaticParams() {
@@ -20,9 +21,10 @@ export async function generateMetadata({ params }: Props) {
   };
 }
 
-export default async function GamePage({ params }: Props) {
+export default async function GamePage({ params, searchParams }: Props) {
   const { stop: stopId } = await params;
+  const { ay = "eylul" } = await searchParams;
   const stop = getStop(stopId);
   if (!stop) notFound();
-  return <GameWrapper stop={stop} />;
+  return <GameWrapper stop={stop} ay={ay} />;
 }
