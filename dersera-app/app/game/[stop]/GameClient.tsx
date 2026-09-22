@@ -11,8 +11,7 @@ import {
   GameProgress,
 } from "@/lib/gameState";
 import {
-  getAyIndex,
-  rastgeleSoru,
+  getSorular,
   DERS_ADI,
   AYLAR,
 } from "@/data/mufredat";
@@ -22,7 +21,7 @@ interface Props {
   stop: Stop;
   nickname: string;
   startTime: number;
-  ay: string;
+  aylar: string[];
 }
 
 type Screen = "loading" | "question" | "already-done" | "correct" | "summary";
@@ -97,7 +96,7 @@ function SummaryScreen({
   );
 }
 
-export default function GameClient({ stop, nickname, startTime, ay }: Props) {
+export default function GameClient({ stop, nickname, startTime, aylar }: Props) {
   const [screen, setScreen] = useState<Screen>("loading");
   const [soru, setSoru] = useState<Soru | null>(null);
   const [hintsRevealed, setHintsRevealed] = useState(0);
@@ -105,8 +104,9 @@ export default function GameClient({ stop, nickname, startTime, ay }: Props) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [progress, setProgress] = useState<GameProgress>({});
 
-  const ayIndex = getAyIndex(ay);
-  const ayAdi = AYLAR[ayIndex]?.ad ?? "Eylül";
+  const ayAdi = aylar
+    .map((slug) => AYLAR.find((a) => a.ay === slug)?.ad ?? slug)
+    .join(", ");
 
   useEffect(() => {
     const saved = loadProgress();
@@ -123,10 +123,16 @@ export default function GameClient({ stop, nickname, startTime, ay }: Props) {
       return;
     }
 
-    const picked = rastgeleSoru(stop.dersKey, ayIndex);
+    const sorular = getSorular(stop.dersKey, aylar);
+    if (!sorular.length) {
+      // No questions for this subject/month combination — show already-done
+      setScreen("question");
+      return;
+    }
+    const picked = sorular[Math.floor(Math.random() * sorular.length)];
     setSoru(picked);
     setScreen("question");
-  }, [stop.id, stop.nextStopId, stop.dersKey, startTime, ayIndex]);
+  }, [stop.id, stop.nextStopId, stop.dersKey, startTime, aylar]);
 
   useEffect(() => {
     if (screen === "summary" || screen === "loading") return;

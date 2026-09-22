@@ -22,23 +22,32 @@ export const DERS_ADI: Record<Ders, string> = {
   matematik: "Matematik",
   fizik: "Fizik",
   kimya: "Kimya",
-  edebiyat: "Türk Edebiyatı",
+  "turk-dili": "Türk Dili ve Edebiyatı",
+  biyoloji: "Biyoloji",
+  tarih: "Tarih",
+  cografya: "Coğrafya",
+  felsefe: "Felsefe",
+  "din-kulturu": "Din Kültürü ve Ahlak Bilgisi",
+  "genel-kultur": "Genel Kültür",
 };
+
+export const CORE_DERSLER: Ders[] = ["matematik", "fizik", "kimya", "turk-dili"];
 
 export function getAyIndex(ay: string): number {
   const idx = AYLAR.findIndex((a) => a.ay === ay);
   return idx === -1 ? 0 : idx;
 }
 
-/** Seçilen aya kadar (dahil) birikimli tüm sorular */
-export function getSorular(ders: Ders, ayIndex: number): Soru[] {
+/** Seçilen ay sluglarından sorular (birleşim — birikimli değil) */
+export function getSorular(ders: Ders, aylar: string[]): Soru[] {
   return sinif10
-    .slice(0, ayIndex + 1)
-    .flatMap((plan) => plan.dersler[ders].sorular as Soru[]);
+    .filter((plan) => aylar.includes(plan.ay))
+    .flatMap((plan) => (plan.dersler[ders]?.sorular ?? []) as Soru[]);
 }
 
-/** Seçilen aya kadar birikimli havuzdan rastgele soru */
-export function rastgeleSoru(ders: Ders, ayIndex: number): Soru {
-  const sorular = getSorular(ders, ayIndex);
+/** Seçilen ay havuzundan rastgele soru; yoksa null */
+export function rastgeleSoru(ders: Ders, aylar: string[]): Soru | null {
+  const sorular = getSorular(ders, aylar);
+  if (!sorular.length) return null;
   return sorular[Math.floor(Math.random() * sorular.length)];
 }

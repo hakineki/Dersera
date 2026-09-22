@@ -1,6 +1,16 @@
 // Şablon: sinif9.ts, sinif11.ts, sinif12.ts aynı AylikPlan[] yapısını kullanır.
 
-export type Ders = "matematik" | "fizik" | "kimya" | "edebiyat";
+export type Ders =
+  | "matematik"
+  | "fizik"
+  | "kimya"
+  | "turk-dili"
+  | "biyoloji"
+  | "tarih"
+  | "cografya"
+  | "felsefe"
+  | "din-kulturu"
+  | "genel-kultur";
 
 export interface Soru {
   soru: string;
@@ -18,7 +28,7 @@ export interface Konu {
 export interface AylikPlan {
   ay: string;
   ayAdi: string;
-  dersler: Record<Ders, Konu>;
+  dersler: Partial<Record<Ders, Konu>>;
 }
 
 export const sinif10: AylikPlan[] = [
@@ -119,7 +129,7 @@ export const sinif10: AylikPlan[] = [
           },
         ],
       },
-      edebiyat: {
+      "turk-dili": {
         ad: "Edebiyat-Tarih İlişkisi ve Türk Alfabesi",
         sorular: [
           {
@@ -244,7 +254,7 @@ export const sinif10: AylikPlan[] = [
           },
         ],
       },
-      edebiyat: {
+      "turk-dili": {
         ad: "Halk Hikayesi ve Dede Korkut",
         sorular: [
           {
@@ -379,7 +389,7 @@ export const sinif10: AylikPlan[] = [
           },
         ],
       },
-      edebiyat: {
+      "turk-dili": {
         ad: "Mesnevi Türü ve Fiilimsiler",
         sorular: [
           {
@@ -524,7 +534,7 @@ export const sinif10: AylikPlan[] = [
           },
         ],
       },
-      edebiyat: {
+      "turk-dili": {
         ad: "Destan ve Efsane",
         sorular: [
           {
@@ -649,7 +659,7 @@ export const sinif10: AylikPlan[] = [
           },
         ],
       },
-      edebiyat: {
+      "turk-dili": {
         ad: "Roman ve Tanzimat Edebiyatı",
         sorular: [
           {
@@ -774,7 +784,7 @@ export const sinif10: AylikPlan[] = [
           },
         ],
       },
-      edebiyat: {
+      "turk-dili": {
         ad: "Servet-i Fünun Edebiyatı",
         sorular: [
           {
@@ -909,7 +919,7 @@ export const sinif10: AylikPlan[] = [
           },
         ],
       },
-      edebiyat: {
+      "turk-dili": {
         ad: "Tiyatro Türü",
         sorular: [
           {
@@ -1054,7 +1064,7 @@ export const sinif10: AylikPlan[] = [
           },
         ],
       },
-      edebiyat: {
+      "turk-dili": {
         ad: "Anı (Hatıra) Türü",
         sorular: [
           {
@@ -1194,7 +1204,7 @@ export const sinif10: AylikPlan[] = [
           },
         ],
       },
-      edebiyat: {
+      "turk-dili": {
         ad: "Cumhuriyet Dönemi Edebiyatı",
         sorular: [
           {
