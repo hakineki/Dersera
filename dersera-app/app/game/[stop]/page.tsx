@@ -1,6 +1,6 @@
 import { getStop, stops } from "@/data/stops";
 import { notFound } from "next/navigation";
-import GameClient from "./GameClient";
+import GameWrapper from "./GameWrapper";
 
 interface Props {
   params: Promise<{ stop: string }>;
@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props) {
   const stop = getStop(stopId);
   if (!stop) return { title: "Bulunamadı" };
   return {
-    title: `Durak ${stop.order}: ${stop.name} — Dersera Macera`,
+    title: `Durak ${stop.order}: ${stop.name} — Okulun Şifresi`,
     description: `${stop.subject} sorusunu çöz ve bir sonraki durağa geç!`,
   };
 }
@@ -24,5 +24,5 @@ export default async function GamePage({ params }: Props) {
   const { stop: stopId } = await params;
   const stop = getStop(stopId);
   if (!stop) notFound();
-  return <GameClient stop={stop} />;
+  return <GameWrapper stop={stop} />;
 }
