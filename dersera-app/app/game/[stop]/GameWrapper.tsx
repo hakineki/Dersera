@@ -13,11 +13,12 @@ import GameClient from "./GameClient";
 
 interface Props {
   stop: Stop;
+  ay: string;
 }
 
 type View = "loading" | "nickname" | "game";
 
-export default function GameWrapper({ stop }: Props) {
+export default function GameWrapper({ stop, ay }: Props) {
   const [view, setView] = useState<View>("loading");
   const [nickname, setNickname] = useState("");
   const [startTime, setStartTime] = useState(0);
@@ -55,5 +56,7 @@ export default function GameWrapper({ stop }: Props) {
     return <NicknameEntry onConfirm={handleNicknameConfirm} />;
   }
 
-  return <GameClient stop={stop} nickname={nickname} startTime={startTime} />;
+  return (
+    <GameClient stop={stop} nickname={nickname} startTime={startTime} ay={ay} />
+  );
 }
