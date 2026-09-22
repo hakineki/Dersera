@@ -8,7 +8,10 @@ import { useState, useEffect } from "react";
 import {
   loadCustomStops,
   addCustomStop,
+  loadLeaderboard,
+  formatElapsed,
   type CustomStop,
+  type LeaderboardEntry,
 } from "@/lib/gameState";
 
 const ALL_DERSLER = Object.keys(DERS_ADI) as Ders[];
@@ -24,6 +27,7 @@ export default function AdminPage() {
   const [baseUrl, setBaseUrl] = useState("");
   const [selectedAylar, setSelectedAylar] = useState<string[]>(["eylul"]);
   const [customStops, setCustomStops] = useState<CustomStop[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [newStop, setNewStop] = useState<NewStopForm>({
     name: "",
@@ -35,6 +39,7 @@ export default function AdminPage() {
   useEffect(() => {
     setBaseUrl(window.location.origin);
     setCustomStops(loadCustomStops());
+    setLeaderboard(loadLeaderboard());
   }, []);
 
   function toggleAy(slug: string) {
@@ -227,6 +232,62 @@ export default function AdminPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* Sınıf Sıralaması */}
+      <div className="max-w-4xl mx-auto px-6 pb-10 print:hidden">
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-indigo-50 border-b border-gray-200">
+            <h2 className="font-bold text-gray-900 text-sm">🏆 Sınıf Sıralaması</h2>
+            <button
+              onClick={() => setLeaderboard(loadLeaderboard())}
+              className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+            >
+              Yenile
+            </button>
+          </div>
+          {leaderboard.length === 0 ? (
+            <div className="px-4 py-6 text-center text-sm text-gray-400">
+              Henüz tamamlayan öğrenci yok
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-left">
+                  <th className="px-4 py-2 text-xs font-semibold text-gray-500 w-8">#</th>
+                  <th className="px-4 py-2 text-xs font-semibold text-gray-500">Takma Ad</th>
+                  <th className="px-4 py-2 text-xs font-semibold text-gray-500 text-right">Net</th>
+                  <th className="px-4 py-2 text-xs font-semibold text-gray-500 text-right">Ceza</th>
+                  <th className="px-4 py-2 text-xs font-semibold text-gray-500 text-right">Toplam</th>
+                  <th className="px-4 py-2 text-xs font-semibold text-gray-500 text-right">İpucu</th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.map((e, i) => (
+                  <tr
+                    key={e.nickname + e.completedAt}
+                    className={`border-b border-gray-50 ${i === 0 ? "bg-yellow-50" : ""}`}
+                  >
+                    <td className="px-4 py-2 text-gray-400 font-mono text-xs">
+                      {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                    </td>
+                    <td className="px-4 py-2 font-semibold text-gray-900">{e.nickname}</td>
+                    <td className="px-4 py-2 text-right font-mono text-gray-700">
+                      {formatElapsed(e.netSeconds)}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono text-red-500">
+                      {e.penaltySeconds > 0 ? `+${formatElapsed(e.penaltySeconds)}` : "—"}
+                    </td>
+                    <td className="px-4 py-2 text-right font-mono font-bold text-indigo-700">
+                      {formatElapsed(e.netSeconds + e.penaltySeconds)}
+                    </td>
+                    <td className="px-4 py-2 text-right text-gray-500">{e.hintsUsed}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
 
       {/* Durak Ekle Modalı */}
