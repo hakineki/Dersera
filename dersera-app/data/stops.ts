@@ -7,7 +7,8 @@ export interface Stop {
   question: string;
   options: string[];
   correctIndex: number;
-  hint: string;
+  hint1: string;
+  hint2: string;
   nextStopId: string | null;
   nextClue: string;
 }
@@ -22,7 +23,8 @@ export const stops: Stop[] = [
     question: "x² − 5x + 6 = 0 denkleminin kökleri hangi seçenekte doğru verilmiştir?",
     options: ["x = 2 ve x = 3", "x = −2 ve x = −3", "x = 1 ve x = 6", "x = −1 ve x = −6"],
     correctIndex: 0,
-    hint: "💡 İpucu: Denklemi çarpanlarına ayır. Hangi iki sayının çarpımı 6, toplamı 5 eder?",
+    hint1: "💡 İpucu 1: Denklemi çarpanlarına ayır. (x − a)(x − b) = 0 biçimini kullan.",
+    hint2: "💡 İpucu 2: Hangi iki sayının çarpımı 6, toplamı 5 eder? Cevap: 2 ve 3.",
     nextStopId: "koridor",
     nextClue:
       "🎉 Muhteşem! Matematik sihirini kullandın! Sıradaki durak: Okulun içinden uzanan, sınıfları birbirine bağlayan uzun yolda bir QR kod sizi bekliyor. Koridora gidin! 🚶",
@@ -37,7 +39,8 @@ export const stops: Stop[] = [
       "Hücre bölünmesi (mitoz) öncesinde DNA'nın kopyalanması hangi evrede gerçekleşir?",
     options: ["İnterfaz", "Profaz", "Metafaz", "Anafaz"],
     correctIndex: 0,
-    hint: "💡 İpucu: Bölünme başlamadan önce hücrenin hazırlık yaptığı evreyi düşün. Mitoz öncesi geçen uzun süre...",
+    hint1: "💡 İpucu 1: Mitoz'un 4 evresi vardır: Profaz, Metafaz, Anafaz, Telofaz. DNA eşlenmesi bunlardan önce gelir.",
+    hint2: "💡 İpucu 2: Bölünme başlamadan önce hücrenin hazırlandığı evre 'İnterfaz'dır. Bu evrede DNA kopyalanır.",
     nextStopId: "fizik-lab",
     nextClue:
       "🎉 Harika! Biyolojiyi çok iyi biliyorsun! Sıradaki durak: Deneylerin ve ölçümlerin yapıldığı, elektrik devrelerinin kurulduğu o özel odayı bul. Fizik Laboratuvarı seni bekliyor! ⚡",
@@ -57,7 +60,8 @@ export const stops: Stop[] = [
       "4 katına çıkar",
     ],
     correctIndex: 0,
-    hint: "💡 İpucu: V = I × R formülünü kullan. R sabit kalıyor, V ikiyle çarpılıyor. I ne olur?",
+    hint1: "💡 İpucu 1: Ohm Kanunu'nu formül olarak yaz: V = I × R. Değişken ve sabit olan ne?",
+    hint2: "💡 İpucu 2: R sabit, V = 2V₀ → 2V₀ = I × R → I = 2V₀/R = 2 × (V₀/R). Akım 2 katına çıkar.",
     nextStopId: "kutuphane",
     nextClue:
       "🎉 Elektrik gibi zekisin! Sıradaki durak: Binlerce kitabın sessiz nöbet tuttuğu, bilginin biriktiği o özel mekânı bul. Kütüphaneye git! 📚",
@@ -72,7 +76,8 @@ export const stops: Stop[] = [
       "Aşağıdaki şairlerden hangisi Servet-i Fünun (Edebiyat-ı Cedide) döneminin öncü ismidir?",
     options: ["Tevfik Fikret", "Namık Kemal", "Yahya Kemal Beyatlı", "Mehmet Akif Ersoy"],
     correctIndex: 0,
-    hint: "💡 İpucu: 1896'da Servet-i Fünun dergisinin başına geçen ve 'Sis' şiiriyle tanınan şairi düşün.",
+    hint1: "💡 İpucu 1: Servet-i Fünun 1895–1901 yılları arasında çıkan bir dergiydi. Şiirleri hem öz hem biçim bakımından yenileyen şairi düşün.",
+    hint2: "💡 İpucu 2: 'Sis' ve 'Haluk'un Defteri' şiirleriyle tanınan bu şair, Servet-i Fünun dergisinin başına 1896'da geçti.",
     nextStopId: "mudur-odasi",
     nextClue:
       "🎉 Edebiyat dahisi! Son durak çok önemli bir yerde: Okulun kalbinde, en önemli kararların alındığı kapının önünde son meydan okuma seni bekliyor. Müdür Odası'nın kapısına git! 🚪",
@@ -86,7 +91,8 @@ export const stops: Stop[] = [
     question: "Osmanlı Devleti hangi yılda kurulmuştur?",
     options: ["1299", "1389", "1453", "1517"],
     correctIndex: 0,
-    hint: "💡 İpucu: Osman Bey'in bağımsızlığını ilan ettiği yılı düşün. 13. yüzyılın sonları...",
+    hint1: "💡 İpucu 1: Osmanlı Devleti'ni kuran bey, Ertuğrul Gazi'nin oğluydu. Kuruluş 13. yüzyılın son çeyreğine denk gelir.",
+    hint2: "💡 İpucu 2: Osman Bey 1281'de beyi oldu; devlet resmen 1299'da kuruldu — şıklara bir daha bak.",
     nextStopId: null,
     nextClue:
       "🏆 TEBRİKLER! Tüm 5 durakta başarılı oldun! Bahçeden başlayıp Müdür Odası'na kadar gelen bu macera yolculuğunu tamamladın! Sen gerçek bir bilgi kâşifisin! Öğretmenine git ve ödülünü al! 🌟",
