@@ -54,6 +54,8 @@ export const ModelOutputSchema = z.object({
 export type ModelOutput = z.infer<typeof ModelOutputSchema>;
 
 const orNull = (s: string) => (s.trim() ? s.trim() : null);
+// Model kodun yanına açıklamayı da yazabiliyor ("FEL.10.1.1: Felsefenin ..."); yalnız kod tutulur.
+export const hedefKodu = (s: string) => s.trim().split(/[\s:]/)[0];
 
 // Düz çıktı → GameDefinition. meta modelden değil doğrulanmış girdiden gelir; mekân türü oyun alanından çıkar.
 export function toDefinition(out: ModelOutput, input: ResolvedInput): { ok: true; definition: GameDefinition } | { ok: false; error: string } {
@@ -69,7 +71,7 @@ export function toDefinition(out: ModelOutput, input: ResolvedInput): { ok: true
     },
     hikaye_giris: out.hikaye_giris,
     oyun_amaci: out.oyun_amaci,
-    ogrenme_hedefleri: out.ogrenme_hedefleri,
+    ogrenme_hedefleri: out.ogrenme_hedefleri.map(hedefKodu),
     envanter: out.envanter,
     duraklar: out.duraklar.map((d) => ({
       id: d.id,
@@ -83,7 +85,7 @@ export function toDefinition(out: ModelOutput, input: ResolvedInput): { ok: true
       },
       gorev: {
         tur: d.gorev_turu,
-        ogrenme_hedefi: d.ogrenme_hedefi,
+        ogrenme_hedefi: hedefKodu(d.ogrenme_hedefi),
         soru: d.soru,
         secenekler: d.secenekler,
         dogru_cevap: d.dogru_cevap,
@@ -100,7 +102,7 @@ export function toDefinition(out: ModelOutput, input: ResolvedInput): { ok: true
       secimler: d.secimler,
       varsayilan_sonraki_durak_id: orNull(d.varsayilan_sonraki_durak_id),
     })),
-    final: out.final,
+    final: { ...out.final, ogrenme_hedefleri: out.final.ogrenme_hedefleri.map(hedefKodu) },
   };
   const parsed = GameDefinitionSchema.safeParse(candidate);
   if (!parsed.success) {

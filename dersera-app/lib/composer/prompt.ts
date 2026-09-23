@@ -43,7 +43,7 @@ ${hedefler}`;
   return `Aşağıdaki seçimlerle bir Dersera oyunu tasarla.
 
 Sınıf: ${input.sinif}
-ogrenme_hedefi alanlarında YALNIZCA aşağıdaki öğrenme çıktısı kodlarını birebir kullan.
+ogrenme_hedefi ve ogrenme_hedefleri alanlarında YALNIZCA aşağıdaki öğrenme çıktısı kodlarını birebir kullan; kodun yanına açıklama yazma.
 
 ${dersBloklari}
 ${coklu}

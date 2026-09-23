@@ -1,3 +1,4 @@
+import { hedefKodu } from "@/lib/composer/modelOutput";
 import { composeGame, ComposeError, DEFAULT_MODEL, modelFromEnv } from "@/lib/composer/anthropic";
 import { buildRecipe } from "@/lib/composer/recipe";
 import { IZINLI_QR_IDLERI } from "@/lib/composer/service";
@@ -178,5 +179,15 @@ describe("çok dersli oyun prompt'u", () => {
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(input)));
     await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
     expect((calls[0].body.messages as { content: string }[])[0].content).not.toMatch(/disiplinler arası/);
+  });
+});
+
+describe("hedef kodu", () => {
+  it.each([
+    ["FEL.10.1.1: Felsefenin anlamını sorgulayabilme", "FEL.10.1.1"],
+    ["FİZ.10.1.2 İvme", "FİZ.10.1.2"],
+    [" MAT.9.1.1 ", "MAT.9.1.1"],
+  ])("%s → %s", (girdi, kod) => {
+    expect(hedefKodu(girdi)).toBe(kod);
   });
 });
