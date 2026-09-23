@@ -1,5 +1,6 @@
 import { PROGRAM_DERS_ADI, getUnite } from "@/data/mufredat/programlar";
-import { composeGame, type ComposeClient } from "@/lib/composer/anthropic";
+import { ComposeError, composeGame, type ComposeClient } from "@/lib/composer/anthropic";
+import { toDefinition } from "@/lib/composer/modelOutput";
 import type { GameDefinition } from "@/lib/composer/definition";
 import type { ResolvedInput } from "@/lib/composer/input";
 import { IZINLI_QR_IDLERI, validationContext } from "@/lib/composer/context";
@@ -13,26 +14,12 @@ export interface ComposeResult {
   validation: ValidationResult;
 }
 
-// meta alanları modelden değil, doğrulanmış girdiden gelir.
-export function withTrustedMeta(def: GameDefinition, input: ResolvedInput): GameDefinition {
-  return {
-    ...def,
-    meta: {
-      baslik: def.meta.baslik,
-      sinif: input.sinif,
-      ders: PROGRAM_DERS_ADI[input.ders],
-      konu: input.unite.ad,
-      sure_dk: input.sure,
-      deneyim: input.deneyim,
-      alan: input.alan,
-    },
-  };
-}
-
 export async function composeAndValidate(input: ResolvedInput, client?: ComposeClient): Promise<ComposeResult> {
   const recipe = buildRecipe(input.sure, input.deneyim, input.alan);
   const raw = await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
-  const definition = withTrustedMeta(raw, input);
+  const converted = toDefinition(raw, input);
+  if (!converted.ok) throw new ComposeError("invalid-output", `Çıktı oyun şemasına uymadı: ${converted.error}`);
+  const definition = converted.definition;
   return { definition, validation: validateGame(definition, validationContext(input)) };
 }
 

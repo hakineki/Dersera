@@ -1,6 +1,7 @@
 import { getUniteler } from "@/data/mufredat/programlar";
 import type { Durak, GameDefinition, Gorev } from "@/lib/composer/definition";
 import { parseComposeInput, type ResolvedInput } from "@/lib/composer/input";
+import type { ModelOutput } from "@/lib/composer/modelOutput";
 
 export function resolvedInput(o: {
   sinif: 9 | 10 | 11 | 12;
@@ -80,7 +81,7 @@ export function makeDefinition(input: ResolvedInput, durakSayisi = 6): GameDefin
   };
 }
 
-export function fakeClient(output: GameDefinition | null, stop_reason = "end_turn") {
+export function fakeClient(output: ModelOutput | null, stop_reason = "end_turn") {
   const calls: { body: Record<string, unknown>; options: Record<string, unknown> }[] = [];
   return {
     calls,
@@ -92,5 +93,39 @@ export function fakeClient(output: GameDefinition | null, stop_reason = "end_tur
         }) as never,
       },
     },
+  };
+}
+
+// GameDefinition → modelin düz çıktısı (testlerde sahte model yanıtı olarak).
+export function toModelOutput(def: GameDefinition): ModelOutput {
+  return {
+    baslik: def.meta.baslik,
+    hikaye_giris: def.hikaye_giris,
+    oyun_amaci: def.oyun_amaci,
+    ogrenme_hedefleri: def.ogrenme_hedefleri,
+    envanter: def.envanter,
+    duraklar: def.duraklar.map((d) => ({
+      id: d.id,
+      isim: d.isim,
+      sahne_turu: d.sahne_turu,
+      hikaye_metni: d.hikaye_metni,
+      qr_durak_id: d.mekan.qr_durak_id ?? "",
+      sonraki_durak_tarifi: d.mekan.sonraki_durak_tarifi,
+      gorev_turu: d.gorev.tur,
+      ogrenme_hedefi: d.gorev.ogrenme_hedefi,
+      soru: d.gorev.soru,
+      secenekler: d.gorev.secenekler,
+      dogru_cevap: d.gorev.dogru_cevap,
+      ipucu_1: d.gorev.ipucu_1,
+      ipucu_2: d.gorev.ipucu_2,
+      destek_soru: d.gorev.destek_gorevi.soru,
+      destek_secenekler: d.gorev.destek_gorevi.secenekler,
+      destek_dogru_cevap: d.gorev.destek_gorevi.dogru_cevap,
+      destek_aciklama: d.gorev.destek_gorevi.aciklama,
+      odul_id: d.gorev.odul_id ?? "",
+      secimler: d.secimler,
+      varsayilan_sonraki_durak_id: d.varsayilan_sonraki_durak_id ?? "",
+    })),
+    final: def.final,
   };
 }

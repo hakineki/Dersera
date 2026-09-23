@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { GameDefinitionSchema, type GameDefinition } from "@/lib/composer/definition";
+import { ModelOutputSchema, type ModelOutput } from "@/lib/composer/modelOutput";
 import type { ResolvedInput } from "@/lib/composer/input";
 import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
 import type { Recipe } from "@/lib/composer/recipe";
@@ -44,7 +44,7 @@ export async function composeGame(
   izinliQrIdleri: string[],
   client: ComposeClient = clientFromEnv(),
   timeoutMs = COMPOSE_TIMEOUT_MS
-): Promise<GameDefinition> {
+): Promise<ModelOutput> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -54,7 +54,7 @@ export async function composeGame(
         max_tokens: MAX_TOKENS,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: buildUserPrompt(input, recipe, izinliQrIdleri) }],
-        output_config: { format: zodOutputFormat(GameDefinitionSchema) },
+        output_config: { format: zodOutputFormat(ModelOutputSchema) },
       },
       { signal: controller.signal, timeout: timeoutMs, maxRetries: 0 }
     );
