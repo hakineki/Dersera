@@ -184,3 +184,22 @@ describe("tarif uyarıları", () => {
     expect(r.uyarilar.map((u) => u.kod)).toContain("gorev-sayisi");
   });
 });
+
+describe("boyut sınırları", () => {
+  it("12'den fazla durağı reddeder", () => {
+    expect(codes(makeDefinition(sinifInput, 13))).toContain("durak-fazla");
+  });
+
+  it("çok uzun metni ve çok fazla seçeneği reddeder", () => {
+    const def = clone(makeDefinition(sinifInput));
+    def.duraklar[0].hikaye_metni = "a".repeat(601);
+    def.duraklar[1].gorev.secenekler = ["A", "B", "C", "D", "E", "F", "G"];
+    expect(codes(def)).toEqual(expect.arrayContaining(["metin-uzun", "secenek-fazla"]));
+  });
+
+  it("8'den fazla nesneyi reddeder", () => {
+    const def = clone(makeDefinition(sinifInput));
+    for (let i = 3; i <= 9; i++) def.envanter.push({ id: `n${i}`, tur: "parca", isim: "x", final_icin_gerekli: false });
+    expect(codes(def)).toContain("nesne-fazla");
+  });
+});

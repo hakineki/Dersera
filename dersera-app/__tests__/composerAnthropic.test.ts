@@ -78,6 +78,9 @@ describe("composeGame", () => {
     expect(user).toContain(input.unite.ad);
     expect(user).not.toMatch(/takma ad|e-?posta|telefon|nickname/i);
     expect(user).not.toContain("qr-1");
+    expect(user).toMatch(/Metinleri kısa tut/);
+    expect(calls[0].body.max_tokens).toBe(8000);
+    expect(calls[0].body).not.toHaveProperty("thinking");
   });
 
   it("okul macerasında yalnız QR kütüphanesindeki id'leri verir", async () => {

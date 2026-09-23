@@ -49,5 +49,6 @@ Oyun yapısı hedefleri:
 - Final: ${recipe.final}
 - Mekân: ${recipe.alan}${qr}
 
+Metinleri kısa tut (oyun 30 saniyede üretilmeli): hikaye_metni en fazla 2 cümle; soru tek cümle; ipuçları, destek açıklaması ve sonraki durak tarifi tek kısa cümle; seçenekler birkaç kelime.
 Görev türlerini konuya uygun biçimde çeşitlendir. Durak id'leri d1, d2, ...; nesne id'leri n1, n2, ... biçiminde olsun. İlk durak başlangıçtır.`;
 }

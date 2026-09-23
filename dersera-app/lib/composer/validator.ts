@@ -23,6 +23,8 @@ export interface ValidationResult {
 }
 
 const ID = /^[a-z0-9-]{1,40}$/;
+// Tarifin en büyük hedefi (10 durak) üstünde pay bırakılır; yayın deposunu şişirecek tanımlar reddedilir.
+export const LIMITLER = { durak: 12, nesne: 8, secenek: 6, metin: 600 } as const;
 const FINAL = "__final__";
 
 // Başlangıçtan finale giden bütün yolları kapsayan yönlü grafik. Kenarsız durak finale bağlanır.
@@ -48,6 +50,13 @@ function reachableFrom(start: string, edges: Map<string, string[]>, skip?: Set<s
   return seen;
 }
 
+function collectStrings(v: unknown, out: string[] = []): string[] {
+  if (typeof v === "string") out.push(v);
+  else if (Array.isArray(v)) v.forEach((x) => collectStrings(x, out));
+  else if (v && typeof v === "object") Object.values(v).forEach((x) => collectStrings(x, out));
+  return out;
+}
+
 export function validateGame(def: GameDefinition, ctx: ValidationContext): ValidationResult {
   const hatalar: ValidationIssue[] = [];
   const uyarilar: ValidationIssue[] = [];
@@ -64,6 +73,14 @@ export function validateGame(def: GameDefinition, ctx: ValidationContext): Valid
     hata("durak-yok", "Oyunda hiç durak yok.");
     return { gecerli: false, hatalar, uyarilar };
   }
+
+  // Boyut sınırları
+  if (def.duraklar.length > LIMITLER.durak) hata("durak-fazla", `En fazla ${LIMITLER.durak} durak olabilir.`);
+  if (def.envanter.length > LIMITLER.nesne) hata("nesne-fazla", `En fazla ${LIMITLER.nesne} nesne olabilir.`);
+  const uzun = collectStrings(def).find((s) => s.length > LIMITLER.metin);
+  if (uzun !== undefined) hata("metin-uzun", `Metinler en fazla ${LIMITLER.metin} karakter olabilir.`);
+  const cokSecenek = [...def.duraklar.flatMap((d) => [d.gorev.secenekler, d.gorev.destek_gorevi.secenekler, d.secimler]), def.final.secenekler].some((a) => a.length > LIMITLER.secenek);
+  if (cokSecenek) hata("secenek-fazla", `Bir görevde en fazla ${LIMITLER.secenek} seçenek olabilir.`);
 
   // Kimlikler
   if (durakSet.size !== durakIdleri.length) hata("durak-id-tekrar", "Durak kimlikleri benzersiz değil.");

@@ -114,6 +114,23 @@ describe("POST /api/compose", () => {
     expect((await route.POST(body(10, "fizik", 40, "dengeli", "sinif", "6.6.6.6").req)).status).toBe(200);
   });
 
+  it("production'da Redis yoksa oran sınırı belleğe düşmez; 503 döner ve Anthropic çağrılmaz", async () => {
+    const env = process.env as Record<string, string | undefined>;
+    const eski = env.NODE_ENV;
+    env.NODE_ENV = "production";
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      ({ route, anthropic } = await loadCompose());
+      spy = jest.spyOn(anthropic, "composeGame");
+      const res = await route.POST(body(10, "fizik", 40, "dengeli", "sinif", "8.8.8.8").req);
+      expect(res.status).toBe(503);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      env.NODE_ENV = eski;
+      warn.mockRestore();
+    }
+  });
+
   it("bozuk JSON'a 400 döner", async () => {
     const res = await route.POST(new Request("http://localhost/api/compose", { method: "POST", body: "{" }));
     expect(res.status).toBe(400);
@@ -165,6 +182,13 @@ describe("composer yayını (/api/games)", () => {
     def.duraklar[0].gorev.dogru_cevap = "Seçeneklerde olmayan";
     const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, konuId: konu.id } }));
     expect(res.status).toBe(422);
+  });
+
+  it("64 KB'tan büyük tanımı depoya yazmadan 413 ile reddeder", async () => {
+    const { konu, def } = input();
+    def.hikaye_giris = "x".repeat(70 * 1024);
+    const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, konuId: konu.id } }));
+    expect(res.status).toBe(413);
   });
 
   it("konu ile tanım uyuşmazsa ya da tanım şemaya uymazsa reddeder", async () => {

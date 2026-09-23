@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ComposeError } from "@/lib/composer/anthropic";
 import { parseComposeInput } from "@/lib/composer/input";
-import { checkComposeLimit, clientIp } from "@/lib/composer/rateLimit";
+import { checkComposeLimit, clientIp, LimiterUnavailableError } from "@/lib/composer/rateLimit";
 import { composeAndValidate } from "@/lib/composer/service";
 
 // Anthropic çağrısı 30 sn ile sınırlı; platform sınırı bunun üstünde kalmalı.
@@ -26,6 +26,9 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     console.error("[compose] oran sınırı denetlenemedi", err instanceof Error ? err.message : err);
+    if (err instanceof LimiterUnavailableError) {
+      return NextResponse.json({ error: "Oyun oluşturucu yapılandırılmamış. Yöneticinize bildirin." }, { status: 503 });
+    }
     return NextResponse.json({ error: GENEL_HATA }, { status: 503 });
   }
 

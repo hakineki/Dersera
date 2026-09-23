@@ -7,7 +7,8 @@ import type { Recipe } from "@/lib/composer/recipe";
 
 export const DEFAULT_MODEL = "claude-sonnet-4-6";
 export const COMPOSE_TIMEOUT_MS = 30_000;
-const MAX_TOKENS = 16_000;
+// Oyun 30 sn içinde üretilmeli; çıktı kısa tutulur ve maliyet üst sınırı konur.
+const MAX_TOKENS = 8_000;
 
 export type ComposeFailure = "config" | "timeout" | "upstream" | "invalid-output";
 

@@ -31,8 +31,13 @@ export type ComposerPublishResult =
   | { ok: true; request: PublishRequest }
   | { ok: false; status: number; error: string; validation?: ValidationResult };
 
+export const MAX_DEFINITION_BYTES = 64 * 1024;
+
 export function parseComposerPublish(body: unknown): ComposerPublishResult {
   const composer = (body as { composer?: { definition?: unknown; konuId?: unknown } } | null)?.composer;
+  if (JSON.stringify(composer?.definition ?? null).length > MAX_DEFINITION_BYTES) {
+    return { ok: false, status: 413, error: "Oyun tanımı çok büyük" };
+  }
   const parsed = GameDefinitionSchema.safeParse(composer?.definition);
   if (!parsed.success || typeof composer?.konuId !== "string") {
     return { ok: false, status: 422, error: "Geçersiz oyun tanımı" };

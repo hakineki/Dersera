@@ -39,10 +39,16 @@ export function createRedisLimiter(command: RedisCommand): Limiter {
   };
 }
 
+export class LimiterUnavailableError extends Error {}
+
 let limiter: Limiter | null = null;
+// Üretimde bellek içi sayaç her sunucu örneğinde ayrı tutulur ve sınırı delinir; bu yüzden Redis zorunludur.
 function getLimiter(): Limiter {
   if (!limiter) {
     const command = redisFromEnv();
+    if (!command && process.env.NODE_ENV === "production") {
+      throw new LimiterUnavailableError("Oran sınırı için Redis gerekli");
+    }
     limiter = command ? createRedisLimiter(command) : createMemoryLimiter();
   }
   return limiter;
