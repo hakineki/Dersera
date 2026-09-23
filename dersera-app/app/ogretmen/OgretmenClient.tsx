@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import DerseraLogo from "@/components/DerseraLogo";
+import { fetchResults } from "@/lib/resultsClient";
 import { stops } from "@/data/stops";
 import { AYLAR, DERS_ADI, CORE_DERSLER, getSorular, sinif10 } from "@/data/mufredat";
 import type { Ders } from "@/data/mufredat";
@@ -8,8 +10,8 @@ import { QRCodeSVG } from "qrcode.react";
 import {
   loadCustomStops,
   addCustomStop,
-  loadLeaderboard,
   formatElapsed,
+  buildResultCode,
   type CustomStop,
   type LeaderboardEntry,
 } from "@/lib/gameState";
@@ -63,7 +65,7 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <img src="/logo/dersera-logo.svg" alt="Dersera" className="h-10 w-auto opacity-90" />
+            <DerseraLogo />
           </div>
           <h1 className="text-xl font-bold text-white mt-2">Öğretmen Girişi</h1>
           <p className="text-purple-300 text-sm mt-1">Panele erişmek için giriş yapın</p>
@@ -436,10 +438,12 @@ function SorularTab({ selectedAylar }: { selectedAylar: string[] }) {
   );
 }
 
-// ── Yardımcı: sonuç kodu ─────────────────────────────────────────────────────
-function buildResultCode(nickname: string, totalSec: number): string {
-  const prefix = nickname.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "X").padEnd(3, "X");
-  return `${prefix}-${String(totalSec).padStart(4, "0")}`;
+const RESULTS_REFRESH_MS = 30_000;
+
+interface ResultsSync {
+  status: "loading" | "ok" | "error";
+  persistent: boolean;
+  lastUpdated: number | null;
 }
 
 // ── CSV indirme ───────────────────────────────────────────────────────────────
@@ -492,7 +496,15 @@ function downloadCSV(leaderboard: LeaderboardEntry[]) {
 }
 
 // ── Sınıf Sıralaması sekmesi ──────────────────────────────────────────────────
-function SiralamaTabs({ leaderboard, onRefresh }: { leaderboard: LeaderboardEntry[]; onRefresh: () => void }) {
+function SiralamaTabs({
+  leaderboard,
+  sync,
+  onRefresh,
+}: {
+  leaderboard: LeaderboardEntry[];
+  sync: ResultsSync;
+  onRefresh: () => void;
+}) {
   const [selectedNick, setSelectedNick] = useState<string | null>(null);
 
   const selectedEntry = leaderboard.find((e) => e.nickname === selectedNick);
@@ -623,6 +635,22 @@ function SiralamaTabs({ leaderboard, onRefresh }: { leaderboard: LeaderboardEntr
           </button>
         </div>
       </div>
+
+      <p className="text-xs text-gray-400 mb-3">
+        {sync.lastUpdated
+          ? `Son güncelleme ${new Date(sync.lastUpdated).toLocaleTimeString("tr-TR")} · 30 sn'de bir otomatik yenilenir`
+          : "Sonuçlar yükleniyor…"}
+      </p>
+      {sync.status === "error" && (
+        <div role="alert" className="bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg px-3 py-2 mb-3">
+          Sunucuya ulaşılamadı. Son bilinen liste gösteriliyor; öğrencilerin sonuç kodlarıyla doğrulayabilirsin.
+        </div>
+      )}
+      {sync.status === "ok" && !sync.persistent && (
+        <div role="alert" className="bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg px-3 py-2 mb-3">
+          Kalıcı depolama bağlı değil: sonuçlar sunucu yeniden başlarsa kaybolabilir.
+        </div>
+      )}
 
       {leaderboard.length === 0 ? (
         <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
@@ -856,13 +884,39 @@ export default function OgretmenClient() {
   const [selectedAylar, setSelectedAylar] = useState<string[]>(["eylul"]);
   const [customStops, setCustomStops] = useState<CustomStop[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [sync, setSync] = useState<ResultsSync>({ status: "loading", persistent: true, lastUpdated: null });
 
   useEffect(() => {
     setLoggedIn(loadTeacherSession());
     setCustomStops(loadCustomStops());
-    setLeaderboard(loadLeaderboard());
     setReady(true);
   }, []);
+
+  const latestRequest = useRef(0);
+
+  const refreshLeaderboard = useCallback(() => {
+    const requestId = ++latestRequest.current;
+    fetchResults().then((data) => {
+      if (requestId !== latestRequest.current) return;
+      if (data) {
+        setLeaderboard(data.results);
+        setSync({ status: "ok", persistent: data.persistent, lastUpdated: Date.now() });
+      } else {
+        setSync((s) => ({ ...s, status: "error" }));
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!loggedIn) return;
+    const first = setTimeout(refreshLeaderboard, 0);
+    const id = setInterval(refreshLeaderboard, RESULTS_REFRESH_MS);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+      latestRequest.current++;
+    };
+  }, [loggedIn, refreshLeaderboard]);
 
   function toggleAy(slug: string) {
     setSelectedAylar((prev) =>
@@ -872,10 +926,6 @@ export default function OgretmenClient() {
           : prev
         : [...prev, slug]
     );
-  }
-
-  function refreshLeaderboard() {
-    setLeaderboard(loadLeaderboard());
   }
 
   if (!ready) {
@@ -903,7 +953,7 @@ export default function OgretmenClient() {
       <div className="bg-indigo-900 text-white px-6 py-4 print:hidden">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo/dersera-logo.svg" alt="Dersera" className="h-8 w-auto opacity-90" />
+            <DerseraLogo />
             <div className="border-l border-indigo-700 pl-3">
               <p className="text-xs font-semibold text-indigo-200 leading-tight">Öğretmen Paneli</p>
             </div>
@@ -946,7 +996,7 @@ export default function OgretmenClient() {
         )}
         {activeTab === "sorular" && <SorularTab selectedAylar={selectedAylar} />}
         {activeTab === "siralama" && (
-          <SiralamaTabs leaderboard={leaderboard} onRefresh={refreshLeaderboard} />
+          <SiralamaTabs leaderboard={leaderboard} sync={sync} onRefresh={refreshLeaderboard} />
         )}
         {activeTab === "ayarlar" && (
           <AyarlarTab onLogout={() => setLoggedIn(false)} />

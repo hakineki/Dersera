@@ -12,7 +12,10 @@ import {
   loadPenaltySeconds,
   addPenalty,
   addLeaderboardEntry,
+  buildResultCode,
+  type LeaderboardEntry,
 } from "@/lib/gameState";
+import { submitResult } from "@/lib/resultsClient";
 import { getSorular, DERS_ADI, AYLAR } from "@/data/mufredat";
 import type { Soru } from "@/data/mufredat";
 
@@ -92,18 +95,24 @@ function KanitAnimasyon({ show, count }: { show: boolean; count: number }) {
 }
 
 // ── Özet (final) ekranı ───────────────────────────────────────────────────────
+type SendStatus = "sending" | "sent" | "failed";
+
 function SummaryScreen({
   nickname,
   netSeconds,
   penaltySeconds,
   progress,
   resultCode,
+  sendStatus,
+  onRetry,
 }: {
   nickname: string;
   netSeconds: number;
   penaltySeconds: number;
   progress: GameProgress;
   resultCode: string;
+  sendStatus: SendStatus;
+  onRetry: () => void;
 }) {
   const totalHints = Object.values(progress).reduce(
     (sum, p) => sum + p.hintsUsed,
@@ -181,7 +190,39 @@ function SummaryScreen({
           })}
         </div>
 
-        {/* Sonuç kodu */}
+        {/* Gönderim durumu */}
+        <div
+          role="status"
+          className={`rounded-xl p-4 mb-3 text-center border ${
+            sendStatus === "sent"
+              ? "bg-green-500/20 border-green-400/40"
+              : sendStatus === "failed"
+              ? "bg-red-500/20 border-red-400/40"
+              : "bg-white/10 border-white/20"
+          }`}
+        >
+          {sendStatus === "sending" && (
+            <p className="text-white/80 text-sm font-semibold">Sonucun iletiliyor…</p>
+          )}
+          {sendStatus === "sent" && (
+            <p className="text-green-200 text-sm font-semibold">✅ Sonucun iletildi</p>
+          )}
+          {sendStatus === "failed" && (
+            <>
+              <p className="text-red-200 text-sm font-semibold mb-2">
+                Sonucun iletilemedi. Aşağıdaki kodu öğretmenine göster.
+              </p>
+              <button
+                onClick={onRetry}
+                className="text-xs font-semibold text-white bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Tekrar dene
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Sonuç kodu (yedek) */}
         <div className="bg-indigo-600/40 border border-indigo-400/40 rounded-xl p-4 mb-4 text-center">
           <p className="text-indigo-300 text-xs font-semibold mb-1">
             Sonuç Kodun
@@ -190,7 +231,7 @@ function SummaryScreen({
             {resultCode}
           </p>
           <p className="text-indigo-300/70 text-xs mt-1">
-            Öğretmenine dön ve bu kodu göster!
+            Yedek kod: sonuç sisteme ulaşmazsa öğretmenin bununla doğrular.
           </p>
         </div>
       </div>
@@ -218,6 +259,31 @@ function computeElapsed(startTime: number, endTime?: number): number {
   return Math.floor(((endTime ?? Date.now()) - startTime) / 1000);
 }
 
+const MAX_NET_SECONDS = 24 * 60 * 60;
+
+function buildEntry(
+  nickname: string,
+  startTime: number,
+  endTime: number,
+  penaltySeconds: number,
+  progress: GameProgress
+): LeaderboardEntry {
+  return {
+    nickname,
+    // Sunucu 0–24 saat dışını reddeder; gece yarısını aşan ya da saati kaymış cihaz takılı kalmasın.
+    netSeconds: Math.min(Math.max(computeElapsed(startTime, endTime), 0), MAX_NET_SECONDS),
+    penaltySeconds,
+    hintsUsed: Object.values(progress).reduce((s, p) => s + p.hintsUsed, 0),
+    completedAt: endTime,
+    stopDetails: Object.fromEntries(
+      Object.entries(progress).map(([id, p]) => [
+        id,
+        { hintsUsed: p.hintsUsed, completedAt: p.completedAt },
+      ])
+    ),
+  };
+}
+
 export default function GameClient({ stop, nickname, startTime, aylar }: Props) {
   const [screen, setScreen] = useState<Screen>("loading");
   const [soru, setSoru] = useState<Soru | null>(null);
@@ -233,11 +299,9 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
   const [showKanitAnim, setShowKanitAnim] = useState(false);
   const [kanitCount, setKanitCount] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [summaryData, setSummaryData] = useState<{
-    netSeconds: number;
-    penaltySeconds: number;
-    resultCode: string;
-  } | null>(null);
+  const [summaryData, setSummaryData] = useState<LeaderboardEntry | null>(null);
+  const [sendStatus, setSendStatus] = useState<SendStatus>("sending");
+  const [sendAttempt, setSendAttempt] = useState(0);
 
   const ayAdi = aylar
     .map((slug) => AYLAR.find((a) => a.ay === slug)?.ad ?? slug)
@@ -254,13 +318,9 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
     if (saved[stop.id]) {
       const endTime = loadEndTime();
       if (stop.nextStopId === null && endTime) {
-        const net = computeElapsed(startTime, endTime);
-        setSummaryData({
-          netSeconds: net,
-          penaltySeconds: savedPenalty,
-          resultCode: buildResultCode(nickname, net + savedPenalty),
-        });
-        setElapsedSeconds(net);
+        const entry = buildEntry(nickname, startTime, endTime, savedPenalty, saved);
+        setSummaryData(entry);
+        setElapsedSeconds(entry.netSeconds);
         setScreen("summary");
       } else {
         setScreen("already-done");
@@ -308,10 +368,17 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
     return () => clearTimeout(t);
   }, [showKanitAnim]);
 
-  function buildResultCode(nick: string, totalSec: number): string {
-    const prefix = nick.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "X").padEnd(3, "X");
-    return `${prefix}-${String(totalSec).padStart(4, "0")}`;
-  }
+  // Sunucu aynı takma adın kaydını üzerine yazar; yeniden yüklemede tekrar göndermek güvenli.
+  useEffect(() => {
+    if (screen !== "summary" || !summaryData) return;
+    let cancelled = false;
+    submitResult(summaryData).then((ok) => {
+      if (!cancelled) setSendStatus(ok ? "sent" : "failed");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [screen, summaryData, sendAttempt]);
 
   function applyPenalty() {
     addPenalty(15);
@@ -329,24 +396,10 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
     if (stop.nextStopId === null) {
       const endTs = Date.now();
       saveEndTime(endTs);
-      const net = computeElapsed(startTime, endTs);
-      const totalPenalty = loadPenaltySeconds();
-      const code = buildResultCode(nickname, net + totalPenalty);
-      addLeaderboardEntry({
-        nickname,
-        netSeconds: net,
-        penaltySeconds: totalPenalty,
-        hintsUsed: Object.values(updated).reduce((s, p) => s + p.hintsUsed, 0),
-        completedAt: endTs,
-        stopDetails: Object.fromEntries(
-          Object.entries(updated).map(([id, p]) => [
-            id,
-            { hintsUsed: p.hintsUsed, completedAt: p.completedAt },
-          ])
-        ),
-      });
-      setSummaryData({ netSeconds: net, penaltySeconds: totalPenalty, resultCode: code });
-      setElapsedSeconds(net);
+      const entry = buildEntry(nickname, startTime, endTs, loadPenaltySeconds(), updated);
+      addLeaderboardEntry(entry);
+      setSummaryData(entry);
+      setElapsedSeconds(entry.netSeconds);
       setShowConfetti(true);
       setTimeout(() => setScreen("summary"), 2100);
     } else {
@@ -417,7 +470,12 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
         netSeconds={summaryData.netSeconds}
         penaltySeconds={summaryData.penaltySeconds}
         progress={progress}
-        resultCode={summaryData.resultCode}
+        resultCode={buildResultCode(nickname, summaryData.netSeconds + summaryData.penaltySeconds)}
+        sendStatus={sendStatus}
+        onRetry={() => {
+          setSendStatus("sending");
+          setSendAttempt((n) => n + 1);
+        }}
       />
     );
   }
@@ -516,7 +574,7 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
             <p className="text-green-100/70 text-sm leading-relaxed">
               {stop.nextStopId
                 ? stop.nextClue
-                : "Tüm durakları tamamladın! Öğretmenine git."}
+                : "Tüm durakları tamamladın!"}
             </p>
           </div>
         )}
