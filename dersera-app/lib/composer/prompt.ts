@@ -53,7 +53,9 @@ Alan kuralları:
 - sahne_turu: "gorev", "secim" ya da "birlesme". secim sahnesinde secimler 2-3 farklı hedef içerir ve varsayilan_sonraki_durak_id boştur; diğer sahnelerde secimler boş dizidir.
 - gorev_turu (duraklarda ve finalde): "coktan_secmeli", "eslestirme", "siralama", "surukle_birak", "gorsel_secim" ya da "sayisal".
 - secenekler ve dogru_cevap: coktan_secmeli/gorsel_secim → 2-5 seçenek, dogru_cevap bunlardan biri birebir. siralama/surukle_birak → 3-6 öğe karışık sırada, dogru_cevap doğru sıranın " | " ile birleşimi. eslestirme → 3-5 "sol => sağ" çifti, dogru_cevap tüm çiftlerin " | " ile birleşimi. sayisal → secenekler boş, dogru_cevap yalnız sayı.
-- destek_secenekler 2-4 seçenek; destek_dogru_cevap bunlardan biri birebir.
+- ipucu_1 ve ipucu_2 cevabı söylemeden yönlendirir; ikincisi daha güçlüdür.
+- Destek görevi aynı öğrenme hedefini daha küçük bir adımla çalıştıran çoktan seçmeli sorudur; destek_secenekler 2-4 seçenek, destek_dogru_cevap bunlardan biri birebir.
+- final.ogrenme_hedefleri oyunda çalışılmış en az 2 kod içerir; final.gerekli_nesneler yalnız envanter id'lerinden oluşur.
 - envanter tur: "kanit", "anahtar" ya da "parca". odul_id bir envanter id'si ya da boş metin.
 - Boş/yok değerleri için boş metin ("") kullan: odul_id, varsayilan_sonraki_durak_id (son duraklarda ve seçim sahnelerinde), qr_durak_id (tek sınıfta).
 
