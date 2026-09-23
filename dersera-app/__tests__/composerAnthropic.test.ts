@@ -46,10 +46,10 @@ describe("composeGame", () => {
     expect(calls[0].body.model).toBe("claude-opus-5");
   });
 
-  it("150 sn sınırını, yeniden denemesiz ve iptal sinyaliyle uygular", async () => {
+  it("240 sn sınırını, yeniden denemesiz ve iptal sinyaliyle uygular", async () => {
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(input)));
     await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
-    expect(calls[0].options).toMatchObject({ timeout: 150_000, maxRetries: 0 });
+    expect(calls[0].options).toMatchObject({ timeout: 240_000, maxRetries: 0 });
     expect(calls[0].options.signal).toBeInstanceOf(AbortSignal);
   });
 
@@ -81,7 +81,7 @@ describe("composeGame", () => {
     expect(user).not.toMatch(/takma ad|e-?posta|telefon|nickname/i);
     expect(user).not.toContain("qr-1");
     expect(user).toMatch(/Metinleri kısa tut/);
-    expect(calls[0].body.max_tokens).toBe(8000);
+    expect(calls[0].body.max_tokens).toBe(16000);
     expect(calls[0].body).not.toHaveProperty("thinking");
   });
 
