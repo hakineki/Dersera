@@ -1,20 +1,18 @@
 import OpenAI from "openai";
-import { ContentFilterFinishReasonError, LengthFinishReasonError } from "openai/core/error";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { $ZodError } from "zod/v4/core";
 import { COMPOSE_TIMEOUT_MS, ComposeError } from "@/lib/composer/anthropic";
-import { ModelOutputSchema, type ModelOutput } from "@/lib/composer/modelOutput";
+import { ModelOutputSchema, parseModelText, type ModelOutput } from "@/lib/composer/modelOutput";
 import type { ResolvedInput } from "@/lib/composer/input";
 import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
 import type { Recipe } from "@/lib/composer/recipe";
 
 // OpenAI uyumlu sağlayıcı. Aynı düz ModelOutputSchema kullanılır; GameDefinition'a dönüşüm değişmez.
 export const DEFAULT_OPENAI_MODEL = "gpt-6-luna";
-const MAX_TOKENS = 8_000;
+const MAX_TOKENS = 16_000; // 8000'de gpt-6-luna çıktısı kesiliyordu (4 duraklı oyun 7753 token)
 
 // Sadece test için enjekte edilebilir; üretimde env'den kurulur.
 export interface OpenAIComposeClient {
-  chat: { completions: Pick<OpenAI["chat"]["completions"], "parse"> };
+  chat: { completions: Pick<OpenAI["chat"]["completions"], "create"> };
 }
 
 export function openAIModelFromEnv(): string {
@@ -38,7 +36,8 @@ export async function composeGameOpenAI(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const completion = await client.chat.completions.parse(
+    // parse() yerine create(): SDK kesik JSON'da bitiş nedenini loglamadan hata fırlatıyordu.
+    const completion = await client.chat.completions.create(
       {
         model: openAIModelFromEnv(),
         max_completion_tokens: MAX_TOKENS,
@@ -53,14 +52,13 @@ export async function composeGameOpenAI(
     const choice = completion.choices[0];
     console.info(`[compose] model=${completion.model} stop=${choice?.finish_reason} output_tokens=${completion.usage?.completion_tokens}`);
     if (choice?.message.refusal) throw new ComposeError("invalid-output", "Model isteği reddetti");
-    if (!choice?.message.parsed) throw new ComposeError("invalid-output", "Çıktı şemaya uymadı");
-    return choice.message.parsed;
+    if (choice?.finish_reason === "length") throw new ComposeError("invalid-output", `Çıktı max_tokens (${MAX_TOKENS}) sınırında kesildi`);
+    if (choice?.finish_reason === "content_filter") throw new ComposeError("invalid-output", "Çıktı içerik filtresine takıldı");
+    const parsed = parseModelText(choice?.message.content ?? "");
+    if (!parsed.ok) throw new ComposeError("invalid-output", `${parsed.error} (stop=${choice?.finish_reason})`);
+    return parsed.output;
   } catch (err) {
     if (err instanceof ComposeError) throw err;
-    if (err instanceof LengthFinishReasonError) {
-      throw new ComposeError("invalid-output", `Çıktı max_tokens (${MAX_TOKENS}) sınırında kesildi`);
-    }
-    if (err instanceof ContentFilterFinishReasonError) throw new ComposeError("invalid-output", "Çıktı içerik filtresine takıldı");
     if (controller.signal.aborted || err instanceof OpenAI.APIConnectionTimeoutError || err instanceof OpenAI.APIUserAbortError) {
       throw new ComposeError("timeout", `Oyun oluşturma ${timeoutMs / 1000} saniyede tamamlanmadı`);
     }
@@ -70,11 +68,6 @@ export async function composeGameOpenAI(
     if (err instanceof OpenAI.APIError) {
       throw new ComposeError("upstream", `OpenAI API hatası ${err.status ?? ""}: ${err.message}`);
     }
-    if (err instanceof SyntaxError) {
-      throw new ComposeError("invalid-output", `Çıktı JSON olarak çözümlenemedi: ${err.message}`);
-    }
-    // SDK çıktıyı şemayla doğrular; uymayan JSON bir Zod hatası fırlatır.
-    if (err instanceof $ZodError) throw new ComposeError("invalid-output", "Çıktı şemaya uymadı");
     throw new ComposeError("upstream", err instanceof Error ? err.message : String(err));
   } finally {
     clearTimeout(timer);

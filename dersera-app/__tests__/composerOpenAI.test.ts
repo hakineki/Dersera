@@ -1,5 +1,4 @@
 import OpenAI from "openai";
-import { ContentFilterFinishReasonError, LengthFinishReasonError } from "openai/core/error";
 import { composeGameOpenAI, DEFAULT_OPENAI_MODEL, openAIModelFromEnv, type OpenAIComposeClient } from "@/lib/composer/openai";
 import { ModelOutputSchema, type ModelOutput } from "@/lib/composer/modelOutput";
 import { buildRecipe } from "@/lib/composer/recipe";
@@ -10,18 +9,18 @@ import { makeDefinition, resolvedInput, toModelOutput } from "./helpers/composer
 const input = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const recipe = buildRecipe(40, "dengeli", "sinif");
 
-function fakeOpenAI(parsed: ModelOutput | null, extra: { refusal?: string; throws?: unknown } = {}) {
+function fakeOpenAI(parsed: ModelOutput | null, extra: { refusal?: string; throws?: unknown; content?: string; finish?: string } = {}) {
   const calls: { body: Record<string, unknown>; options: Record<string, unknown> }[] = [];
   const client = {
     chat: {
       completions: {
-        parse: async (body: Record<string, unknown>, options: Record<string, unknown>) => {
+        create: async (body: Record<string, unknown>, options: Record<string, unknown>) => {
           calls.push({ body, options });
           if (extra.throws) throw extra.throws;
           return {
             model: "test",
             usage: { completion_tokens: 10 },
-            choices: [{ finish_reason: "stop", message: { parsed, refusal: extra.refusal ?? null } }],
+            choices: [{ finish_reason: extra.finish ?? "stop", message: { content: extra.content ?? (parsed ? JSON.stringify(parsed) : ""), refusal: extra.refusal ?? null } }],
           };
         },
       },
@@ -43,12 +42,12 @@ describe("OpenAI sağlayıcısı", () => {
     delete process.env.AI_MODEL;
   });
 
-  it("aynı şemayı strict JSON schema olarak, 8000 token sınırı ve sistem prompt'uyla gönderir", async () => {
+  it("aynı şemayı strict JSON schema olarak, 16000 token sınırı ve sistem prompt'uyla gönderir", async () => {
     const out = toModelOutput(makeDefinition(input));
     const { client, calls } = fakeOpenAI(out);
     expect(await composeGameOpenAI(input, recipe, IZINLI_QR_IDLERI, client)).toEqual(out);
     const body = calls[0].body as { max_completion_tokens: number; messages: { role: string; content: string }[]; response_format: { type: string; json_schema: { strict: boolean; schema: { required: string[] } } } };
-    expect(body.max_completion_tokens).toBe(8000);
+    expect(body.max_completion_tokens).toBe(16000);
     expect(body.messages[0]).toEqual({ role: "system", content: SYSTEM_PROMPT });
     expect(body.response_format.type).toBe("json_schema");
     expect(body.response_format.json_schema.strict).toBe(true);
@@ -57,18 +56,26 @@ describe("OpenAI sağlayıcısı", () => {
   });
 
   it.each([
-    ["kesik çıktı", new LengthFinishReasonError(), "invalid-output"],
-    ["bozuk JSON", new SyntaxError("Unexpected end of JSON input"), "invalid-output"],
     ["401", new OpenAI.AuthenticationError(401, undefined, "bad key", new Headers()), "config"],
     ["sunucu hatası", new OpenAI.InternalServerError(500, undefined, "down", new Headers()), "upstream"],
-    ["içerik filtresi", new ContentFilterFinishReasonError(), "invalid-output"],
-    ["şemaya uymayan JSON", (() => { try { ModelOutputSchema.parse({}); } catch (e) { return e; } })(), "invalid-output"],
     ["zaman aşımı", new OpenAI.APIConnectionTimeoutError(), "timeout"],
     ["izin yok", new OpenAI.PermissionDeniedError(403, undefined, "no", new Headers()), "config"],
     ["beklenmeyen", new TypeError("x"), "upstream"],
   ])("%s → %s", async (_l, throws, reason) => {
     const { client } = fakeOpenAI(null, { throws });
     await expect(composeGameOpenAI(input, recipe, IZINLI_QR_IDLERI, client)).rejects.toMatchObject({ reason });
+  });
+
+  it.each([
+    ["kesik (length)", { finish: "length", content: '{"baslik":"Yar' }, "max_tokens"],
+    ["içerik filtresi", { finish: "content_filter" }, "içerik filtresi"],
+    ["bitiş 'stop' ama kesik JSON", { content: '{"baslik":"Yar' }, "JSON olarak çözümlenemedi"],
+    ["şemaya uymayan JSON", { content: "{}" }, "şemaya uymadı"],
+  ])("%s → invalid-output", async (_l, extra, mesaj) => {
+    await expect(composeGameOpenAI(input, recipe, IZINLI_QR_IDLERI, fakeOpenAI(null, extra).client)).rejects.toMatchObject({
+      reason: "invalid-output",
+      message: expect.stringContaining(mesaj),
+    });
   });
 
   it("ret ve boş çıktı invalid-output olur", async () => {
@@ -86,10 +93,10 @@ describe("sağlayıcı seçimi", () => {
   it("OPENAI_API_KEY varken composeAndValidate OpenAI'ye gider ve geçerli oyun üretir", async () => {
     process.env.OPENAI_API_KEY = "sk-test";
     const out = toModelOutput(makeDefinition(input, 6));
-    const spy = jest.spyOn(OpenAI.Chat.Completions.prototype, "parse").mockResolvedValue({
+    const spy = jest.spyOn(OpenAI.Chat.Completions.prototype, "create").mockResolvedValue({
       model: "test",
       usage: { completion_tokens: 1 },
-      choices: [{ finish_reason: "stop", message: { parsed: out, refusal: null } }],
+      choices: [{ finish_reason: "stop", message: { content: JSON.stringify(out), refusal: null } }],
     } as never);
     const { validation, definition } = await composeAndValidate(input);
     expect(spy).toHaveBeenCalledTimes(1);

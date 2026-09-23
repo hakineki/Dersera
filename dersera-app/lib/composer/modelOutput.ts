@@ -53,6 +53,18 @@ export const ModelOutputSchema = z.object({
 
 export type ModelOutput = z.infer<typeof ModelOutputSchema>;
 
+// Modelin ham JSON metni → ModelOutput. Kesik ya da şemaya uymayan metin hata döner.
+export function parseModelText(text: string): { ok: true; output: ModelOutput } | { ok: false; error: string } {
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch (err) {
+    return { ok: false, error: `Çıktı JSON olarak çözümlenemedi (${text.length} karakter): ${err instanceof Error ? err.message : err}` };
+  }
+  const parsed = ModelOutputSchema.safeParse(json);
+  return parsed.success ? { ok: true, output: parsed.data } : { ok: false, error: "Çıktı şemaya uymadı" };
+}
+
 const orNull = (s: string) => (s.trim() ? s.trim() : null);
 // Model kodun yanına açıklamayı da yazabiliyor ("FEL.10.1.1: Felsefenin ..."); yalnız kod tutulur.
 const KOD = /([A-ZÇĞİÖŞÜ]{2,5}\.?)?\d+(\.\d+)+/u;

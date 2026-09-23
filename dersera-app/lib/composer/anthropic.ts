@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { ModelOutputSchema, type ModelOutput } from "@/lib/composer/modelOutput";
+import { ModelOutputSchema, parseModelText, type ModelOutput } from "@/lib/composer/modelOutput";
 import type { ResolvedInput } from "@/lib/composer/input";
 import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
 import type { Recipe } from "@/lib/composer/recipe";
@@ -23,7 +23,7 @@ export class ComposeError extends Error {
 
 // Sadece test için enjekte edilebilir; üretimde env'den kurulur.
 export interface ComposeClient {
-  messages: Pick<Anthropic["messages"], "parse">;
+  messages: Pick<Anthropic["messages"], "create">;
 }
 
 export function modelFromEnv(): string {
@@ -48,7 +48,8 @@ export async function composeGame(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await client.messages.parse(
+    // parse() yerine create(): SDK kesik JSON'da bitiş nedenini loglamadan hata fırlatıyordu.
+    const response = await client.messages.create(
       {
         model: modelFromEnv(),
         max_tokens: MAX_TOKENS,
@@ -61,8 +62,10 @@ export async function composeGame(
     console.info(`[compose] model=${response.model} stop=${response.stop_reason} output_tokens=${response.usage?.output_tokens}`);
     if (response.stop_reason === "refusal") throw new ComposeError("invalid-output", "Model isteği reddetti");
     if (response.stop_reason === "max_tokens") throw new ComposeError("invalid-output", `Çıktı max_tokens (${MAX_TOKENS}) sınırında kesildi`);
-    if (!response.parsed_output) throw new ComposeError("invalid-output", "Çıktı şemaya uymadı");
-    return response.parsed_output;
+    const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
+    const parsed = parseModelText(text);
+    if (!parsed.ok) throw new ComposeError("invalid-output", `${parsed.error} (stop=${response.stop_reason})`);
+    return parsed.output;
   } catch (err) {
     if (err instanceof ComposeError) throw err;
     if (controller.signal.aborted || err instanceof Anthropic.APIConnectionTimeoutError || err instanceof Anthropic.APIUserAbortError) {
@@ -73,9 +76,6 @@ export async function composeGame(
     }
     if (err instanceof Anthropic.APIError) {
       throw new ComposeError("upstream", `Anthropic API hatası ${err.status ?? ""}: ${err.message}`);
-    }
-    if (err instanceof SyntaxError) {
-      throw new ComposeError("invalid-output", `Çıktı JSON olarak çözümlenemedi: ${err.message}`);
     }
     throw new ComposeError("upstream", err instanceof Error ? err.message : String(err));
   } finally {
