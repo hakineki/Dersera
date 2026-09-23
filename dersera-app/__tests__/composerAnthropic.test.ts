@@ -206,8 +206,10 @@ describe("hedef kodu", () => {
 });
 
 describe("çözümlenemeyen çıktı", () => {
-  it("SDK'nın JSON çözümleme hatası invalid-output olur ve rotada 'Tekrar deneyin' döner", async () => {
+  it("SDK'nın JSON çözümleme hatası invalid-output olur; diğer hatalar upstream kalır", async () => {
     const client = { messages: { parse: async () => { throw new SyntaxError("Unexpected end of JSON input"); } } } as never;
     await expect(composeGame(input, buildRecipe(40, "dengeli", "sinif"), IZINLI_QR_IDLERI, client)).rejects.toMatchObject({ reason: "invalid-output" });
+    const diger = { messages: { parse: async () => { throw new TypeError("x is undefined"); } } } as never;
+    await expect(composeGame(input, buildRecipe(40, "dengeli", "sinif"), IZINLI_QR_IDLERI, diger)).rejects.toMatchObject({ reason: "upstream" });
   });
 });

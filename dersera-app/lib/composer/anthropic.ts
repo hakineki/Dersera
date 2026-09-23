@@ -59,7 +59,8 @@ export async function composeGame(
       { signal: controller.signal, timeout: timeoutMs, maxRetries: 0 }
     );
     if (response.stop_reason === "refusal") throw new ComposeError("invalid-output", "Model isteği reddetti");
-    if (response.stop_reason === "max_tokens") throw new ComposeError("invalid-output", "Çıktı max_tokens sınırında kesildi");
+    console.info(`[compose] model=${response.model} stop=${response.stop_reason} output_tokens=${response.usage?.output_tokens}`);
+    if (response.stop_reason === "max_tokens") throw new ComposeError("invalid-output", `Çıktı max_tokens (${MAX_TOKENS}) sınırında kesildi`);
     if (!response.parsed_output) throw new ComposeError("invalid-output", "Çıktı şemaya uymadı");
     return response.parsed_output;
   } catch (err) {
@@ -73,8 +74,10 @@ export async function composeGame(
     if (err instanceof Anthropic.APIError) {
       throw new ComposeError("upstream", `Anthropic API hatası ${err.status ?? ""}: ${err.message}`);
     }
-    // HTTP dışı kalan hatalar yanıtın çözümlenmesinden gelir (kesik ya da bozuk JSON).
-    throw new ComposeError("invalid-output", `Çıktı JSON olarak çözümlenemedi: ${err instanceof Error ? err.message : String(err)}`);
+    if (err instanceof SyntaxError) {
+      throw new ComposeError("invalid-output", `Çıktı JSON olarak çözümlenemedi: ${err.message}`);
+    }
+    throw new ComposeError("upstream", err instanceof Error ? err.message : String(err));
   } finally {
     clearTimeout(timer);
   }

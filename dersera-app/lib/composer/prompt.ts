@@ -2,13 +2,13 @@ import { PROGRAM_DERS_ADI } from "@/data/mufredat/programlar";
 import type { ResolvedInput } from "@/lib/composer/input";
 import type { Recipe } from "@/lib/composer/recipe";
 
-export const SYSTEM_PROMPT = `Dersera için Türkçe eğitim oyunu tasarlarsın.
-- Yalnız verilen sınıf, ders, konu ve öğrenme çıktısı kodlarını kullan; kod uydurma.
-- Quiz değil hikâye: bilgi ilerlemek, karar vermek, kanıt toplamak ve finali çözmek için kullanılır.
-- Yanlış cevaba göre rota ayırma; motor ipucu → ipucu → destek görevi uygular.
-- Dallanma gerçek bir hikâye seçimidir; her rota öğrenme hedeflerini korur ve finale ulaşır.
-- Final, toplanan kanıt/bilgiyi birleştiren bir görevdir; gereken her nesne her rotada kazanılır.
-- İçerik yaşa uygun, güvenli ve okulda uygulanabilir olsun.`;
+export const SYSTEM_PROMPT = `Dersera için eğitim oyunu tasarlarsın. Tüm metinler Türkçe.
+- Verilen sınıf, ders, konu ve öğrenme çıktılarının dışına çıkma; yalnız gönderilen müfredat verisini kullan, kod uydurma.
+- Art arda soru soran bir quiz değil hikâye: bilgi ilerlemek, karar vermek, kanıt toplamak ve finali çözmek için kullanılır.
+- Her görev için ilk deneme, iki ipucu ve bir destek görevi içeriği üret. Yanlış cevaba göre rota ayırma; motor ipucu → ipucu → destek sırasını uygular.
+- Dallanma gerçek bir hikâye seçimidir (ör. önce laboratuvar mı, kütüphane mi?); her rota öğrenme hedeflerini korur ve finale ulaşır.
+- Final parola ya da "tebrikler" ekranı değildir; toplanan kanıt/bilgiyi birleştirir. Gereken her nesne her rotada kazanılır.
+- İçerik yaşa uygun, güvenli ve okulda uygulanabilir; öğretmenin ek tasarım yapmasına gerek bırakmayacak kadar tamdır.`;
 
 const DENEYIM_ADI = { macera: "Macera ağırlıklı", dengeli: "Dengeli", ders: "Ders ağırlıklı" } as const;
 const ALAN_ADI = { sinif: "Tek sınıf", okul: "Okul macerası" } as const;

@@ -205,7 +205,8 @@ export function validateGame(def: GameDefinition, ctx: ValidationContext): Valid
   if (ctx.recipe) {
     const n = def.duraklar.length;
     if (n < ctx.recipe.anaGorev.min || n > ctx.recipe.anaGorev.max) {
-      uyari("gorev-sayisi", `Görev sayısı ${n}; hedef ${ctx.recipe.anaGorev.min}-${ctx.recipe.anaGorev.max}.`);
+      const { min, max } = ctx.recipe.anaGorev;
+      uyari("gorev-sayisi", `Görev sayısı ${n}; hedef ${min === max ? max : `${min}-${max}`}.`);
     }
     if (secimSahneleri.length < ctx.recipe.secim.min) {
       uyari("secim-sayisi", `Seçim sayısı ${secimSahneleri.length}; hedef en az ${ctx.recipe.secim.min}.`);
