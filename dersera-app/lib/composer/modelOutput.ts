@@ -55,7 +55,8 @@ export type ModelOutput = z.infer<typeof ModelOutputSchema>;
 
 const orNull = (s: string) => (s.trim() ? s.trim() : null);
 // Model kodun yanına açıklamayı da yazabiliyor ("FEL.10.1.1: Felsefenin ..."); yalnız kod tutulur.
-export const hedefKodu = (s: string) => s.trim().split(/[\s:]/)[0];
+const KOD = /([A-ZÇĞİÖŞÜ]{2,5}\.?)?\d+(\.\d+)+/u;
+export const hedefKodu = (s: string) => s.match(KOD)?.[0] ?? s.trim();
 
 // Düz çıktı → GameDefinition. meta modelden değil doğrulanmış girdiden gelir; mekân türü oyun alanından çıkar.
 export function toDefinition(out: ModelOutput, input: ResolvedInput): { ok: true; definition: GameDefinition } | { ok: false; error: string } {

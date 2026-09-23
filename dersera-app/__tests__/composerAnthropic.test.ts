@@ -1,11 +1,10 @@
-import { hedefKodu } from "@/lib/composer/modelOutput";
 import { composeGame, ComposeError, DEFAULT_MODEL, modelFromEnv } from "@/lib/composer/anthropic";
 import { buildRecipe } from "@/lib/composer/recipe";
-import { IZINLI_QR_IDLERI } from "@/lib/composer/service";
+import { composeAndValidate, IZINLI_QR_IDLERI } from "@/lib/composer/service";
 import { SYSTEM_PROMPT } from "@/lib/composer/prompt";
 import { fakeClient, makeDefinition, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { ModelOutputSchema, toDefinition } from "@/lib/composer/modelOutput";
+import { hedefKodu, ModelOutputSchema, toDefinition } from "@/lib/composer/modelOutput";
 
 const input = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const recipe = buildRecipe(40, "dengeli", "sinif");
@@ -187,7 +186,21 @@ describe("hedef kodu", () => {
     ["FEL.10.1.1: Felsefenin anlamını sorgulayabilme", "FEL.10.1.1"],
     ["FİZ.10.1.2 İvme", "FİZ.10.1.2"],
     [" MAT.9.1.1 ", "MAT.9.1.1"],
+    ["(FEL.10.1.1)", "FEL.10.1.1"],
+    ["FEL.10.1.1-Felsefe", "FEL.10.1.1"],
+    ["", ""],
   ])("%s → %s", (girdi, kod) => {
     expect(hedefKodu(girdi)).toBe(kod);
+  });
+
+  it("açıklamalı hedeflerle gelen oyun hedef-disi almadan geçer", async () => {
+    const def = makeDefinition(input, 7);
+    const out = toModelOutput(def);
+    const acikla = (k: string) => `${k}: açıklama metni`;
+    out.ogrenme_hedefleri = out.ogrenme_hedefleri.map(acikla);
+    out.final.ogrenme_hedefleri = out.final.ogrenme_hedefleri.map(acikla);
+    out.duraklar.forEach((d) => (d.ogrenme_hedefi = acikla(d.ogrenme_hedefi)));
+    const { validation } = await composeAndValidate(input, fakeClient(out).client);
+    expect(validation.hatalar).toEqual([]);
   });
 });
