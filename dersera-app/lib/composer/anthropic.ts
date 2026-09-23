@@ -73,7 +73,8 @@ export async function composeGame(
     if (err instanceof Anthropic.APIError) {
       throw new ComposeError("upstream", `Anthropic API hatası ${err.status ?? ""}: ${err.message}`);
     }
-    throw new ComposeError("upstream", err instanceof Error ? err.message : String(err));
+    // HTTP dışı kalan hatalar yanıtın çözümlenmesinden gelir (kesik ya da bozuk JSON).
+    throw new ComposeError("invalid-output", `Çıktı JSON olarak çözümlenemedi: ${err instanceof Error ? err.message : String(err)}`);
   } finally {
     clearTimeout(timer);
   }

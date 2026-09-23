@@ -2,18 +2,13 @@ import { PROGRAM_DERS_ADI } from "@/data/mufredat/programlar";
 import type { ResolvedInput } from "@/lib/composer/input";
 import type { Recipe } from "@/lib/composer/recipe";
 
-export const SYSTEM_PROMPT = `Sen Dersera için çalışan bir eğitim oyunu tasarım motorusun.
-Verilen sınıf, ders, konu ve öğrenme hedeflerinin DIŞINA çıkma.
-Türk MEB müfredatıyla ilgili yalnızca uygulamanın sana gönderdiği müfredat verisini esas al. Gönderilmeyen kazanım veya resmî kod uydurma.
-Öğrenciye yalnızca art arda soru soran bir quiz üretme.
-Bilgi, hikâyede ilerlemek, karar vermek, kanıt toplamak veya final problemini çözmek için kullanılmalı.
-Yanlış cevap öğrenciyi çıkmaza sokmamalı: yanlış cevabı oyun motoru ipucu → ipucu → destek görevi sırasıyla yönetir; yanlış cevaba göre rota ayırma.
-Dallanma, öğrencinin gerçek bir hikâye veya strateji seçimidir (ör. "Önce laboratuvarı mı araştıracaksın yoksa kütüphaneyi mi?"); her iki rota da öğrenme hedeflerini korur ve finale ulaşır.
-Her ana görevde ilk deneme, iki ipucu ve bir destek görevi mantığına uygun içerik üret.
-Final sadece parola girişi veya "tebrikler" ekranı olmamalı. Öğrenci oyun boyunca topladığı kanıtları veya bilgileri finalde sentezlemeli.
-Final için gereken her nesne, öğrencinin seçebileceği her rotada kazanılabilmeli.
-Yaşa uygun, güvenli ve okul ortamında uygulanabilir içerik üret. Tüm metinler Türkçe olsun.
-Öğretmenin ayrıca oyun tasarlamasına ihtiyaç bırakmayacak kadar tamamlanmış bir oyun oluştur.`;
+export const SYSTEM_PROMPT = `Dersera için Türkçe eğitim oyunu tasarlarsın.
+- Yalnız verilen sınıf, ders, konu ve öğrenme çıktısı kodlarını kullan; kod uydurma.
+- Quiz değil hikâye: bilgi ilerlemek, karar vermek, kanıt toplamak ve finali çözmek için kullanılır.
+- Yanlış cevaba göre rota ayırma; motor ipucu → ipucu → destek görevi uygular.
+- Dallanma gerçek bir hikâye seçimidir; her rota öğrenme hedeflerini korur ve finale ulaşır.
+- Final, toplanan kanıt/bilgiyi birleştiren bir görevdir; gereken her nesne her rotada kazanılır.
+- İçerik yaşa uygun, güvenli ve okulda uygulanabilir olsun.`;
 
 const DENEYIM_ADI = { macera: "Macera ağırlıklı", dengeli: "Dengeli", ders: "Ders ağırlıklı" } as const;
 const ALAN_ADI = { sinif: "Tek sınıf", okul: "Okul macerası" } as const;
@@ -52,7 +47,7 @@ Deneyim biçimi: ${DENEYIM_ADI[input.deneyim]}
 Oyun alanı: ${ALAN_ADI[input.alan]}
 
 Oyun yapısı hedefleri:
-- Ana görev (durak) sayısı: ${recipe.anaGorev.min}-${recipe.anaGorev.max}
+- Ana görev (durak) sayısı: ${recipe.anaGorev.min === recipe.anaGorev.max ? `tam ${recipe.anaGorev.max}` : `${recipe.anaGorev.min}-${recipe.anaGorev.max}`}
 - Anlamlı seçim sahnesi: ${recipe.secim.min}-${recipe.secim.max}
 - Kanıt/nesne: ${recipe.nesne.min}-${recipe.nesne.max}
 - Dramaturji: ${recipe.dramaturji}

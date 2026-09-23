@@ -204,3 +204,10 @@ describe("hedef kodu", () => {
     expect(validation.hatalar).toEqual([]);
   });
 });
+
+describe("çözümlenemeyen çıktı", () => {
+  it("SDK'nın JSON çözümleme hatası invalid-output olur ve rotada 'Tekrar deneyin' döner", async () => {
+    const client = { messages: { parse: async () => { throw new SyntaxError("Unexpected end of JSON input"); } } } as never;
+    await expect(composeGame(input, buildRecipe(40, "dengeli", "sinif"), IZINLI_QR_IDLERI, client)).rejects.toMatchObject({ reason: "invalid-output" });
+  });
+});
