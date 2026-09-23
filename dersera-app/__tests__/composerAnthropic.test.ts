@@ -231,3 +231,13 @@ describe("tam durak hedefi", () => {
     expect(uyarilar.find((u) => u.kod === "gorev-sayisi")?.mesaj).toBe("Görev sayısı 7; hedef 6.");
   });
 });
+
+describe("sondan başa üretim", () => {
+  it("model finali duraklardan önce yazar ve prompt nesne-ödül eşlemesini ister", () => {
+    const alanlar = Object.keys(ModelOutputSchema.shape);
+    expect(alanlar.indexOf("final")).toBeLessThan(alanlar.indexOf("duraklar"));
+    const prompt = buildUserPrompt(input, buildRecipe(40, "dengeli", "sinif"), IZINLI_QR_IDLERI);
+    expect(prompt).toContain("sondan başa");
+    expect(prompt).toContain("en az bir durağın odul_id");
+  });
+});

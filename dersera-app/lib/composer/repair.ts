@@ -40,7 +40,8 @@ function kopuklariBagla(def: GameDefinition, notlar: string[]) {
   }
 }
 
-// Final için gereken nesne bazı rotalarda kaçırılıyorsa, ödül her rotanın geçtiği son ödülsüz durağa taşınır.
+// Final için gereken nesne hiç verilmiyor ya da bazı rotalarda kaçırılıyorsa, ödül her rotanın geçtiği son ödülsüz durağa taşınır.
+// Hiç verilmeyen nesne için uygun durak yoksa nesne finalin gereksinimlerinden çıkarılır.
 function nesneleriOrtakDuragaTasi(def: GameDefinition, notlar: string[]) {
   const start = def.duraklar[0].id;
   const edges = edgesOf(def);
@@ -48,17 +49,34 @@ function nesneleriOrtakDuragaTasi(def: GameDefinition, notlar: string[]) {
   const zorunlu = def.duraklar.filter((d) => d.id !== start && !reachableFrom(start, edges, new Set([d.id])).has(FINAL));
   const gerekliler = new Set([...def.final.gerekli_nesneler, ...def.envanter.filter((e) => e.final_icin_gerekli).map((e) => e.id)]);
   for (const id of gerekliler) {
+    if (!def.envanter.some((e) => e.id === id)) continue;
     const verenler = def.duraklar.filter((d) => d.gorev.odul_id === id);
-    if (verenler.length === 0 || !reachableFrom(start, edges, new Set(verenler.map((d) => d.id))).has(FINAL)) continue;
+    const hicYok = verenler.length === 0;
+    if (!hicYok && !reachableFrom(start, edges, new Set(verenler.map((d) => d.id))).has(FINAL)) continue;
     const hedef = [start, ...zorunlu.map((d) => d.id)]
       .map((x) => def.duraklar.find((d) => d.id === x)!)
       .filter((d) => d.gorev.odul_id === null)
       .pop();
-    if (!hedef) continue;
+    if (!hedef) {
+      if (hicYok) finaldenCikar(def, id, notlar);
+      continue;
+    }
     verenler.forEach((d) => (d.gorev.odul_id = null));
     hedef.gorev.odul_id = id;
-    notlar.push(`Final için gereken "${id}" bazı rotalarda kaçırılıyordu; artık her rotanın geçtiği "${hedef.isim}" durağında veriliyor. Hikâye metnini gözden geçirin.`);
+    notlar.push(
+      hicYok
+        ? `Final için gereken "${id}" hiçbir görevde verilmiyordu; artık her rotanın geçtiği "${hedef.isim}" durağında veriliyor. Hikâye metnini gözden geçirin.`
+        : `Final için gereken "${id}" bazı rotalarda kaçırılıyordu; artık her rotanın geçtiği "${hedef.isim}" durağında veriliyor. Hikâye metnini gözden geçirin.`
+    );
   }
+}
+
+function finaldenCikar(def: GameDefinition, id: string, notlar: string[]) {
+  def.final.gerekli_nesneler = def.final.gerekli_nesneler.filter((n) => n !== id);
+  def.envanter.forEach((e) => {
+    if (e.id === id) e.final_icin_gerekli = false;
+  });
+  notlar.push(`Final için gereken "${id}" hiçbir görevde kazanılmıyordu ve verilecek uygun durak yoktu; finalin gereksinimlerinden çıkarıldı. Final metnini gözden geçirin.`);
 }
 
 export function onar(input: GameDefinition): { definition: GameDefinition; notlar: string[] } {
