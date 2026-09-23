@@ -12,13 +12,10 @@ import {
   loadPenaltySeconds,
   addPenalty,
   addLeaderboardEntry,
-  loadPlayerToken,
-  savePlayerToken,
   buildResultCode,
   type LeaderboardEntry,
 } from "@/lib/gameState";
-import { submitResult } from "@/lib/resultsClient";
-import { joinGameRequest } from "@/lib/gamesClient";
+import { buildLeaderboardEntry, sendPlayerResult } from "@/lib/playerResult";
 import { getSorular, DERS_ADI, AYLAR } from "@/data/mufredat";
 import type { Soru } from "@/data/mufredat";
 
@@ -252,31 +249,6 @@ function computeElapsed(startTime: number, endTime?: number): number {
   return Math.floor(((endTime ?? Date.now()) - startTime) / 1000);
 }
 
-const MAX_NET_SECONDS = 24 * 60 * 60;
-
-function buildEntry(
-  nickname: string,
-  startTime: number,
-  endTime: number,
-  penaltySeconds: number,
-  progress: GameProgress
-): LeaderboardEntry {
-  return {
-    nickname,
-    // Sunucu 0–24 saat dışını reddeder; gece yarısını aşan ya da saati kaymış cihaz takılı kalmasın.
-    netSeconds: Math.min(Math.max(computeElapsed(startTime, endTime), 0), MAX_NET_SECONDS),
-    penaltySeconds,
-    hintsUsed: Object.values(progress).reduce((s, p) => s + p.hintsUsed, 0),
-    completedAt: endTime,
-    stopDetails: Object.fromEntries(
-      Object.entries(progress).map(([id, p]) => [
-        id,
-        { hintsUsed: p.hintsUsed, completedAt: p.completedAt },
-      ])
-    ),
-  };
-}
-
 export default function GameClient({ stop, allStops, gameCode, nickname, startTime, aylar }: Props) {
   const [screen, setScreen] = useState<Screen>("loading");
   const [soru, setSoru] = useState<Soru | null>(null);
@@ -311,7 +283,7 @@ export default function GameClient({ stop, allStops, gameCode, nickname, startTi
     if (saved[stop.id]) {
       const endTime = loadEndTime();
       if (stop.nextStopId === null && endTime) {
-        const entry = buildEntry(nickname, startTime, endTime, savedPenalty, saved);
+        const entry = buildLeaderboardEntry(nickname, startTime, endTime, savedPenalty, saved);
         setSummaryData(entry);
         setElapsedSeconds(entry.netSeconds);
         setScreen("summary");
@@ -365,17 +337,7 @@ export default function GameClient({ stop, allStops, gameCode, nickname, startTi
   useEffect(() => {
     if (screen !== "summary" || !summaryData) return;
     let cancelled = false;
-    (async () => {
-      let token = loadPlayerToken();
-      if (!token) {
-        const joined = await joinGameRequest(gameCode, summaryData.nickname);
-        if (joined.status === "joined") {
-          token = joined.playerToken;
-          savePlayerToken(token);
-        }
-      }
-      return token ? submitResult(gameCode, token, summaryData) : false;
-    })().then((ok) => {
+    sendPlayerResult(gameCode, summaryData).then((ok) => {
       if (!cancelled) setSendStatus(ok ? "sent" : "failed");
     });
     return () => {
@@ -399,7 +361,7 @@ export default function GameClient({ stop, allStops, gameCode, nickname, startTi
     if (stop.nextStopId === null) {
       const endTs = Date.now();
       saveEndTime(endTs);
-      const entry = buildEntry(nickname, startTime, endTs, loadPenaltySeconds(), updated);
+      const entry = buildLeaderboardEntry(nickname, startTime, endTs, loadPenaltySeconds(), updated);
       addLeaderboardEntry(entry);
       setSummaryData(entry);
       setElapsedSeconds(entry.netSeconds);

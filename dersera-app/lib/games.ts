@@ -1,5 +1,6 @@
 import { AYLAR, CORE_DERSLER, DERS_ADI, type Ders } from "@/data/mufredat";
 import { GENEL_HIKAYE, HIKAYE, stops as templates, type Stop } from "@/data/stops";
+import type { GameDefinition } from "@/lib/composer/definition";
 
 export const QR_COUNT = 20;
 export const MIN_DURATION_MIN = 5;
@@ -22,12 +23,15 @@ export interface PublicGame {
   createdAt: number;
   expiresAt: number;
   endedAt: number | null;
+  // Game Composer ile üretilmiş oyunlar sahne tanımını taşır; yoksa klasik soru bankası oyunudur.
+  definition?: GameDefinition;
 }
 
 export interface PublishRequest {
   durationMinutes: number;
   aylar: string[];
   stops: GameStop[];
+  definition?: GameDefinition;
 }
 
 const CODE_PATTERN = /^([A-Z]{3})-?(\d{3})$/;

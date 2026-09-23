@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { parsePublishRequest } from "@/lib/games";
+import { parseComposerPublish } from "@/lib/composer/adapter";
+import { parsePublishRequest, type PublishRequest } from "@/lib/games";
 import { getGamesStore } from "@/lib/gamesStore";
 import { publishGame } from "@/lib/gamesService";
 
@@ -11,7 +12,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
   }
 
-  const request = parsePublishRequest(body);
+  let request: PublishRequest | null;
+  if (body && typeof body === "object" && "composer" in body) {
+    const composed = parseComposerPublish(body);
+    if (!composed.ok) {
+      return NextResponse.json({ error: composed.error, validation: composed.validation }, { status: composed.status });
+    }
+    request = composed.request;
+  } else {
+    request = parsePublishRequest(body);
+  }
   if (!request) {
     return NextResponse.json({ error: "Geçersiz oyun ayarları" }, { status: 422 });
   }

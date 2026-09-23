@@ -96,6 +96,7 @@ function ActiveGame({
           active ? "bg-indigo-900 text-white border-indigo-900" : "bg-gray-100 text-gray-700 border-gray-200"
         }`}
       >
+        {game.definition && <p className="text-sm font-semibold mb-2">🧭 {game.definition.meta.baslik}</p>}
         <p className={`text-xs font-semibold uppercase tracking-widest mb-1 ${active ? "text-indigo-300" : "text-gray-500"}`}>
           Oyun Kodu
         </p>
@@ -110,7 +111,11 @@ function ActiveGame({
               : "⏹ Oyun sona erdi — yeni giriş yapılamaz"}
         </p>
         {active && (
-          <p className="text-indigo-300 text-xs mt-2">Öğrenciler QR kodu tarayınca bu kodu girer.</p>
+          <p className="text-indigo-300 text-xs mt-2">
+            {game.definition?.meta.alan === "sinif"
+              ? "Öğrenciler dersera.vercel.app/game adresine girip bu kodu yazar."
+              : "Öğrenciler QR kodu tarayınca bu kodu girer."}
+          </p>
         )}
       </div>
 
@@ -127,13 +132,15 @@ function ActiveGame({
 
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <p className="px-4 py-2.5 text-xs font-semibold text-gray-500 bg-gray-50 border-b border-gray-100">
-          Durak sırası ({game.stops.length} durak)
+          {game.definition ? `Sahneler (${game.stops.length})` : `Durak sırası (${game.stops.length} durak)`}
         </p>
         <ol>
           {game.stops.map((s, i) => (
             <li key={s.qr} className="flex items-center gap-3 px-4 py-2.5 border-b border-gray-50 last:border-0 text-sm">
               <span className="text-gray-400 w-5">{i + 1}.</span>
-              <span className="bg-[#3B2F9E] text-white text-xs font-bold rounded-md px-2 py-0.5">QR {s.qr}</span>
+              {game.definition?.meta.alan !== "sinif" && (
+                <span className="bg-[#3B2F9E] text-white text-xs font-bold rounded-md px-2 py-0.5">QR {s.qr}</span>
+              )}
               <span>{s.emoji}</span>
               <span className="font-medium text-gray-900 flex-1">{s.name}</span>
               <span className="text-xs text-gray-400">{DERS_ADI[s.dersKey]}</span>
@@ -225,6 +232,18 @@ function PublishForm({
 
   return (
     <div>
+      <Link
+        href="/composer"
+        className="flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl p-4 mb-4 hover:opacity-95 transition-opacity"
+      >
+        <span className="text-2xl" aria-hidden="true">✨</span>
+        <span className="flex-1">
+          <span className="block font-bold">Yeni Oyun Oluştur</span>
+          <span className="block text-xs text-indigo-100">Sınıf, ders ve konuyu seçin; Dersera hikâyeli oyunu tasarlasın.</span>
+        </span>
+        <span aria-hidden="true">›</span>
+      </Link>
+      <p className="text-xs text-gray-400 mb-3">ya da soru bankasıyla klasik oyun yayınlayın:</p>
       <AySecici selectedAylar={selectedAylar} toggleAy={toggleAy} />
 
       <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">

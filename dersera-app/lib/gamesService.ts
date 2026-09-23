@@ -40,8 +40,8 @@ function constantTimeEqual(a: string, b: string): boolean {
 }
 
 export function toPublicGame(game: StoredGame): PublicGame {
-  const { code, stops, aylar, createdAt, expiresAt, endedAt } = game;
-  return { code, stops, aylar, createdAt, expiresAt, endedAt };
+  const { code, stops, aylar, createdAt, expiresAt, endedAt, definition } = game;
+  return { code, stops, aylar, createdAt, expiresAt, endedAt, ...(definition ? { definition } : {}) };
 }
 
 export async function publishGame(
@@ -61,6 +61,7 @@ export async function publishGame(
       expiresAt: now + req.durationMinutes * 60 * 1000,
       endedAt: null,
       adminTokenHash,
+      ...(req.definition ? { definition: req.definition } : {}),
     };
     if (await store.create(game, now)) return { game: toPublicGame(game), adminToken };
   }

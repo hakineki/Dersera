@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   END_TIME: "dersera:endTime",
   PENALTY: "dersera:penalty",
   LEADERBOARD: "dersera:leaderboard",
+  SAHNE_YOLU: "dersera:sahne-yolu",
 } as const;
 
 export interface StopProgress {
@@ -81,6 +82,29 @@ export function markStopComplete(stopId: string, hintsUsed: number): void {
   const progress = loadProgress();
   progress[stopId] = { completedAt: Date.now(), hintsUsed };
   safeSet(STORAGE_KEYS.PROGRESS, JSON.stringify(progress));
+}
+
+// Composer oyunlarında sahne ilerlemesi: varılan sahneler (yol) ve gidilecek ama henüz varılmamış sahne (hedef).
+export interface SceneState {
+  yol: string[];
+  hedef: string | null;
+}
+
+export function loadSceneState(): SceneState {
+  try {
+    const raw = safeGet(STORAGE_KEYS.SAHNE_YOLU);
+    const p = raw ? (JSON.parse(raw) as Partial<SceneState>) : null;
+    if (p && Array.isArray(p.yol) && p.yol.every((x) => typeof x === "string") && (p.hedef === null || typeof p.hedef === "string")) {
+      return { yol: p.yol, hedef: p.hedef };
+    }
+  } catch {
+    /* bozuk kayıt: baştan */
+  }
+  return { yol: [], hedef: null };
+}
+
+export function saveSceneState(state: SceneState): void {
+  safeSet(STORAGE_KEYS.SAHNE_YOLU, JSON.stringify(state));
 }
 
 export function loadEndTime(): number | null {
@@ -163,7 +187,7 @@ export function switchToGame(game: PublicGame): void {
 // Yeniden başla: takma ad kalır, süre/ilerleme/ceza sıfırlanır.
 export function restartGame(now: number): void {
   try {
-    [STORAGE_KEYS.PROGRESS, STORAGE_KEYS.END_TIME, STORAGE_KEYS.PENALTY].forEach((k) =>
+    [STORAGE_KEYS.PROGRESS, STORAGE_KEYS.END_TIME, STORAGE_KEYS.PENALTY, STORAGE_KEYS.SAHNE_YOLU].forEach((k) =>
       localStorage.removeItem(k)
     );
   } catch {
@@ -201,6 +225,7 @@ export function clearGameState(): void {
       STORAGE_KEYS.PROGRESS,
       STORAGE_KEYS.END_TIME,
       STORAGE_KEYS.PENALTY,
+      STORAGE_KEYS.SAHNE_YOLU,
     ].forEach((k) => localStorage.removeItem(k));
   } catch {
     /* ignore */

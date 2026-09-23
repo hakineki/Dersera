@@ -22,6 +22,8 @@ import { fetchGame, joinGameRequest } from "@/lib/gamesClient";
 import NicknameEntry from "./[stop]/NicknameEntry";
 import GameClient from "./GameClient";
 import CodeEntry from "./CodeEntry";
+import ComposerPlayer from "./composer/ComposerPlayer";
+import { qrOf } from "@/lib/composer/scene";
 
 type View =
   | { kind: "loading" }
@@ -72,8 +74,28 @@ export default function GameWrapper() {
         return;
       }
 
+      // Composer oyunu: sahneleri kendi oynatıcısı yönetir; tek sınıf oyununda QR gerekmez.
+      if (g.definition) {
+        setGame(g);
+        if (!started) {
+          setView({ kind: "nickname" });
+          return;
+        }
+        setNickname(loadNickname() ?? "");
+        setStartTime(loadStartTime() ?? 0);
+        const baslangicQr = qrOf(g.definition, g.definition.duraklar[0].id);
+        const basta = qr === null || qr === baslangicQr;
+        setView({ kind: basta && !finished && isGameActive(g) ? "choice" : "game" });
+        return;
+      }
+
+      if (qr === null) {
+        setView({ kind: "message", icon: "🔍", title: "QR Kodu Tara", text: "Bu oyunda duraklar QR kodlarla açılır. Bulunduğun durağın QR kodunu tara." });
+        return;
+      }
+
       const stops = toStops(g.stops);
-      const current = stops.find((s) => s.id === stopId(qr ?? 0));
+      const current = stops.find((s) => s.id === stopId(qr));
       if (!current) {
         setView({
           kind: "message",
@@ -110,17 +132,6 @@ export default function GameWrapper() {
   );
 
   useEffect(() => {
-    if (qr === null) {
-      setTimeout(() =>
-        setView({
-          kind: "message",
-          icon: "🔍",
-          title: "Geçersiz QR",
-          text: "Bu QR kodu geçerli bir durağa ait değil.",
-        })
-      );
-      return;
-    }
     const snap = loadGameSnapshot();
     if (!snap) {
       setTimeout(() => setView({ kind: "code" }));
@@ -232,6 +243,11 @@ export default function GameWrapper() {
         </>
       );
     case "game":
+      if (game?.definition) {
+        return (
+          <ComposerPlayer key={startTime} def={game.definition} gameCode={game.code} nickname={nickname} startTime={startTime} qr={qr} />
+        );
+      }
       if (!stop || !game) return null;
       return (
         <GameClient
