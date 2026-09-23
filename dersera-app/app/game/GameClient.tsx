@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Stop, stops } from "@/data/stops";
+import type { Stop } from "@/data/stops";
 import {
   loadProgress,
   markStopComplete,
@@ -18,20 +18,6 @@ import {
 import { submitResult } from "@/lib/resultsClient";
 import { getSorular, DERS_ADI, AYLAR } from "@/data/mufredat";
 import type { Soru } from "@/data/mufredat";
-
-// ── Hikaye metinleri ──────────────────────────────────────────────────────────
-const HIKAYE: Record<string, string> = {
-  bahce:
-    "Okul müdürünün masasından gizli bir dosya çalındı! Tek ipucu bahçede bırakılmış. Matematik şifreni çöz ve dosyanın izini sürdür...",
-  koridor:
-    "Birinci iz çözüldü! Kamera görüntüleri şüpheliyi koridorda gösteriyor. Fizik bilginle koridordaki gizemi aç!",
-  "kimya-lab":
-    "İz laboratuvara uzanıyor! Masada kimyasal bir not bırakılmış. Kimya sorusunu çöz ve ipucunu yakala!",
-  kutuphane:
-    "Laboratuvardan çıkan iz kütüphaneye ulaştı. Eski kitabın içine gizlenmiş şifreli mesaj var. Türk Dili ve Edebiyatı bilginle kilidi aç!",
-  "mudur-odasi":
-    "Son adım! Dosyanın müdür odasında saklandığı kesinleşti. Son soruyu çöz ve dosyayı kurtar!",
-};
 
 // ── Konfeti parçacıkları — mount'ta hesaplanır, her render'da değişmez ────────
 const PARCALAR = Array.from({ length: 60 }, (_, i) => ({
@@ -102,10 +88,12 @@ function SummaryScreen({
   netSeconds,
   penaltySeconds,
   progress,
+  allStops,
   resultCode,
   sendStatus,
   onRetry,
 }: {
+  allStops: Stop[];
   nickname: string;
   netSeconds: number;
   penaltySeconds: number;
@@ -166,13 +154,13 @@ function SummaryScreen({
 
         {/* Kanıt listesi */}
         <div className="bg-white/10 border border-white/20 rounded-2xl overflow-hidden mb-4">
-          {stops.map((s, i) => {
+          {allStops.map((s, i) => {
             const p = progress[s.id];
             return (
               <div
                 key={s.id}
                 className={`flex items-center gap-3 px-4 py-3 ${
-                  i < stops.length - 1 ? "border-b border-white/10" : ""
+                  i < allStops.length - 1 ? "border-b border-white/10" : ""
                 }`}
               >
                 <span className="text-xl">{s.emoji}</span>
@@ -242,6 +230,8 @@ function SummaryScreen({
 // ── Ana bileşen ───────────────────────────────────────────────────────────────
 interface Props {
   stop: Stop;
+  allStops: Stop[];
+  gameCode: string;
   nickname: string;
   startTime: number;
   aylar: string[];
@@ -284,7 +274,7 @@ function buildEntry(
   };
 }
 
-export default function GameClient({ stop, nickname, startTime, aylar }: Props) {
+export default function GameClient({ stop, allStops, gameCode, nickname, startTime, aylar }: Props) {
   const [screen, setScreen] = useState<Screen>("loading");
   const [soru, setSoru] = useState<Soru | null>(null);
   const [backupSoru, setBackupSoru] = useState<Soru | null>(null);
@@ -372,13 +362,13 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
   useEffect(() => {
     if (screen !== "summary" || !summaryData) return;
     let cancelled = false;
-    submitResult(summaryData).then((ok) => {
+    submitResult(gameCode, summaryData).then((ok) => {
       if (!cancelled) setSendStatus(ok ? "sent" : "failed");
     });
     return () => {
       cancelled = true;
     };
-  }, [screen, summaryData, sendAttempt]);
+  }, [screen, summaryData, sendAttempt, gameCode]);
 
   function applyPenalty() {
     addPenalty(15);
@@ -466,6 +456,7 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
   if (screen === "summary" && summaryData) {
     return (
       <SummaryScreen
+        allStops={allStops}
         nickname={nickname}
         netSeconds={summaryData.netSeconds}
         penaltySeconds={summaryData.penaltySeconds}
@@ -500,10 +491,10 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-1">
             <span className="text-xs font-semibold text-purple-300 uppercase tracking-widest">
-              Durak {stop.order} / 5
+              Durak {stop.order} / {allStops.length}
             </span>
             <span className="ml-2 text-xs text-yellow-300 font-semibold">
-              🔍 {kanitCount}/5
+              🔍 {kanitCount}/{allStops.length}
             </span>
           </div>
           <div className="text-right">
@@ -541,7 +532,7 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
 
         {/* İlerleme noktaları */}
         <div className="flex justify-center gap-2 mb-4">
-          {Array.from({ length: 5 }).map((_, i) => (
+          {Array.from({ length: allStops.length }).map((_, i) => (
             <div
               key={i}
               className={`w-2.5 h-2.5 rounded-full transition-all ${
@@ -556,10 +547,10 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
         </div>
 
         {/* ── Hikaye metni ── */}
-        {(screen === "question" || screen === "backup-question") && HIKAYE[stop.id] && (
+        {(screen === "question" || screen === "backup-question") && stop.hikaye && (
           <div className="bg-blue-900/40 border border-blue-500/30 rounded-xl px-4 py-3 mb-4">
             <p className="text-blue-200 text-xs leading-relaxed italic">
-              📖 {HIKAYE[stop.id]}
+              📖 {stop.hikaye}
             </p>
           </div>
         )}

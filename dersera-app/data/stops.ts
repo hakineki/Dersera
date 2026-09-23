@@ -9,7 +9,23 @@ export interface Stop {
   dersKey: Ders;     // müfredat arama anahtarı
   nextStopId: string | null;
   nextClue: string;
+  hikaye?: string;
 }
+
+export const HIKAYE: Record<string, string> = {
+  bahce:
+    "Okul müdürünün masasından gizli bir dosya çalındı! Tek ipucu bahçede bırakılmış. Matematik şifreni çöz ve dosyanın izini sürdür...",
+  koridor:
+    "Birinci iz çözüldü! Kamera görüntüleri şüpheliyi koridorda gösteriyor. Fizik bilginle koridordaki gizemi aç!",
+  "kimya-lab":
+    "İz laboratuvara uzanıyor! Masada kimyasal bir not bırakılmış. Kimya sorusunu çöz ve ipucunu yakala!",
+  kutuphane:
+    "Laboratuvardan çıkan iz kütüphaneye ulaştı. Eski kitabın içine gizlenmiş şifreli mesaj var. Türk Dili ve Edebiyatı bilginle kilidi aç!",
+  "mudur-odasi":
+    "Son adım! Dosyanın müdür odasında saklandığı kesinleşti. Son soruyu çöz ve dosyayı kurtar!",
+};
+
+export const GENEL_HIKAYE = "Yeni bir iz buldun! Soruyu çöz ve gizemin peşine düş.";
 
 export const stops: Stop[] = [
   {
@@ -69,12 +85,3 @@ export const stops: Stop[] = [
   },
 ];
 
-export function getStop(id: string): Stop | undefined {
-  return stops.find((s) => s.id === id);
-}
-
-export function getNextStop(currentId: string): Stop | undefined {
-  const current = getStop(currentId);
-  if (!current?.nextStopId) return undefined;
-  return getStop(current.nextStopId);
-}

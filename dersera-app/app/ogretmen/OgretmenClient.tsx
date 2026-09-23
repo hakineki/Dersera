@@ -2,19 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import DerseraLogo from "@/components/DerseraLogo";
+import Link from "next/link";
 import { fetchResults } from "@/lib/resultsClient";
-import { stops } from "@/data/stops";
-import { AYLAR, DERS_ADI, CORE_DERSLER, getSorular, sinif10 } from "@/data/mufredat";
-import type { Ders } from "@/data/mufredat";
-import { QRCodeSVG } from "qrcode.react";
-import {
-  loadCustomStops,
-  addCustomStop,
-  formatElapsed,
-  buildResultCode,
-  type CustomStop,
-  type LeaderboardEntry,
-} from "@/lib/gameState";
+import { stops as stopTemplates, type Stop } from "@/data/stops";
+import { getSorular } from "@/data/mufredat";
+import { formatElapsed, buildResultCode, type LeaderboardEntry } from "@/lib/gameState";
+import { toStops } from "@/lib/games";
+import { loadTeacherGame, saveTeacherGame, type TeacherGame } from "@/lib/teacherGame";
+import AySecici from "./AySecici";
+import OyunTab from "./OyunTab";
 import {
   verifyTeacher,
   loadTeacherSession,
@@ -27,16 +23,7 @@ import {
   type PilotInfo,
 } from "@/lib/pilotInfo";
 
-type Tab = "qr" | "sorular" | "siralama" | "ayarlar";
-
-const ALL_DERSLER = Object.keys(DERS_ADI) as Ders[];
-
-interface NewStopForm {
-  name: string;
-  emoji: string;
-  dersKey: string;
-  konuAdi: string;
-}
+type Tab = "oyun" | "sorular" | "siralama" | "ayarlar";
 
 // ── Giriş ekranı ──────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
@@ -119,252 +106,24 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
   );
 }
 
-// ── QR Kodlar sekmesi ─────────────────────────────────────────────────────────
-function QrTab({
+// ── Soru Bankası sekmesi ──────────────────────────────────────────────────────
+function SorularTab({
   selectedAylar,
   toggleAy,
-  customStops,
-  setCustomStops,
 }: {
   selectedAylar: string[];
   toggleAy: (slug: string) => void;
-  customStops: CustomStop[];
-  setCustomStops: React.Dispatch<React.SetStateAction<CustomStop[]>>;
 }) {
-  const [baseUrl, setBaseUrl] = useState("");
-  const [showModal, setShowModal] = useState(false);
-  const [newStop, setNewStop] = useState<NewStopForm>({
-    name: "",
-    emoji: "📍",
-    dersKey: "matematik",
-    konuAdi: "",
-  });
-
-  useEffect(() => {
-    setBaseUrl(window.location.origin);
-  }, []);
-
-  const aylarParam = selectedAylar.join(",");
-  const allStops = [...stops, ...customStops];
-  const firstAyIndex = AYLAR.findIndex((a) => a.ay === selectedAylar[0]);
-  const seciliAyPlan = sinif10[firstAyIndex];
-
-  function handleAddDurak() {
-    if (!newStop.name.trim()) return;
-    const maxOrder = Math.max(...allStops.map((s) => s.order), 0);
-    const id = `custom-${Date.now()}`;
-    const cs: CustomStop = {
-      id,
-      order: maxOrder + 1,
-      name: newStop.name.trim(),
-      emoji: newStop.emoji || "📍",
-      subject: DERS_ADI[newStop.dersKey as Ders] ?? newStop.dersKey,
-      dersKey: newStop.dersKey,
-      nextStopId: null,
-      nextClue: `✅ ${newStop.name.trim()} durağını tamamladın!`,
-    };
-    addCustomStop(cs);
-    setCustomStops((prev) => [...prev, cs]);
-    setShowModal(false);
-    setNewStop({ name: "", emoji: "📍", dersKey: "matematik", konuAdi: "" });
-  }
-
-  return (
-    <>
-      {/* Ay seçici */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
-        <p className="text-sm font-semibold text-gray-700 mb-3">
-          📅 Dönem Seç — seçilen ayların sorularından havuz oluşturulur
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {AYLAR.map((a) => (
-            <button
-              key={a.ay}
-              onClick={() => toggleAy(a.ay)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                selectedAylar.includes(a.ay)
-                  ? "bg-indigo-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {a.ad}
-            </button>
-          ))}
-        </div>
-        {seciliAyPlan && (
-          <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {CORE_DERSLER.map((ders) => (
-              <div key={ders} className="text-xs text-gray-500">
-                <span className="font-semibold text-gray-700">{DERS_ADI[ders]}:</span>{" "}
-                {seciliAyPlan.dersler[ders]?.ad ?? "—"}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Talimatlar */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-sm text-blue-800">
-        <p className="font-semibold mb-1">📋 Kurulum Talimatları</p>
-        <ol className="list-decimal list-inside space-y-1 text-blue-700">
-          <li>Dönem seçin, ardından QR kodlarını yazdırın.</li>
-          <li>Her QR kodu keserek ilgili okul mekânına yapıştırın.</li>
-          <li>Oyun <strong>Bahçe</strong> durağından başlar — sadece ilk durağın yerini söyleyin.</li>
-          <li>5 durağı tamamlayan öğrenci geri döner ve sonuç kodunu gösterir.</li>
-        </ol>
-      </div>
-
-      {/* QR Kartları */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-4">
-        {allStops.map((stop) => {
-          const url = baseUrl
-            ? `${baseUrl}/game/${stop.id}?aylar=${aylarParam}`
-            : `/game/${stop.id}?aylar=${aylarParam}`;
-          const konuAdi = seciliAyPlan?.dersler[stop.dersKey as Ders]?.ad ?? "—";
-          const isCustom = !stops.find((s) => s.id === stop.id);
-
-          return (
-            <div key={stop.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <span className="text-2xl">{stop.emoji}</span>
-                <div className="flex-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">
-                      Durak {stop.order}
-                    </span>
-                    {isCustom && (
-                      <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">
-                        Özel
-                      </span>
-                    )}
-                  </div>
-                  <h2 className="font-bold text-gray-900">{stop.name}</h2>
-                  <p className="text-xs text-gray-500">{stop.subject}</p>
-                </div>
-              </div>
-              <div className="flex justify-center mb-3">
-                {baseUrl ? (
-                  <div
-                    className="p-2 bg-white border-2 border-gray-200 rounded-xl"
-                    role="img"
-                    aria-label={`Durak ${stop.order} - ${stop.name} QR kodu`}
-                  >
-                    <QRCodeSVG value={url} size={140} bgColor="#ffffff" fgColor="#1e1b4b" level="M" />
-                  </div>
-                ) : (
-                  <div className="w-[156px] h-[156px] bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 text-xs">
-                    Yükleniyor...
-                  </div>
-                )}
-              </div>
-              <p className="text-center text-xs text-gray-400 font-mono break-all mb-2">{url}</p>
-              <div className="bg-gray-50 rounded-lg p-2.5">
-                <p className="text-xs font-semibold text-gray-500 mb-0.5">
-                  {AYLAR.find((a) => a.ay === selectedAylar[0])?.ad} konusu:
-                </p>
-                <p className="text-xs text-gray-700">{konuAdi}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="flex gap-3 mb-6">
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors"
-        >
-          ➕ Durak Ekle
-        </button>
-        <button
-          onClick={() => window.print()}
-          className="flex-1 border border-gray-300 text-gray-700 font-semibold px-4 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors"
-        >
-          🖨️ Yazdır
-        </button>
-      </div>
-
-      {/* Durak Ekle Modalı */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-            <h2 className="text-lg font-bold text-gray-900 mb-5">➕ Yeni Durak Ekle</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Durak Adı</label>
-                <input
-                  type="text"
-                  value={newStop.name}
-                  onChange={(e) => setNewStop((s) => ({ ...s, name: e.target.value }))}
-                  placeholder="ör. Spor Salonu"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Emoji</label>
-                <input
-                  type="text"
-                  value={newStop.emoji}
-                  onChange={(e) => setNewStop((s) => ({ ...s, emoji: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ders</label>
-                <select
-                  value={newStop.dersKey}
-                  onChange={(e) => setNewStop((s) => ({ ...s, dersKey: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {ALL_DERSLER.map((d) => (
-                    <option key={d} value={d}>{DERS_ADI[d]}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Alt Konu</label>
-                <input
-                  type="text"
-                  value={newStop.konuAdi}
-                  onChange={(e) => setNewStop((s) => ({ ...s, konuAdi: e.target.value }))}
-                  placeholder="ör. Hücre Biyolojisi"
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 border border-gray-300 text-gray-700 font-semibold py-2 rounded-lg text-sm hover:bg-gray-50"
-              >
-                İptal
-              </button>
-              <button
-                onClick={handleAddDurak}
-                disabled={!newStop.name.trim()}
-                className="flex-1 bg-indigo-600 disabled:bg-indigo-300 text-white font-semibold py-2 rounded-lg text-sm hover:bg-indigo-700"
-              >
-                Kaydet
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-// ── Soru Bankası sekmesi ──────────────────────────────────────────────────────
-function SorularTab({ selectedAylar }: { selectedAylar: string[] }) {
-  const [selectedStopId, setSelectedStopId] = useState(stops[0]?.id ?? "");
-  const stop = stops.find((s) => s.id === selectedStopId);
+  const [selectedStopId, setSelectedStopId] = useState(stopTemplates[0]?.id ?? "");
+  const stop = stopTemplates.find((s) => s.id === selectedStopId);
   const sorular = stop ? getSorular(stop.dersKey, selectedAylar) : [];
 
   return (
     <div>
+      <AySecici selectedAylar={selectedAylar} toggleAy={toggleAy} />
       {/* Durak seçici */}
       <div className="flex flex-wrap gap-2 mb-5">
-        {stops.map((s) => (
+        {stopTemplates.map((s) => (
           <button
             key={s.id}
             onClick={() => setSelectedStopId(s.id)}
@@ -447,7 +206,7 @@ interface ResultsSync {
 }
 
 // ── CSV indirme ───────────────────────────────────────────────────────────────
-function downloadCSV(leaderboard: LeaderboardEntry[]) {
+function downloadCSV(leaderboard: LeaderboardEntry[], stops: Stop[], gameCode: string) {
   const stopHeaders = stops.map((s) => `${s.name} (yanlış)`);
   const headers = [
     "Sıra", "Takma Ad", "Başlangıç (tahmini)", "Tamamlama",
@@ -490,7 +249,7 @@ function downloadCSV(leaderboard: LeaderboardEntry[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `dersera-sinif-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `dersera-${gameCode}-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -498,10 +257,14 @@ function downloadCSV(leaderboard: LeaderboardEntry[]) {
 // ── Sınıf Sıralaması sekmesi ──────────────────────────────────────────────────
 function SiralamaTabs({
   leaderboard,
+  stops,
+  gameCode,
   sync,
   onRefresh,
 }: {
   leaderboard: LeaderboardEntry[];
+  stops: Stop[];
+  gameCode: string;
   sync: ResultsSync;
   onRefresh: () => void;
 }) {
@@ -621,7 +384,7 @@ function SiralamaTabs({
         <div className="flex items-center gap-3">
           {leaderboard.length > 0 && (
             <button
-              onClick={() => downloadCSV(leaderboard)}
+              onClick={() => downloadCSV(leaderboard, stops, gameCode)}
               className="text-xs bg-green-600 hover:bg-green-700 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors"
             >
               ⬇ CSV İndir
@@ -880,23 +643,28 @@ function AyarlarTab({ onLogout }: { onLogout: () => void }) {
 export default function OgretmenClient() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [ready, setReady] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>("qr");
+  const [activeTab, setActiveTab] = useState<Tab>("oyun");
   const [selectedAylar, setSelectedAylar] = useState<string[]>(["eylul"]);
-  const [customStops, setCustomStops] = useState<CustomStop[]>([]);
+  const [teacherGame, setTeacherGame] = useState<TeacherGame | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [sync, setSync] = useState<ResultsSync>({ status: "loading", persistent: true, lastUpdated: null });
 
   useEffect(() => {
     setLoggedIn(loadTeacherSession());
-    setCustomStops(loadCustomStops());
+    setTeacherGame(loadTeacherGame());
     setReady(true);
   }, []);
 
   const latestRequest = useRef(0);
+  const gameCode = teacherGame?.game.code ?? null;
 
   const refreshLeaderboard = useCallback(() => {
     const requestId = ++latestRequest.current;
-    fetchResults().then((data) => {
+    if (!gameCode) {
+      setLeaderboard([]);
+      return;
+    }
+    fetchResults(gameCode).then((data) => {
       if (requestId !== latestRequest.current) return;
       if (data) {
         setLeaderboard(data.results);
@@ -905,16 +673,22 @@ export default function OgretmenClient() {
         setSync((s) => ({ ...s, status: "error" }));
       }
     });
+  }, [gameCode]);
+
+  const handleTeacherGameChange = useCallback((tg: TeacherGame) => {
+    saveTeacherGame(tg);
+    setTeacherGame(tg);
   }, []);
 
   useEffect(() => {
     if (!loggedIn) return;
+    const requests = latestRequest;
     const first = setTimeout(refreshLeaderboard, 0);
     const id = setInterval(refreshLeaderboard, RESULTS_REFRESH_MS);
     return () => {
       clearTimeout(first);
       clearInterval(id);
-      latestRequest.current++;
+      requests.current++;
     };
   }, [loggedIn, refreshLeaderboard]);
 
@@ -941,7 +715,7 @@ export default function OgretmenClient() {
   }
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: "qr", label: "QR Kodlar", icon: "📱" },
+    { id: "oyun", label: "Oyun", icon: "🎮" },
     { id: "sorular", label: "Sorular", icon: "📝" },
     { id: "siralama", label: "Sınıf", icon: "🏆" },
     { id: "ayarlar", label: "Ayarlar", icon: "⚙️" },
@@ -958,9 +732,14 @@ export default function OgretmenClient() {
               <p className="text-xs font-semibold text-indigo-200 leading-tight">Öğretmen Paneli</p>
             </div>
           </div>
-          <a href="/" className="text-indigo-300 hover:text-white text-sm transition-colors">
-            ← Ana sayfa
-          </a>
+          <div className="flex items-center gap-4">
+            <Link href="/qr-kutuphane" className="text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+              ▦ QR Kütüphanesi
+            </Link>
+            <Link href="/" className="hidden sm:inline text-indigo-300 hover:text-white text-sm transition-colors">
+              ← Ana sayfa
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -986,18 +765,30 @@ export default function OgretmenClient() {
 
       {/* İçerik */}
       <div className="max-w-4xl mx-auto px-4 py-6 print:px-0">
-        {activeTab === "qr" && (
-          <QrTab
+        {activeTab === "oyun" && (
+          <OyunTab
+            teacherGame={teacherGame}
+            finishedCount={leaderboard.length}
             selectedAylar={selectedAylar}
             toggleAy={toggleAy}
-            customStops={customStops}
-            setCustomStops={setCustomStops}
+            onTeacherGameChange={handleTeacherGameChange}
           />
         )}
-        {activeTab === "sorular" && <SorularTab selectedAylar={selectedAylar} />}
-        {activeTab === "siralama" && (
-          <SiralamaTabs leaderboard={leaderboard} sync={sync} onRefresh={refreshLeaderboard} />
-        )}
+        {activeTab === "sorular" && <SorularTab selectedAylar={selectedAylar} toggleAy={toggleAy} />}
+        {activeTab === "siralama" &&
+          (teacherGame ? (
+            <SiralamaTabs
+              leaderboard={leaderboard}
+              stops={toStops(teacherGame.game.stops)}
+              gameCode={teacherGame.game.code}
+              sync={sync}
+              onRefresh={refreshLeaderboard}
+            />
+          ) : (
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-500">
+              Önce <strong>Oyun</strong> sekmesinden bir oyun yayınla; sonuçlar burada görünür.
+            </div>
+          ))}
         {activeTab === "ayarlar" && (
           <AyarlarTab onLogout={() => setLoggedIn(false)} />
         )}
