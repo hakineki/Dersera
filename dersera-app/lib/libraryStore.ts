@@ -7,6 +7,8 @@ export interface LibraryStore {
   list(owner: string): Promise<KutuphaneKaydi[]>;
   get(owner: string, id: string): Promise<KutuphaneKaydi | null>;
   put(owner: string, kayit: KutuphaneKaydi): Promise<void>;
+  // Yalnız kayıt hâlâ varsa yazar; silinmiş kaydı geri getirmez.
+  replace(owner: string, kayit: KutuphaneKaydi): Promise<boolean>;
   remove(owner: string, id: string): Promise<boolean>;
   count(owner: string): Promise<number>;
 }
@@ -26,6 +28,11 @@ export function createMemoryLibraryStore(): LibraryStore {
     },
     async put(owner, kayit) {
       of(owner).set(kayit.id, kayit);
+    },
+    async replace(owner, kayit) {
+      if (!of(owner).has(kayit.id)) return false;
+      of(owner).set(kayit.id, kayit);
+      return true;
     },
     async remove(owner, id) {
       return of(owner).delete(id);
@@ -49,6 +56,18 @@ export function createRedisLibraryStore(command: RedisCommand): LibraryStore {
     },
     async put(owner, kayit) {
       await command(["HSET", libKey(owner), kayit.id, JSON.stringify(kayit)]);
+    },
+    async replace(owner, kayit) {
+      // HSET yalnız alan varsa: Upstash REST tek komut alır; EVAL ile kontrol ve yazma atomiktir.
+      const res = await command([
+        "EVAL",
+        "if redis.call('HEXISTS', KEYS[1], ARGV[1]) == 1 then redis.call('HSET', KEYS[1], ARGV[1], ARGV[2]) return 1 end return 0",
+        1,
+        libKey(owner),
+        kayit.id,
+        JSON.stringify(kayit),
+      ]);
+      return Number(res) === 1;
     },
     async remove(owner, id) {
       return Number(await command(["HDEL", libKey(owner), id])) === 1;

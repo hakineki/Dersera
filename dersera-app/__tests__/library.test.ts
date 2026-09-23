@@ -125,6 +125,42 @@ describe("oyun kütüphanesi", () => {
     expect((await yenidenYayinla(id)).res.status).toBe(404);
   });
 
+  it("tekrar yayın, bu arada silinen kaydı geri getirmez", async () => {
+    const { data } = await composerYayinla();
+    // Kayıt yayın sırasında silinmiş gibi: replace yazmamalı.
+    const store = api.libraryStore.getLibraryStore();
+    const sahip = await api.libraryService.sahipOf(A);
+    const kayit = (await store.list(sahip))[0];
+    await store.remove(sahip, kayit.id);
+    expect(await store.replace(sahip, kayit)).toBe(false);
+    expect(await store.list(sahip)).toEqual([]);
+    expect((await yenidenYayinla(data.kutuphaneId)).res.status).toBe(404);
+  });
+
+  it("kütüphane deposu hata verse de composer yayını 201 döner", async () => {
+    const spy = jest.spyOn(api.libraryStore, "getLibraryStore").mockImplementation(() => {
+      throw new Error("redis kapalı");
+    });
+    const err = jest.spyOn(console, "error").mockImplementation(() => {});
+    const { res, data } = await composerYayinla();
+    spy.mockRestore();
+    err.mockRestore();
+    expect(res.status).toBe(201);
+    expect(data.kutuphaneId).toBeNull();
+  });
+
+  it("kayıtlı tanım doğrulamadan geçmiyorsa tekrar yayın 422 döner", async () => {
+    const { data } = await composerYayinla();
+    const store = api.libraryStore.getLibraryStore();
+    const sahip = await api.libraryService.sahipOf(A);
+    const kayit = await store.get(sahip, data.kutuphaneId);
+    kayit!.definition.duraklar[0].gorev.soru = "";
+    await store.put(sahip, kayit!);
+    const r = await yenidenYayinla(data.kutuphaneId);
+    expect(r.res.status).toBe(422);
+    expect(r.data.validation.hatalar.map((h: { kod: string }) => h.kod)).toContain("soru-bos");
+  });
+
   it("bozuk kimlikte 404 döner", async () => {
     expect((await yenidenYayinla("../x")).res.status).toBe(404);
     expect((await api.libraryItem.GET(get("/api/library/ABC", A), api.idParams("ABC"))).status).toBe(404);

@@ -11,6 +11,8 @@ export async function buildApi() {
     library: typeof import("@/app/api/library/route");
     libraryItem: typeof import("@/app/api/library/[id]/route");
     libraryPublish: typeof import("@/app/api/library/[id]/publish/route");
+    libraryStore: typeof import("@/lib/libraryStore");
+    libraryService: typeof import("@/lib/libraryService");
   };
   await jest.isolateModulesAsync(async () => {
     mods = {
@@ -22,6 +24,8 @@ export async function buildApi() {
       library: await import("@/app/api/library/route"),
       libraryItem: await import("@/app/api/library/[id]/route"),
       libraryPublish: await import("@/app/api/library/[id]/publish/route"),
+      libraryStore: await import("@/lib/libraryStore"),
+      libraryService: await import("@/lib/libraryService"),
     };
   });
   return {

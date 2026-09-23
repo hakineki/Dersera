@@ -236,6 +236,7 @@ export default function ComposerClient({
       }
       const pub = json as PublishResponse;
       saveTeacherGame({ game: pub.game, adminToken: pub.adminToken });
+      if (!pub.kutuphaneId) window.alert("Oyun yayınlandı ama kütüphaneye eklenemedi (kütüphane dolu olabilir). Yer açmak için kütüphaneden eski bir oyunu silebilirsin.");
       router.push("/ogretmen");
     } catch {
       setYayinHatasi("Oyun yayınlanamadı. Bağlantınızı kontrol edin.");

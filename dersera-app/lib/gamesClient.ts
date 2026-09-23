@@ -23,6 +23,8 @@ export interface PublishResponse {
   game: PublicGame;
   adminToken: string;
   persistent: boolean;
+  // Composer yayınında kütüphane kaydının kimliği; eklenemediyse null.
+  kutuphaneId?: string | null;
 }
 
 export async function publishGameRequest(req: PublishRequest): Promise<PublishResponse | null> {
