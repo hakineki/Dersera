@@ -17,9 +17,9 @@ export const metadata: Metadata = {
   title: "Dersera — Okulun Şifresi",
   description: "QR kod tabanlı okul macera oyunu — 10. sınıf",
   icons: {
-    icon: "/logo/logo-icon.svg",
-    shortcut: "/logo/logo-icon.svg",
-    apple: "/logo/logo-icon.svg",
+    icon: "/logo/dersera-symbol.png",
+    shortcut: "/logo/dersera-symbol.png",
+    apple: "/logo/dersera-app-icon.png",
   },
 };
 

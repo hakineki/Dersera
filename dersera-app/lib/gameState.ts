@@ -111,16 +111,32 @@ export function loadLeaderboard(): LeaderboardEntry[] {
   }
 }
 
-export function addLeaderboardEntry(entry: LeaderboardEntry): void {
-  const board = loadLeaderboard();
-  // Aynı takma adın önceki girişini sil (en iyi skor değil, en son)
-  const filtered = board.filter((e) => e.nickname !== entry.nickname);
-  safeSet(
-    STORAGE_KEYS.LEADERBOARD,
-    JSON.stringify([...filtered, entry].sort(
-      (a, b) => (a.netSeconds + a.penaltySeconds) - (b.netSeconds + b.penaltySeconds)
-    ))
+export function nicknameKey(nickname: string): string {
+  return nickname.trim().toLowerCase();
+}
+
+export function sortLeaderboard(board: LeaderboardEntry[]): LeaderboardEntry[] {
+  return [...board].sort(
+    (a, b) => (a.netSeconds + a.penaltySeconds) - (b.netSeconds + b.penaltySeconds)
   );
+}
+
+// Aynı takma adın önceki girişi silinir: en iyi skor değil, en son skor geçerli.
+export function mergeLeaderboardEntry(
+  board: LeaderboardEntry[],
+  entry: LeaderboardEntry
+): LeaderboardEntry[] {
+  const key = nicknameKey(entry.nickname);
+  return sortLeaderboard([...board.filter((e) => nicknameKey(e.nickname) !== key), entry]);
+}
+
+export function addLeaderboardEntry(entry: LeaderboardEntry): void {
+  safeSet(STORAGE_KEYS.LEADERBOARD, JSON.stringify(mergeLeaderboardEntry(loadLeaderboard(), entry)));
+}
+
+export function buildResultCode(nickname: string, totalSeconds: number): string {
+  const prefix = nickname.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "X").padEnd(3, "X");
+  return `${prefix}-${String(totalSeconds).padStart(4, "0")}`;
 }
 
 export function loadCustomStops(): CustomStop[] {

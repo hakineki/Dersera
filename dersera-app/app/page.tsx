@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import DerseraLogo from "@/components/DerseraLogo";
 
 export default function RoleSelector() {
   const router = useRouter();
@@ -9,9 +10,8 @@ export default function RoleSelector() {
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
-          {/* Dersera logo */}
           <div className="flex justify-center mb-4">
-            <img src="/logo/dersera-logo.svg" alt="Dersera" className="h-12 w-auto" />
+            <DerseraLogo />
           </div>
           <h1 className="text-xl font-bold text-white mt-3">Okulun Şifresi</h1>
           <p className="text-purple-300 text-sm mt-1">Rolünüzü seçin</p>
