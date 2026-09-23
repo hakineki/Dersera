@@ -54,7 +54,7 @@ function OyunKarti({
     setYukleniyor("onizle");
     setHata("");
     const tam = await kutuphaneOyunu(oyun.id);
-    if (tam) setOnizleme(tam);
+    if (tam) setOnizleme(tam.oyun);
     else setHata("Önizleme yüklenemedi.");
     setYukleniyor(null);
   }
@@ -101,6 +101,9 @@ function OyunKarti({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mt-3">
+        <Link href={`/composer?kutuphane=${oyun.id}`} className="text-sm border border-indigo-300 text-indigo-700 font-semibold px-3 py-1.5 rounded-lg">
+          Düzenle
+        </Link>
         <button onClick={onizle} disabled={yukleniyor !== null} className="text-sm border border-gray-300 text-gray-700 font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50">
           {yukleniyor === "onizle" ? "Yükleniyor…" : onizleme ? "Önizlemeyi kapat" : "Önizle"}
         </button>
@@ -152,7 +155,7 @@ export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: Teac
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-gray-900">Oyun Kütüphanesi</h2>
-          <p className="text-sm text-gray-500">Yayınladığın oyunlar burada saklanır. Tekrar yayınlamak yeni oyun kodu üretir; yapay zekâ çağrısı yapılmaz.</p>
+          <p className="text-sm text-gray-500">Composer&apos;da “Kütüphaneye kaydet” dediğin oyunlar burada saklanır; düzenleyip yeniden yayınlayabilirsin. Tekrar yayınlamak yeni oyun kodu üretir; yapay zekâ çağrısı yapılmaz.</p>
         </div>
         <Link href="/composer" className="shrink-0 text-sm bg-indigo-600 text-white font-semibold px-3 py-2 rounded-lg">
           + Yeni Oyun
@@ -170,7 +173,7 @@ export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: Teac
       {!hata && oyunlar === null && <p className="text-sm text-gray-400">Yükleniyor…</p>}
       {oyunlar?.length === 0 && (
         <p className="bg-white border border-dashed border-gray-300 rounded-2xl p-6 text-center text-sm text-gray-500">
-          Kütüphanen boş. Composer&apos;da bir oyun oluşturup yayınladığında burada görünür.
+          Kütüphanen boş. Composer&apos;da bir oyun oluşturup “Kütüphaneye kaydet” dediğinde burada görünür.
         </p>
       )}
       {oyunlar && oyunlar.length > 0 && (

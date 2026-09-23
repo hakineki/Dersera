@@ -34,7 +34,7 @@ export interface KutuphaneKaydi extends KutuphaneOzeti {
   dersler: DersKonu[];
 }
 
-export function kayitOlustur(id: string, definition: GameDefinition, dersler: DersKonu[], kod: string, now: number): KutuphaneKaydi {
+export function kayitOlustur(id: string, definition: GameDefinition, dersler: DersKonu[], kod: string | null, now: number): KutuphaneKaydi {
   const m = definition.meta;
   return {
     id,
@@ -48,7 +48,7 @@ export function kayitOlustur(id: string, definition: GameDefinition, dersler: De
     durakSayisi: definition.duraklar.length,
     createdAt: now,
     sonKod: kod,
-    sonYayin: now,
+    sonYayin: kod ? now : null,
     definition,
     dersler,
   };
