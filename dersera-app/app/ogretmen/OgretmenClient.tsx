@@ -19,6 +19,11 @@ import {
   setTeacherSession,
   saveTeacherCreds,
 } from "@/lib/teacherAuth";
+import {
+  loadPilotInfo,
+  savePilotInfo,
+  type PilotInfo,
+} from "@/lib/pilotInfo";
 
 type Tab = "qr" | "sorular" | "siralama" | "ayarlar";
 
@@ -57,8 +62,10 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">👩‍🏫</div>
-          <h1 className="text-xl font-bold text-white">Öğretmen Girişi</h1>
+          <div className="flex justify-center mb-4">
+            <img src="/logo/dersera-logo.svg" alt="Dersera" className="h-10 w-auto opacity-90" />
+          </div>
+          <h1 className="text-xl font-bold text-white mt-2">Öğretmen Girişi</h1>
           <p className="text-purple-300 text-sm mt-1">Panele erişmek için giriş yapın</p>
         </div>
 
@@ -235,7 +242,11 @@ function QrTab({
               </div>
               <div className="flex justify-center mb-3">
                 {baseUrl ? (
-                  <div className="p-2 bg-white border-2 border-gray-200 rounded-xl">
+                  <div
+                    className="p-2 bg-white border-2 border-gray-200 rounded-xl"
+                    role="img"
+                    aria-label={`Durak ${stop.order} - ${stop.name} QR kodu`}
+                  >
                     <QRCodeSVG value={url} size={140} bgColor="#ffffff" fgColor="#1e1b4b" level="M" />
                   </div>
                 ) : (
@@ -425,6 +436,61 @@ function SorularTab({ selectedAylar }: { selectedAylar: string[] }) {
   );
 }
 
+// ── Yardımcı: sonuç kodu ─────────────────────────────────────────────────────
+function buildResultCode(nickname: string, totalSec: number): string {
+  const prefix = nickname.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "X").padEnd(3, "X");
+  return `${prefix}-${String(totalSec).padStart(4, "0")}`;
+}
+
+// ── CSV indirme ───────────────────────────────────────────────────────────────
+function downloadCSV(leaderboard: LeaderboardEntry[]) {
+  const stopHeaders = stops.map((s) => `${s.name} (yanlış)`);
+  const headers = [
+    "Sıra", "Takma Ad", "Başlangıç (tahmini)", "Tamamlama",
+    "Net Süre", "Ceza", "Toplam", "Yanlış Sayısı", "İpucu",
+    "Son Durak", "Sonuç Kodu",
+    ...stopHeaders,
+  ];
+
+  const rows = leaderboard.map((e, i) => {
+    const startTs = e.completedAt - e.netSeconds * 1000;
+    const total = e.netSeconds + e.penaltySeconds;
+    const wrongCount = Math.round(e.penaltySeconds / 15);
+    const lastStopEntry = e.stopDetails
+      ? Object.entries(e.stopDetails).sort((a, b) => b[1].completedAt - a[1].completedAt)[0]
+      : null;
+    const lastStop = lastStopEntry
+      ? (stops.find((s) => s.id === lastStopEntry[0])?.name ?? lastStopEntry[0])
+      : stops[stops.length - 1]?.name ?? "";
+    const resultCode = buildResultCode(e.nickname, total);
+    const stopCols = stops.map((s) => e.stopDetails?.[s.id]?.hintsUsed ?? "");
+
+    return [
+      i + 1,
+      e.nickname,
+      new Date(startTs).toLocaleString("tr-TR"),
+      new Date(e.completedAt).toLocaleString("tr-TR"),
+      formatElapsed(e.netSeconds),
+      e.penaltySeconds > 0 ? `+${formatElapsed(e.penaltySeconds)}` : "0",
+      formatElapsed(total),
+      wrongCount,
+      e.hintsUsed,
+      lastStop,
+      resultCode,
+      ...stopCols,
+    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",");
+  });
+
+  const csv = [headers.map((h) => `"${h}"`).join(","), ...rows].join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `dersera-sinif-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Sınıf Sıralaması sekmesi ──────────────────────────────────────────────────
 function SiralamaTabs({ leaderboard, onRefresh }: { leaderboard: LeaderboardEntry[]; onRefresh: () => void }) {
   const [selectedNick, setSelectedNick] = useState<string | null>(null);
@@ -433,6 +499,10 @@ function SiralamaTabs({ leaderboard, onRefresh }: { leaderboard: LeaderboardEntr
 
   if (selectedEntry) {
     const total = selectedEntry.netSeconds + selectedEntry.penaltySeconds;
+    const startTs = selectedEntry.completedAt - selectedEntry.netSeconds * 1000;
+    const wrongCount = Math.round(selectedEntry.penaltySeconds / 15);
+    const resultCode = buildResultCode(selectedEntry.nickname, total);
+
     return (
       <div>
         <button
@@ -442,32 +512,54 @@ function SiralamaTabs({ leaderboard, onRefresh }: { leaderboard: LeaderboardEntr
           ← Tüm liste
         </button>
 
-        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 mb-5">
+        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 mb-4">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
               {selectedEntry.nickname[0]?.toUpperCase()}
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="font-bold text-gray-900 text-lg">{selectedEntry.nickname}</p>
               <p className="text-indigo-500 text-xs">
-                {new Date(selectedEntry.completedAt).toLocaleString("tr-TR")}
+                Sonuç Kodu: <span className="font-mono font-bold">{resultCode}</span>
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div className="bg-white rounded-xl p-3">
-              <p className="text-xs text-gray-500 mb-1">Net Süre</p>
-              <p className="font-mono font-bold text-gray-900">{formatElapsed(selectedEntry.netSeconds)}</p>
+
+          {/* Süre kartları */}
+          <div className="grid grid-cols-3 gap-2 text-center mb-3">
+            <div className="bg-white rounded-xl p-2.5">
+              <p className="text-xs text-gray-500 mb-0.5">Net</p>
+              <p className="font-mono font-bold text-gray-900 text-sm">{formatElapsed(selectedEntry.netSeconds)}</p>
             </div>
-            <div className="bg-white rounded-xl p-3">
-              <p className="text-xs text-gray-500 mb-1">Ceza</p>
-              <p className={`font-mono font-bold ${selectedEntry.penaltySeconds > 0 ? "text-red-500" : "text-gray-400"}`}>
+            <div className="bg-white rounded-xl p-2.5">
+              <p className="text-xs text-gray-500 mb-0.5">Ceza</p>
+              <p className={`font-mono font-bold text-sm ${selectedEntry.penaltySeconds > 0 ? "text-red-500" : "text-gray-400"}`}>
                 {selectedEntry.penaltySeconds > 0 ? `+${formatElapsed(selectedEntry.penaltySeconds)}` : "—"}
               </p>
             </div>
-            <div className="bg-white rounded-xl p-3">
-              <p className="text-xs text-gray-500 mb-1">Toplam</p>
-              <p className="font-mono font-bold text-indigo-700">{formatElapsed(total)}</p>
+            <div className="bg-white rounded-xl p-2.5">
+              <p className="text-xs text-gray-500 mb-0.5">Toplam</p>
+              <p className="font-mono font-bold text-indigo-700 text-sm">{formatElapsed(total)}</p>
+            </div>
+          </div>
+
+          {/* Meta bilgileri */}
+          <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+            <div className="bg-white rounded-lg p-2">
+              <span className="text-gray-400 block">Başlangıç (tahmini)</span>
+              {new Date(startTs).toLocaleString("tr-TR")}
+            </div>
+            <div className="bg-white rounded-lg p-2">
+              <span className="text-gray-400 block">Tamamlama</span>
+              {new Date(selectedEntry.completedAt).toLocaleString("tr-TR")}
+            </div>
+            <div className="bg-white rounded-lg p-2">
+              <span className="text-gray-400 block">Yanlış Cevap</span>
+              {wrongCount} kez
+            </div>
+            <div className="bg-white rounded-lg p-2">
+              <span className="text-gray-400 block">Kullanılan İpucu</span>
+              {selectedEntry.hintsUsed}
             </div>
           </div>
         </div>
@@ -493,6 +585,11 @@ function SiralamaTabs({ leaderboard, onRefresh }: { leaderboard: LeaderboardEntr
                   <div className="text-right">
                     <p className="text-xs font-semibold text-green-600">✅ Tamamlandı</p>
                     <p className="text-xs text-gray-400">{detail.hintsUsed} yanlış</p>
+                    {detail.completedAt > 0 && (
+                      <p className="text-xs text-gray-300">
+                        {new Date(detail.completedAt).toLocaleTimeString("tr-TR")}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <p className="text-xs text-gray-400">—</p>
@@ -509,12 +606,22 @@ function SiralamaTabs({ leaderboard, onRefresh }: { leaderboard: LeaderboardEntr
     <div>
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-gray-500">{leaderboard.length} öğrenci tamamladı</p>
-        <button
-          onClick={onRefresh}
-          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-        >
-          Yenile
-        </button>
+        <div className="flex items-center gap-3">
+          {leaderboard.length > 0 && (
+            <button
+              onClick={() => downloadCSV(leaderboard)}
+              className="text-xs bg-green-600 hover:bg-green-700 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors"
+            >
+              ⬇ CSV İndir
+            </button>
+          )}
+          <button
+            onClick={onRefresh}
+            className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
+          >
+            Yenile
+          </button>
+        </div>
       </div>
 
       {leaderboard.length === 0 ? (
@@ -523,43 +630,48 @@ function SiralamaTabs({ leaderboard, onRefresh }: { leaderboard: LeaderboardEntr
           <p className="text-gray-400 text-sm">Henüz tamamlayan öğrenci yok.</p>
         </div>
       ) : (
-        <div className="bg-white border border-gray-100 rounded-xl overflow-hidden">
+        <div className="bg-white border border-gray-100 rounded-xl overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500 w-8">#</th>
                 <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500">Takma Ad</th>
-                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500">Net</th>
-                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500">Ceza</th>
                 <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500">Toplam</th>
-                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500">✗</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500">Ceza</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500">Yanlış</th>
+                <th className="px-3 py-2.5 text-right text-xs font-semibold text-gray-500">İpucu</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-500">Sonuç Kodu</th>
               </tr>
             </thead>
             <tbody>
-              {leaderboard.map((e, i) => (
-                <tr
-                  key={e.nickname + e.completedAt}
-                  onClick={() => setSelectedNick(e.nickname)}
-                  className={`border-b border-gray-50 cursor-pointer hover:bg-indigo-50 transition-colors ${
-                    i === 0 ? "bg-yellow-50" : ""
-                  }`}
-                >
-                  <td className="px-3 py-3 text-gray-400 text-xs">
-                    {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
-                  </td>
-                  <td className="px-3 py-3 font-semibold text-gray-900">{e.nickname}</td>
-                  <td className="px-3 py-3 text-right font-mono text-gray-600 text-xs">
-                    {formatElapsed(e.netSeconds)}
-                  </td>
-                  <td className="px-3 py-3 text-right font-mono text-xs text-red-400">
-                    {e.penaltySeconds > 0 ? `+${formatElapsed(e.penaltySeconds)}` : "—"}
-                  </td>
-                  <td className="px-3 py-3 text-right font-mono font-bold text-indigo-700 text-xs">
-                    {formatElapsed(e.netSeconds + e.penaltySeconds)}
-                  </td>
-                  <td className="px-3 py-3 text-right text-gray-500 text-xs">{e.hintsUsed}</td>
-                </tr>
-              ))}
+              {leaderboard.map((e, i) => {
+                const total = e.netSeconds + e.penaltySeconds;
+                const wrongCount = Math.round(e.penaltySeconds / 15);
+                const resultCode = buildResultCode(e.nickname, total);
+                return (
+                  <tr
+                    key={e.nickname + e.completedAt}
+                    onClick={() => setSelectedNick(e.nickname)}
+                    className={`border-b border-gray-50 cursor-pointer hover:bg-indigo-50 transition-colors ${
+                      i === 0 ? "bg-yellow-50" : ""
+                    }`}
+                  >
+                    <td className="px-3 py-3 text-gray-400 text-xs">
+                      {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                    </td>
+                    <td className="px-3 py-3 font-semibold text-gray-900">{e.nickname}</td>
+                    <td className="px-3 py-3 text-right font-mono font-bold text-indigo-700 text-xs">
+                      {formatElapsed(total)}
+                    </td>
+                    <td className="px-3 py-3 text-right font-mono text-xs text-red-400">
+                      {e.penaltySeconds > 0 ? `+${formatElapsed(e.penaltySeconds)}` : "—"}
+                    </td>
+                    <td className="px-3 py-3 text-right text-gray-500 text-xs">{wrongCount}</td>
+                    <td className="px-3 py-3 text-right text-gray-500 text-xs">{e.hintsUsed}</td>
+                    <td className="px-3 py-3 font-mono text-xs text-gray-500">{resultCode}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -575,6 +687,16 @@ function AyarlarTab({ onLogout }: { onLogout: () => void }) {
   const [newPassword, setNewPassword] = useState("");
   const [newPassword2, setNewPassword2] = useState("");
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  const [pilot, setPilot] = useState<PilotInfo>(() => loadPilotInfo());
+  const [pilotMsg, setPilotMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  function handleSavePilot(e: React.FormEvent) {
+    e.preventDefault();
+    savePilotInfo(pilot);
+    setPilotMsg({ type: "ok", text: "Pilot bilgileri kaydedildi." });
+    setTimeout(() => setPilotMsg(null), 3000);
+  }
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -597,8 +719,66 @@ function AyarlarTab({ onLogout }: { onLogout: () => void }) {
   }
 
   return (
-    <div className="max-w-md">
-      <h3 className="font-semibold text-gray-700 mb-4">Giriş Bilgilerini Değiştir</h3>
+    <div className="max-w-md space-y-8">
+      {/* Pilot Bilgileri */}
+      <div>
+        <h3 className="font-semibold text-gray-700 mb-4">Pilot Bilgileri</h3>
+        <form onSubmit={handleSavePilot} className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Okul Adı</label>
+            <input
+              type="text"
+              value={pilot.schoolName}
+              onChange={(e) => setPilot({ ...pilot, schoolName: e.target.value })}
+              placeholder="Örn. Atatürk Anadolu Lisesi"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Sınıf</label>
+            <input
+              type="text"
+              value={pilot.className}
+              onChange={(e) => setPilot({ ...pilot, className: e.target.value })}
+              placeholder="Örn. 10-A"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Sorumlu Öğretmen</label>
+            <input
+              type="text"
+              value={pilot.teacherName}
+              onChange={(e) => setPilot({ ...pilot, teacherName: e.target.value })}
+              placeholder="Örn. Ayşe Yılmaz"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Uygulama Tarihi</label>
+            <input
+              type="date"
+              value={pilot.pilotDate}
+              onChange={(e) => setPilot({ ...pilot, pilotDate: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+          {pilotMsg && (
+            <div className={`rounded-lg px-3 py-2 text-sm ${pilotMsg.type === "ok" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+              {pilotMsg.text}
+            </div>
+          )}
+          <button
+            type="submit"
+            className="w-full bg-indigo-600 text-white font-semibold py-2 rounded-lg text-sm hover:bg-indigo-700 transition-colors"
+          >
+            Kaydet
+          </button>
+        </form>
+      </div>
+
+      <div className="border-t border-gray-200 pt-6">
+        <h3 className="font-semibold text-gray-700 mb-4">Giriş Bilgilerini Değiştir</h3>
 
       <form onSubmit={handleSave} className="space-y-3">
         <div>
@@ -654,7 +834,9 @@ function AyarlarTab({ onLogout }: { onLogout: () => void }) {
         </button>
       </form>
 
-      <div className="mt-8 pt-6 border-t border-gray-200">
+      </div>
+
+      <div className="pt-6 border-t border-gray-200">
         <button
           onClick={() => { setTeacherSession(false); onLogout(); }}
           className="w-full border border-red-200 text-red-600 font-semibold py-2 rounded-lg text-sm hover:bg-red-50 transition-colors"
@@ -720,9 +902,11 @@ export default function OgretmenClient() {
       {/* Header */}
       <div className="bg-indigo-900 text-white px-6 py-4 print:hidden">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold">🗺️ Okulun Şifresi</h1>
-            <p className="text-indigo-300 text-xs mt-0.5">Öğretmen Paneli</p>
+          <div className="flex items-center gap-3">
+            <img src="/logo/dersera-logo.svg" alt="Dersera" className="h-8 w-auto opacity-90" />
+            <div className="border-l border-indigo-700 pl-3">
+              <p className="text-xs font-semibold text-indigo-200 leading-tight">Öğretmen Paneli</p>
+            </div>
           </div>
           <a href="/" className="text-indigo-300 hover:text-white text-sm transition-colors">
             ← Ana sayfa

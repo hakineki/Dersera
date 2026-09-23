@@ -30,12 +30,12 @@ export const stops: Stop[] = [
     emoji: "🏫",
     subject: "Fizik",
     dersKey: "fizik",
-    nextStopId: "fizik-lab",
+    nextStopId: "kimya-lab",
     nextClue:
       "🎉 Fiziği çok iyi biliyorsun! Sıradaki durak: Deneylerin ve ölçümlerin yapıldığı, kimyasal tepkimelerin gözlemlendiği o özel odayı bul. Laboratuvara git! ⚗️",
   },
   {
-    id: "fizik-lab",
+    id: "kimya-lab",
     order: 3,
     name: "Laboratuvar",
     emoji: "⚗️",
