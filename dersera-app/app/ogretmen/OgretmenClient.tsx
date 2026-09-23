@@ -15,15 +15,15 @@ import OyunTab from "./OyunTab";
 import KutuphaneTab from "./KutuphaneTab";
 import { cikisYap, eskiYerelGirisiTemizle, girisYap, kayitOl, kullaniciAdiDegistir, oturumBilgisi, sifreDegistir, type HesapOzeti } from "@/lib/authClient";
 import { eskiKutuphaneSayisi, eskiKutuphaneyiTasi } from "@/lib/libraryClient";
-
-const SIFRE_MIN_ISTEMCI = 8;
-// "Benim değil" seçimi bu tarayıcı oturumu boyunca hatırlanır.
-const ESKI_KUTUPHANE_RED = "dersera:eski-kutuphane-red";
 import {
   loadPilotInfo,
   savePilotInfo,
   type PilotInfo,
 } from "@/lib/pilotInfo";
+
+const SIFRE_MIN_ISTEMCI = 8;
+// "Benim değil" seçimi bu tarayıcı oturumu boyunca hatırlanır.
+const ESKI_KUTUPHANE_RED = "dersera:eski-kutuphane-red";
 
 export type Tab = "oyun" | "kutuphane" | "sorular" | "siralama" | "ayarlar";
 
