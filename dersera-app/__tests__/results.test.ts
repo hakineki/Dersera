@@ -95,4 +95,9 @@ describe("mergeLeaderboardEntry", () => {
     const board = mergeLeaderboardEntry([entry("Kartal", 100)], entry("kartal", 300));
     expect(board).toEqual([entry("kartal", 300)]);
   });
+
+  it("Türkçe İ/I harflerini doğru eşler", () => {
+    expect(mergeLeaderboardEntry([entry("İPEK", 100)], entry("ipek", 200))).toEqual([entry("ipek", 200)]);
+    expect(mergeLeaderboardEntry([entry("IŞIK", 100)], entry("ışık", 200))).toEqual([entry("ışık", 200)]);
+  });
 });

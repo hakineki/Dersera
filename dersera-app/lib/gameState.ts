@@ -112,7 +112,7 @@ export function loadLeaderboard(): LeaderboardEntry[] {
 }
 
 export function nicknameKey(nickname: string): string {
-  return nickname.trim().toLowerCase();
+  return nickname.trim().toLocaleLowerCase("tr-TR");
 }
 
 export function sortLeaderboard(board: LeaderboardEntry[]): LeaderboardEntry[] {

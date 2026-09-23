@@ -259,6 +259,8 @@ function computeElapsed(startTime: number, endTime?: number): number {
   return Math.floor(((endTime ?? Date.now()) - startTime) / 1000);
 }
 
+const MAX_NET_SECONDS = 24 * 60 * 60;
+
 function buildEntry(
   nickname: string,
   startTime: number,
@@ -268,7 +270,8 @@ function buildEntry(
 ): LeaderboardEntry {
   return {
     nickname,
-    netSeconds: computeElapsed(startTime, endTime),
+    // Sunucu 0–24 saat dışını reddeder; gece yarısını aşan ya da saati kaymış cihaz takılı kalmasın.
+    netSeconds: Math.min(Math.max(computeElapsed(startTime, endTime), 0), MAX_NET_SECONDS),
     penaltySeconds,
     hintsUsed: Object.values(progress).reduce((s, p) => s + p.hintsUsed, 0),
     completedAt: endTime,

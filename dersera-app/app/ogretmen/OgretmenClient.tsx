@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import DerseraLogo from "@/components/DerseraLogo";
 import { fetchResults } from "@/lib/resultsClient";
 import { stops } from "@/data/stops";
@@ -892,8 +892,12 @@ export default function OgretmenClient() {
     setReady(true);
   }, []);
 
+  const latestRequest = useRef(0);
+
   const refreshLeaderboard = useCallback(() => {
+    const requestId = ++latestRequest.current;
     fetchResults().then((data) => {
+      if (requestId !== latestRequest.current) return;
       if (data) {
         setLeaderboard(data.results);
         setSync({ status: "ok", persistent: data.persistent, lastUpdated: Date.now() });
@@ -910,6 +914,7 @@ export default function OgretmenClient() {
     return () => {
       clearTimeout(first);
       clearInterval(id);
+      latestRequest.current++;
     };
   }, [loggedIn, refreshLeaderboard]);
 
