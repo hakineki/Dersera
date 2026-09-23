@@ -338,6 +338,12 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
         penaltySeconds: totalPenalty,
         hintsUsed: Object.values(updated).reduce((s, p) => s + p.hintsUsed, 0),
         completedAt: endTs,
+        stopDetails: Object.fromEntries(
+          Object.entries(updated).map(([id, p]) => [
+            id,
+            { hintsUsed: p.hintsUsed, completedAt: p.completedAt },
+          ])
+        ),
       });
       setSummaryData({ netSeconds: net, penaltySeconds: totalPenalty, resultCode: code });
       setElapsedSeconds(net);
