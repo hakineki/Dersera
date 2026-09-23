@@ -60,6 +60,12 @@ export function clientIp(req: Request): string {
   return fwd || req.headers.get("x-real-ip") || "bilinmiyor";
 }
 
+// Tek anahtarlı sabit pencere sınırı: pencere içinde en fazla `max` istek.
+export async function checkLimit(key: string, windowMs: number, max: number, l: Limiter = getLimiter()): Promise<boolean> {
+  const pencere = Math.floor(Date.now() / windowMs);
+  return (await l.hit(`${key}:${pencere}`, windowMs)) <= max;
+}
+
 export async function checkComposeLimit(ip: string, l: Limiter = getLimiter()): Promise<boolean> {
   const hour = Math.floor(Date.now() / HOUR_MS);
   const day = Math.floor(Date.now() / DAY_MS);

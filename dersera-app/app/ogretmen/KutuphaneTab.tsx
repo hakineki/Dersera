@@ -183,7 +183,6 @@ export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: Teac
           ))}
         </ul>
       )}
-      <p className="text-xs text-gray-400">Kütüphane bu tarayıcıya bağlıdır; tarayıcı verileri silinirse kütüphaneye erişim kaybolur.</p>
     </div>
   );
 }

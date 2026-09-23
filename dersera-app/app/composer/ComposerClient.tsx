@@ -8,7 +8,7 @@ import type { KonuSecenegi, OgrenmeCiktisi } from "@/data/mufredat/programlar";
 import { validationContext } from "@/lib/composer/context";
 import type { GameDefinition } from "@/lib/composer/definition";
 import { validateGame, type ValidationResult } from "@/lib/composer/validator";
-import { loadTeacherSession } from "@/lib/teacherAuth";
+import { oturumBilgisi } from "@/lib/authClient";
 import { saveTeacherGame } from "@/lib/teacherGame";
 import { kutuphaneOyunu, kutuphaneyeKaydet } from "@/lib/libraryClient";
 import type { PublishResponse } from "@/lib/gamesClient";
@@ -139,7 +139,7 @@ export default function ComposerClient({
   }, [sonuc]);
 
   useEffect(() => {
-    const t = setTimeout(() => setOgretmen(loadTeacherSession()));
+    const t = setTimeout(async () => setOgretmen(!!(await oturumBilgisi())?.hesap));
     return () => clearTimeout(t);
   }, []);
 

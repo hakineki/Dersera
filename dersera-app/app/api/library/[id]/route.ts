@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { isKutuphaneId } from "@/lib/library";
 import { getLibraryStore } from "@/lib/libraryStore";
-import { anahtarOf, kayitDetayi, kutuphaneKaydiniGuncelle, sahipOf } from "@/lib/libraryService";
+import { oturumGerekli } from "@/lib/authRequest";
+import { istekSahibi, kayitDetayi, kutuphaneKaydiniGuncelle } from "@/lib/libraryService";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 async function hedef(req: Request, ctx: Ctx) {
-  const anahtar = anahtarOf(req);
-  if (!anahtar) return { hata: NextResponse.json({ error: "Kütüphane anahtarı gerekli" }, { status: 401 }) };
+  const sahip = await istekSahibi(req);
+  if (!sahip) return { hata: oturumGerekli() };
   const { id } = await ctx.params;
   if (!isKutuphaneId(id)) return { hata: NextResponse.json({ error: "Oyun bulunamadı" }, { status: 404 }) };
-  return { sahip: await sahipOf(anahtar), id };
+  return { sahip, id };
 }
 
 export async function GET(req: Request, ctx: Ctx) {
@@ -27,13 +28,13 @@ export async function GET(req: Request, ctx: Ctx) {
 
 // Düzenlenen oyun aynı kayda yazılır.
 export async function PUT(req: Request, ctx: Ctx) {
-  const anahtar = anahtarOf(req);
-  if (!anahtar) return NextResponse.json({ error: "Kütüphane anahtarı gerekli" }, { status: 401 });
+  const sahip = await istekSahibi(req);
+  if (!sahip) return oturumGerekli();
   const { id } = await ctx.params;
   if (!isKutuphaneId(id)) return NextResponse.json({ error: "Oyun bulunamadı" }, { status: 404 });
   const body = await req.json().catch(() => null);
   try {
-    const r = await kutuphaneKaydiniGuncelle(getLibraryStore(), anahtar, id, body);
+    const r = await kutuphaneKaydiniGuncelle(getLibraryStore(), sahip, id, body);
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
     return NextResponse.json({ id: r.id, validation: r.validation });
   } catch (err) {
