@@ -192,7 +192,7 @@ describe("boyut sınırları", () => {
 
   it("çok uzun metni ve çok fazla seçeneği reddeder", () => {
     const def = clone(makeDefinition(sinifInput));
-    def.duraklar[0].hikaye_metni = "a".repeat(601);
+    def.duraklar[0].hikaye_metni = "a".repeat(1001);
     def.duraklar[1].gorev.secenekler = ["A", "B", "C", "D", "E", "F", "G"];
     expect(codes(def)).toEqual(expect.arrayContaining(["metin-uzun", "secenek-fazla"]));
   });
