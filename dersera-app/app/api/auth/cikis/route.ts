@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { oturumKapat } from "@/lib/auth";
 import { getAuthStore } from "@/lib/authStore";
-import { oturumBelirteci, oturumCereziSil } from "@/lib/authRequest";
+import { kokenReddi, oturumBelirteci, oturumCereziSil } from "@/lib/authRequest";
 
 export async function POST(req: Request) {
+  const koken = kokenReddi(req, false);
+  if (koken) return koken;
   try {
     await oturumKapat(getAuthStore(), oturumBelirteci(req));
   } catch (err) {

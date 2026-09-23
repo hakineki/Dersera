@@ -131,10 +131,11 @@ describe("POST /api/compose", () => {
   it("production'da Redis yoksa oran sınırı belleğe düşmez; 503 döner ve Anthropic çağrılmaz", async () => {
     const env = process.env as Record<string, string | undefined>;
     const eski = env.NODE_ENV;
-    env.NODE_ENV = "production";
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
     try {
+      // Oturum geliştirme ortamında açılır; oran sınırlayıcısı ilk kez üretimde kurulur.
       ({ route, anthropic } = await loadCompose());
+      env.NODE_ENV = "production";
       spy = jest.spyOn(anthropic, "composeGame");
       const res = await route.POST(body(10, "fizik", 40, "dengeli", "sinif", "8.8.8.8").req);
       expect(res.status).toBe(503);

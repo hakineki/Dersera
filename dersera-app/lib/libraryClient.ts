@@ -12,27 +12,38 @@ async function istek(path: string, init: RequestInit = {}): Promise<Response | n
   }
 }
 
-// Hesap öncesi sürüm kütüphaneyi bu tarayıcıdaki bir anahtara bağlıyordu. Girişten sonra o kütüphane hesaba taşınır;
-// hepsi taşınınca anahtar silinir. Taşınan oyun sayısı döner.
-export async function eskiKutuphaneyiTasi(): Promise<number> {
-  let anahtar: string | null = null;
+// Hesap öncesi sürüm kütüphaneyi bu tarayıcıdaki bir anahtara bağlıyordu. Girişten sonra öğretmene sorulur;
+// onaylarsa o kütüphane hesaba taşınır, hepsi taşınınca anahtar silinir.
+function eskiAnahtar(): string | null {
   try {
-    anahtar = localStorage.getItem(KUTUPHANE_ANAHTARI_KEY);
+    const a = localStorage.getItem(KUTUPHANE_ANAHTARI_KEY);
+    return isKutuphaneAnahtari(a) ? a : null;
   } catch {
-    return 0;
+    return null;
   }
-  if (!isKutuphaneAnahtari(anahtar)) return 0;
+}
+
+export async function eskiKutuphaneSayisi(): Promise<number> {
+  const anahtar = eskiAnahtar();
+  if (!anahtar) return 0;
+  const res = await istek("/api/library/tasi", { headers: { [KUTUPHANE_HEADER]: anahtar } });
+  return res?.ok ? ((await res.json()) as { bekleyen: number }).bekleyen : 0;
+}
+
+export async function eskiKutuphaneyiTasi(): Promise<{ tasinan: number; kalan: number } | null> {
+  const anahtar = eskiAnahtar();
+  if (!anahtar) return null;
   const res = await istek("/api/library/tasi", { method: "POST", headers: { [KUTUPHANE_HEADER]: anahtar } });
-  if (!res?.ok) return 0;
-  const { tasinan, kalan } = (await res.json()) as { tasinan: number; kalan: number };
-  if (kalan === 0) {
+  if (!res?.ok) return null;
+  const sonuc = (await res.json()) as { tasinan: number; kalan: number };
+  if (sonuc.kalan === 0) {
     try {
       localStorage.removeItem(KUTUPHANE_ANAHTARI_KEY);
     } catch {
       /* ignore */
     }
   }
-  return tasinan;
+  return sonuc;
 }
 
 export async function kutuphaneListesi(): Promise<KutuphaneOzeti[] | null> {

@@ -102,7 +102,7 @@ export async function sifreDegistir(store: AuthStore, hesap: Hesap, mevcut: unkn
   const sorun = sifreHatasi(yeni);
   if (sorun) return hata(422, sorun);
   const guncel: Hesap = { ...hesap, sifreOzeti: await sifreOzeti(yeni as string), surum: hesap.surum + 1 };
-  await store.guncelle(guncel);
+  await store.sifreGuncelle(guncel);
   return { ok: true, value: guncel };
 }
 
@@ -111,10 +111,10 @@ export async function kullaniciAdiDegistir(store: AuthStore, hesap: Hesap, yeniA
   const yeniAd = kullaniciAdiNormal(yeniAdGirdi);
   if (!yeniAd) return hata(422, AD_HATASI);
   if (yeniAd === hesap.kullaniciAdi) return { ok: true, value: hesap };
-  if (!(await store.adTasi(hesap.id, hesap.kullaniciAdi, yeniAd))) return hata(409, "Bu kullanıcı adı alınmış.");
-  const guncel: Hesap = { ...hesap, kullaniciAdi: yeniAd };
-  await store.guncelle(guncel);
-  return { ok: true, value: guncel };
+  const sonuc = await store.adTasi(hesap.id, hesap.kullaniciAdi, yeniAd);
+  if (sonuc === "alinmis") return hata(409, "Bu kullanıcı adı alınmış.");
+  if (sonuc === "degismis") return hata(409, "Hesap bilgisi başka bir oturumda değişti. Sayfayı yenileyip tekrar deneyin.");
+  return { ok: true, value: { ...hesap, kullaniciAdi: yeniAd } };
 }
 
 export const hesapOzeti = (h: Hesap) => ({ kullaniciAdi: h.kullaniciAdi, olusturma: h.olusturma });

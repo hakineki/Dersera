@@ -14,7 +14,7 @@ import AySecici from "./AySecici";
 import OyunTab from "./OyunTab";
 import KutuphaneTab from "./KutuphaneTab";
 import { cikisYap, eskiYerelGirisiTemizle, girisYap, kayitOl, kullaniciAdiDegistir, oturumBilgisi, sifreDegistir, type HesapOzeti } from "@/lib/authClient";
-import { eskiKutuphaneyiTasi } from "@/lib/libraryClient";
+import { eskiKutuphaneSayisi, eskiKutuphaneyiTasi } from "@/lib/libraryClient";
 
 const SIFRE_MIN_ISTEMCI = 8;
 import {
@@ -681,7 +681,9 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   const loggedIn = hesap !== null;
   const [davetGerekli, setDavetGerekli] = useState(false);
   const [baglantiHatasi, setBaglantiHatasi] = useState(false);
+  const [bekleyenOyun, setBekleyenOyun] = useState(0);
   const [tasinanOyun, setTasinanOyun] = useState(0);
+  const [tasimaMesaji, setTasimaMesaji] = useState("");
   const [ready, setReady] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>(baslangicSekmesi);
   const [selectedAylar, setSelectedAylar] = useState<string[]>(["eylul"]);
@@ -701,11 +703,26 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
     });
   }, []);
 
-  // Hesap öncesinde bu tarayıcıda kaydedilmiş kütüphane girişten sonra hesaba taşınır.
+  // Hesap öncesinde bu tarayıcıda kaydedilmiş kütüphane varsa öğretmene sorulur (ortak bilgisayarda başkasına ait olabilir).
+  const hesapAdi = hesap?.kullaniciAdi ?? null;
   useEffect(() => {
-    if (!hesap) return;
-    eskiKutuphaneyiTasi().then(setTasinanOyun);
-  }, [hesap]);
+    if (!hesapAdi) return;
+    let iptal = false;
+    eskiKutuphaneSayisi().then((n) => {
+      if (!iptal) setBekleyenOyun(n);
+    });
+    return () => {
+      iptal = true;
+    };
+  }, [hesapAdi]);
+
+  async function eskiOyunlariTasi() {
+    const r = await eskiKutuphaneyiTasi();
+    if (!r) return setTasimaMesaji("Oyunlar taşınamadı. Tekrar deneyin.");
+    setBekleyenOyun(r.kalan);
+    setTasinanOyun((n) => n + r.tasinan);
+    setTasimaMesaji(r.kalan ? `${r.tasinan} oyun taşındı; kütüphanen dolu olduğu için ${r.kalan} oyun bekliyor.` : `${r.tasinan} oyun hesabının kütüphanesine taşındı.`);
+  }
 
   const latestRequest = useRef(0);
   const gameCode = teacherGame?.game.code ?? null;
@@ -840,9 +857,25 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
             onTeacherGameChange={handleTeacherGameChange}
           />
         )}
-        {tasinanOyun > 0 && activeTab === "kutuphane" && (
+        {activeTab === "kutuphane" && bekleyenOyun > 0 && (
+          <div role="region" aria-label="Eski kütüphane" className="mb-4 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl px-4 py-3 text-sm">
+            <p>
+              Bu tarayıcıda hesaba bağlı olmayan <strong>{bekleyenOyun} oyun</strong> var (hesaplardan önce kaydedilmiş). Bu oyunlar sana aitse
+              hesabının kütüphanesine taşıyabilirsin. Ortak bir bilgisayardaysan ve oyunlar başkasınınsa taşıma.
+            </p>
+            <div className="flex gap-2 mt-2">
+              <button onClick={eskiOyunlariTasi} className="bg-amber-600 text-white font-semibold px-3 py-1.5 rounded-lg">
+                Hesabıma taşı
+              </button>
+              <button onClick={() => setBekleyenOyun(0)} className="border border-amber-300 font-semibold px-3 py-1.5 rounded-lg">
+                Benim değil, dokunma
+              </button>
+            </div>
+          </div>
+        )}
+        {activeTab === "kutuphane" && tasimaMesaji && (
           <p role="status" className="mb-4 bg-green-50 border border-green-200 text-green-800 rounded-xl px-4 py-2 text-sm">
-            Bu tarayıcıda kayıtlı {tasinanOyun} oyun hesabının kütüphanesine taşındı.
+            {tasimaMesaji}
           </p>
         )}
         {activeTab === "kutuphane" && (

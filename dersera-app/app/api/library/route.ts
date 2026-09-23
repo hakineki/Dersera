@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ozetOf } from "@/lib/library";
 import { getLibraryStore } from "@/lib/libraryStore";
-import { oturumGerekli } from "@/lib/authRequest";
+import { kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { istekSahibi, kutuphaneyeEkle } from "@/lib/libraryService";
 
 export async function GET(req: Request) {
@@ -20,6 +20,8 @@ export async function GET(req: Request) {
 
 // Composer'daki "Kütüphaneye kaydet" butonu. Yayınlamadan bağımsızdır.
 export async function POST(req: Request) {
+  const koken = kokenReddi(req);
+  if (koken) return koken;
   const sahip = await istekSahibi(req);
   if (!sahip) return oturumGerekli();
   const body = await req.json().catch(() => null);

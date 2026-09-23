@@ -257,6 +257,10 @@ describe("oyun kütüphanesi", () => {
     };
     expect((await tasi(null, anahtar)).status).toBe(401);
     expect((await tasi(A, null)).status).toBe(400);
+    // Taşımadan önce yalnız sayı gösterilir; sayma bir şey taşımaz.
+    const say = await api.libraryTasi.GET(new Request("http://localhost/api/library/tasi", { headers: { cookie: A, [KUTUPHANE_HEADER]: anahtar } }));
+    expect(await say.json()).toEqual({ bekleyen: 3 });
+    expect((await liste(A)).data.oyunlar).toHaveLength(0);
     const r = await tasi(A, anahtar);
     expect(await r.json()).toEqual({ tasinan: 3, kalan: 0 });
     expect((await liste(A)).data.oyunlar).toHaveLength(3);

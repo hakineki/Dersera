@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isKutuphaneId } from "@/lib/library";
 import { getLibraryStore } from "@/lib/libraryStore";
-import { oturumGerekli } from "@/lib/authRequest";
+import { kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { istekSahibi, kayitDetayi, kutuphaneKaydiniGuncelle } from "@/lib/libraryService";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -28,6 +28,8 @@ export async function GET(req: Request, ctx: Ctx) {
 
 // Düzenlenen oyun aynı kayda yazılır.
 export async function PUT(req: Request, ctx: Ctx) {
+  const koken = kokenReddi(req);
+  if (koken) return koken;
   const sahip = await istekSahibi(req);
   if (!sahip) return oturumGerekli();
   const { id } = await ctx.params;
@@ -44,6 +46,8 @@ export async function PUT(req: Request, ctx: Ctx) {
 }
 
 export async function DELETE(req: Request, ctx: Ctx) {
+  const koken = kokenReddi(req, false);
+  if (koken) return koken;
   const h = await hedef(req, ctx);
   if (h.hata) return h.hata;
   try {

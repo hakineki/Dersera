@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { getGamesStore } from "@/lib/gamesStore";
 import { isKutuphaneId } from "@/lib/library";
 import { getLibraryStore } from "@/lib/libraryStore";
-import { oturumGerekli } from "@/lib/authRequest";
+import { kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { istekSahibi, parseSure, yenidenYayinla } from "@/lib/libraryService";
 
 // Kayıtlı oyunu yeni oyun koduyla yayınlar; yapay zekâ çağrısı yapılmaz.
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const koken = kokenReddi(req, false);
+  if (koken) return koken;
   const sahip = await istekSahibi(req);
   if (!sahip) return oturumGerekli();
   const { id } = await ctx.params;
