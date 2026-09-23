@@ -32,6 +32,7 @@ export interface LeaderboardEntry {
   penaltySeconds: number;
   hintsUsed: number;
   completedAt: number;
+  stopDetails?: Record<string, { hintsUsed: number; completedAt: number }>;
 }
 
 function safeGet(key: string): string | null {
