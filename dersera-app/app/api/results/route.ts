@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { normalizeGameCode } from "@/lib/games";
+import { getGamesStore } from "@/lib/gamesStore";
+import { verifyPlayer } from "@/lib/gamesService";
 import { parseLeaderboardEntry } from "@/lib/results";
 import { getResultsStore } from "@/lib/resultsStore";
 
@@ -10,13 +13,30 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
   }
 
-  const entry = parseLeaderboardEntry(body);
-  if (!entry) {
+  const { gameCode, playerToken, result } = (body ?? {}) as {
+    gameCode?: unknown;
+    playerToken?: unknown;
+    result?: unknown;
+  };
+  const code = typeof gameCode === "string" ? normalizeGameCode(gameCode) : null;
+  const entry = parseLeaderboardEntry(result);
+  if (!code || !entry) {
     return NextResponse.json({ error: "Geçersiz sonuç verisi" }, { status: 422 });
+  }
+  if (typeof playerToken !== "string" || playerToken.length === 0 || playerToken.length > 100) {
+    return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
   }
 
   try {
-    await getResultsStore().save(entry);
+    // Süresi dolmuş oyunun sonucu da kabul edilir: çevrimdışı bitiren öğrenci sonradan gönderebilir.
+    const games = getGamesStore();
+    if (!(await games.get(code))) {
+      return NextResponse.json({ error: "Oyun bulunamadı" }, { status: 404 });
+    }
+    if (!(await verifyPlayer(games, code, entry.nickname, playerToken))) {
+      return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
+    }
+    await getResultsStore().save(code, entry);
   } catch (err) {
     console.error("[results] kayıt hatası", err);
     return NextResponse.json({ error: "Sonuç kaydedilemedi" }, { status: 503 });
@@ -25,10 +45,15 @@ export async function POST(req: Request) {
   return NextResponse.json({ ok: true }, { status: 201 });
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const code = normalizeGameCode(new URL(req.url).searchParams.get("code") ?? "");
+  if (!code) {
+    return NextResponse.json({ error: "Oyun kodu gerekli" }, { status: 400 });
+  }
+
   const store = getResultsStore();
   try {
-    const results = await store.list();
+    const results = await store.list(code);
     return NextResponse.json({ results, persistent: store.persistent });
   } catch (err) {
     console.error("[results] okuma hatası", err);

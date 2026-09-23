@@ -1,6 +1,6 @@
 import type { LeaderboardEntry } from "@/lib/gameState";
 
-const NICKNAME_PATTERN = /^[a-zA-ZÇçĞğİıÖöŞşÜü0-9_-]{2,20}$/;
+export const NICKNAME_PATTERN = /^[a-zA-ZÇçĞğİıÖöŞşÜü0-9_-]{2,20}$/;
 const STOP_ID_PATTERN = /^[a-z0-9-]{1,40}$/;
 const MAX_SECONDS = 24 * 60 * 60;
 const MAX_HINTS = 1000;

@@ -1,9 +1,12 @@
+import { isPublicGame, type PublicGame } from "@/lib/games";
+
 export const STORAGE_KEYS = {
+  GAME: "dersera:game",
   NICKNAME: "dersera:nickname",
+  PLAYER_TOKEN: "dersera:player-token",
   START_TIME: "dersera:startTime",
   PROGRESS: "dersera:progress",
   END_TIME: "dersera:endTime",
-  CUSTOM_STOPS: "dersera:custom-stops",
   PENALTY: "dersera:penalty",
   LEADERBOARD: "dersera:leaderboard",
 } as const;
@@ -14,17 +17,6 @@ export interface StopProgress {
 }
 
 export type GameProgress = Record<string, StopProgress>;
-
-export interface CustomStop {
-  id: string;
-  order: number;
-  name: string;
-  emoji: string;
-  subject: string;
-  dersKey: string;
-  nextStopId: string | null;
-  nextClue: string;
-}
 
 export interface LeaderboardEntry {
   nickname: string;
@@ -57,6 +49,14 @@ export function loadNickname(): string | null {
 
 export function saveNickname(nickname: string): void {
   safeSet(STORAGE_KEYS.NICKNAME, nickname);
+}
+
+export function loadPlayerToken(): string | null {
+  return safeGet(STORAGE_KEYS.PLAYER_TOKEN);
+}
+
+export function savePlayerToken(token: string): void {
+  safeSet(STORAGE_KEYS.PLAYER_TOKEN, token);
 }
 
 export function loadStartTime(): number | null {
@@ -139,21 +139,37 @@ export function buildResultCode(nickname: string, totalSeconds: number): string 
   return `${prefix}-${String(totalSeconds).padStart(4, "0")}`;
 }
 
-export function loadCustomStops(): CustomStop[] {
+// Oyunun yerel kopyası: Wi-Fi kesilse de duraklar ve sorular bu kopyadan açılır.
+export function loadGameSnapshot(): PublicGame | null {
   try {
-    const raw = safeGet(STORAGE_KEYS.CUSTOM_STOPS);
-    return raw ? (JSON.parse(raw) as CustomStop[]) : [];
+    const raw = safeGet(STORAGE_KEYS.GAME);
+    const parsed: unknown = raw ? JSON.parse(raw) : null;
+    return isPublicGame(parsed) ? parsed : null;
   } catch {
-    return [];
+    return null;
   }
 }
 
-export function saveCustomStops(customStops: CustomStop[]): void {
-  safeSet(STORAGE_KEYS.CUSTOM_STOPS, JSON.stringify(customStops));
+export function saveGameSnapshot(game: PublicGame): void {
+  safeSet(STORAGE_KEYS.GAME, JSON.stringify(game));
 }
 
-export function addCustomStop(stop: CustomStop): void {
-  saveCustomStops([...loadCustomStops(), stop]);
+// Farklı bir oyuna geçerken önceki oyunun takma adı, ilerlemesi ve cezası taşınmaz.
+export function switchToGame(game: PublicGame): void {
+  if (loadGameSnapshot()?.code !== game.code) clearGameState();
+  saveGameSnapshot(game);
+}
+
+// Yeniden başla: takma ad kalır, süre/ilerleme/ceza sıfırlanır.
+export function restartGame(now: number): void {
+  try {
+    [STORAGE_KEYS.PROGRESS, STORAGE_KEYS.END_TIME, STORAGE_KEYS.PENALTY].forEach((k) =>
+      localStorage.removeItem(k)
+    );
+  } catch {
+    /* ignore */
+  }
+  saveStartTime(now);
 }
 
 /** Önceki tüm durakların tamamlanıp tamamlanmadığını kontrol eder */
@@ -178,7 +194,9 @@ export function formatElapsed(seconds: number): string {
 export function clearGameState(): void {
   try {
     [
+      STORAGE_KEYS.GAME,
       STORAGE_KEYS.NICKNAME,
+      STORAGE_KEYS.PLAYER_TOKEN,
       STORAGE_KEYS.START_TIME,
       STORAGE_KEYS.PROGRESS,
       STORAGE_KEYS.END_TIME,
