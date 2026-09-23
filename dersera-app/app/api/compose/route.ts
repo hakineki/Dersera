@@ -4,8 +4,8 @@ import { parseComposeInput } from "@/lib/composer/input";
 import { checkComposeLimit, clientIp, LimiterUnavailableError } from "@/lib/composer/rateLimit";
 import { composeAndValidate } from "@/lib/composer/service";
 
-// Anthropic çağrısı 150 sn ile sınırlı; platform sınırı bunun üstünde kalmalı.
-export const maxDuration = 180;
+// Anthropic çağrısı 240 sn ile sınırlı; platform sınırı bunun üstünde kalmalı.
+export const maxDuration = 280; // Vercel Fluid (Hobby) üst sınırı 300 sn
 
 const GENEL_HATA = "Oyun şu anda oluşturulamadı. Tekrar deneyin.";
 
