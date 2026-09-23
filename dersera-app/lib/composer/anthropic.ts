@@ -58,8 +58,8 @@ export async function composeGame(
       },
       { signal: controller.signal, timeout: timeoutMs, maxRetries: 0 }
     );
-    if (response.stop_reason === "refusal") throw new ComposeError("invalid-output", "Model isteği reddetti");
     console.info(`[compose] model=${response.model} stop=${response.stop_reason} output_tokens=${response.usage?.output_tokens}`);
+    if (response.stop_reason === "refusal") throw new ComposeError("invalid-output", "Model isteği reddetti");
     if (response.stop_reason === "max_tokens") throw new ComposeError("invalid-output", `Çıktı max_tokens (${MAX_TOKENS}) sınırında kesildi`);
     if (!response.parsed_output) throw new ComposeError("invalid-output", "Çıktı şemaya uymadı");
     return response.parsed_output;
