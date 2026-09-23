@@ -14,6 +14,7 @@ import type { PublishResponse } from "@/lib/gamesClient";
 import ComposerPreview from "./ComposerPreview";
 import DurakEditor, { type Duzenlenen } from "./DurakEditor";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI } from "./labels";
+import { maxDersSayisi } from "@/lib/composer/recipe";
 
 const CLIENT_TIMEOUT_MS = 35_000;
 const MESAJLAR = ["Müfredat hazırlanıyor...", "Hikâye kuruluyor...", "Görevler oluşturuluyor...", "Oyun kontrol ediliyor..."];
@@ -24,11 +25,17 @@ type Durum =
   | { tur: "hata"; mesaj: string }
   | { tur: "onizleme" };
 
+interface DersKonu {
+  ders: string;
+  konuId: string;
+}
+
 interface ComposeResponse {
   definition: GameDefinition;
   validation: ValidationResult;
-  konuId: string;
+  dersler: DersKonu[];
   hedefler: OgrenmeCiktisi[];
+  hedefDersleri: Record<string, string[]>;
 }
 
 function Secim<T extends string | number>({
@@ -107,8 +114,8 @@ export default function ComposerClient({
   const router = useRouter();
   const [ogretmen, setOgretmen] = useState<boolean | null>(null);
   const [sinif, setSinif] = useState(10);
-  const [ders, setDers] = useState("fizik");
-  const [konuId, setKonuId] = useState(konular["10:fizik"]?.[0]?.id ?? "");
+  // Seçim sırası korunur; her seçili dersin kendi konusu vardır.
+  const [secili, setSecili] = useState<DersKonu[]>([{ ders: "fizik", konuId: konular["10:fizik"]?.[0]?.id ?? "" }]);
   const [sure, setSure] = useState<20 | 40 | 60>(40);
   const [deneyim, setDeneyim] = useState<"macera" | "dengeli" | "ders">("dengeli");
   const [alan, setAlan] = useState<"sinif" | "okul">("sinif");
@@ -139,26 +146,30 @@ export default function ComposerClient({
     return () => clearInterval(id);
   }, [durum.tur]);
 
-  const secenekKey = `${sinif}:${ders}`;
-  const konuListesi = konular[secenekKey] ?? [];
+  const ilkKonu = (s: number, d: string) => konular[`${s}:${d}`]?.[0]?.id ?? "";
 
+  // Sınıf değişince bu sınıfta programı olmayan dersler seçimden düşer; kalanların konusu yeni sınıfın ilk konusu olur.
   function sinifSec(s: number) {
     setSinif(s);
-    const liste = konular[`${s}:${ders}`];
-    if (liste?.length) setKonuId(liste[0].id);
-    else {
-      const ilkDers = dersler.find((d) => konular[`${s}:${d.key}`]?.length);
-      if (ilkDers) {
-        setDers(ilkDers.key);
-        setKonuId(konular[`${s}:${ilkDers.key}`][0].id);
-      }
-    }
+    const kalan = secili.filter((k) => konular[`${s}:${k.ders}`]?.length).map((k) => ({ ders: k.ders, konuId: ilkKonu(s, k.ders) }));
+    const ilk = dersler.find((d) => konular[`${s}:${d.key}`]?.length);
+    setSecili(kalan.length ? kalan : ilk ? [{ ders: ilk.key, konuId: ilkKonu(s, ilk.key) }] : []);
   }
 
-  function dersSec(d: string) {
-    setDers(d);
-    setKonuId(konular[`${sinif}:${d}`]?.[0]?.id ?? "");
+  function dersDegistir(d: string) {
+    setSecili((cur) =>
+      cur.some((k) => k.ders === d) ? cur.filter((k) => k.ders !== d) : [...cur, { ders: d, konuId: ilkKonu(sinif, d) }]
+    );
   }
+
+  function konuSec(d: string, konuId: string) {
+    setSecili((cur) => cur.map((k) => (k.ders === d ? { ...k, konuId } : k)));
+  }
+
+  const dersAdi = (key: string) => dersler.find((d) => d.key === key)?.ad ?? key;
+  const enFazlaDers = maxDersSayisi(sure);
+  const cokDers = secili.length > enFazlaDers;
+  const hazir = secili.length > 0 && !cokDers && secili.every((k) => k.konuId);
 
   async function olustur() {
     setDurum({ tur: "yukleniyor" });
@@ -171,7 +182,7 @@ export default function ComposerClient({
       const res = await fetch("/api/compose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sinif, ders, konuId, sure, deneyim, alan }),
+        body: JSON.stringify({ sinif, dersler: secili, sure, deneyim, alan }),
         signal: controller.signal,
       });
       const json = await res.json().catch(() => ({}));
@@ -195,7 +206,13 @@ export default function ComposerClient({
       v.tur === "durak"
         ? { ...sonuc.definition, duraklar: sonuc.definition.duraklar.map((d) => (d.id === v.durak.id ? v.durak : d)) }
         : { ...sonuc.definition, final: v.final };
-    const ctx = validationContext({ alan: def.meta.alan, deneyim: def.meta.deneyim, sure: def.meta.sure_dk, ogrenmeCiktilari: sonuc.hedefler });
+    const ctx = validationContext({
+      alan: def.meta.alan,
+      deneyim: def.meta.deneyim,
+      sure: def.meta.sure_dk,
+      ogrenmeCiktilari: sonuc.hedefler,
+      hedefDersleri: sonuc.hedefDersleri,
+    });
     setSonuc({ ...sonuc, definition: def, validation: validateGame(def, ctx) });
     setDuzenlenen(null);
   }
@@ -208,7 +225,7 @@ export default function ComposerClient({
       const res = await fetch("/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ composer: { definition: sonuc.definition, konuId: sonuc.konuId } }),
+        body: JSON.stringify({ composer: { definition: sonuc.definition, dersler: sonuc.dersler } }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -271,35 +288,62 @@ export default function ComposerClient({
               <p className="text-sm text-gray-500">Altı seçim yeterli; gerisini Dersera tasarlar.</p>
             </div>
             <Secim etiket="1. Sınıf" secenekler={siniflar.map((s) => ({ key: s, ad: `${s}. sınıf` }))} deger={sinif} onChange={sinifSec} />
-            <Secim
-              etiket="2. Ders"
-              secenekler={dersler.map((d) => ({ key: d.key, ad: d.ad }))}
-              deger={ders}
-              onChange={dersSec}
-              pasif={(d) => !konular[`${sinif}:${d}`]?.length}
-            />
-            <label className="block">
-              <span className="block text-sm font-semibold text-gray-700 mb-2">3. Konu</span>
-              <select
-                value={konuId}
-                onChange={(e) => setKonuId(e.target.value)}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white"
-                disabled={konuListesi.length === 0}
-              >
-                {konuListesi.map((k) => (
-                  <option key={k.id} value={k.id}>
-                    {k.ad}
-                  </option>
-                ))}
-              </select>
-              {konuListesi.length === 0 && <span className="text-xs text-gray-400">Bu sınıf ve ders için resmî programda konu yok.</span>}
-            </label>
+            <fieldset>
+              <legend className="text-sm font-semibold text-gray-700 mb-1">2. Ders</legend>
+              <p className="text-xs text-gray-400 mb-2">Birden çok ders seçebilirsiniz; oyun dersleri tek bir hikâyede birleştirir.</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {dersler.map((d) => {
+                  const secildi = secili.some((k) => k.ders === d.key);
+                  return (
+                    <button
+                      key={d.key}
+                      type="button"
+                      aria-pressed={secildi}
+                      disabled={!konular[`${sinif}:${d.key}`]?.length}
+                      onClick={() => dersDegistir(d.key)}
+                      className={`text-left rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors disabled:opacity-40 ${
+                        secildi ? "border-indigo-600 bg-indigo-50 text-indigo-900 ring-1 ring-indigo-600" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                      }`}
+                    >
+                      {secildi && <span aria-hidden="true">✓ </span>}
+                      {d.ad}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-semibold text-gray-700 mb-2">3. Konu</legend>
+              {secili.length === 0 && <p className="text-xs text-gray-400">Önce en az bir ders seçin.</p>}
+              {secili.map((k) => (
+                <label key={k.ders} className="block">
+                  {secili.length > 1 && <span className="block text-xs font-semibold text-gray-500 mb-1">{dersAdi(k.ders)}</span>}
+                  <select
+                    aria-label={`${dersAdi(k.ders)} konusu`}
+                    value={k.konuId}
+                    onChange={(e) => konuSec(k.ders, e.target.value)}
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white"
+                  >
+                    {(konular[`${sinif}:${k.ders}`] ?? []).map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.ad}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </fieldset>
             <Secim etiket="4. Süre" secenekler={[20, 40, 60].map((s) => ({ key: s as 20 | 40 | 60, ad: `${s} dk` }))} deger={sure} onChange={setSure} />
+            {cokDers && (
+              <p role="alert" className="text-sm text-red-600 -mt-3">
+                {sure} dakikalık oyunda en fazla {enFazlaDers} ders seçilebilir. Ders sayısını azaltın ya da süreyi uzatın.
+              </p>
+            )}
             <Secim etiket="5. Deneyim biçimi" secenekler={[...DENEYIM_SECENEKLERI]} deger={deneyim} onChange={setDeneyim} />
             <Secim etiket="6. Oyun alanı" secenekler={[...ALAN_SECENEKLERI]} deger={alan} onChange={setAlan} />
             <button
               type="submit"
-              disabled={!konuId || ogretmen !== true}
+              disabled={!hazir || ogretmen !== true}
               className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold py-3.5 rounded-xl text-base"
             >
               Oyunu Oluştur

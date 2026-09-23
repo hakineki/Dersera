@@ -19,8 +19,22 @@ const DENEYIM_ADI = { macera: "Macera ağırlıklı", dengeli: "Dengeli", ders: 
 const ALAN_ADI = { sinif: "Tek sınıf", okul: "Okul macerası" } as const;
 
 export function buildUserPrompt(input: ResolvedInput, recipe: Recipe, izinliQrIdleri: string[]): string {
-  const hedefler = input.ogrenmeCiktilari.map((o) => `- ${o.kod}: ${o.metin}`).join("\n");
-  const icerik = input.unite.konular.length ? input.unite.konular.map((k) => `- ${k}`).join("\n") : "- (belirtilmemiş)";
+  const dersBloklari = input.dersler
+    .map((k) => {
+      const icerik = k.unite.konular.length ? k.unite.konular.map((c) => `  - ${c}`).join("\n") : "  - (belirtilmemiş)";
+      const hedefler = k.unite.ogrenmeCiktilari.map((o) => `  - ${o.kod}: ${o.metin}`).join("\n");
+      return `Ders: ${PROGRAM_DERS_ADI[k.ders]}
+Konu (ünite/tema): ${k.unite.ad}
+${k.unite.amac ? `Ünitenin amacı: ${k.unite.amac}\n` : ""}İçerik çerçevesi:
+${icerik}
+Öğrenme çıktıları:
+${hedefler}`;
+    })
+    .join("\n\n");
+  const coklu =
+    input.dersler.length > 1
+      ? "\nBu oyun disiplinler arasıdır: yukarıdaki derslerin HER BİRİ en az bir ana görevde çalışılsın ve hikâye dersleri tek bir gizemde birleştirsin.\n"
+      : "";
   const qr =
     input.alan === "okul"
       ? `\nKullanılabilir QR durakları (yalnızca bunları kullan, her durağa farklı bir QR ver):\n${izinliQrIdleri.join(", ")}`
@@ -29,14 +43,10 @@ export function buildUserPrompt(input: ResolvedInput, recipe: Recipe, izinliQrId
   return `Aşağıdaki seçimlerle bir Dersera oyunu tasarla.
 
 Sınıf: ${input.sinif}
-Ders: ${PROGRAM_DERS_ADI[input.ders]}
-Konu (ünite/tema): ${input.unite.ad}
-${input.unite.amac ? `Ünitenin amacı: ${input.unite.amac}\n` : ""}İçerik çerçevesi:
-${icerik}
+ogrenme_hedefi alanlarında YALNIZCA aşağıdaki öğrenme çıktısı kodlarını birebir kullan.
 
-Öğrenme çıktıları (ogrenme_hedefi alanlarında YALNIZCA bu kodları birebir kullan):
-${hedefler}
-
+${dersBloklari}
+${coklu}
 Süre: ${input.sure} dakika
 Deneyim biçimi: ${DENEYIM_ADI[input.deneyim]}
 Oyun alanı: ${ALAN_ADI[input.alan]}

@@ -52,6 +52,11 @@ const ALAN: Record<Alan, string> = {
     "Okul macerası: her durak verilen QR listesinden farklı bir QR'a bağlanır (mekan.tur = \"qr\"). Fiziksel mekân adı uydurma; tarifte yalnızca QR numarasını kullan.",
 };
 
+// Her seçilen dersin en az bir görevi olacağından ders sayısı, sürenin en fazla durak sayısını aşamaz.
+export function maxDersSayisi(sure: number): number {
+  return GOREV_ARALIGI[sure]?.max ?? 0;
+}
+
 export function buildRecipe(sure: number, deneyim: Deneyim, alan: Alan): Recipe {
   return { anaGorev: GOREV_ARALIGI[sure], ...DENEYIM[deneyim], alan: ALAN[alan] };
 }
