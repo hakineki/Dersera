@@ -2,7 +2,8 @@ import { redisFromEnv, type RedisCommand } from "@/lib/redis";
 
 // Sunucuda öğretmen oturumu olmadığından ücretli uç nokta IP ve günlük toplam sınırla korunur.
 export const LIMITS = {
-  ipPerHour: 10,
+  // Bir okuldaki öğretmenler çoğunlukla aynı IP'yi paylaşır.
+  ipPerHour: 30,
   globalPerDay: 200,
 } as const;
 

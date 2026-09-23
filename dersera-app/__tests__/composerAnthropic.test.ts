@@ -77,7 +77,7 @@ describe("composeGame", () => {
     const user = (calls[0].body.messages as { content: string }[])[0].content;
     expect(calls[0].body.system).toBe(SYSTEM_PROMPT);
     for (const o of input.ogrenmeCiktilari) expect(user).toContain(o.kod);
-    expect(user).toContain(input.unite.ad);
+    expect(user).toContain(input.dersler[0].unite.ad);
     expect(user).not.toMatch(/takma ad|e-?posta|telefon|nickname/i);
     expect(user).not.toContain("qr-1");
     expect(user).toMatch(/Metinleri kısa tut/);
@@ -126,7 +126,7 @@ describe("toDefinition", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.definition.duraklar).toEqual(def.duraklar);
-    expect(r.definition.meta).toMatchObject({ sinif: 10, ders: "Fizik", sure_dk: 40, deneyim: "dengeli", alan: "sinif", konu: input.unite.ad });
+    expect(r.definition.meta).toMatchObject({ sinif: 10, ders: "Fizik", sure_dk: 40, deneyim: "dengeli", alan: "sinif", konu: input.konuAdi });
     expect(r.definition.duraklar[0].gorev.odul_id).toBeNull();
     expect(r.definition.duraklar[r.definition.duraklar.length - 1].varsayilan_sonraki_durak_id).toBeNull();
   });
@@ -158,5 +158,25 @@ describe("toDefinition", () => {
     const out = toModelOutput(makeDefinition(input));
     out.duraklar[0].gorev_turu = "bulmaca";
     await expect(composeAndValidate(input, fakeClient(out).client)).rejects.toMatchObject({ reason: "invalid-output" });
+  });
+});
+
+describe("çok dersli oyun prompt'u", () => {
+  it("her dersi kendi konusu ve kodlarıyla listeler ve disiplinler arası kuralı ekler", async () => {
+    const coklu = resolvedInput({ sinif: 10, ders: ["fizik", "matematik"], sure: 40, deneyim: "dengeli", alan: "sinif" });
+    const { client, calls } = fakeClient(toModelOutput(makeDefinition(coklu)));
+    await composeGame(coklu, recipe, IZINLI_QR_IDLERI, client);
+    const user = (calls[0].body.messages as { content: string }[])[0].content;
+    expect(user).toContain("Ders: Fizik");
+    expect(user).toContain("Ders: Matematik");
+    for (const k of coklu.dersler) expect(user).toContain(k.unite.ad);
+    for (const o of coklu.ogrenmeCiktilari) expect(user).toContain(o.kod);
+    expect(user).toMatch(/HER BİRİ en az bir ana görevde/);
+  });
+
+  it("tek derste disiplinler arası kuralı eklemez", async () => {
+    const { client, calls } = fakeClient(toModelOutput(makeDefinition(input)));
+    await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
+    expect((calls[0].body.messages as { content: string }[])[0].content).not.toMatch(/disiplinler arası/);
   });
 });

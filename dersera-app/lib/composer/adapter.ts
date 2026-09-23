@@ -1,6 +1,8 @@
 import { PROGRAM_DERS_ADI } from "@/data/mufredat/programlar";
 import type { Ders } from "@/data/mufredat";
 import { GameDefinitionSchema, type GameDefinition } from "@/lib/composer/definition";
+import { DersKonuSchema } from "@/lib/composer/input";
+import { z } from "zod";
 import { revalidate } from "@/lib/composer/service";
 import type { ValidationResult } from "@/lib/composer/validator";
 import type { GameStop, PublishRequest } from "@/lib/games";
@@ -11,8 +13,10 @@ export function publishWindowMinutes(sureDk: number): number {
   return Math.max(60, sureDk * 2);
 }
 
+// Birden çok ders seçildiyse klasik alanlar için ilk ders kullanılır.
 function dersKeyOf(def: GameDefinition): Ders {
-  return (Object.entries(PROGRAM_DERS_ADI).find(([, ad]) => ad === def.meta.ders)?.[0] ?? "genel-kultur") as Ders;
+  const ilk = def.meta.ders.split(" + ")[0];
+  return (Object.entries(PROGRAM_DERS_ADI).find(([, ad]) => ad === ilk)?.[0] ?? "genel-kultur") as Ders;
 }
 
 // Öğretmen paneli ve sonuç tablosu durakları bu listeden okur. Sanal sahneler QR'sız olduğundan sıra numarası alır.
@@ -34,15 +38,16 @@ export type ComposerPublishResult =
 export const MAX_DEFINITION_BYTES = 64 * 1024;
 
 export function parseComposerPublish(body: unknown): ComposerPublishResult {
-  const composer = (body as { composer?: { definition?: unknown; konuId?: unknown } } | null)?.composer;
+  const composer = (body as { composer?: { definition?: unknown; dersler?: unknown } } | null)?.composer;
   if (JSON.stringify(composer?.definition ?? null).length > MAX_DEFINITION_BYTES) {
     return { ok: false, status: 413, error: "Oyun tanımı çok büyük" };
   }
   const parsed = GameDefinitionSchema.safeParse(composer?.definition);
-  if (!parsed.success || typeof composer?.konuId !== "string") {
+  const dersler = z.array(DersKonuSchema).min(1).safeParse(composer?.dersler);
+  if (!parsed.success || !dersler.success) {
     return { ok: false, status: 422, error: "Geçersiz oyun tanımı" };
   }
-  const validation = revalidate(parsed.data, composer.konuId);
+  const validation = revalidate(parsed.data, dersler.data);
   if (!validation) return { ok: false, status: 422, error: "Oyunun konusu müfredatta bulunamadı" };
   if (!validation.gecerli) {
     return { ok: false, status: 422, error: "Oyun doğrulamadan geçmedi; yayınlanamaz", validation };

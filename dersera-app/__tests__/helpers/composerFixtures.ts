@@ -5,14 +5,17 @@ import type { ModelOutput } from "@/lib/composer/modelOutput";
 
 export function resolvedInput(o: {
   sinif: 9 | 10 | 11 | 12;
-  ders: string;
+  ders: string | string[];
   sure: 20 | 40 | 60;
   deneyim: "macera" | "dengeli" | "ders";
   alan: "sinif" | "okul";
   uniteIndex?: number;
 }): ResolvedInput {
-  const unite = getUniteler(o.sinif, o.ders).filter((u) => u.ogrenmeCiktilari.length > 0)[o.uniteIndex ?? 0];
-  const r = parseComposeInput({ sinif: o.sinif, ders: o.ders, konuId: unite.id, sure: o.sure, deneyim: o.deneyim, alan: o.alan });
+  const dersler = (Array.isArray(o.ders) ? o.ders : [o.ders]).map((ders) => ({
+    ders,
+    konuId: getUniteler(o.sinif, ders).filter((u) => u.ogrenmeCiktilari.length > 0)[o.uniteIndex ?? 0].id,
+  }));
+  const r = parseComposeInput({ sinif: o.sinif, dersler, sure: o.sure, deneyim: o.deneyim, alan: o.alan });
   if (!r.ok) throw new Error(r.error);
   return r.input;
 }
@@ -59,7 +62,7 @@ export function makeDefinition(input: ResolvedInput, durakSayisi = 6): GameDefin
     });
   }
   return {
-    meta: { baslik: "Test Oyunu", sinif: input.sinif, ders: "x", konu: input.unite.ad, sure_dk: input.sure, deneyim: input.deneyim, alan: input.alan },
+    meta: { baslik: "Test Oyunu", sinif: input.sinif, ders: input.dersAdi, konu: input.konuAdi, sure_dk: input.sure, deneyim: input.deneyim, alan: input.alan },
     hikaye_giris: "Bir gizem başlıyor.",
     oyun_amaci: "Gizemi çöz.",
     ogrenme_hedefleri: hedefler.slice(0, 3),

@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
   try {
     if (!(await checkComposeLimit(clientIp(req)))) {
-      return NextResponse.json({ error: "Çok fazla oyun oluşturma isteği. Bir süre sonra tekrar deneyin." }, { status: 429 });
+      return NextResponse.json({ error: "Bu saat için oyun oluşturma sınırına ulaşıldı. Bir sonraki saat başında tekrar deneyin." }, { status: 429 });
     }
   } catch (err) {
     console.error("[compose] oran sınırı denetlenemedi", err instanceof Error ? err.message : err);
@@ -34,7 +34,13 @@ export async function POST(req: Request) {
 
   try {
     const { definition, validation } = await composeAndValidate(parsed.input);
-    return NextResponse.json({ definition, validation, konuId: parsed.input.konuId, hedefler: parsed.input.ogrenmeCiktilari });
+    return NextResponse.json({
+      definition,
+      validation,
+      dersler: parsed.input.dersler.map((k) => ({ ders: k.ders, konuId: k.konuId })),
+      hedefler: parsed.input.ogrenmeCiktilari,
+      hedefDersleri: parsed.input.hedefDersleri,
+    });
   } catch (err) {
     if (err instanceof ComposeError) {
       console.error(`[compose] ${err.reason}: ${err.message}`);

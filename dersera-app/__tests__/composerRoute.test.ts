@@ -3,7 +3,7 @@ import type { GameDefinition } from "@/lib/composer/definition";
 import type { ResolvedInput } from "@/lib/composer/input";
 import { clearRedisEnv } from "./helpers/fakeRedis";
 import { buildApi, jsonRequest } from "./helpers/api";
-import { makeDefinition, toModelOutput } from "./helpers/composerFixtures";
+import { makeDefinition, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 
 type ComposeRoute = typeof import("@/app/api/compose/route");
 type AnthropicMod = typeof import("@/lib/composer/anthropic");
@@ -21,7 +21,7 @@ async function loadCompose(): Promise<{ route: ComposeRoute; anthropic: Anthropi
 
 const body = (sinif: number, ders: string, sure: number, deneyim: string, alan: string, ip = "1.1.1.1") => {
   const konuId = getUniteler(sinif, ders).find((u) => u.ogrenmeCiktilari.length)!.id;
-  const req = jsonRequest("/api/compose", { sinif, ders, konuId, sure, deneyim, alan });
+  const req = jsonRequest("/api/compose", { sinif, dersler: [{ ders, konuId }], sure, deneyim, alan });
   req.headers.set("x-forwarded-for", ip);
   return { req, konuId };
 };
@@ -49,9 +49,9 @@ describe("POST /api/compose", () => {
     const { req, konuId } = body(sinif as number, ders as string, sure as number, deneyim as string, alan as string);
     const res = await route.POST(req);
     expect(res.status).toBe(200);
-    const json = (await res.json()) as { definition: GameDefinition; validation: { gecerli: boolean }; konuId: string };
+    const json = (await res.json()) as { definition: GameDefinition; validation: { gecerli: boolean }; dersler: { ders: string; konuId: string }[] };
     expect(json.validation.gecerli).toBe(true);
-    expect(json.konuId).toBe(konuId);
+    expect(json.dersler).toEqual([{ ders, konuId }]);
     expect(json.definition.meta).toMatchObject({ sinif, sure_dk: sure, deneyim, alan });
     const qrDuraklar = json.definition.duraklar.filter((d) => d.mekan.tur === "qr");
     expect(qrDuraklar.length).toBe(alan === "okul" ? json.definition.duraklar.length : 0);
@@ -67,7 +67,7 @@ describe("POST /api/compose", () => {
   });
 
   it("geçersiz konu Anthropic'e gitmeden reddedilir (senaryo 4)", async () => {
-    const req = jsonRequest("/api/compose", { sinif: 10, ders: "fizik", konuId: getUniteler(10, "kimya")[0].id, sure: 40, deneyim: "dengeli", alan: "sinif" });
+    const req = jsonRequest("/api/compose", { sinif: 10, dersler: [{ ders: "fizik", konuId: getUniteler(10, "kimya")[0].id }], sure: 40, deneyim: "dengeli", alan: "sinif" });
     expect((await route.POST(req)).status).toBe(422);
     expect(spy).not.toHaveBeenCalled();
   });
@@ -105,12 +105,12 @@ describe("POST /api/compose", () => {
     expect(res.status).toBe(503);
   });
 
-  it("aynı IP'den saatte 10'dan fazla isteği 429 ile keser", async () => {
+  it("aynı IP'den saatte 30'dan fazla isteği 429 ile keser", async () => {
     const statuses: number[] = [];
-    for (let i = 0; i < 11; i++) statuses.push((await route.POST(body(10, "fizik", 40, "dengeli", "sinif", "5.5.5.5").req)).status);
-    expect(statuses.slice(0, 10).every((s) => s === 200)).toBe(true);
-    expect(statuses[10]).toBe(429);
-    expect(spy).toHaveBeenCalledTimes(10);
+    for (let i = 0; i < 31; i++) statuses.push((await route.POST(body(10, "fizik", 40, "dengeli", "sinif", "5.5.5.5").req)).status);
+    expect(statuses.slice(0, 30).every((s) => s === 200)).toBe(true);
+    expect(statuses[30]).toBe(429);
+    expect(spy).toHaveBeenCalledTimes(30);
     expect((await route.POST(body(10, "fizik", 40, "dengeli", "sinif", "6.6.6.6").req)).status).toBe(200);
   });
 
@@ -146,13 +146,13 @@ describe("composer yayını (/api/games)", () => {
 
   const input = () => {
     const konu = getUniteler(10, "fizik")[0];
-    return { konu, def: makeDefinition({ sinif: 10, ders: "fizik", konuId: konu.id, sure: 40, deneyim: "dengeli", alan: "sinif", unite: konu, ogrenmeCiktilari: konu.ogrenmeCiktilari } as ResolvedInput, 7) };
+    const girdi = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
+    return { konu, dersler: [{ ders: "fizik", konuId: konu.id }], def: makeDefinition(girdi, 7) };
   };
 
   it("geçerli oyunu mevcut sistemle yayınlar; kod oluşur ve öğretmen/öğrenci aynı kaydı görür (senaryo 12)", async () => {
-    const { konu, def } = input();
-    def.meta.ders = "Fizik";
-    const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, konuId: konu.id } }));
+    const { dersler, def } = input();
+    const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, dersler } }));
     expect(res.status).toBe(201);
     const pub = await res.json();
     expect(pub.game.code).toMatch(/^[A-Z]{3}-\d{3}$/);
@@ -167,35 +167,32 @@ describe("composer yayını (/api/games)", () => {
   });
 
   it("finale ulaşılamayan oyun yayınlanamaz (senaryo 7)", async () => {
-    const { konu, def } = input();
-    def.meta.ders = "Fizik";
+    const { dersler, def } = input();
     def.duraklar[def.duraklar.length - 1].varsayilan_sonraki_durak_id = "d5";
-    const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, konuId: konu.id } }));
+    const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, dersler } }));
     expect(res.status).toBe(422);
     const json = await res.json();
     expect(json.validation.hatalar.map((h: { kod: string }) => h.kod)).toContain("final-erisilemez");
   });
 
   it("düzenleme sonrası sunucu yeniden doğrular: istemci bozuk tanımı yayınlayamaz (senaryo 11)", async () => {
-    const { konu, def } = input();
-    def.meta.ders = "Fizik";
+    const { dersler, def } = input();
     def.duraklar[0].gorev.dogru_cevap = "Seçeneklerde olmayan";
-    const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, konuId: konu.id } }));
+    const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, dersler } }));
     expect(res.status).toBe(422);
   });
 
   it("64 KB'tan büyük tanımı depoya yazmadan 413 ile reddeder", async () => {
-    const { konu, def } = input();
+    const { dersler, def } = input();
     def.hikaye_giris = "x".repeat(70 * 1024);
-    const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, konuId: konu.id } }));
+    const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, dersler } }));
     expect(res.status).toBe(413);
   });
 
   it("konu ile tanım uyuşmazsa ya da tanım şemaya uymazsa reddeder", async () => {
     const { def } = input();
-    def.meta.ders = "Fizik";
-    expect((await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, konuId: getUniteler(10, "fizik")[1].id } }))).status).toBe(422);
-    expect((await api.games.POST(jsonRequest("/api/games", { composer: { definition: { meta: {} }, konuId: "1" } }))).status).toBe(422);
+    expect((await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, dersler: [{ ders: "fizik", konuId: getUniteler(10, "fizik")[1].id }] } }))).status).toBe(422);
+    expect((await api.games.POST(jsonRequest("/api/games", { composer: { definition: { meta: {} }, dersler: [{ ders: "fizik", konuId: "1" }] } }))).status).toBe(422);
   });
 
   it("klasik oyun yayını değişmeden çalışır (senaryo 13)", async () => {
@@ -203,5 +200,44 @@ describe("composer yayını (/api/games)", () => {
     const res = await api.games.POST(jsonRequest("/api/games", samplePublish()));
     expect(res.status).toBe(201);
     expect((await res.json()).game).not.toHaveProperty("definition");
+  });
+});
+
+describe("çok dersli oyun", () => {
+  let api: Awaited<ReturnType<typeof buildApi>>;
+  beforeEach(async () => {
+    clearRedisEnv();
+    api = await buildApi();
+  });
+
+  const coklu = () => resolvedInput({ sinif: 10, ders: ["fizik", "matematik"], sure: 40, deneyim: "dengeli", alan: "sinif" });
+  const dersler = (g: ReturnType<typeof coklu>) => g.dersler.map((k) => ({ ders: k.ders, konuId: k.konuId }));
+
+  it("her dersin çalışıldığı oyun yayınlanır; meta dersleri birlikte taşır", async () => {
+    const g = coklu();
+    const def = makeDefinition(g, 7);
+    def.duraklar[0].gorev.ogrenme_hedefi = g.hedefDersleri.matematik[0];
+    def.meta.ders = g.dersAdi;
+    const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, dersler: dersler(g) } }));
+    expect(res.status).toBe(201);
+    expect((await res.json()).game.definition.meta.ders).toBe("Fizik + Matematik");
+  });
+
+  it("seçilen bir ders hiçbir görevde çalışılmıyorsa yayınlanamaz", async () => {
+    const g = coklu();
+    const def = makeDefinition(g, 7);
+    def.duraklar.forEach((d) => (d.gorev.ogrenme_hedefi = g.hedefDersleri.fizik[0]));
+    def.final.ogrenme_hedefleri = g.hedefDersleri.fizik.slice(0, 2);
+    def.ogrenme_hedefleri = g.hedefDersleri.fizik.slice(0, 2);
+    const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, dersler: dersler(g) } }));
+    expect(res.status).toBe(422);
+    expect((await res.json()).validation.hatalar.map((h: { kod: string }) => h.kod)).toContain("ders-eksik");
+  });
+
+  it("aynı ders iki kez seçilemez", async () => {
+    const konuId = getUniteler(10, "fizik")[0].id;
+    const req = jsonRequest("/api/compose", { sinif: 10, dersler: [{ ders: "fizik", konuId }, { ders: "fizik", konuId }], sure: 40, deneyim: "dengeli", alan: "sinif" });
+    const { route } = await loadCompose();
+    expect((await route.POST(req)).status).toBe(422);
   });
 });

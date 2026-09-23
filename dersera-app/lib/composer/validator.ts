@@ -14,6 +14,7 @@ export interface ValidationContext {
   deneyim: "macera" | "dengeli" | "ders";
   izinliQrIdleri: string[];
   recipe?: Recipe;
+  hedefDersleri?: Record<string, string[]>;
 }
 
 export interface ValidationResult {
@@ -136,6 +137,14 @@ export function validateGame(def: GameDefinition, ctx: ValidationContext): Valid
   if (ctx.alan === "okul") {
     const qrlar = def.duraklar.map((d) => d.mekan.qr_durak_id).filter((q): q is string => q !== null);
     if (new Set(qrlar).size !== qrlar.length) hata("qr-tekrar", "Aynı QR birden fazla durakta kullanılıyor.");
+  }
+
+  // Disiplinler arası oyunda seçilen her ders en az bir görevde çalışılmalı.
+  if (ctx.hedefDersleri && Object.keys(ctx.hedefDersleri).length > 1) {
+    const kullanilan = new Set(def.duraklar.map((d) => d.gorev.ogrenme_hedefi));
+    for (const [ders, kodlar] of Object.entries(ctx.hedefDersleri)) {
+      if (!kodlar.some((k) => kullanilan.has(k))) hata("ders-eksik", `Seçilen "${ders}" dersi hiçbir görevde çalışılmıyor.`);
+    }
   }
 
   // Oyun hedefleri de konuya ait olmalı

@@ -36,7 +36,7 @@ describe("müfredat verisi", () => {
 
 describe("parseComposeInput", () => {
   const konu = getUniteler(10, "fizik")[0];
-  const valid = { sinif: 10, ders: "fizik", konuId: konu.id, sure: 40, deneyim: "dengeli", alan: "sinif" };
+  const valid = { sinif: 10, dersler: [{ ders: "fizik", konuId: konu.id }], sure: 40, deneyim: "dengeli", alan: "sinif" };
 
   it("geçerli seçimi çözer ve konunun öğrenme çıktılarını ekler", () => {
     const r = parseComposeInput(valid);
@@ -44,16 +44,37 @@ describe("parseComposeInput", () => {
     if (r.ok) expect(r.input.ogrenmeCiktilari).toEqual(konu.ogrenmeCiktilari);
   });
 
+  it("birden çok dersi çözer; hedefler birleşir, ders adları ve konular meta için birleştirilir", () => {
+    const mat = getUniteler(10, "matematik")[0];
+    const r = parseComposeInput({ ...valid, dersler: [{ ders: "fizik", konuId: konu.id }, { ders: "matematik", konuId: mat.id }] });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.input.ogrenmeCiktilari).toEqual([...konu.ogrenmeCiktilari, ...mat.ogrenmeCiktilari]);
+    expect(r.input.hedefDersleri).toEqual({ fizik: konu.ogrenmeCiktilari.map((o) => o.kod), matematik: mat.ogrenmeCiktilari.map((o) => o.kod) });
+    expect(r.input.dersAdi).toBe("Fizik + Matematik");
+    expect(r.input.konuAdi).toBe(`${konu.ad} · ${mat.ad}`);
+  });
+
+  it("dokuz dersin tamamı birlikte seçilebilir (programı olan sınıfta)", () => {
+    const hepsi = ["matematik", "fizik", "kimya", "turk-dili", "biyoloji", "tarih", "cografya", "felsefe", "din-kulturu"].map((ders) => ({
+      ders,
+      konuId: getUniteler(11, ders).find((u) => u.ogrenmeCiktilari.length)!.id,
+    }));
+    expect(parseComposeInput({ ...valid, sinif: 11, dersler: hepsi }).ok).toBe(true);
+  });
+
   it.each([
-    ["başka dersin konusu (senaryo 4)", { ...valid, konuId: getUniteler(10, "kimya")[0].id }],
-    ["olmayan konu", { ...valid, konuId: "999999" }],
-    ["sayı olmayan konu", { ...valid, konuId: "<script>" }],
+    ["başka dersin konusu (senaryo 4)", { ...valid, dersler: [{ ders: "fizik", konuId: getUniteler(10, "kimya")[0].id }] }],
+    ["olmayan konu", { ...valid, dersler: [{ ders: "fizik", konuId: "999999" }] }],
+    ["sayı olmayan konu", { ...valid, dersler: [{ ders: "fizik", konuId: "<script>" }] }],
     ["olmayan sınıf", { ...valid, sinif: 8 }],
-    ["olmayan ders", { ...valid, ders: "astroloji" }],
+    ["olmayan ders", { ...valid, dersler: [{ ders: "astroloji", konuId: konu.id }] }],
+    ["hiç ders yok", { ...valid, dersler: [] }],
+    ["aynı ders iki kez", { ...valid, dersler: [{ ders: "fizik", konuId: konu.id }, { ders: "fizik", konuId: konu.id }] }],
     ["izinsiz süre", { ...valid, sure: 30 }],
     ["izinsiz deneyim", { ...valid, deneyim: "zor" }],
     ["fazladan alan (soru sayısı)", { ...valid, soruSayisi: 12 }],
-    ["programda olmayan sınıf-ders (Felsefe 9)", { ...valid, sinif: 9, ders: "felsefe" }],
+    ["programda olmayan sınıf-ders (Felsefe 9)", { ...valid, sinif: 9, dersler: [{ ders: "felsefe", konuId: konu.id }] }],
   ])("reddeder: %s", (_l, body) => {
     expect(parseComposeInput(body).ok).toBe(false);
   });

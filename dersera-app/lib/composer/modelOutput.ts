@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { PROGRAM_DERS_ADI } from "@/data/mufredat/programlar";
 import { GameDefinitionSchema, type GameDefinition } from "@/lib/composer/definition";
 import type { ResolvedInput } from "@/lib/composer/input";
 
@@ -62,8 +61,8 @@ export function toDefinition(out: ModelOutput, input: ResolvedInput): { ok: true
     meta: {
       baslik: out.baslik,
       sinif: input.sinif,
-      ders: PROGRAM_DERS_ADI[input.ders],
-      konu: input.unite.ad,
+      ders: input.dersAdi,
+      konu: input.konuAdi,
       sure_dk: input.sure,
       deneyim: input.deneyim,
       alan: input.alan,

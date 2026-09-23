@@ -13,6 +13,7 @@ export function validationContext(input: {
   deneyim: Deneyim;
   sure: number;
   ogrenmeCiktilari: OgrenmeCiktisi[];
+  hedefDersleri?: Record<string, string[]>;
 }): ValidationContext {
   return {
     izinliHedefler: input.ogrenmeCiktilari.map((o) => o.kod),
@@ -20,5 +21,6 @@ export function validationContext(input: {
     deneyim: input.deneyim,
     izinliQrIdleri: IZINLI_QR_IDLERI,
     recipe: buildRecipe(input.sure, input.deneyim, input.alan),
+    hedefDersleri: input.hedefDersleri,
   };
 }

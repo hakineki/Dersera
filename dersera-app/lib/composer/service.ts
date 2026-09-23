@@ -1,8 +1,7 @@
-import { PROGRAM_DERS_ADI, getUnite } from "@/data/mufredat/programlar";
 import { ComposeError, composeGame, type ComposeClient } from "@/lib/composer/anthropic";
 import { toDefinition } from "@/lib/composer/modelOutput";
 import type { GameDefinition } from "@/lib/composer/definition";
-import type { ResolvedInput } from "@/lib/composer/input";
+import { describeKonular, resolveKonular, type DersKonu, type ResolvedInput } from "@/lib/composer/input";
 import { IZINLI_QR_IDLERI, validationContext } from "@/lib/composer/context";
 import { buildRecipe } from "@/lib/composer/recipe";
 import { validateGame, type ValidationResult } from "@/lib/composer/validator";
@@ -24,13 +23,13 @@ export async function composeAndValidate(input: ResolvedInput, client?: ComposeC
 }
 
 // Yayın ve düzenleme sonrası: tanımı müfredata göre yeniden doğrular (istemciye güvenmez).
-export function revalidate(def: GameDefinition, konuId: string): ValidationResult | null {
-  const sinif = def.meta.sinif;
-  const dersKey = Object.entries(PROGRAM_DERS_ADI).find(([, ad]) => ad === def.meta.ders)?.[0];
-  const unite = dersKey ? getUnite(sinif, dersKey, konuId) : undefined;
-  if (!unite || unite.ad !== def.meta.konu) return null;
+export function revalidate(def: GameDefinition, dersler: DersKonu[]): ValidationResult | null {
+  const r = resolveKonular(def.meta.sinif, dersler);
+  if (!r.ok) return null;
+  const d = describeKonular(r.konular);
+  if (d.dersAdi !== def.meta.ders || d.konuAdi !== def.meta.konu) return null;
   return validateGame(
     def,
-    validationContext({ alan: def.meta.alan, deneyim: def.meta.deneyim, sure: def.meta.sure_dk, ogrenmeCiktilari: unite.ogrenmeCiktilari })
+    validationContext({ alan: def.meta.alan, deneyim: def.meta.deneyim, sure: def.meta.sure_dk, ogrenmeCiktilari: d.ogrenmeCiktilari, hedefDersleri: d.hedefDersleri })
   );
 }
