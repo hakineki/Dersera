@@ -118,6 +118,18 @@ describe("otomatik onarım", () => {
     expect(r.notlar.some((n) => n.includes("finalin gereksinimlerinden çıkarıldı"))).toBe(true);
   });
 
+  it("dengeli oyunda gerekli nesnelerin tümü finalden çıkarılırsa oyun yine yayınlanamaz", () => {
+    const def = clone(makeDefinition(input, 5));
+    def.envanter.forEach((e) => (e.final_icin_gerekli = false));
+    def.envanter.push({ id: "n3", tur: "parca", isim: "Parça", final_icin_gerekli: true });
+    def.final.gerekli_nesneler = ["n3"];
+    def.duraklar[0].gorev.odul_id = "n2";
+    def.duraklar[1].gorev.odul_id = "n2";
+    const r = onar(def);
+    expect(r.definition.final.gerekli_nesneler).toEqual([]);
+    expect(codes(r.definition)).toContain("final-nesne-kullanmiyor");
+  });
+
   it("envanterde olmayan nesneyi onarmaz; hata kalır", () => {
     const def = clone(makeDefinition(input, 7));
     def.final.gerekli_nesneler.push("yok");
