@@ -27,6 +27,11 @@ export interface PublicGame {
   definition?: GameDefinition;
 }
 
+// Composer oyununun yayında açık kalacağı süre: oyun süresinin iki katı, en az bir saat.
+export function publishWindowMinutes(sureDk: number): number {
+  return Math.max(60, sureDk * 2);
+}
+
 export interface PublishRequest {
   durationMinutes: number;
   aylar: string[];

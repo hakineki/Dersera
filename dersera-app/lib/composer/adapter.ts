@@ -1,17 +1,13 @@
 import { PROGRAM_DERS_ADI } from "@/data/mufredat/programlar";
 import type { Ders } from "@/data/mufredat";
 import { GameDefinitionSchema, type GameDefinition } from "@/lib/composer/definition";
-import { DersKonuSchema } from "@/lib/composer/input";
+import { DersKonuSchema, type DersKonu } from "@/lib/composer/input";
 import { z } from "zod";
 import { revalidate } from "@/lib/composer/service";
 import type { ValidationResult } from "@/lib/composer/validator";
-import type { GameStop, PublishRequest } from "@/lib/games";
+import { publishWindowMinutes, type GameStop, type PublishRequest } from "@/lib/games";
 
 // Game Definition → mevcut oyun kaydı. Kod üretimi, katılım, sonuçlar ve süre mevcut sistemden gelir.
-
-export function publishWindowMinutes(sureDk: number): number {
-  return Math.max(60, sureDk * 2);
-}
 
 // Birden çok ders seçildiyse klasik alanlar için ilk ders kullanılır.
 function dersKeyOf(def: GameDefinition): Ders {
@@ -32,7 +28,7 @@ export function definitionToStops(def: GameDefinition): GameStop[] {
 }
 
 export type ComposerPublishResult =
-  | { ok: true; request: PublishRequest }
+  | { ok: true; request: PublishRequest; dersler: DersKonu[] }
   | { ok: false; status: number; error: string; validation?: ValidationResult };
 
 export const MAX_DEFINITION_BYTES = 64 * 1024;
@@ -54,6 +50,7 @@ export function parseComposerPublish(body: unknown): ComposerPublishResult {
   }
   return {
     ok: true,
+    dersler: dersler.data,
     request: {
       durationMinutes: publishWindowMinutes(parsed.data.meta.sure_dk),
       aylar: [],

@@ -12,6 +12,7 @@ import { definitionPanelStops } from "@/lib/composer/scene";
 import { loadTeacherGame, saveTeacherGame, type TeacherGame } from "@/lib/teacherGame";
 import AySecici from "./AySecici";
 import OyunTab from "./OyunTab";
+import KutuphaneTab from "./KutuphaneTab";
 import {
   verifyTeacher,
   loadTeacherSession,
@@ -24,7 +25,7 @@ import {
   type PilotInfo,
 } from "@/lib/pilotInfo";
 
-type Tab = "oyun" | "sorular" | "siralama" | "ayarlar";
+export type Tab = "oyun" | "kutuphane" | "sorular" | "siralama" | "ayarlar";
 
 // ── Giriş ekranı ──────────────────────────────────────────────────────────────
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
@@ -641,10 +642,10 @@ function AyarlarTab({ onLogout }: { onLogout: () => void }) {
 }
 
 // ── Ana bileşen ───────────────────────────────────────────────────────────────
-export default function OgretmenClient() {
+export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangicSekmesi?: Tab } = {}) {
   const [loggedIn, setLoggedIn] = useState(false);
   const [ready, setReady] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>("oyun");
+  const [activeTab, setActiveTab] = useState<Tab>(baslangicSekmesi);
   const [selectedAylar, setSelectedAylar] = useState<string[]>(["eylul"]);
   const [teacherGame, setTeacherGame] = useState<TeacherGame | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -717,6 +718,7 @@ export default function OgretmenClient() {
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: "oyun", label: "Oyun", icon: "🎮" },
+    { id: "kutuphane", label: "Kütüphane", icon: "📚" },
     { id: "sorular", label: "Sorular", icon: "📝" },
     { id: "siralama", label: "Sınıf", icon: "🏆" },
     { id: "ayarlar", label: "Ayarlar", icon: "⚙️" },
@@ -773,6 +775,14 @@ export default function OgretmenClient() {
             selectedAylar={selectedAylar}
             toggleAy={toggleAy}
             onTeacherGameChange={handleTeacherGameChange}
+          />
+        )}
+        {activeTab === "kutuphane" && (
+          <KutuphaneTab
+            onYayinlandi={(tg) => {
+              handleTeacherGameChange(tg);
+              setActiveTab("oyun");
+            }}
           />
         )}
         {activeTab === "sorular" && <SorularTab selectedAylar={selectedAylar} toggleAy={toggleAy} />}

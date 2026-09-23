@@ -8,6 +8,11 @@ export async function buildApi() {
     end: typeof import("@/app/api/games/[code]/end/route");
     join: typeof import("@/app/api/games/[code]/join/route");
     results: typeof import("@/app/api/results/route");
+    library: typeof import("@/app/api/library/route");
+    libraryItem: typeof import("@/app/api/library/[id]/route");
+    libraryPublish: typeof import("@/app/api/library/[id]/publish/route");
+    libraryStore: typeof import("@/lib/libraryStore");
+    libraryService: typeof import("@/lib/libraryService");
   };
   await jest.isolateModulesAsync(async () => {
     mods = {
@@ -16,9 +21,18 @@ export async function buildApi() {
       end: await import("@/app/api/games/[code]/end/route"),
       join: await import("@/app/api/games/[code]/join/route"),
       results: await import("@/app/api/results/route"),
+      library: await import("@/app/api/library/route"),
+      libraryItem: await import("@/app/api/library/[id]/route"),
+      libraryPublish: await import("@/app/api/library/[id]/publish/route"),
+      libraryStore: await import("@/lib/libraryStore"),
+      libraryService: await import("@/lib/libraryService"),
     };
   });
-  return { ...mods, params: (code: string) => ({ params: Promise.resolve({ code }) }) };
+  return {
+    ...mods,
+    params: (code: string) => ({ params: Promise.resolve({ code }) }),
+    idParams: (id: string) => ({ params: Promise.resolve({ id }) }),
+  };
 }
 
 export function jsonRequest(path: string, body: unknown): Request {
