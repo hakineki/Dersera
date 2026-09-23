@@ -90,9 +90,10 @@ export function fakeClient(output: ModelOutput | null, stop_reason = "end_turn")
     calls,
     client: {
       messages: {
-        parse: (async (body: Record<string, unknown>, options: Record<string, unknown>) => {
+        create: (async (body: Record<string, unknown>, options: Record<string, unknown>) => {
           calls.push({ body, options });
-          return { stop_reason, parsed_output: output };
+          // output null: şemaya uymayan JSON.
+          return { model: "test", usage: { output_tokens: 1 }, stop_reason, content: [{ type: "text", text: JSON.stringify(output ?? { yanlis: true }) }] };
         }) as never,
       },
     },

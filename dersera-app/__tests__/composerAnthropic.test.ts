@@ -27,7 +27,7 @@ describe("composeGame", () => {
     );
   });
 
-  it("şemaya uymayan çıktıyı (parsed_output null) reddeder", async () => {
+  it("şemaya uymayan çıktıyı reddeder", async () => {
     const { client } = fakeClient(null);
     await expect(composeGame(input, recipe, IZINLI_QR_IDLERI, client)).rejects.toMatchObject({ reason: "invalid-output" });
   });
@@ -58,7 +58,7 @@ describe("composeGame", () => {
     let aborted = false;
     const client = {
       messages: {
-        parse: ((_b: unknown, o: { signal: AbortSignal }) =>
+        create: ((_b: unknown, o: { signal: AbortSignal }) =>
           new Promise((_res, rej) => o.signal.addEventListener("abort", () => { aborted = true; rej(new Error("aborted")); }))) as never,
       },
     };
@@ -207,10 +207,16 @@ describe("hedef kodu", () => {
 });
 
 describe("çözümlenemeyen çıktı", () => {
-  it("SDK'nın JSON çözümleme hatası invalid-output olur; diğer hatalar upstream kalır", async () => {
-    const client = { messages: { parse: async () => { throw new SyntaxError("Unexpected end of JSON input"); } } } as never;
-    await expect(composeGame(input, buildRecipe(40, "dengeli", "sinif"), IZINLI_QR_IDLERI, client)).rejects.toMatchObject({ reason: "invalid-output" });
-    const diger = { messages: { parse: async () => { throw new TypeError("x is undefined"); } } } as never;
+  it("kesik JSON metni bitiş nedeniyle birlikte invalid-output olur; diğer hatalar upstream kalır", async () => {
+    const info = jest.spyOn(console, "info").mockImplementation(() => {});
+    const kesik = { messages: { create: async () => ({ model: "m", stop_reason: "end_turn", usage: { output_tokens: 400 }, content: [{ type: "text", text: '{"baslik":"Yarım' }] }) } } as never;
+    await expect(composeGame(input, buildRecipe(40, "dengeli", "sinif"), IZINLI_QR_IDLERI, kesik)).rejects.toMatchObject({
+      reason: "invalid-output",
+      message: expect.stringContaining("stop=end_turn"),
+    });
+    expect(info).toHaveBeenCalledWith(expect.stringContaining("output_tokens=400"));
+    info.mockRestore();
+    const diger = { messages: { create: async () => { throw new TypeError("x is undefined"); } } } as never;
     await expect(composeGame(input, buildRecipe(40, "dengeli", "sinif"), IZINLI_QR_IDLERI, diger)).rejects.toMatchObject({ reason: "upstream" });
   });
 });
