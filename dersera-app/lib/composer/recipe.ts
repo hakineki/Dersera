@@ -16,9 +16,9 @@ export interface Recipe {
 }
 
 const GOREV_ARALIGI: Record<number, Aralik> = {
-  20: { min: 4, max: 5 },
-  40: { min: 6, max: 8 },
-  60: { min: 8, max: 10 },
+  20: { min: 4, max: 4 },
+  40: { min: 6, max: 6 },
+  60: { min: 8, max: 8 },
 };
 
 const DENEYIM: Record<Deneyim, Omit<Recipe, "anaGorev" | "alan">> = {

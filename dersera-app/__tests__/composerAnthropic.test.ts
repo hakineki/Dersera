@@ -1,7 +1,8 @@
 import { composeGame, ComposeError, DEFAULT_MODEL, modelFromEnv } from "@/lib/composer/anthropic";
 import { buildRecipe } from "@/lib/composer/recipe";
-import { composeAndValidate, IZINLI_QR_IDLERI } from "@/lib/composer/service";
-import { SYSTEM_PROMPT } from "@/lib/composer/prompt";
+import { composeAndValidate, IZINLI_QR_IDLERI, validationContext } from "@/lib/composer/service";
+import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
+import { validateGame } from "@/lib/composer/validator";
 import { fakeClient, makeDefinition, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { hedefKodu, ModelOutputSchema, toDefinition } from "@/lib/composer/modelOutput";
@@ -202,5 +203,25 @@ describe("hedef kodu", () => {
     out.duraklar.forEach((d) => (d.ogrenme_hedefi = acikla(d.ogrenme_hedefi)));
     const { validation } = await composeAndValidate(input, fakeClient(out).client);
     expect(validation.hatalar).toEqual([]);
+  });
+});
+
+describe("çözümlenemeyen çıktı", () => {
+  it("SDK'nın JSON çözümleme hatası invalid-output olur; diğer hatalar upstream kalır", async () => {
+    const client = { messages: { parse: async () => { throw new SyntaxError("Unexpected end of JSON input"); } } } as never;
+    await expect(composeGame(input, buildRecipe(40, "dengeli", "sinif"), IZINLI_QR_IDLERI, client)).rejects.toMatchObject({ reason: "invalid-output" });
+    const diger = { messages: { parse: async () => { throw new TypeError("x is undefined"); } } } as never;
+    await expect(composeGame(input, buildRecipe(40, "dengeli", "sinif"), IZINLI_QR_IDLERI, diger)).rejects.toMatchObject({ reason: "upstream" });
+  });
+});
+
+describe("tam durak hedefi", () => {
+  it("prompt tam durak sayısını ister", () => {
+    expect(buildUserPrompt(input, buildRecipe(40, "dengeli", "sinif"), IZINLI_QR_IDLERI)).toContain("Ana görev (durak) sayısı: tam 6");
+  });
+
+  it("sapma uyarısı tek hedefi gösterir", () => {
+    const uyarilar = validateGame(makeDefinition(input, 7), validationContext(input)).uyarilar;
+    expect(uyarilar.find((u) => u.kod === "gorev-sayisi")?.mesaj).toBe("Görev sayısı 7; hedef 6.");
   });
 });
