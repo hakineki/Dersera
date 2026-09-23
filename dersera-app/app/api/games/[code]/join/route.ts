@@ -25,8 +25,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
         return NextResponse.json({ playerToken: result.playerToken }, { status: 201 });
       case "taken":
         return NextResponse.json({ error: "Bu takma ad bu oyunda kullanımda" }, { status: 409 });
-      case "closed":
-        return NextResponse.json({ error: "Oyun sona erdi" }, { status: 410 });
       case "not-found":
         return NextResponse.json({ error: "Geçersiz kod" }, { status: 404 });
     }

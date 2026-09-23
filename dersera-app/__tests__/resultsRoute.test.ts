@@ -115,6 +115,14 @@ describe("/api/results", () => {
     expect((await post({ gameCode: "ZZZ-000", playerToken: "x", result })).status).toBe(404);
   });
 
+  it("oyun başında çevrimdışı olup bittikten sonra katılan öğrencinin sonucu kabul edilir", async () => {
+    const pub = await publish();
+    await api.end.POST(jsonRequest("/end", { adminToken: pub.adminToken }), api.params(pub.game.code));
+    const playerToken = await join(pub.game.code, "Cevrimdisi");
+    const res = await post({ gameCode: pub.game.code, playerToken, result: { ...result, nickname: "Cevrimdisi" } });
+    expect(res.status).toBe(201);
+  });
+
   it("oyun bittikten sonra da katılmış öğrencinin sonucu kabul edilir (çevrimdışı bitiren)", async () => {
     const pub = await publish();
     const playerToken = await join(pub.game.code, "Kartal");

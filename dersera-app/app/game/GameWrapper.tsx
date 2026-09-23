@@ -28,7 +28,7 @@ type View =
   | { kind: "code"; notice?: string }
   | { kind: "message"; icon: string; title: string; text: string }
   | { kind: "choice" }
-  | { kind: "nickname" }
+  | { kind: "nickname"; notice?: string }
   | { kind: "game" };
 
 // Son bilinen kopya varsa sunucudan tazelenir; ağ yoksa yerel kopyayla devam edilir.
@@ -139,13 +139,19 @@ export default function GameWrapper() {
     resolve(g);
   }
 
-  function handleNicknameConfirm(nick: string) {
+  async function handleNicknameConfirm(nick: string) {
+    if (!game) return;
+    const joined = await joinGameRequest(game.code, nick);
+    if (joined.status === "taken") {
+      setView({ kind: "nickname", notice: `“${nick}” bu oyunda başka bir öğrencide. Farklı bir takma ad seç.` });
+      return;
+    }
+    if (joined.status === "joined") savePlayerToken(joined.playerToken);
     const now = Date.now();
     saveNickname(nick);
     saveStartTime(now);
     setNickname(nick);
     setStartTime(now);
-    if (game) joinGameRequest(game.code, nick).then((token) => token && savePlayerToken(token));
     setView({ kind: "game" });
   }
 
@@ -203,7 +209,16 @@ export default function GameWrapper() {
         </div>
       );
     case "nickname":
-      return <NicknameEntry onConfirm={handleNicknameConfirm} />;
+      return (
+        <>
+          {view.notice && (
+            <div role="alert" className="fixed top-4 inset-x-4 z-50 mx-auto max-w-sm bg-amber-400 text-gray-900 text-sm font-semibold rounded-xl px-4 py-3 shadow-lg">
+              {view.notice}
+            </div>
+          )}
+          <NicknameEntry key={view.notice ?? "ilk"} onConfirm={handleNicknameConfirm} />
+        </>
+      );
     case "game":
       if (!stop || !game) return null;
       return (

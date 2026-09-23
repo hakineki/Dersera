@@ -104,11 +104,11 @@ describe("joinGame / verifyPlayer", () => {
     expect((await joinGame(store, game.code, "KARTAL", T + 2)).status).toBe("taken");
   });
 
-  it("bitmiş ya da olmayan oyuna katılım yoktur", async () => {
+  it("bitmiş oyuna katılım sonuç göndermek için açıktır; olmayan oyuna yoktur", async () => {
     const store = createMemoryGamesStore();
     const { game, adminToken } = (await publishGame(store, request, T))!;
     await endGame(store, game.code, adminToken, T + 1);
-    expect((await joinGame(store, game.code, "Gec", T + 2)).status).toBe("closed");
+    expect((await joinGame(store, game.code, "Cevrimdisi", T + 2)).status).toBe("joined");
     expect((await joinGame(store, "ZZZ-000", "Gec", T + 2)).status).toBe("not-found");
   });
 });

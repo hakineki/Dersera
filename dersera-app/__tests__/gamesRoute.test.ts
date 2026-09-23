@@ -85,16 +85,16 @@ describe("/api/games", () => {
     expect((await (await getGame(data.game.code)).json()).active).toBe(true);
   });
 
-  it("doğru anahtarla bitirilen oyuna yeni katılım yapılamaz (410)", async () => {
+  it("doğru anahtarla bitirilen oyun pasifleşir; katılım yalnızca sonuç göndermek için açık kalır", async () => {
     const { data } = await publish();
     expect((await end(data.game.code, data.adminToken)).status).toBe(200);
     const body = await (await getGame(data.game.code)).json();
     expect(body.active).toBe(false);
     expect(body.game.endedAt).toEqual(expect.any(Number));
-    expect((await join(data.game.code, "Gec")).status).toBe(410);
+    expect((await join(data.game.code, "Gec")).status).toBe(201);
   });
 
-  it("süre dolunca oyun kapanır ve yeni katılım 410 döner", async () => {
+  it("süre dolunca oyun kapanır (active=false)", async () => {
     jest.useFakeTimers({ now: 1_000_000, doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] });
     try {
       const { data } = await publish(samplePublish({ durationMinutes: 30 }));
@@ -102,7 +102,6 @@ describe("/api/games", () => {
       expect((await (await getGame(data.game.code)).json()).active).toBe(true);
       jest.setSystemTime(1_000_000 + 30 * 60 * 1000);
       expect((await (await getGame(data.game.code)).json()).active).toBe(false);
-      expect((await join(data.game.code, "Gec")).status).toBe(410);
     } finally {
       jest.useRealTimers();
     }
