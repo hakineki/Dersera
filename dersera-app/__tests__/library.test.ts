@@ -131,6 +131,26 @@ describe("oyun kütüphanesi", () => {
     expect((await yenidenYayinla(data.id)).data.game.definition.duraklar[0].gorev.soru).toBe("Yeni soru?");
   });
 
+  it("düzenleme, bu arada silinen kaydı geri getirmez; çok büyük tanım 413", async () => {
+    const { data } = await kaydet();
+    const store = api.libraryStore.getLibraryStore();
+    const sahip = await api.libraryService.sahipOf(A);
+    const get = jest.spyOn(store, "get");
+    // PUT kaydı okuduktan hemen sonra silinmiş gibi.
+    get.mockImplementationOnce(async (o, i) => {
+      const k = await store.list(o).then((l) => l.find((x) => x.id === i) ?? null);
+      await store.remove(o, i);
+      return k;
+    });
+    expect((await guncelle(data.id, definition)).res.status).toBe(404);
+    get.mockRestore();
+    expect(await store.list(sahip)).toEqual([]);
+    const buyuk = JSON.parse(JSON.stringify(definition));
+    buyuk.hikaye_giris = "x".repeat(70 * 1024);
+    const yeni = await kaydet();
+    expect((await guncelle(yeni.data.id, buyuk)).res.status).toBe(413);
+  });
+
   it("düzenleme ders/konu değiştiremez, başkasının kaydına yazamaz, bozuk tanımı reddeder", async () => {
     const { data } = await kaydet();
     const baskaDers = JSON.parse(JSON.stringify(definition));

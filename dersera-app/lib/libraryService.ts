@@ -83,8 +83,9 @@ export async function yenidenYayinla(
   if (!composed.ok) return composed;
   const published = await publishGame(games, { ...composed.request, durationMinutes: sure ?? composed.request.durationMinutes }, now);
   if (!published) return { ok: false, status: 503, error: "Benzersiz oyun kodu üretilemedi" };
-  const guncel: KutuphaneKaydi = { ...kayit, sonKod: published.game.code, sonYayin: now };
-  await library.replace(sahip, guncel);
+  // Yayın sırasında gelen bir düzenleme ezilmesin: kaydın en güncel hâli okunup yalnız son kod/tarih yazılır.
+  const guncel = (await library.get(sahip, id)) ?? kayit;
+  await library.replace(sahip, { ...guncel, sonKod: published.game.code, sonYayin: now });
   return { ok: true, ...published };
 }
 

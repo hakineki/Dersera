@@ -23,7 +23,7 @@ const MESAJLAR = ["Müfredat hazırlanıyor...", "Hikâye kuruluyor...", "Görev
 type Durum =
   | { tur: "form" }
   | { tur: "yukleniyor" }
-  | { tur: "hata"; mesaj: string }
+  | { tur: "hata"; mesaj: string; kutuphane?: boolean }
   | { tur: "onizleme" };
 
 interface DersKonu {
@@ -133,6 +133,10 @@ export default function ComposerClient({
   const [kutuphaneDurumu, setKutuphaneDurumu] = useState<"kayitsiz" | "degisti" | "kaydedildi" | "kaydediliyor">("kayitsiz");
   const [kutuphaneHatasi, setKutuphaneHatasi] = useState("");
   const istek = useRef<AbortController | null>(null);
+  const sonTanim = useRef<GameDefinition | null>(null);
+  useEffect(() => {
+    sonTanim.current = sonuc?.definition ?? null;
+  }, [sonuc]);
 
   useEffect(() => {
     const t = setTimeout(() => setOgretmen(loadTeacherSession()));
@@ -149,7 +153,7 @@ export default function ComposerClient({
       const d = await kutuphaneOyunu(id);
       if (iptal) return;
       if (!d || !d.validation) {
-        setDurum({ tur: "hata", mesaj: "Kütüphanedeki oyun açılamadı." });
+        setDurum({ tur: "hata", mesaj: "Kütüphanedeki oyun açılamadı.", kutuphane: true });
         return;
       }
       setSonuc({ definition: d.oyun.definition, validation: d.validation, dersler: d.oyun.dersler, hedefler: d.hedefler, hedefDersleri: d.hedefDersleri });
@@ -249,21 +253,27 @@ export default function ComposerClient({
 
   async function kutuphaneyeEkle() {
     if (!sonuc) return;
+    const gonderilen = sonuc.definition;
     setKutuphaneDurumu("kaydediliyor");
     setKutuphaneHatasi("");
-    const r = await kutuphaneyeKaydet(sonuc.definition, sonuc.dersler, kutuphaneId);
+    const r = await kutuphaneyeKaydet(gonderilen, sonuc.dersler, kutuphaneId);
     if ("error" in r) {
       setKutuphaneHatasi(r.error);
       setKutuphaneDurumu(kutuphaneId ? "degisti" : "kayitsiz");
-      return;
+      return false;
     }
     setKutuphaneId(r.id);
-    setKutuphaneDurumu("kaydedildi");
-    setSonuc((s) => (s ? { ...s, validation: r.validation } : s));
+    const guncel = sonTanim.current === gonderilen;
+    setKutuphaneDurumu(guncel ? "kaydedildi" : "degisti");
+    if (guncel) setSonuc((s) => (s ? { ...s, validation: r.validation } : s));
+    return true;
   }
 
   async function yayinla() {
     if (!sonuc) return;
+    if (kutuphaneId && kutuphaneDurumu === "degisti" && window.confirm("Düzenlemeler kütüphanedeki kayda henüz kaydedilmedi. Yayınlamadan önce kütüphanede de güncellensin mi?")) {
+      if (!(await kutuphaneyeEkle())) return;
+    }
     setYayinlaniyor(true);
     setYayinHatasi("");
     try {
@@ -405,10 +415,16 @@ export default function ComposerClient({
             </div>
             <p className="font-semibold text-gray-900">{durum.mesaj}</p>
             <div className="flex gap-2 justify-center mt-5">
-              <button onClick={() => setDurum({ tur: "form" })} className="border border-gray-300 text-gray-700 font-semibold px-4 py-2 rounded-lg">
+              <button
+                onClick={() => {
+                  if (durum.kutuphane) window.history.replaceState(null, "", "/composer");
+                  setDurum({ tur: "form" });
+                }}
+                className="border border-gray-300 text-gray-700 font-semibold px-4 py-2 rounded-lg"
+              >
                 Seçimlere dön
               </button>
-              <button onClick={olustur} className="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg">
+              <button onClick={durum.kutuphane ? () => window.location.reload() : olustur} className="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg">
                 Tekrar dene
               </button>
             </div>
