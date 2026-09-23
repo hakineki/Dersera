@@ -37,9 +37,17 @@ export function kullaniciAdiNormal(v: unknown): string | null {
   return AD.test(ad) ? ad : null;
 }
 
+// Tahmin listelerinin başındaki şifreler deneme sınırı içinde bile bulunabilir; reddedilir.
+const YAYGIN = new Set([
+  "12345678", "123456789", "1234567890", "87654321", "12341234", "11223344", "password", "password1", "qwertyui", "qwerty123",
+  "abcd1234", "1q2w3e4r", "asdfghjk", "iloveyou", "sifre123", "şifre123", "parola123", "dersera2025", "dersera123",
+  "ogretmen", "öğretmen", "ogretmen1", "galatasaray", "fenerbahce", "fenerbahçe", "besiktas", "beşiktaş", "trabzonspor",
+]);
+
 export function sifreHatasi(v: unknown): string | null {
   if (typeof v !== "string" || v.length < SIFRE_MIN) return `Şifre en az ${SIFRE_MIN} karakter olmalı.`;
   if (v.length > SIFRE_MAX) return `Şifre en fazla ${SIFRE_MAX} karakter olabilir.`;
+  if (YAYGIN.has(v.toLocaleLowerCase("tr-TR")) || /^(.)\1+$/u.test(v)) return "Bu şifre çok yaygın; daha güçlü bir şifre seçin.";
   return null;
 }
 

@@ -17,6 +17,8 @@ import { cikisYap, eskiYerelGirisiTemizle, girisYap, kayitOl, kullaniciAdiDegist
 import { eskiKutuphaneSayisi, eskiKutuphaneyiTasi } from "@/lib/libraryClient";
 
 const SIFRE_MIN_ISTEMCI = 8;
+// "Benim değil" seçimi bu tarayıcı oturumu boyunca hatırlanır.
+const ESKI_KUTUPHANE_RED = "dersera:eski-kutuphane-red";
 import {
   loadPilotInfo,
   savePilotInfo,
@@ -708,6 +710,11 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   useEffect(() => {
     if (!hesapAdi) return;
     let iptal = false;
+    try {
+      if (sessionStorage.getItem(ESKI_KUTUPHANE_RED) === "1") return;
+    } catch {
+      /* ignore */
+    }
     eskiKutuphaneSayisi().then((n) => {
       if (!iptal) setBekleyenOyun(n);
     });
@@ -867,7 +874,16 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
               <button onClick={eskiOyunlariTasi} className="bg-amber-600 text-white font-semibold px-3 py-1.5 rounded-lg">
                 Hesabıma taşı
               </button>
-              <button onClick={() => setBekleyenOyun(0)} className="border border-amber-300 font-semibold px-3 py-1.5 rounded-lg">
+              <button
+                onClick={() => {
+                  try {
+                    sessionStorage.setItem(ESKI_KUTUPHANE_RED, "1");
+                  } catch {
+                    /* ignore */
+                  }
+                  setBekleyenOyun(0);
+                }}
+                className="border border-amber-300 font-semibold px-3 py-1.5 rounded-lg">
                 Benim değil, dokunma
               </button>
             </div>

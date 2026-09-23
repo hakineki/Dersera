@@ -51,6 +51,9 @@ describe("öğretmen hesabı", () => {
     ["kısa kullanıcı adı", "ay", "gizli-sifre-1"],
     ["boşluklu kullanıcı adı", "ay se", "gizli-sifre-1"],
     ["şifre yok", "ayse", undefined],
+    ["yaygın şifre", "ayse", "12345678"],
+    ["eski varsayılan şifre", "ayse", "Dersera2025"],
+    ["tek karakter tekrarı", "ayse", "aaaaaaaaaa"],
   ])("geçersiz kayıt reddedilir: %s", async (_l, ad, sifre) => {
     const res = await post(api.kayit, "/api/auth/kayit", { kullaniciAdi: ad, sifre });
     expect(res.status).toBe(422);
@@ -137,6 +140,12 @@ describe("öğretmen hesabı", () => {
     expect((await giris("ayse", "gizli-sifre-1", "10.9.9.9")).status).toBe(200);
   });
 
+  it("dağıtık tahmin: farklı IP'lerden toplam 30 hatalı denemede ad kilitlenir", async () => {
+    await kayit("ayse");
+    for (let i = 0; i < 30; i++) expect((await giris("ayse", "yanlis-sifre-1", `10.1.${Math.floor(i / 5)}.${i}`)).status).toBe(401);
+    expect((await giris("ayse", "yanlis-sifre-1", "10.2.0.1")).status).toBe(429);
+  });
+
   it("başarılı girişler hata sayacını doldurmaz (okulda ortak IP)", async () => {
     await kayit("ayse");
     for (let i = 0; i < 15; i++) expect((await giris("ayse", "gizli-sifre-1", "3.3.3.3")).status).toBe(200);
@@ -159,8 +168,12 @@ describe("öğretmen hesabı", () => {
     expect((await api.giris.POST(req({ "content-type": "application/json", "sec-fetch-site": "cross-site" }))).status).toBe(403);
     expect((await api.giris.POST(req({ "content-type": "text/plain" }))).status).toBe(415);
     expect((await api.kayit.POST(new Request("http://localhost/api/auth/kayit", { method: "POST", headers: { "content-type": "text/plain" }, body: JSON.stringify({ kullaniciAdi: "x1y", sifre: "gizli-sifre-1" }) }))).status).toBe(415);
+    expect((await api.giris.POST(req({ "content-type": "application/json", origin: "null" }))).status).toBe(403);
     const ayni = await api.giris.POST(req({ "content-type": "application/json", origin: "http://localhost", "sec-fetch-site": "same-origin" }));
     expect(ayni.status).toBe(200);
+    // Vekil arkasında köken x-forwarded-host ile eşleşir (virgüllü olabilir).
+    const vekil = await api.giris.POST(req({ "content-type": "application/json", origin: "https://dersera.vercel.app", "x-forwarded-host": "dersera.vercel.app, ic-sunucu" }));
+    expect(vekil.status).toBe(200);
   });
 
   it("başka siteden kütüphane ve compose isteği reddedilir", async () => {

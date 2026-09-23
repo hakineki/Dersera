@@ -12,7 +12,7 @@ const GENEL_HATA = "Oyun şu anda oluşturulamadı. Tekrar deneyin.";
 
 export async function POST(req: Request) {
   // Ücretli uç nokta yalnız giriş yapmış öğretmene açıktır.
-  const koken = kokenReddi(req, false);
+  const koken = kokenReddi(req);
   if (koken) return koken;
   if (!(await istekHesabi(req))) return oturumGerekli();
 

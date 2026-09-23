@@ -147,7 +147,7 @@ describe("POST /api/compose", () => {
   });
 
   it("bozuk JSON'a 400 döner", async () => {
-    const res = await route.POST(new Request("http://localhost/api/compose", { method: "POST", body: "{", headers: { cookie: cerez! } }));
+    const res = await route.POST(new Request("http://localhost/api/compose", { method: "POST", body: "{", headers: { cookie: cerez!, "content-type": "application/json" } }));
     expect(res.status).toBe(400);
   });
 

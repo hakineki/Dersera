@@ -18,7 +18,7 @@ export function kokenReddi(req: Request, json = true): NextResponse | null {
     } catch {
       /* "null" ya da bozuk köken */
     }
-    const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? new URL(req.url).host;
+    const host = (req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? new URL(req.url).host).split(",")[0].trim();
     if (originHost !== host) return NextResponse.json({ error: "İzin verilmeyen kaynak." }, { status: 403 });
   }
   if (json && !(req.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) {
@@ -77,10 +77,10 @@ const cokDeneme = () => NextResponse.json({ error: "Çok fazla deneme yapıldı.
 const sinirYok = () => NextResponse.json({ error: "Şu anda işlem yapılamıyor. Biraz sonra tekrar deneyin." }, { status: 503 });
 
 // Okullarda öğretmenler aynı IP'yi paylaşır: IP sınırı geniş tutulur.
-// Kullanıcı adına yönelik tahmin yalnız HATALI denemelerle sayılır: ad+IP başına dar, ad başına (dağıtık saldırı) geniş.
+// Kullanıcı adına yönelik tahmin yalnız HATALI denemelerle sayılır: ad+IP başına 10, ad başına (dağıtık saldırı, IPv6) 30.
 const hataAnahtarlari = (ad: string, ip: string) => [
   { key: `dersera:giris-hata:ad:${ad}:ip:${ip}`, max: 10 },
-  { key: `dersera:giris-hata:ad:${ad}`, max: 100 },
+  { key: `dersera:giris-hata:ad:${ad}`, max: 30 },
 ];
 
 export async function denemeOnKontrol(req: Request, tur: "giris" | "kayit", ad?: string): Promise<NextResponse | null> {
