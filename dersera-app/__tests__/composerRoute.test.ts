@@ -3,7 +3,7 @@ import type { GameDefinition } from "@/lib/composer/definition";
 import type { ResolvedInput } from "@/lib/composer/input";
 import { clearRedisEnv } from "./helpers/fakeRedis";
 import { buildApi, jsonRequest } from "./helpers/api";
-import { makeDefinition } from "./helpers/composerFixtures";
+import { makeDefinition, toModelOutput } from "./helpers/composerFixtures";
 
 type ComposeRoute = typeof import("@/app/api/compose/route");
 type AnthropicMod = typeof import("@/lib/composer/anthropic");
@@ -36,7 +36,7 @@ describe("POST /api/compose", () => {
     clearRedisEnv();
     process.env.ANTHROPIC_API_KEY = "test-key";
     ({ route, anthropic } = await loadCompose());
-    spy = jest.spyOn(anthropic, "composeGame").mockImplementation(async (input: ResolvedInput) => makeDefinition(input, input.sure === 20 ? 5 : input.sure === 40 ? 7 : 9));
+    spy = jest.spyOn(anthropic, "composeGame").mockImplementation(async (input: ResolvedInput) => toModelOutput(makeDefinition(input, input.sure === 20 ? 5 : input.sure === 40 ? 7 : 9)));
   });
   afterEach(() => spy.mockRestore());
   afterAll(() => errSpy.mockRestore());
@@ -58,7 +58,7 @@ describe("POST /api/compose", () => {
   });
 
   it("meta alanlarını modelden değil doğrulanmış girdiden alır", async () => {
-    spy.mockImplementationOnce(async (input: ResolvedInput) => ({ ...makeDefinition(input), meta: { ...makeDefinition(input).meta, sinif: 12, konu: "Uydurma", sure_dk: 999 } }));
+    spy.mockImplementationOnce(async (input: ResolvedInput) => ({ ...toModelOutput(makeDefinition(input)), meta: { sinif: 12, konu: "Uydurma", sure_dk: 999 } }) as never);
     const res = await route.POST(body(10, "fizik", 40, "dengeli", "sinif").req);
     const json = (await res.json()) as { definition: GameDefinition };
     expect(json.definition.meta.sinif).toBe(10);
@@ -74,7 +74,7 @@ describe("POST /api/compose", () => {
 
   it("doğrulayıcı hatalarını yanıtta döndürür", async () => {
     spy.mockImplementationOnce(async (input: ResolvedInput) => {
-      const d = makeDefinition(input);
+      const d = toModelOutput(makeDefinition(input));
       d.duraklar[2].varsayilan_sonraki_durak_id = "yok";
       return d;
     });

@@ -49,6 +49,14 @@ Oyun yapısı hedefleri:
 - Final: ${recipe.final}
 - Mekân: ${recipe.alan}${qr}
 
+Alan kuralları:
+- sahne_turu: "gorev", "secim" ya da "birlesme". secim sahnesinde secimler 2-3 farklı hedef içerir ve varsayilan_sonraki_durak_id boştur; diğer sahnelerde secimler boş dizidir.
+- gorev_turu (duraklarda ve finalde): "coktan_secmeli", "eslestirme", "siralama", "surukle_birak", "gorsel_secim" ya da "sayisal".
+- secenekler ve dogru_cevap: coktan_secmeli/gorsel_secim → 2-5 seçenek, dogru_cevap bunlardan biri birebir. siralama/surukle_birak → 3-6 öğe karışık sırada, dogru_cevap doğru sıranın " | " ile birleşimi. eslestirme → 3-5 "sol => sağ" çifti, dogru_cevap tüm çiftlerin " | " ile birleşimi. sayisal → secenekler boş, dogru_cevap yalnız sayı.
+- destek_secenekler 2-4 seçenek; destek_dogru_cevap bunlardan biri birebir.
+- envanter tur: "kanit", "anahtar" ya da "parca". odul_id bir envanter id'si ya da boş metin.
+- Boş/yok değerleri için boş metin ("") kullan: odul_id, varsayilan_sonraki_durak_id (son duraklarda ve seçim sahnelerinde), qr_durak_id (tek sınıfta).
+
 Metinleri kısa tut (oyun 30 saniyede üretilmeli): hikaye_metni en fazla 2 cümle; soru tek cümle; ipuçları, destek açıklaması ve sonraki durak tarifi tek kısa cümle; seçenekler birkaç kelime.
 Görev türlerini konuya uygun biçimde çeşitlendir. Durak id'leri d1, d2, ...; nesne id'leri n1, n2, ... biçiminde olsun. İlk durak başlangıçtır.`;
 }
