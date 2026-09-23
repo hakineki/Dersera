@@ -16,7 +16,7 @@ import DurakEditor, { type Duzenlenen } from "./DurakEditor";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI } from "./labels";
 import { maxDersSayisi } from "@/lib/composer/recipe";
 
-const CLIENT_TIMEOUT_MS = 35_000;
+const CLIENT_TIMEOUT_MS = 170_000; // sunucu sınırı (150 sn) + pay; maxDuration 180 sn
 const MESAJLAR = ["Müfredat hazırlanıyor...", "Hikâye kuruluyor...", "Görevler oluşturuluyor...", "Oyun kontrol ediliyor..."];
 
 type Durum =

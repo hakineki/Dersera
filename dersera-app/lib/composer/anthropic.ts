@@ -7,7 +7,7 @@ import type { Recipe } from "@/lib/composer/recipe";
 
 export const DEFAULT_MODEL = "claude-sonnet-4-6";
 export const COMPOSE_TIMEOUT_MS = 150_000; // tam oyun ~5–8k token; model bunu 1–2 dakikada yazar
-// Oyun 30 sn içinde üretilmeli; çıktı kısa tutulur ve maliyet üst sınırı konur.
+// Tam oyun 1–2 dakikada üretilir; çıktı kısa tutulur ve maliyet üst sınırı konur.
 const MAX_TOKENS = 8_000;
 
 export type ComposeFailure = "config" | "timeout" | "upstream" | "invalid-output";
@@ -34,7 +34,7 @@ function clientFromEnv(): ComposeClient {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new ComposeError("config", "ANTHROPIC_API_KEY tanımlı değil");
   }
-  // Yeniden deneme 30 sn'lik kesin sınırı aşar; tekrar denemeyi öğretmen yapar.
+  // Yeniden deneme 150 sn'lik kesin sınırı aşar; tekrar denemeyi öğretmen yapar.
   return new Anthropic({ maxRetries: 0 });
 }
 
