@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 48" fill="none">
+  <!-- İkon: D harfi + ok -->
+  <rect width="44" height="44" rx="10" x="2" y="2" fill="#4f46e5"/>
+  <text x="22" y="33" font-family="system-ui,sans-serif" font-weight="800" font-size="26" fill="white" text-anchor="middle">D</text>
+  <!-- Wordmark -->
+  <text x="56" y="20" font-family="system-ui,sans-serif" font-weight="800" font-size="14" fill="#1e1b4b" letter-spacing="1">DERSERA</text>
+  <text x="56" y="37" font-family="system-ui,sans-serif" font-weight="400" font-size="10" fill="#6366f1" letter-spacing="0.5">Akıllı Öğrenme Platformu</text>
+</svg>

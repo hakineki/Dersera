@@ -2,7 +2,10 @@ export default function OgrenciPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-sm text-center">
-        <div className="text-7xl mb-6">📱</div>
+        <div className="flex justify-center mb-4">
+          <img src="/logo/dersera-logo.svg" alt="Dersera" className="h-10 w-auto opacity-90" />
+        </div>
+        <div className="text-5xl mb-4">📱</div>
         <h1 className="text-xl font-bold text-white mb-3">QR Kodu Tara</h1>
         <p className="text-purple-300 text-sm leading-relaxed mb-8">
           Öğretmenin sınıfa koyduğu QR kodunu telefon kameranla tara ve oyunu başlat.

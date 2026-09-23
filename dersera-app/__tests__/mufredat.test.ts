@@ -173,7 +173,7 @@ describe("sıra kilidi (isPreviousStopsComplete)", () => {
   const orderedStops = [
     { id: "bahce", order: 1 },
     { id: "koridor", order: 2 },
-    { id: "fizik-lab", order: 3 },
+    { id: "kimya-lab", order: 3 },
     { id: "kutuphane", order: 4 },
     { id: "mudur-odasi", order: 5 },
   ];
@@ -214,7 +214,7 @@ describe("sıra kilidi (isPreviousStopsComplete)", () => {
     const progress: GameProgress = {
       bahce: { completedAt: Date.now(), hintsUsed: 0 },
       koridor: { completedAt: Date.now(), hintsUsed: 0 },
-      "fizik-lab": { completedAt: Date.now(), hintsUsed: 0 },
+      "kimya-lab": { completedAt: Date.now(), hintsUsed: 0 },
       kutuphane: { completedAt: Date.now(), hintsUsed: 0 },
     };
     expect(isPreviousStopsComplete(5, progress, orderedStops)).toBe(true);

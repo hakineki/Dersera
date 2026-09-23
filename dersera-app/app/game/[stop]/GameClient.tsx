@@ -22,7 +22,7 @@ const HIKAYE: Record<string, string> = {
     "Okul müdürünün masasından gizli bir dosya çalındı! Tek ipucu bahçede bırakılmış. Matematik şifreni çöz ve dosyanın izini sürdür...",
   koridor:
     "Birinci iz çözüldü! Kamera görüntüleri şüpheliyi koridorda gösteriyor. Fizik bilginle koridordaki gizemi aç!",
-  "fizik-lab":
+  "kimya-lab":
     "İz laboratuvara uzanıyor! Masada kimyasal bir not bırakılmış. Kimya sorusunu çöz ve ipucunu yakala!",
   kutuphane:
     "Laboratuvardan çıkan iz kütüphaneye ulaştı. Eski kitabın içine gizlenmiş şifreli mesaj var. Türk Dili ve Edebiyatı bilginle kilidi aç!",
