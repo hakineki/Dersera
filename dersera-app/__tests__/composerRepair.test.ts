@@ -9,17 +9,17 @@ const input = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "deng
 const clone = (d: GameDefinition): GameDefinition => JSON.parse(JSON.stringify(d));
 const codes = (def: GameDefinition) => validateGame(def, validationContext(input)).hatalar.map((h) => h.kod);
 
-describe("otomatik onarÄ±m", () => {
-  it("geÃ§erli oyuna dokunmaz", () => {
+describe("otomatik onarım", () => {
+  it("geçerli oyuna dokunmaz", () => {
     const def = makeDefinition(input, 7);
     const r = onar(def);
     expect(r.notlar).toEqual([]);
     expect(r.definition).toEqual(def);
   });
 
-  it("gÃ¶revsiz seÃ§im duraÄŸÄ±nÄ± Ã¶nceki duraÄŸa taÅŸÄ±r", () => {
+  it("görevsiz seçim durağını önceki durağa taşır", () => {
     const def = clone(makeDefinition(input, 7));
-    // d1 â†’ (boÅŸ seÃ§im) â†’ d3 | d4 ; d2 gÃ¶revsiz bir seÃ§im dÃ¼ÄŸÃ¼mÃ¼
+    // d1 → (boş seçim) → d3 | d4 ; d2 görevsiz bir seçim düğümü
     const g = def.duraklar[1].gorev;
     g.soru = ""; g.dogru_cevap = ""; g.ipucu_1 = ""; g.ipucu_2 = "";
     g.destek_gorevi = { soru: "", secenekler: [], dogru_cevap: "", aciklama: "" };
@@ -39,25 +39,25 @@ describe("otomatik onarÄ±m", () => {
   };
 
   it.each([
-    ["seÃ§im Ã¶nceki duraÄŸa dÃ¶nÃ¼yor (rota kaybolurdu)", (def: GameDefinition) => { def.duraklar[1].secimler[1].hedef_durak_id = "d1"; }],
-    ["silinecek durak Ã¶dÃ¼l veriyor", (def: GameDefinition) => { def.duraklar[1].gorev.odul_id = "n1"; }],
-    ["iki durak boÅŸ seÃ§ime baÄŸlanÄ±yor", (def: GameDefinition) => { def.duraklar[3].varsayilan_sonraki_durak_id = "d2"; }],
-  ])("gÃ¶revsiz seÃ§imi taÅŸÄ±maz: %s", (_l, boz) => {
+    ["seçim önceki durağa dönüyor (rota kaybolurdu)", (def: GameDefinition) => { def.duraklar[1].secimler[1].hedef_durak_id = "d1"; }],
+    ["silinecek durak ödül veriyor", (def: GameDefinition) => { def.duraklar[1].gorev.odul_id = "n1"; }],
+    ["iki durak boş seçime bağlanıyor", (def: GameDefinition) => { def.duraklar[3].varsayilan_sonraki_durak_id = "d2"; }],
+  ])("görevsiz seçimi taşımaz: %s", (_l, boz) => {
     const def = bosalt(clone(makeDefinition(input, 7)), 1);
     boz(def);
     const r = onar(def);
     expect(r.definition.duraklar.map((d) => d.id)).toContain("d2");
-    expect(r.notlar.filter((n) => n.includes("seÃ§imi"))).toEqual([]);
+    expect(r.notlar.filter((n) => n.includes("seçimi"))).toEqual([]);
     expect(codes(r.definition).length).toBeGreaterThan(0);
   });
 
-  it("okul oyununda QR'lÄ± boÅŸ seÃ§im duraÄŸÄ±nÄ± silmez", () => {
+  it("okul oyununda QR'lı boş seçim durağını silmez", () => {
     const okul = resolvedInput({ sinif: 11, ders: "matematik", sure: 60, deneyim: "macera", alan: "okul" });
     const def = bosalt(clone(makeDefinition(okul, 9)), 1);
     expect(onar(def).definition.duraklar.map((d) => d.id)).toContain("d2");
   });
 
-  it("baÅŸlangÄ±Ã§ duraÄŸÄ± boÅŸ seÃ§imse dokunmaz", () => {
+  it("başlangıç durağı boş seçimse dokunmaz", () => {
     const def = bosalt(clone(makeDefinition(input, 7)), 0);
     def.duraklar[0].sahne_turu = "secim";
     def.duraklar[0].secimler = [{ metin: "a", hedef_durak_id: "d2" }, { metin: "b", hedef_durak_id: "d3" }];
@@ -65,27 +65,27 @@ describe("otomatik onarÄ±m", () => {
     expect(onar(def).definition.duraklar[0].id).toBe("d1");
   });
 
-  it("Ã¶dÃ¼lsÃ¼z ortak durak kalmadÄ±ysa nesneyi taÅŸÄ±maz; hata kalÄ±r", () => {
+  it("ödülsüz ortak durak kalmadıysa nesneyi taşımaz; hata kalır", () => {
     const def = clone(makeDefinition(input, 5));
-    def.duraklar[3].gorev.odul_id = null; // n1 yalnÄ±z Rota A'da
+    def.duraklar[3].gorev.odul_id = null; // n1 yalnız Rota A'da
     def.duraklar[0].gorev.odul_id = "n2"; def.duraklar[1].gorev.odul_id = "n2"; def.duraklar[4].gorev.odul_id = "n2";
     const r = onar(def);
     expect(r.notlar).toEqual([]);
     expect(codes(r.definition)).toContain("nesne-kacirilabilir");
   });
 
-  it("kopuk duraÄŸÄ± dizideki Ã¶nceki rota sonuna baÄŸlar", () => {
+  it("kopuk durağı dizideki önceki rota sonuna bağlar", () => {
     const def = clone(makeDefinition(input, 7));
-    def.duraklar[5].varsayilan_sonraki_durak_id = null; // d6 â†’ d7 kopar
+    def.duraklar[5].varsayilan_sonraki_durak_id = null; // d6 → d7 kopar
     expect(codes(def)).toContain("erisilemez-durak");
     const r = onar(def);
     expect(r.definition.duraklar[5].varsayilan_sonraki_durak_id).toBe("d7");
     expect(codes(r.definition)).toEqual([]);
   });
 
-  it("yalnÄ±z bir dalda verilen final nesnesini ortak duraÄŸa taÅŸÄ±r", () => {
+  it("yalnız bir dalda verilen final nesnesini ortak durağa taşır", () => {
     const def = clone(makeDefinition(input, 7));
-    def.duraklar[3].gorev.odul_id = null; // n1 yalnÄ±z Rota A'da
+    def.duraklar[3].gorev.odul_id = null; // n1 yalnız Rota A'da
     expect(codes(def)).toContain("nesne-kacirilabilir");
     const r = onar(def);
     const verenler = r.definition.duraklar.filter((d) => d.gorev.odul_id === "n1").map((d) => d.id);
@@ -93,7 +93,50 @@ describe("otomatik onarÄ±m", () => {
     expect(codes(r.definition)).toEqual([]);
   });
 
-  it("girdiyi deÄŸiÅŸtirmez", () => {
+  it("hiçbir durakta verilmeyen final nesnesini ortak ödülsüz durağa atar", () => {
+    const def = clone(makeDefinition(input, 7));
+    def.envanter.push({ id: "n3", tur: "parca", isim: "Parça", final_icin_gerekli: true });
+    def.final.gerekli_nesneler.push("n3");
+    expect(codes(def)).toContain("nesne-kazanilamaz");
+    const r = onar(def);
+    expect(r.definition.duraklar.filter((d) => d.gorev.odul_id === "n3").map((d) => d.id)).toEqual(["d7"]);
+    expect(r.notlar[0]).toContain("hiçbir görevde verilmiyordu");
+    expect(codes(r.definition)).toEqual([]);
+  });
+
+  it("verilecek ödülsüz ortak durak yoksa nesneyi finalden çıkarır", () => {
+    const def = clone(makeDefinition(input, 5));
+    // d1, d2, d5 dolu: her rotanın geçtiği ödülsüz durak kalmaz.
+    def.duraklar[0].gorev.odul_id = "n2";
+    def.duraklar[1].gorev.odul_id = "n2";
+    def.envanter.push({ id: "n3", tur: "parca", isim: "Parça", final_icin_gerekli: true });
+    def.final.gerekli_nesneler.push("n3");
+    const r = onar(def);
+    expect(r.definition.final.gerekli_nesneler).not.toContain("n3");
+    expect(r.definition.envanter.find((e) => e.id === "n3")!.final_icin_gerekli).toBe(false);
+    expect(codes(r.definition)).not.toContain("nesne-kazanilamaz");
+    expect(r.notlar.some((n) => n.includes("finalin gereksinimlerinden çıkarıldı"))).toBe(true);
+  });
+
+  it("dengeli oyunda gerekli nesnelerin tümü finalden çıkarılırsa oyun yine yayınlanamaz", () => {
+    const def = clone(makeDefinition(input, 5));
+    def.envanter.forEach((e) => (e.final_icin_gerekli = false));
+    def.envanter.push({ id: "n3", tur: "parca", isim: "Parça", final_icin_gerekli: true });
+    def.final.gerekli_nesneler = ["n3"];
+    def.duraklar[0].gorev.odul_id = "n2";
+    def.duraklar[1].gorev.odul_id = "n2";
+    const r = onar(def);
+    expect(r.definition.final.gerekli_nesneler).toEqual([]);
+    expect(codes(r.definition)).toContain("final-nesne-kullanmiyor");
+  });
+
+  it("envanterde olmayan nesneyi onarmaz; hata kalır", () => {
+    const def = clone(makeDefinition(input, 7));
+    def.final.gerekli_nesneler.push("yok");
+    expect(codes(onar(def).definition)).toContain("final-nesne-yok");
+  });
+
+  it("girdiyi değiştirmez", () => {
     const def = clone(makeDefinition(input, 7));
     def.duraklar[5].varsayilan_sonraki_durak_id = null;
     const once = JSON.stringify(def);
@@ -102,8 +145,8 @@ describe("otomatik onarÄ±m", () => {
   });
 });
 
-describe("Ã¼retim akÄ±ÅŸÄ±nda onarÄ±m", () => {
-  it("onarÄ±m notlarÄ± uyarÄ±larÄ±n baÅŸÄ±na eklenir ve oyun geÃ§erli olur", async () => {
+describe("üretim akışında onarım", () => {
+  it("onarım notları uyarıların başına eklenir ve oyun geçerli olur", async () => {
     const def = clone(makeDefinition(input, 7));
     def.duraklar[5].varsayilan_sonraki_durak_id = null;
     const { definition, validation } = await composeAndValidate(input, fakeClient(toModelOutput(def)).client);

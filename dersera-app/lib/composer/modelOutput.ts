@@ -38,7 +38,7 @@ export const ModelOutputSchema = z.object({
   oyun_amaci: z.string(),
   ogrenme_hedefleri: z.array(z.string()),
   envanter: z.array(z.object({ id: z.string(), tur: z.string(), isim: z.string(), final_icin_gerekli: z.boolean() })),
-  duraklar: z.array(durak),
+  // Final duraklardan ÖNCE: model önce finali ve gereken nesneleri tasarlar, sonra durakları bu nesneleri verecek biçimde yazar.
   final: z.object({
     hikaye_metni: z.string(),
     gerekli_nesneler: z.array(z.string()),
@@ -49,6 +49,7 @@ export const ModelOutputSchema = z.object({
     dogru_cevap: z.string(),
     basari_metni: z.string(),
   }),
+  duraklar: z.array(durak),
 });
 
 export type ModelOutput = z.infer<typeof ModelOutputSchema>;
