@@ -69,6 +69,6 @@ Alan kuralları:
 - envanter tur: "kanit", "anahtar" ya da "parca". odul_id bir envanter id'si ya da boş metin.
 - Boş/yok değerleri için boş metin ("") kullan: odul_id, varsayilan_sonraki_durak_id (son duraklarda ve seçim sahnelerinde), qr_durak_id (tek sınıfta).
 
-Metinleri kısa tut (oyun 30 saniyede üretilmeli): hikaye_metni en fazla 2 cümle; soru tek cümle; ipuçları, destek açıklaması ve sonraki durak tarifi tek kısa cümle; seçenekler birkaç kelime.
+Metinleri kısa tut (oyun hızlı üretilmeli): hikaye_metni en fazla 2 cümle; soru tek cümle; ipuçları, destek açıklaması ve sonraki durak tarifi tek kısa cümle; seçenekler birkaç kelime.
 Görev türlerini konuya uygun biçimde çeşitlendir. Durak id'leri d1, d2, ...; nesne id'leri n1, n2, ... biçiminde olsun. İlk durak başlangıçtır.`;
 }

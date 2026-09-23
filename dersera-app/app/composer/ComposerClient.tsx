@@ -134,14 +134,14 @@ export default function ComposerClient({
     return () => clearTimeout(t);
   }, []);
 
-  // İlerleme %93'e asimptotik yaklaşır; yanıt gelince %100'e atlar. Sahte 30 sn bekleme yok.
+  // İlerleme %93'e asimptotik yaklaşır; yanıt gelince %100'e atlar. Üretim 1–2 dakika sürebilir.
   useEffect(() => {
     if (durum.tur !== "yukleniyor") return;
     const basla = Date.now();
     const id = setInterval(() => {
       const t = (Date.now() - basla) / 1000;
-      setIlerleme(93 * (1 - Math.exp(-t / 9)));
-      setMesajNo(Math.min(MESAJLAR.length - 1, Math.floor(t / 5)));
+      setIlerleme(93 * (1 - Math.exp(-t / 40)));
+      setMesajNo(Math.min(MESAJLAR.length - 1, Math.floor(t / 15)));
     }, 250);
     return () => clearInterval(id);
   }, [durum.tur]);

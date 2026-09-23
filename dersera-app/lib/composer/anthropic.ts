@@ -6,7 +6,7 @@ import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
 import type { Recipe } from "@/lib/composer/recipe";
 
 export const DEFAULT_MODEL = "claude-sonnet-4-6";
-export const COMPOSE_TIMEOUT_MS = 30_000;
+export const COMPOSE_TIMEOUT_MS = 150_000; // tam oyun ~5–8k token; model bunu 1–2 dakikada yazar
 // Oyun 30 sn içinde üretilmeli; çıktı kısa tutulur ve maliyet üst sınırı konur.
 const MAX_TOKENS = 8_000;
 
@@ -65,7 +65,7 @@ export async function composeGame(
   } catch (err) {
     if (err instanceof ComposeError) throw err;
     if (controller.signal.aborted || err instanceof Anthropic.APIConnectionTimeoutError || err instanceof Anthropic.APIUserAbortError) {
-      throw new ComposeError("timeout", "Oyun oluşturma 30 saniyede tamamlanmadı");
+      throw new ComposeError("timeout", `Oyun oluşturma ${timeoutMs / 1000} saniyede tamamlanmadı`);
     }
     if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
       throw new ComposeError("config", `Anthropic kimlik doğrulaması başarısız (${err.status})`);
