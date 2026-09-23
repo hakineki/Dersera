@@ -67,6 +67,11 @@ Alan kuralları:
 - Destek görevi aynı öğrenme hedefini daha küçük bir adımla çalıştıran çoktan seçmeli sorudur; destek_secenekler 2-4 seçenek, destek_dogru_cevap bunlardan biri birebir.
 - final.ogrenme_hedefleri oyunda çalışılmış en az 2 kod içerir; final.gerekli_nesneler yalnız envanter id'lerinden oluşur.
 - envanter tur: "kanit", "anahtar" ya da "parca". odul_id bir envanter id'si ya da boş metin.
+- Her durak bir görevdir: soru, dogru_cevap, iki ipucu ve destek görevi her durakta doludur. Seçim sahnesi ayrı, boş bir durak değildir; öğrenci önce o durağın görevini çözer, sonra seçim yapar.
+- Dallar kısa olsun ve bir "birlesme" durağında yeniden birleşsin: her dalın son durağı varsayilan_sonraki_durak_id ile birleşme durağına bağlanır. Seçim sahneleri ve son durak dışında her durağın varsayilan_sonraki_durak_id alanı doludur; hiçbir durak kopuk kalmaz.
+- Final için gerekli nesneleri yalnız her rotanın geçtiği duraklarda (dallanmadan önce ya da birleşmeden sonra) ver; yalnız bir dalda verilen nesne finalde istenmez.
+- eslestirme çiftlerinde sol taraflar birbirinden, sağ taraflar da birbirinden farklıdır.
+- Durak sayısı yukarıdaki üst sınırı aşmaz.
 - Boş/yok değerleri için boş metin ("") kullan: odul_id, varsayilan_sonraki_durak_id (son duraklarda ve seçim sahnelerinde), qr_durak_id (tek sınıfta).
 
 Metinleri kısa tut (oyun hızlı üretilmeli): hikaye_metni en fazla 2 cümle; soru tek cümle; ipuçları, destek açıklaması ve sonraki durak tarifi tek kısa cümle; seçenekler birkaç kelime.

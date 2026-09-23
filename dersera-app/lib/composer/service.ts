@@ -1,5 +1,6 @@
 import { ComposeError, composeGame, type ComposeClient } from "@/lib/composer/anthropic";
 import { toDefinition } from "@/lib/composer/modelOutput";
+import { onar } from "@/lib/composer/repair";
 import type { GameDefinition } from "@/lib/composer/definition";
 import { describeKonular, resolveKonular, type DersKonu, type ResolvedInput } from "@/lib/composer/input";
 import { IZINLI_QR_IDLERI, validationContext } from "@/lib/composer/context";
@@ -18,8 +19,10 @@ export async function composeAndValidate(input: ResolvedInput, client?: ComposeC
   const raw = await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
   const converted = toDefinition(raw, input);
   if (!converted.ok) throw new ComposeError("invalid-output", `Çıktı oyun şemasına uymadı: ${converted.error}`);
-  const definition = converted.definition;
-  return { definition, validation: validateGame(definition, validationContext(input)) };
+  const { definition, notlar } = onar(converted.definition);
+  const validation = validateGame(definition, validationContext(input));
+  validation.uyarilar.unshift(...notlar.map((mesaj) => ({ kod: "otomatik-duzeltme", mesaj })));
+  return { definition, validation };
 }
 
 // Yayın ve düzenleme sonrası: tanımı müfredata göre yeniden doğrular (istemciye güvenmez).

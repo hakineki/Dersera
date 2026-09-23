@@ -26,10 +26,10 @@ export interface ValidationResult {
 const ID = /^[a-z0-9-]{1,40}$/;
 // Tarifin en büyük hedefi (10 durak) üstünde pay bırakılır; yayın deposunu şişirecek tanımlar reddedilir.
 export const LIMITLER = { durak: 12, nesne: 8, secenek: 6, metin: 1000 } as const;
-const FINAL = "__final__";
+export const FINAL = "__final__";
 
 // Başlangıçtan finale giden bütün yolları kapsayan yönlü grafik. Kenarsız durak finale bağlanır.
-function edgesOf(def: GameDefinition): Map<string, string[]> {
+export function edgesOf(def: GameDefinition): Map<string, string[]> {
   const edges = new Map<string, string[]>();
   for (const d of def.duraklar) {
     const out = d.secimler.map((s) => s.hedef_durak_id);
@@ -39,7 +39,7 @@ function edgesOf(def: GameDefinition): Map<string, string[]> {
   return edges;
 }
 
-function reachableFrom(start: string, edges: Map<string, string[]>, skip?: Set<string>): Set<string> {
+export function reachableFrom(start: string, edges: Map<string, string[]>, skip?: Set<string>): Set<string> {
   const seen = new Set<string>();
   const stack = [start];
   while (stack.length) {
