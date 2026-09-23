@@ -8,6 +8,7 @@ import { stops as stopTemplates, type Stop } from "@/data/stops";
 import { getSorular } from "@/data/mufredat";
 import { formatElapsed, buildResultCode, type LeaderboardEntry } from "@/lib/gameState";
 import { toStops } from "@/lib/games";
+import { definitionPanelStops } from "@/lib/composer/scene";
 import { loadTeacherGame, saveTeacherGame, type TeacherGame } from "@/lib/teacherGame";
 import AySecici from "./AySecici";
 import OyunTab from "./OyunTab";
@@ -779,7 +780,7 @@ export default function OgretmenClient() {
           (teacherGame ? (
             <SiralamaTabs
               leaderboard={leaderboard}
-              stops={toStops(teacherGame.game.stops)}
+              stops={teacherGame.game.definition ? definitionPanelStops(teacherGame.game.definition) : toStops(teacherGame.game.stops)}
               gameCode={teacherGame.game.code}
               sync={sync}
               onRefresh={refreshLeaderboard}

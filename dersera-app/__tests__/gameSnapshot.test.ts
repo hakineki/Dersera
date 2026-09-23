@@ -98,3 +98,20 @@ describe("restartGame", () => {
     expect(loadEndTime()).toBeNull();
   });
 });
+
+describe("sahne durumu (composer)", () => {
+  it("kaydedilir, bozuk kayıtta baştan başlar, yeniden başlamada ve oyun değişiminde silinir", async () => {
+    const { saveSceneState, loadSceneState } = await import("@/lib/gameState");
+    switchToGame(game("ABC-123"));
+    saveSceneState({ yol: ["d1", "d2"], hedef: "d4" });
+    expect(loadSceneState()).toEqual({ yol: ["d1", "d2"], hedef: "d4" });
+    store[STORAGE_KEYS.SAHNE_YOLU] = "{bozuk";
+    expect(loadSceneState()).toEqual({ yol: [], hedef: null });
+    saveSceneState({ yol: ["d1"], hedef: null });
+    restartGame(1);
+    expect(loadSceneState()).toEqual({ yol: [], hedef: null });
+    saveSceneState({ yol: ["d1"], hedef: null });
+    switchToGame(game("XYZ-999"));
+    expect(loadSceneState()).toEqual({ yol: [], hedef: null });
+  });
+});
