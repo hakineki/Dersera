@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import { ContentFilterFinishReasonError, LengthFinishReasonError } from "openai/core/error";
 import { zodResponseFormat } from "openai/helpers/zod";
+import { $ZodError } from "zod/v4/core";
 import { COMPOSE_TIMEOUT_MS, ComposeError } from "@/lib/composer/anthropic";
 import { ModelOutputSchema, type ModelOutput } from "@/lib/composer/modelOutput";
 import type { ResolvedInput } from "@/lib/composer/input";
@@ -72,6 +73,8 @@ export async function composeGameOpenAI(
     if (err instanceof SyntaxError) {
       throw new ComposeError("invalid-output", `Çıktı JSON olarak çözümlenemedi: ${err.message}`);
     }
+    // SDK çıktıyı şemayla doğrular; uymayan JSON bir Zod hatası fırlatır.
+    if (err instanceof $ZodError) throw new ComposeError("invalid-output", "Çıktı şemaya uymadı");
     throw new ComposeError("upstream", err instanceof Error ? err.message : String(err));
   } finally {
     clearTimeout(timer);

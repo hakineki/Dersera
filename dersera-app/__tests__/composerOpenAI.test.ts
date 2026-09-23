@@ -1,10 +1,10 @@
 import OpenAI from "openai";
-import { LengthFinishReasonError } from "openai/core/error";
+import { ContentFilterFinishReasonError, LengthFinishReasonError } from "openai/core/error";
 import { composeGameOpenAI, DEFAULT_OPENAI_MODEL, openAIModelFromEnv, type OpenAIComposeClient } from "@/lib/composer/openai";
 import { ModelOutputSchema, type ModelOutput } from "@/lib/composer/modelOutput";
 import { buildRecipe } from "@/lib/composer/recipe";
 import { SYSTEM_PROMPT } from "@/lib/composer/prompt";
-import { IZINLI_QR_IDLERI, saglayiciFromEnv } from "@/lib/composer/service";
+import { composeAndValidate, IZINLI_QR_IDLERI, saglayiciFromEnv } from "@/lib/composer/service";
 import { makeDefinition, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 
 const input = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
@@ -61,6 +61,11 @@ describe("OpenAI sağlayıcısı", () => {
     ["bozuk JSON", new SyntaxError("Unexpected end of JSON input"), "invalid-output"],
     ["401", new OpenAI.AuthenticationError(401, undefined, "bad key", new Headers()), "config"],
     ["sunucu hatası", new OpenAI.InternalServerError(500, undefined, "down", new Headers()), "upstream"],
+    ["içerik filtresi", new ContentFilterFinishReasonError(), "invalid-output"],
+    ["şemaya uymayan JSON", (() => { try { ModelOutputSchema.parse({}); } catch (e) { return e; } })(), "invalid-output"],
+    ["zaman aşımı", new OpenAI.APIConnectionTimeoutError(), "timeout"],
+    ["izin yok", new OpenAI.PermissionDeniedError(403, undefined, "no", new Headers()), "config"],
+    ["beklenmeyen", new TypeError("x"), "upstream"],
   ])("%s → %s", async (_l, throws, reason) => {
     const { client } = fakeOpenAI(null, { throws });
     await expect(composeGameOpenAI(input, recipe, IZINLI_QR_IDLERI, client)).rejects.toMatchObject({ reason });
@@ -78,6 +83,21 @@ describe("OpenAI sağlayıcısı", () => {
 });
 
 describe("sağlayıcı seçimi", () => {
+  it("OPENAI_API_KEY varken composeAndValidate OpenAI'ye gider ve geçerli oyun üretir", async () => {
+    process.env.OPENAI_API_KEY = "sk-test";
+    const out = toModelOutput(makeDefinition(input, 6));
+    const spy = jest.spyOn(OpenAI.Chat.Completions.prototype, "parse").mockResolvedValue({
+      model: "test",
+      usage: { completion_tokens: 1 },
+      choices: [{ finish_reason: "stop", message: { parsed: out, refusal: null } }],
+    } as never);
+    const { validation, definition } = await composeAndValidate(input);
+    expect(spy).toHaveBeenCalledTimes(1);
+    expect(validation.gecerli).toBe(true);
+    expect(definition.meta.ders).toBe("Fizik");
+    delete process.env.OPENAI_API_KEY;
+  });
+
   it("OPENAI_API_KEY varsa OpenAI, yoksa Anthropic yedeği", () => {
     delete process.env.OPENAI_API_KEY;
     expect(saglayiciFromEnv()).toBe("anthropic");
