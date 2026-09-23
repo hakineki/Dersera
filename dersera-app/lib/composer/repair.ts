@@ -16,8 +16,11 @@ function secimDuraginiBirlestir(def: GameDefinition, notlar: string[]) {
     );
     const onceki = gelenler[0];
     if (gelenler.length !== 1 || onceki.sahne_turu === "secim" || onceki.varsayilan_sonraki_durak_id !== d.id) continue;
+    // Veri kaybı olmasın: ödül/QR taşıyan ya da taşınınca rotası 2'nin altına düşen seçim onarılmaz.
+    if (d.gorev.odul_id !== null || d.mekan.qr_durak_id !== null) continue;
+    if (d.secimler.some((s) => s.hedef_durak_id === onceki.id)) continue;
     onceki.sahne_turu = "secim";
-    onceki.secimler = d.secimler.filter((s) => s.hedef_durak_id !== onceki.id);
+    onceki.secimler = d.secimler;
     onceki.varsayilan_sonraki_durak_id = null;
     def.duraklar = def.duraklar.filter((x) => x.id !== d.id);
     notlar.push(`Görevsiz "${d.isim}" seçimi "${onceki.isim}" durağına taşındı.`);
@@ -33,7 +36,7 @@ function kopuklariBagla(def: GameDefinition, notlar: string[]) {
     const p = def.duraklar[i - 1];
     if (!erisilen.has(p.id) || p.sahne_turu === "secim" || p.varsayilan_sonraki_durak_id !== null) continue;
     p.varsayilan_sonraki_durak_id = u.id;
-    notlar.push(`"${p.isim}" durağı kopuk kalan "${u.isim}" durağına bağlandı.`);
+    notlar.push(`"${p.isim}" durağı kopuk kalan "${u.isim}" durağına bağlandı; hikâye akışını gözden geçirin.`);
   }
 }
 
@@ -54,7 +57,7 @@ function nesneleriOrtakDuragaTasi(def: GameDefinition, notlar: string[]) {
     if (!hedef) continue;
     verenler.forEach((d) => (d.gorev.odul_id = null));
     hedef.gorev.odul_id = id;
-    notlar.push(`Final için gereken "${id}" her rotanın geçtiği "${hedef.isim}" durağında verilecek.`);
+    notlar.push(`Final için gereken "${id}" bazı rotalarda kaçırılıyordu; artık her rotanın geçtiği "${hedef.isim}" durağında veriliyor. Hikâye metnini gözden geçirin.`);
   }
 }
 
