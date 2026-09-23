@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { isGameActive, normalizeGameCode } from "@/lib/games";
+import { normalizeGameCode } from "@/lib/games";
 import { getGamesStore } from "@/lib/gamesStore";
+import { joinGame } from "@/lib/gamesService";
 import { NICKNAME_PATTERN } from "@/lib/results";
 
 export async function POST(req: Request, { params }: { params: Promise<{ code: string }> }) {
@@ -18,13 +19,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
   }
 
   try {
-    const store = getGamesStore();
-    const game = await store.get(code);
-    if (!game) return NextResponse.json({ error: "Geçersiz kod" }, { status: 404 });
-    const now = Date.now();
-    if (!isGameActive(game, now)) return NextResponse.json({ error: "Oyun sona erdi" }, { status: 410 });
-    await store.addPlayer(code, nickname.trim(), now, game.expiresAt);
-    return NextResponse.json({ ok: true }, { status: 201 });
+    const result = await joinGame(getGamesStore(), code, nickname.trim());
+    switch (result.status) {
+      case "joined":
+        return NextResponse.json({ playerToken: result.playerToken }, { status: 201 });
+      case "taken":
+        return NextResponse.json({ error: "Bu takma ad bu oyunda kullanımda" }, { status: 409 });
+      case "closed":
+        return NextResponse.json({ error: "Oyun sona erdi" }, { status: 410 });
+      case "not-found":
+        return NextResponse.json({ error: "Geçersiz kod" }, { status: 404 });
+    }
   } catch (err) {
     console.error("[games] katılım hatası", err);
     return NextResponse.json({ error: "Katılım kaydedilemedi" }, { status: 503 });

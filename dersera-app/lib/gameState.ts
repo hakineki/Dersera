@@ -3,6 +3,7 @@ import { isPublicGame, type PublicGame } from "@/lib/games";
 export const STORAGE_KEYS = {
   GAME: "dersera:game",
   NICKNAME: "dersera:nickname",
+  PLAYER_TOKEN: "dersera:player-token",
   START_TIME: "dersera:startTime",
   PROGRESS: "dersera:progress",
   END_TIME: "dersera:endTime",
@@ -48,6 +49,14 @@ export function loadNickname(): string | null {
 
 export function saveNickname(nickname: string): void {
   safeSet(STORAGE_KEYS.NICKNAME, nickname);
+}
+
+export function loadPlayerToken(): string | null {
+  return safeGet(STORAGE_KEYS.PLAYER_TOKEN);
+}
+
+export function savePlayerToken(token: string): void {
+  safeSet(STORAGE_KEYS.PLAYER_TOKEN, token);
 }
 
 export function loadStartTime(): number | null {
@@ -187,6 +196,7 @@ export function clearGameState(): void {
     [
       STORAGE_KEYS.GAME,
       STORAGE_KEYS.NICKNAME,
+      STORAGE_KEYS.PLAYER_TOKEN,
       STORAGE_KEYS.START_TIME,
       STORAGE_KEYS.PROGRESS,
       STORAGE_KEYS.END_TIME,

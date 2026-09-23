@@ -53,12 +53,22 @@ describe("/api/games", () => {
     expect((await getGame("bozuk")).status).toBe(404);
   });
 
-  it("katılım öğrenci sayısını artırır, aynı takma ad bir kez sayılır", async () => {
+  it("katılım oyuncu anahtarı döndürür ve öğrenci sayısını artırır", async () => {
     const { data } = await publish();
-    expect((await join(data.game.code, "Kartal")).status).toBe(201);
-    await join(data.game.code, "kartal");
+    const res = await join(data.game.code, "Kartal");
+    expect(res.status).toBe(201);
+    expect((await res.json()).playerToken).toEqual(expect.any(String));
     await join(data.game.code, "Martı");
     expect((await (await getGame(data.game.code)).json()).players).toBe(2);
+  });
+
+  it("aynı takma adla ikinci katılım 409 döner ve sayılmaz", async () => {
+    const { data } = await publish();
+    await join(data.game.code, "Kartal");
+    const dup = await join(data.game.code, "kartal");
+    expect(dup.status).toBe(409);
+    expect(await dup.json()).not.toHaveProperty("playerToken");
+    expect((await (await getGame(data.game.code)).json()).players).toBe(1);
   });
 
   it("geçersiz takma adla katılım 422 döner", async () => {

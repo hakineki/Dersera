@@ -12,10 +12,13 @@ import {
   loadPenaltySeconds,
   addPenalty,
   addLeaderboardEntry,
+  loadPlayerToken,
+  savePlayerToken,
   buildResultCode,
   type LeaderboardEntry,
 } from "@/lib/gameState";
 import { submitResult } from "@/lib/resultsClient";
+import { joinGameRequest } from "@/lib/gamesClient";
 import { getSorular, DERS_ADI, AYLAR } from "@/data/mufredat";
 import type { Soru } from "@/data/mufredat";
 
@@ -362,7 +365,14 @@ export default function GameClient({ stop, allStops, gameCode, nickname, startTi
   useEffect(() => {
     if (screen !== "summary" || !summaryData) return;
     let cancelled = false;
-    submitResult(gameCode, summaryData).then((ok) => {
+    (async () => {
+      let token = loadPlayerToken();
+      if (!token) {
+        token = await joinGameRequest(gameCode, summaryData.nickname);
+        if (token) savePlayerToken(token);
+      }
+      return token ? submitResult(gameCode, token, summaryData) : false;
+    })().then((ok) => {
       if (!cancelled) setSendStatus(ok ? "sent" : "failed");
     });
     return () => {

@@ -1,5 +1,5 @@
 import { createMemoryGamesStore, createRedisGamesStore, GAME_RETENTION_MS } from "@/lib/gamesStore";
-import { endGame, generateGameCode, hashToken, publishGame } from "@/lib/gamesService";
+import { endGame, generateGameCode, hashToken, joinGame, publishGame, verifyPlayer } from "@/lib/gamesService";
 import { parsePublishRequest } from "@/lib/games";
 import { recordingCommand } from "./helpers/fakeRedis";
 import { samplePublish } from "./helpers/api";
@@ -83,15 +83,47 @@ describe("endGame", () => {
   });
 });
 
-describe("createMemoryGamesStore", () => {
-  it("katılan öğrencileri büyük/küçük harf fark etmeksizin tekil sayar", async () => {
+describe("joinGame / verifyPlayer", () => {
+  it("katılana oyuncu anahtarı verir; sonuç yalnızca o anahtarla doğrulanır", async () => {
     const store = createMemoryGamesStore();
-    await store.addPlayer("ABC-123", "Kartal", 0, 1);
-    await store.addPlayer("ABC-123", "kartal", 0, 1);
-    await store.addPlayer("ABC-123", "Martı", 0, 1);
-    await store.addPlayer("XYZ-999", "Kartal", 0, 1);
+    const { game } = (await publishGame(store, request, T))!;
+    const joined = await joinGame(store, game.code, "Kartal", T + 1);
+    expect(joined.status).toBe("joined");
+    const token = (joined as { playerToken: string }).playerToken;
+
+    expect(await verifyPlayer(store, game.code, "Kartal", token)).toBe(true);
+    expect(await verifyPlayer(store, game.code, "kartal", token)).toBe(true);
+    expect(await verifyPlayer(store, game.code, "Kartal", "sahte")).toBe(false);
+    expect(await verifyPlayer(store, game.code, "Martı", token)).toBe(false);
+  });
+
+  it("aynı takma adla ikinci katılımı reddeder: başkasının kimliği alınamaz", async () => {
+    const store = createMemoryGamesStore();
+    const { game } = (await publishGame(store, request, T))!;
+    await joinGame(store, game.code, "Kartal", T + 1);
+    expect((await joinGame(store, game.code, "KARTAL", T + 2)).status).toBe("taken");
+  });
+
+  it("bitmiş ya da olmayan oyuna katılım yoktur", async () => {
+    const store = createMemoryGamesStore();
+    const { game, adminToken } = (await publishGame(store, request, T))!;
+    await endGame(store, game.code, adminToken, T + 1);
+    expect((await joinGame(store, game.code, "Gec", T + 2)).status).toBe("closed");
+    expect((await joinGame(store, "ZZZ-000", "Gec", T + 2)).status).toBe("not-found");
+  });
+});
+
+describe("createMemoryGamesStore", () => {
+  it("takma adı büyük/küçük harf fark etmeksizin bir kez kaydeder; ilk anahtar korunur", async () => {
+    const store = createMemoryGamesStore();
+    expect(await store.addPlayer("ABC-123", "Kartal", "h1", 0, 1)).toBe(true);
+    expect(await store.addPlayer("ABC-123", "kartal", "h2", 0, 1)).toBe(false);
+    expect(await store.addPlayer("ABC-123", "Martı", "h3", 0, 1)).toBe(true);
+    expect(await store.addPlayer("XYZ-999", "Kartal", "h4", 0, 1)).toBe(true);
     expect(await store.playerCount("ABC-123")).toBe(2);
     expect(await store.playerCount("YOK-000")).toBe(0);
+    expect(await store.playerTokenHash("ABC-123", "KARTAL")).toBe("h1");
+    expect(await store.playerTokenHash("ABC-123", "Yok")).toBeNull();
   });
 
   it("saklama süresi dolan oyunu siler", async () => {
@@ -130,21 +162,28 @@ describe("createRedisGamesStore", () => {
     expect(await createRedisGamesStore(ok.command).create(game, 0)).toBe(true);
   });
 
-  it("okur, günceller ve oyuncuları kümeye ekler", async () => {
+  it("okur, günceller ve oyuncuları anahtar özetiyle hash'e ekler", async () => {
     const { command, calls } = recordingCommand((args) =>
-      args[0] === "GET" ? JSON.stringify(game) : args[0] === "SCARD" ? 3 : "OK"
+      args[0] === "GET" ? JSON.stringify(game) : args[0] === "HLEN" ? 3 : args[0] === "HSETNX" ? 1 : args[0] === "HGET" ? "h" : "OK"
     );
     const store = createRedisGamesStore(command);
     expect(await store.get("ABC-123")).toEqual(game);
     await store.put({ ...game, endedAt: 5 }, 0);
-    await store.addPlayer("ABC-123", "Kartal", 0, game.expiresAt);
+    expect(await store.addPlayer("ABC-123", "Kartal", "hash", 0, game.expiresAt)).toBe(true);
+    expect(await store.playerTokenHash("ABC-123", "Kartal")).toBe("h");
     expect(await store.playerCount("ABC-123")).toBe(3);
     expect(calls.slice(1)).toEqual([
       ["SET", "dersera:game:ABC-123", JSON.stringify({ ...game, endedAt: 5 }), "PX", ttl],
-      ["SADD", "dersera:game:ABC-123:players", "kartal"],
+      ["HSETNX", "dersera:game:ABC-123:players", "kartal", "hash"],
       ["PEXPIRE", "dersera:game:ABC-123:players", ttl],
-      ["SCARD", "dersera:game:ABC-123:players"],
+      ["HGET", "dersera:game:ABC-123:players", "kartal"],
+      ["HLEN", "dersera:game:ABC-123:players"],
     ]);
+  });
+
+  it("alınmış takma ad için HSETNX 0 döner ve false verir", async () => {
+    const { command } = recordingCommand((args) => (args[0] === "HSETNX" ? 0 : 1));
+    expect(await createRedisGamesStore(command).addPlayer("ABC-123", "Kartal", "h", 0, 1)).toBe(false);
   });
 
   it("olmayan oyun için null döner", async () => {

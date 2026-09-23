@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { normalizeGameCode } from "@/lib/games";
 import { getGamesStore } from "@/lib/gamesStore";
+import { verifyPlayer } from "@/lib/gamesService";
 import { parseLeaderboardEntry } from "@/lib/results";
 import { getResultsStore } from "@/lib/resultsStore";
 
@@ -12,17 +13,28 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Geçersiz istek" }, { status: 400 });
   }
 
-  const { gameCode, result } = (body ?? {}) as { gameCode?: unknown; result?: unknown };
+  const { gameCode, playerToken, result } = (body ?? {}) as {
+    gameCode?: unknown;
+    playerToken?: unknown;
+    result?: unknown;
+  };
   const code = typeof gameCode === "string" ? normalizeGameCode(gameCode) : null;
   const entry = parseLeaderboardEntry(result);
   if (!code || !entry) {
     return NextResponse.json({ error: "Geçersiz sonuç verisi" }, { status: 422 });
   }
+  if (typeof playerToken !== "string" || playerToken.length === 0 || playerToken.length > 100) {
+    return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
+  }
 
   try {
     // Süresi dolmuş oyunun sonucu da kabul edilir: çevrimdışı bitiren öğrenci sonradan gönderebilir.
-    if (!(await getGamesStore().get(code))) {
+    const games = getGamesStore();
+    if (!(await games.get(code))) {
       return NextResponse.json({ error: "Oyun bulunamadı" }, { status: 404 });
+    }
+    if (!(await verifyPlayer(games, code, entry.nickname, playerToken))) {
+      return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
     }
     await getResultsStore().save(code, entry);
   } catch (err) {

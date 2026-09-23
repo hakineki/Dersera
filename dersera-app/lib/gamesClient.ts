@@ -51,15 +51,17 @@ export async function endGameRequest(code: string, adminToken: string): Promise<
   }
 }
 
-// Öğretmen panelindeki "aktif öğrenci" sayısı için; başarısız olursa oyun yine de devam eder.
-export async function joinGameRequest(code: string, nickname: string): Promise<void> {
+// Başarısız olursa oyun yine sürer; sonuç gönderilmeden önce yeniden denenir, olmazsa sonuç kodu yedektir.
+export async function joinGameRequest(code: string, nickname: string): Promise<string | null> {
   try {
-    await fetch(`/api/games/${encodeURIComponent(code)}/join`, {
+    const res = await fetch(`/api/games/${encodeURIComponent(code)}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nickname }),
     });
+    if (!res.ok) return null;
+    return ((await res.json()) as { playerToken?: string }).playerToken ?? null;
   } catch {
-    /* çevrimdışı: katılım sayılmaz, oyun sürer */
+    return null;
   }
 }

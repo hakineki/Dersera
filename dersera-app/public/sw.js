@@ -3,6 +3,15 @@
 const CACHE = "dersera-oyun-v1";
 const PAGE_KEY = "/game";
 const PAGE_TIMEOUT_MS = 4000;
+// Her deploy yeni dosya adları üretir; eski sürümlerin dosyaları en eskiden başlayarak atılır.
+const MAX_STATIC_ENTRIES = 150;
+
+async function trimCache(cache) {
+  const keys = await cache.keys();
+  for (const key of keys.slice(0, Math.max(0, keys.length - MAX_STATIC_ENTRIES))) {
+    if (new URL(key.url).pathname !== PAGE_KEY) await cache.delete(key);
+  }
+}
 
 const isStatic = (url) => url.origin === self.location.origin && url.pathname.startsWith("/_next/static/");
 const isGamePage = (url) => url.origin === self.location.origin && url.pathname === "/game";
@@ -59,7 +68,10 @@ async function cacheFirst(request) {
   const hit = await cache.match(request);
   if (hit) return hit;
   const res = await fetch(request);
-  if (res.ok) await cache.put(request, res.clone());
+  if (res.ok) {
+    await cache.put(request, res.clone());
+    await trimCache(cache);
+  }
   return res;
 }
 

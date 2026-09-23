@@ -1,4 +1,4 @@
-import type { PublicGame, PublishRequest } from "@/lib/games";
+import { isGameActive, type PublicGame, type PublishRequest } from "@/lib/games";
 import type { GamesStore, StoredGame } from "@/lib/gamesStore";
 
 // I, O, Q, W, X çıkarıldı: tahtaya yazılırken 1/0 ile karışmasın, Türk klavyesinde sorun çıkarmasın.
@@ -65,6 +65,33 @@ export async function publishGame(
     if (await store.create(game, now)) return { game: toPublicGame(game), adminToken };
   }
   return null;
+}
+
+export type JoinResult = { status: "joined"; playerToken: string } | { status: "taken" | "not-found" | "closed" };
+
+export async function joinGame(
+  store: GamesStore,
+  code: string,
+  nickname: string,
+  now = Date.now()
+): Promise<JoinResult> {
+  const game = await store.get(code);
+  if (!game) return { status: "not-found" };
+  if (!isGameActive(game, now)) return { status: "closed" };
+  const playerToken = createAdminToken();
+  const added = await store.addPlayer(code, nickname, await hashToken(playerToken), now, game.expiresAt);
+  return added ? { status: "joined", playerToken } : { status: "taken" };
+}
+
+// Sonuç yalnızca o takma adla katılan cihazın anahtarıyla kabul edilir: başkasının sonucu ezilemez.
+export async function verifyPlayer(
+  store: GamesStore,
+  code: string,
+  nickname: string,
+  playerToken: string
+): Promise<boolean> {
+  const stored = await store.playerTokenHash(code, nickname);
+  return stored !== null && constantTimeEqual(await hashToken(playerToken), stored);
 }
 
 export type EndResult = "ended" | "not-found" | "forbidden";

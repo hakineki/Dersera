@@ -5,12 +5,16 @@ export interface ResultsResponse {
   persistent: boolean;
 }
 
-export async function submitResult(gameCode: string, result: LeaderboardEntry): Promise<boolean> {
+export async function submitResult(
+  gameCode: string,
+  playerToken: string,
+  result: LeaderboardEntry
+): Promise<boolean> {
   try {
     const res = await fetch("/api/results", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gameCode, result }),
+      body: JSON.stringify({ gameCode, playerToken, result }),
     });
     return res.ok;
   } catch {

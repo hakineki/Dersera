@@ -9,6 +9,7 @@ import {
   loadEndTime,
   saveNickname,
   saveStartTime,
+  savePlayerToken,
   loadProgress,
   isPreviousStopsComplete,
   loadGameSnapshot,
@@ -97,7 +98,7 @@ export default function GameWrapper() {
       if (started) {
         setNickname(loadNickname() ?? "");
         setStartTime(loadStartTime() ?? 0);
-        setView({ kind: current.order === 1 ? "choice" : "game" });
+        setView({ kind: current.order === 1 && isGameActive(g) ? "choice" : "game" });
       } else {
         setView({ kind: "nickname" });
       }
@@ -144,7 +145,7 @@ export default function GameWrapper() {
     saveStartTime(now);
     setNickname(nick);
     setStartTime(now);
-    if (game) joinGameRequest(game.code, nick);
+    if (game) joinGameRequest(game.code, nick).then((token) => token && savePlayerToken(token));
     setView({ kind: "game" });
   }
 

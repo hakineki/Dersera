@@ -14,7 +14,9 @@ export interface GamesStore {
   create(game: StoredGame, now: number): Promise<boolean>;
   get(code: string): Promise<StoredGame | null>;
   put(game: StoredGame, now: number): Promise<void>;
-  addPlayer(code: string, nickname: string, now: number, expiresAt: number): Promise<void>;
+  // Takma ad bu oyunda yeniyse kaydeder ve true döner; alınmışsa false.
+  addPlayer(code: string, nickname: string, tokenHash: string, now: number, expiresAt: number): Promise<boolean>;
+  playerTokenHash(code: string, nickname: string): Promise<string | null>;
   playerCount(code: string): Promise<number>;
 }
 
@@ -27,7 +29,7 @@ function ttlMs(expiresAt: number, now: number): number {
 
 export function createMemoryGamesStore(): GamesStore {
   const games = new Map<string, { game: StoredGame; until: number }>();
-  const players = new Map<string, Set<string>>();
+  const players = new Map<string, Map<string, string>>();
   const live = (code: string) => {
     const hit = games.get(code);
     if (hit && hit.until <= Date.now()) {
@@ -50,10 +52,16 @@ export function createMemoryGamesStore(): GamesStore {
     async put(game, now) {
       games.set(game.code, { game, until: now + ttlMs(game.expiresAt, now) });
     },
-    async addPlayer(code, nickname) {
-      const set = players.get(code) ?? new Set<string>();
-      set.add(nicknameKey(nickname));
-      players.set(code, set);
+    async addPlayer(code, nickname, tokenHash) {
+      const map = players.get(code) ?? new Map<string, string>();
+      const key = nicknameKey(nickname);
+      if (map.has(key)) return false;
+      map.set(key, tokenHash);
+      players.set(code, map);
+      return true;
+    },
+    async playerTokenHash(code, nickname) {
+      return players.get(code)?.get(nicknameKey(nickname)) ?? null;
     },
     async playerCount(code) {
       return players.get(code)?.size ?? 0;
@@ -75,12 +83,16 @@ export function createRedisGamesStore(command: RedisCommand): GamesStore {
     async put(game, now) {
       await command(["SET", gameKey(game.code), JSON.stringify(game), "PX", ttlMs(game.expiresAt, now)]);
     },
-    async addPlayer(code, nickname, now, expiresAt) {
-      await command(["SADD", playersKey(code), nicknameKey(nickname)]);
+    async addPlayer(code, nickname, tokenHash, now, expiresAt) {
+      const added = await command(["HSETNX", playersKey(code), nicknameKey(nickname), tokenHash]);
       await command(["PEXPIRE", playersKey(code), ttlMs(expiresAt, now)]);
+      return Number(added) === 1;
+    },
+    async playerTokenHash(code, nickname) {
+      return ((await command(["HGET", playersKey(code), nicknameKey(nickname)])) as string | null) ?? null;
     },
     async playerCount(code) {
-      return Number(await command(["SCARD", playersKey(code)]));
+      return Number(await command(["HLEN", playersKey(code)]));
     },
   };
 }

@@ -13,6 +13,8 @@ import {
   restartGame,
   loadPenaltySeconds,
   loadEndTime,
+  loadPlayerToken,
+  savePlayerToken,
 } from "@/lib/gameState";
 import type { PublicGame } from "@/lib/games";
 
@@ -40,6 +42,7 @@ const game = (code: string): PublicGame => ({
 
 function playSome() {
   saveNickname("Kartal");
+  savePlayerToken("tok");
   saveStartTime(100);
   markStopComplete("qr-1", 1);
   addPenalty(15);
@@ -73,6 +76,7 @@ describe("oyun anlık görüntüsü", () => {
     switchToGame(game("XYZ-999"));
     expect(loadGameSnapshot()?.code).toBe("XYZ-999");
     expect(loadNickname()).toBeNull();
+    expect(loadPlayerToken()).toBeNull();
     expect(loadStartTime()).toBeNull();
     expect(loadProgress()).toEqual({});
     expect(loadPenaltySeconds()).toBe(0);
@@ -86,6 +90,7 @@ describe("restartGame", () => {
     playSome();
     restartGame(5_000);
     expect(loadNickname()).toBe("Kartal");
+    expect(loadPlayerToken()).toBe("tok");
     expect(loadGameSnapshot()?.code).toBe("ABC-123");
     expect(loadStartTime()).toBe(5_000);
     expect(loadProgress()).toEqual({});
