@@ -14,6 +14,7 @@ import type { PublishResponse } from "@/lib/gamesClient";
 import ComposerPreview from "./ComposerPreview";
 import DurakEditor, { type Duzenlenen } from "./DurakEditor";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI } from "./labels";
+import { maxDersSayisi } from "@/lib/composer/recipe";
 
 const CLIENT_TIMEOUT_MS = 35_000;
 const MESAJLAR = ["Müfredat hazırlanıyor...", "Hikâye kuruluyor...", "Görevler oluşturuluyor...", "Oyun kontrol ediliyor..."];
@@ -166,7 +167,9 @@ export default function ComposerClient({
   }
 
   const dersAdi = (key: string) => dersler.find((d) => d.key === key)?.ad ?? key;
-  const hazir = secili.length > 0 && secili.every((k) => k.konuId);
+  const enFazlaDers = maxDersSayisi(sure);
+  const cokDers = secili.length > enFazlaDers;
+  const hazir = secili.length > 0 && !cokDers && secili.every((k) => k.konuId);
 
   async function olustur() {
     setDurum({ tur: "yukleniyor" });
@@ -331,6 +334,11 @@ export default function ComposerClient({
               ))}
             </fieldset>
             <Secim etiket="4. Süre" secenekler={[20, 40, 60].map((s) => ({ key: s as 20 | 40 | 60, ad: `${s} dk` }))} deger={sure} onChange={setSure} />
+            {cokDers && (
+              <p role="alert" className="text-sm text-red-600 -mt-3">
+                {sure} dakikalık oyunda en fazla {enFazlaDers} ders seçilebilir. Ders sayısını azaltın ya da süreyi uzatın.
+              </p>
+            )}
             <Secim etiket="5. Deneyim biçimi" secenekler={[...DENEYIM_SECENEKLERI]} deger={deneyim} onChange={setDeneyim} />
             <Secim etiket="6. Oyun alanı" secenekler={[...ALAN_SECENEKLERI]} deger={alan} onChange={setAlan} />
             <button

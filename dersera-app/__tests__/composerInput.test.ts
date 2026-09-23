@@ -50,17 +50,31 @@ describe("parseComposeInput", () => {
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.input.ogrenmeCiktilari).toEqual([...konu.ogrenmeCiktilari, ...mat.ogrenmeCiktilari]);
-    expect(r.input.hedefDersleri).toEqual({ fizik: konu.ogrenmeCiktilari.map((o) => o.kod), matematik: mat.ogrenmeCiktilari.map((o) => o.kod) });
+    expect(r.input.hedefDersleri).toEqual({ Fizik: konu.ogrenmeCiktilari.map((o) => o.kod), Matematik: mat.ogrenmeCiktilari.map((o) => o.kod) });
     expect(r.input.dersAdi).toBe("Fizik + Matematik");
     expect(r.input.konuAdi).toBe(`${konu.ad} · ${mat.ad}`);
   });
 
-  it("dokuz dersin tamamı birlikte seçilebilir (programı olan sınıfta)", () => {
+  it("60 dakikalık oyunda dokuz dersin tamamı seçilebilir (programı olan sınıfta)", () => {
     const hepsi = ["matematik", "fizik", "kimya", "turk-dili", "biyoloji", "tarih", "cografya", "felsefe", "din-kulturu"].map((ders) => ({
       ders,
       konuId: getUniteler(11, ders).find((u) => u.ogrenmeCiktilari.length)!.id,
     }));
-    expect(parseComposeInput({ ...valid, sinif: 11, dersler: hepsi }).ok).toBe(true);
+    expect(parseComposeInput({ ...valid, sinif: 11, sure: 60, dersler: hepsi }).ok).toBe(true);
+  });
+
+  it.each([
+    [20, 5],
+    [40, 8],
+  ])("%i dakikada %i dersten fazlası Anthropic'e gitmeden reddedilir", (sure, enFazla) => {
+    const hepsi = ["matematik", "fizik", "kimya", "turk-dili", "biyoloji", "tarih", "cografya", "felsefe", "din-kulturu"].map((ders) => ({
+      ders,
+      konuId: getUniteler(11, ders).find((u) => u.ogrenmeCiktilari.length)!.id,
+    }));
+    expect(parseComposeInput({ ...valid, sinif: 11, sure, dersler: hepsi.slice(0, enFazla) }).ok).toBe(true);
+    const r = parseComposeInput({ ...valid, sinif: 11, sure, dersler: hepsi.slice(0, enFazla + 1) });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain(`en fazla ${enFazla} ders`);
   });
 
   it.each([

@@ -216,7 +216,7 @@ describe("çok dersli oyun", () => {
   it("her dersin çalışıldığı oyun yayınlanır; meta dersleri birlikte taşır", async () => {
     const g = coklu();
     const def = makeDefinition(g, 7);
-    def.duraklar[0].gorev.ogrenme_hedefi = g.hedefDersleri.matematik[0];
+    def.duraklar[0].gorev.ogrenme_hedefi = g.hedefDersleri.Matematik[0];
     def.meta.ders = g.dersAdi;
     const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, dersler: dersler(g) } }));
     expect(res.status).toBe(201);
@@ -226,12 +226,14 @@ describe("çok dersli oyun", () => {
   it("seçilen bir ders hiçbir görevde çalışılmıyorsa yayınlanamaz", async () => {
     const g = coklu();
     const def = makeDefinition(g, 7);
-    def.duraklar.forEach((d) => (d.gorev.ogrenme_hedefi = g.hedefDersleri.fizik[0]));
-    def.final.ogrenme_hedefleri = g.hedefDersleri.fizik.slice(0, 2);
-    def.ogrenme_hedefleri = g.hedefDersleri.fizik.slice(0, 2);
+    def.duraklar.forEach((d) => (d.gorev.ogrenme_hedefi = g.hedefDersleri.Fizik[0]));
+    def.final.ogrenme_hedefleri = g.hedefDersleri.Fizik.slice(0, 2);
+    def.ogrenme_hedefleri = g.hedefDersleri.Fizik.slice(0, 2);
     const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, dersler: dersler(g) } }));
     expect(res.status).toBe(422);
-    expect((await res.json()).validation.hatalar.map((h: { kod: string }) => h.kod)).toContain("ders-eksik");
+    const hatalar = (await res.json()).validation.hatalar as { kod: string; mesaj: string }[];
+    expect(hatalar.map((h) => h.kod)).toContain("ders-eksik");
+    expect(hatalar.find((h) => h.kod === "ders-eksik")?.mesaj).toContain("Matematik");
   });
 
   it("aynı ders iki kez seçilemez", async () => {

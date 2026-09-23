@@ -7,6 +7,7 @@ import {
   type ProgramDersi,
   type Unite,
 } from "@/data/mufredat/programlar";
+import { maxDersSayisi } from "@/lib/composer/recipe";
 
 export const SURELER = [20, 40, 60] as const;
 export const DENEYIMLER = ["macera", "dengeli", "ders"] as const;
@@ -43,7 +44,7 @@ export interface SeciliKonu {
 export interface ResolvedInput extends Omit<ComposeInput, "dersler"> {
   dersler: SeciliKonu[];
   ogrenmeCiktilari: OgrenmeCiktisi[];
-  // Her dersin kendi öğrenme çıktısı kodları; disiplinler arası oyunda her ders en az bir görevde çalışılmalı.
+  // Ders adı → o dersin öğrenme çıktısı kodları; disiplinler arası oyunda her ders en az bir görevde çalışılmalı.
   hedefDersleri: Record<string, string[]>;
   dersAdi: string;
   konuAdi: string;
@@ -68,7 +69,7 @@ export function resolveKonular(sinif: number, dersler: DersKonu[]): { ok: true; 
 export function describeKonular(konular: SeciliKonu[]) {
   return {
     ogrenmeCiktilari: konular.flatMap((k) => k.unite.ogrenmeCiktilari),
-    hedefDersleri: Object.fromEntries(konular.map((k) => [k.ders, k.unite.ogrenmeCiktilari.map((o) => o.kod)])),
+    hedefDersleri: Object.fromEntries(konular.map((k) => [PROGRAM_DERS_ADI[k.ders], k.unite.ogrenmeCiktilari.map((o) => o.kod)])),
     dersAdi: konular.map((k) => PROGRAM_DERS_ADI[k.ders]).join(" + "),
     konuAdi: konular.map((k) => k.unite.ad).join(" · "),
   };
@@ -77,6 +78,10 @@ export function describeKonular(konular: SeciliKonu[]) {
 export function parseComposeInput(body: unknown): InputResult {
   const parsed = ComposeInputSchema.safeParse(body);
   if (!parsed.success) return { ok: false, error: "Geçersiz seçim." };
+  const enFazla = maxDersSayisi(parsed.data.sure);
+  if (parsed.data.dersler.length > enFazla) {
+    return { ok: false, error: `${parsed.data.sure} dakikalık oyunda en fazla ${enFazla} ders seçilebilir.` };
+  }
   const r = resolveKonular(parsed.data.sinif, parsed.data.dersler);
   if (!r.ok) return r;
   return { ok: true, input: { ...parsed.data, dersler: r.konular, ...describeKonular(r.konular) } };
