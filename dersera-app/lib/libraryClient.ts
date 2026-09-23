@@ -4,29 +4,46 @@ import type { GameDefinition } from "@/lib/composer/definition";
 import type { ValidationResult } from "@/lib/composer/validator";
 import { KUTUPHANE_ANAHTARI_KEY, KUTUPHANE_HEADER, isKutuphaneAnahtari, type KutuphaneKaydi, type KutuphaneOzeti } from "@/lib/library";
 
-// Bu tarayıcının kütüphane anahtarı; yoksa üretilir. Anahtar silinirse kütüphaneye erişim kaybolur.
-export function kutuphaneAnahtari(): string | null {
+async function istek(path: string, init: RequestInit = {}): Promise<Response | null> {
   try {
-    const mevcut = localStorage.getItem(KUTUPHANE_ANAHTARI_KEY);
-    if (isKutuphaneAnahtari(mevcut)) return mevcut;
-    const bytes = new Uint8Array(32);
-    crypto.getRandomValues(bytes);
-    const yeni = btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-    localStorage.setItem(KUTUPHANE_ANAHTARI_KEY, yeni);
-    return yeni;
+    return await fetch(path, { ...init, headers: { ...init.headers, "Content-Type": "application/json" } });
   } catch {
     return null;
   }
 }
 
-async function istek(path: string, init: RequestInit = {}): Promise<Response | null> {
-  const anahtar = kutuphaneAnahtari();
-  if (!anahtar) return null;
+// Hesap öncesi sürüm kütüphaneyi bu tarayıcıdaki bir anahtara bağlıyordu. Girişten sonra öğretmene sorulur;
+// onaylarsa o kütüphane hesaba taşınır, hepsi taşınınca anahtar silinir.
+function eskiAnahtar(): string | null {
   try {
-    return await fetch(path, { ...init, headers: { ...init.headers, [KUTUPHANE_HEADER]: anahtar, "Content-Type": "application/json" } });
+    const a = localStorage.getItem(KUTUPHANE_ANAHTARI_KEY);
+    return isKutuphaneAnahtari(a) ? a : null;
   } catch {
     return null;
   }
+}
+
+export async function eskiKutuphaneSayisi(): Promise<number> {
+  const anahtar = eskiAnahtar();
+  if (!anahtar) return 0;
+  const res = await istek("/api/library/tasi", { headers: { [KUTUPHANE_HEADER]: anahtar } });
+  return res?.ok ? ((await res.json()) as { bekleyen: number }).bekleyen : 0;
+}
+
+export async function eskiKutuphaneyiTasi(): Promise<{ tasinan: number; kalan: number } | null> {
+  const anahtar = eskiAnahtar();
+  if (!anahtar) return null;
+  const res = await istek("/api/library/tasi", { method: "POST", headers: { [KUTUPHANE_HEADER]: anahtar } });
+  if (!res?.ok) return null;
+  const sonuc = (await res.json()) as { tasinan: number; kalan: number };
+  if (sonuc.kalan === 0) {
+    try {
+      localStorage.removeItem(KUTUPHANE_ANAHTARI_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+  return sonuc;
 }
 
 export async function kutuphaneListesi(): Promise<KutuphaneOzeti[] | null> {

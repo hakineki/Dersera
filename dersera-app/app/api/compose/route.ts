@@ -3,6 +3,7 @@ import { ComposeError } from "@/lib/composer/anthropic";
 import { parseComposeInput } from "@/lib/composer/input";
 import { checkComposeLimit, clientIp, LimiterUnavailableError } from "@/lib/composer/rateLimit";
 import { composeAndValidate } from "@/lib/composer/service";
+import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
 
 // Anthropic çağrısı 240 sn ile sınırlı; platform sınırı bunun üstünde kalmalı.
 export const maxDuration = 280; // Vercel Fluid (Hobby) üst sınırı 300 sn
@@ -10,6 +11,11 @@ export const maxDuration = 280; // Vercel Fluid (Hobby) üst sınırı 300 sn
 const GENEL_HATA = "Oyun şu anda oluşturulamadı. Tekrar deneyin.";
 
 export async function POST(req: Request) {
+  // Ücretli uç nokta yalnız giriş yapmış öğretmene açıktır.
+  const koken = kokenReddi(req);
+  if (koken) return koken;
+  if (!(await istekHesabi(req))) return oturumGerekli();
+
   let body: unknown;
   try {
     body = await req.json();

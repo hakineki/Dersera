@@ -12,6 +12,7 @@ const DAY_MS = 24 * HOUR_MS;
 
 export interface Limiter {
   hit(key: string, windowMs: number): Promise<number>;
+  count(key: string): Promise<number>;
 }
 
 export function createMemoryLimiter(now: () => number = Date.now): Limiter {
@@ -27,6 +28,10 @@ export function createMemoryLimiter(now: () => number = Date.now): Limiter {
       b.count += 1;
       return b.count;
     },
+    async count(key) {
+      const b = buckets.get(key);
+      return b && b.until > now() ? b.count : 0;
+    },
   };
 }
 
@@ -36,6 +41,9 @@ export function createRedisLimiter(command: RedisCommand): Limiter {
       const count = Number(await command(["INCR", key]));
       if (count === 1) await command(["PEXPIRE", key, windowMs]);
       return count;
+    },
+    async count(key) {
+      return Number((await command(["GET", key])) ?? 0);
     },
   };
 }
@@ -58,6 +66,21 @@ function getLimiter(): Limiter {
 export function clientIp(req: Request): string {
   const fwd = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   return fwd || req.headers.get("x-real-ip") || "bilinmiyor";
+}
+
+// Tek anahtarlı sabit pencere sınırı: pencere içinde en fazla `max` istek.
+export async function checkLimit(key: string, windowMs: number, max: number, l: Limiter = getLimiter()): Promise<boolean> {
+  const pencere = Math.floor(Date.now() / windowMs);
+  return (await l.hit(`${key}:${pencere}`, windowMs)) <= max;
+}
+
+// Yalnız başarısız denemeleri sayan sınır: önce kontrol edilir, hata olursa kaydedilir.
+export async function limitAsildi(key: string, windowMs: number, max: number, l: Limiter = getLimiter()): Promise<boolean> {
+  return (await l.count(`${key}:${Math.floor(Date.now() / windowMs)}`)) >= max;
+}
+
+export async function limitKaydet(key: string, windowMs: number, l: Limiter = getLimiter()): Promise<void> {
+  await l.hit(`${key}:${Math.floor(Date.now() / windowMs)}`, windowMs);
 }
 
 export async function checkComposeLimit(ip: string, l: Limiter = getLimiter()): Promise<boolean> {

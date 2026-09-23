@@ -1,5 +1,5 @@
 import { clearRedisEnv, recordingCommand } from "./helpers/fakeRedis";
-import { buildApi, jsonRequest } from "./helpers/api";
+import { buildApi, hesapAc, jsonRequest } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 import { KUTUPHANE_HEADER, KUTUPHANE_LIMIT, kayitOlustur } from "@/lib/library";
@@ -8,11 +8,13 @@ import { createRedisLibraryStore } from "@/lib/libraryStore";
 const input = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const definition = makeDefinition(input, 7);
 const dersler = [{ ders: "fizik", konuId: getUniteler(10, "fizik")[0].id }];
-const A = "a".repeat(43);
-const B = "b".repeat(43);
 
 describe("oyun kütüphanesi", () => {
   let api: Awaited<ReturnType<typeof buildApi>>;
+  // A ve B iki ayrı öğretmen hesabının oturum çerezleri.
+  let A: string;
+  let B: string;
+  const sahipBul = async (cerez: string) => (await api.libraryService.istekSahibi(new Request("http://localhost", { headers: { cookie: cerez } })))!;
   const fetchSpy = jest.fn(() => Promise.reject(new Error("dış ağ çağrısı yapılmamalı")));
 
   beforeEach(async () => {
@@ -21,10 +23,12 @@ describe("oyun kütüphanesi", () => {
     global.fetch = fetchSpy as unknown as typeof fetch;
     fetchSpy.mockClear();
     api = await buildApi();
+    A = await hesapAc(api, "ayse");
+    B = await hesapAc(api, "mehmet");
   });
 
   const withKey = (req: Request, key: string | null) => {
-    if (key) req.headers.set(KUTUPHANE_HEADER, key);
+    if (key) req.headers.set("cookie", key);
     return req;
   };
   const get = (path: string, key: string | null) => withKey(new Request(`http://localhost${path}`), key);
@@ -74,14 +78,14 @@ describe("oyun kütüphanesi", () => {
     expect(l.oyunlar[0]).not.toHaveProperty("definition");
   });
 
-  it("anahtarsız ya da bozuk anahtarla 401; başka anahtar başkasının oyunlarını görmez", async () => {
+  it("oturumsuz ya da bozuk oturumla 401; başka hesap başkasının oyunlarını görmez", async () => {
     await kaydet();
     expect((await liste(null)).res.status).toBe(401);
-    expect((await liste("kisa")).res.status).toBe(401);
+    expect((await liste("dersera_oturum=uydurma")).res.status).toBe(401);
     expect((await liste(B)).data.oyunlar).toEqual([]);
   });
 
-  it("yayınlamak kütüphaneye yazmaz; kaydetmek anahtar ister", async () => {
+  it("yayınlamak kütüphaneye yazmaz; kaydetmek oturum ister", async () => {
     const yayin = await api.games.POST(jsonRequest("/api/games", { composer: { definition, dersler }, kutuphane: A }));
     expect(yayin.status).toBe(201);
     expect(await yayin.json()).not.toHaveProperty("kutuphaneId");
@@ -134,7 +138,7 @@ describe("oyun kütüphanesi", () => {
   it("düzenleme, bu arada silinen kaydı geri getirmez; çok büyük tanım 413", async () => {
     const { data } = await kaydet();
     const store = api.libraryStore.getLibraryStore();
-    const sahip = await api.libraryService.sahipOf(A);
+    const sahip = await sahipBul(A);
     const get = jest.spyOn(store, "get");
     // PUT kaydı okuduktan hemen sonra silinmiş gibi.
     get.mockImplementationOnce(async (o, i) => {
@@ -209,7 +213,7 @@ describe("oyun kütüphanesi", () => {
     const { data } = await kaydet();
     // Kayıt yayın sırasında silinmiş gibi: replace yazmamalı.
     const store = api.libraryStore.getLibraryStore();
-    const sahip = await api.libraryService.sahipOf(A);
+    const sahip = await sahipBul(A);
     const kayit = (await store.list(sahip))[0];
     await store.remove(sahip, kayit.id);
     expect(await store.replace(sahip, kayit)).toBe(false);
@@ -231,13 +235,50 @@ describe("oyun kütüphanesi", () => {
   it("kayıtlı tanım doğrulamadan geçmiyorsa tekrar yayın 422 döner", async () => {
     const { data } = await kaydet();
     const store = api.libraryStore.getLibraryStore();
-    const sahip = await api.libraryService.sahipOf(A);
+    const sahip = await sahipBul(A);
     const kayit = await store.get(sahip, data.id);
     kayit!.definition.duraklar[0].gorev.soru = "";
     await store.put(sahip, kayit!);
     const r = await yenidenYayinla(data.id);
     expect(r.res.status).toBe(422);
     expect(r.data.validation.hatalar.map((h: { kod: string }) => h.kod)).toContain("soru-bos");
+  });
+
+  it("tarayıcı anahtarına bağlı eski kütüphane hesaba taşınır; oturum ve anahtar gerekir", async () => {
+    const store = api.libraryStore.getLibraryStore();
+    const anahtar = "e".repeat(43);
+    const eski = await api.libraryService.eskiSahipOf(anahtar);
+    for (let i = 0; i < 3; i++) await store.put(eski, kayitOlustur(`eskioyun${i}`, definition, dersler as never, null, i));
+    const tasi = (cerez: string | null, key: string | null) => {
+      const req = new Request("http://localhost/api/library/tasi", { method: "POST" });
+      if (cerez) req.headers.set("cookie", cerez);
+      if (key) req.headers.set(KUTUPHANE_HEADER, key);
+      return api.libraryTasi.POST(req);
+    };
+    expect((await tasi(null, anahtar)).status).toBe(401);
+    expect((await tasi(A, null)).status).toBe(400);
+    // Taşımadan önce yalnız sayı gösterilir; sayma bir şey taşımaz.
+    const say = await api.libraryTasi.GET(new Request("http://localhost/api/library/tasi", { headers: { cookie: A, [KUTUPHANE_HEADER]: anahtar } }));
+    expect(await say.json()).toEqual({ bekleyen: 3 });
+    expect((await liste(A)).data.oyunlar).toHaveLength(0);
+    const r = await tasi(A, anahtar);
+    expect(await r.json()).toEqual({ tasinan: 3, kalan: 0 });
+    expect((await liste(A)).data.oyunlar).toHaveLength(3);
+    expect(await store.list(eski)).toEqual([]);
+    // İkinci taşıma hiçbir şey yapmaz; başka hesap eski kütüphaneyi alamaz.
+    expect(await (await tasi(B, anahtar)).json()).toEqual({ tasinan: 0, kalan: 0 });
+  });
+
+  it("taşıma hesap kütüphanesinin sınırını aşmaz; kalanlar eski yerinde bekler", async () => {
+    const store = api.libraryStore.getLibraryStore();
+    for (let i = 0; i < KUTUPHANE_LIMIT - 1; i++) await kaydet();
+    const anahtar = "f".repeat(43);
+    const eski = await api.libraryService.eskiSahipOf(anahtar);
+    for (let i = 0; i < 3; i++) await store.put(eski, kayitOlustur(`eskioyun${i}`, definition, dersler as never, null, i));
+    const req = new Request("http://localhost/api/library/tasi", { method: "POST", headers: { cookie: A, [KUTUPHANE_HEADER]: anahtar } });
+    expect(await (await api.libraryTasi.POST(req)).json()).toEqual({ tasinan: 1, kalan: 2 });
+    expect((await liste(A)).data.oyunlar).toHaveLength(KUTUPHANE_LIMIT);
+    expect(await store.list(eski)).toHaveLength(2);
   });
 
   it("bozuk kimlikte 404 döner", async () => {

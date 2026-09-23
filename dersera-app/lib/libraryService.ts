@@ -2,12 +2,21 @@ import { parseComposerDefinition, parseComposerPublish } from "@/lib/composer/ad
 import { describeKonular, resolveKonular } from "@/lib/composer/input";
 import { MAX_DURATION_MIN, MIN_DURATION_MIN, type PublicGame } from "@/lib/games";
 import { hashToken, publishGame } from "@/lib/gamesService";
+import { kutuphaneSahibi } from "@/lib/auth";
+import { istekHesabi } from "@/lib/authRequest";
 import type { GamesStore } from "@/lib/gamesStore";
 import { isKutuphaneAnahtari, kayitOlustur, KUTUPHANE_HEADER, KUTUPHANE_LIMIT, type KutuphaneKaydi } from "@/lib/library";
 import type { LibraryStore } from "@/lib/libraryStore";
 import type { ValidationResult } from "@/lib/composer/validator";
 
-export const sahipOf = (anahtar: string) => hashToken(anahtar);
+// Eski (hesap öncesi) kütüphaneler tarayıcı anahtarının özetine bağlıydı; yalnız hesaba taşımada kullanılır.
+export const eskiSahipOf = (anahtar: string) => hashToken(anahtar);
+
+// Kütüphanenin sahibi oturumdaki öğretmen hesabıdır.
+export async function istekSahibi(req: Request): Promise<string | null> {
+  const hesap = await istekHesabi(req);
+  return hesap ? kutuphaneSahibi(hesap) : null;
+}
 
 function yeniId(): string {
   const bytes = new Uint8Array(10);
@@ -20,11 +29,10 @@ export type KayitSonucu =
   | { ok: false; status: number; error: string };
 
 // Öğretmenin "Kütüphaneye kaydet" isteği. Doğrulamadan geçmeyen oyun da saklanır; yayın ayrıca doğrular.
-export async function kutuphaneyeEkle(store: LibraryStore, anahtar: string, body: unknown, now = Date.now()): Promise<KayitSonucu> {
+export async function kutuphaneyeEkle(store: LibraryStore, sahip: string, body: unknown, now = Date.now()): Promise<KayitSonucu> {
   const b = body as { definition?: unknown; dersler?: unknown } | null;
   const r = parseComposerDefinition(b?.definition, b?.dersler);
-  if (!r.ok) return r;
-  const sahip = await sahipOf(anahtar);
+  if (!r.ok) return r;
   if ((await store.count(sahip)) >= KUTUPHANE_LIMIT) {
     return { ok: false, status: 409, error: `Kütüphane dolu (en fazla ${KUTUPHANE_LIMIT} oyun). Yer açmak için eski bir oyunu silin.` };
   }
@@ -34,8 +42,7 @@ export async function kutuphaneyeEkle(store: LibraryStore, anahtar: string, body
 }
 
 // Düzenlenen tanım aynı kayda yazılır. Ders/konu değiştirilemez (kayıtlı dersler ile eşleşmeli).
-export async function kutuphaneKaydiniGuncelle(store: LibraryStore, anahtar: string, id: string, body: unknown): Promise<KayitSonucu> {
-  const sahip = await sahipOf(anahtar);
+export async function kutuphaneKaydiniGuncelle(store: LibraryStore, sahip: string, id: string, body: unknown): Promise<KayitSonucu> {
   const kayit = await store.get(sahip, id);
   if (!kayit) return { ok: false, status: 404, error: "Oyun kütüphanede bulunamadı" };
   const r = parseComposerDefinition((body as { definition?: unknown } | null)?.definition, kayit.dersler);
@@ -71,12 +78,11 @@ export function parseSure(v: unknown): number | null | undefined {
 export async function yenidenYayinla(
   library: LibraryStore,
   games: GamesStore,
-  anahtar: string,
+  sahip: string,
   id: string,
   sure: number | undefined,
   now = Date.now()
-): Promise<YenidenYayinSonucu> {
-  const sahip = await sahipOf(anahtar);
+): Promise<YenidenYayinSonucu> {
   const kayit = await library.get(sahip, id);
   if (!kayit) return { ok: false, status: 404, error: "Oyun kütüphanede bulunamadı" };
   const composed = parseComposerPublish({ composer: { definition: kayit.definition, dersler: kayit.dersler } });
@@ -92,4 +98,19 @@ export async function yenidenYayinla(
 export function anahtarOf(req: Request): string | null {
   const v = req.headers.get(KUTUPHANE_HEADER);
   return isKutuphaneAnahtari(v) ? v : null;
+}
+
+// Tarayıcı anahtarına bağlı eski kütüphaneyi hesaba taşır. Hesap kütüphanesi dolarsa kalanlar eski yerinde bekler.
+export async function kutuphaneyiTasi(store: LibraryStore, eskiSahip: string, yeniSahip: string): Promise<{ tasinan: number; kalan: number }> {
+  const eskiler = (await store.list(eskiSahip)).sort((a, b) => b.createdAt - a.createdAt);
+  let yer = KUTUPHANE_LIMIT - (await store.count(yeniSahip));
+  let tasinan = 0;
+  for (const kayit of eskiler) {
+    if (yer <= 0) break;
+    await store.put(yeniSahip, kayit);
+    await store.remove(eskiSahip, kayit.id);
+    tasinan++;
+    yer--;
+  }
+  return { tasinan, kalan: eskiler.length - tasinan };
 }

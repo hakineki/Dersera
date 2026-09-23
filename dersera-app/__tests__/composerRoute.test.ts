@@ -9,13 +9,25 @@ type ComposeRoute = typeof import("@/app/api/compose/route");
 type AnthropicMod = typeof import("@/lib/composer/anthropic");
 
 // Route ve anthropic modülü aynı izole kayıttan yüklenir; spy ve hata sınıfı route'un gördüğüyle aynı olur.
+// Ücretli uç nokta oturum ister: aynı kayıtta bir öğretmen hesabı açılır ve çerezi isteklere eklenir.
+let cerez: string | null = null;
+
 async function loadCompose(): Promise<{ route: ComposeRoute; anthropic: AnthropicMod }> {
   let route!: ComposeRoute;
   let anthropic!: AnthropicMod;
+  let auth!: typeof import("@/lib/auth");
+  let authStore!: typeof import("@/lib/authStore");
   await jest.isolateModulesAsync(async () => {
     anthropic = await import("@/lib/composer/anthropic");
     route = await import("@/app/api/compose/route");
+    auth = await import("@/lib/auth");
+    authStore = await import("@/lib/authStore");
   });
+  // Hesap depo katmanında açılır: kayıt uç noktasının deneme sınırlayıcısı oran sınırı testlerini etkilemesin.
+  const store = authStore.getAuthStore();
+  const hesap = await auth.kayitOl(store, "ogretmen1", "gizli-sifre-1", undefined);
+  if (!hesap.ok) throw new Error(hesap.error);
+  cerez = `${auth.OTURUM_CEREZI}=${await auth.oturumAc(store, hesap.value)}`;
   return { route, anthropic };
 }
 
@@ -23,6 +35,7 @@ const body = (sinif: number, ders: string, sure: number, deneyim: string, alan: 
   const konuId = getUniteler(sinif, ders).find((u) => u.ogrenmeCiktilari.length)!.id;
   const req = jsonRequest("/api/compose", { sinif, dersler: [{ ders, konuId }], sure, deneyim, alan });
   req.headers.set("x-forwarded-for", ip);
+  if (cerez) req.headers.set("cookie", cerez);
   return { req, konuId };
 };
 
@@ -68,6 +81,7 @@ describe("POST /api/compose", () => {
 
   it("geçersiz konu Anthropic'e gitmeden reddedilir (senaryo 4)", async () => {
     const req = jsonRequest("/api/compose", { sinif: 10, dersler: [{ ders: "fizik", konuId: getUniteler(10, "kimya")[0].id }], sure: 40, deneyim: "dengeli", alan: "sinif" });
+    req.headers.set("cookie", cerez!);
     expect((await route.POST(req)).status).toBe(422);
     expect(spy).not.toHaveBeenCalled();
   });
@@ -117,10 +131,11 @@ describe("POST /api/compose", () => {
   it("production'da Redis yoksa oran sınırı belleğe düşmez; 503 döner ve Anthropic çağrılmaz", async () => {
     const env = process.env as Record<string, string | undefined>;
     const eski = env.NODE_ENV;
-    env.NODE_ENV = "production";
     const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
     try {
+      // Oturum geliştirme ortamında açılır; oran sınırlayıcısı ilk kez üretimde kurulur.
       ({ route, anthropic } = await loadCompose());
+      env.NODE_ENV = "production";
       spy = jest.spyOn(anthropic, "composeGame");
       const res = await route.POST(body(10, "fizik", 40, "dengeli", "sinif", "8.8.8.8").req);
       expect(res.status).toBe(503);
@@ -132,8 +147,17 @@ describe("POST /api/compose", () => {
   });
 
   it("bozuk JSON'a 400 döner", async () => {
-    const res = await route.POST(new Request("http://localhost/api/compose", { method: "POST", body: "{" }));
+    const res = await route.POST(new Request("http://localhost/api/compose", { method: "POST", body: "{", headers: { cookie: cerez!, "content-type": "application/json" } }));
     expect(res.status).toBe(400);
+  });
+
+  it("oturum yoksa ya da geçersizse 401 döner ve Anthropic çağrılmaz", async () => {
+    const { req } = body(10, "fizik", 40, "dengeli", "sinif");
+    req.headers.delete("cookie");
+    expect((await route.POST(req)).status).toBe(401);
+    req.headers.set("cookie", "dersera_oturum=uydurma");
+    expect((await route.POST(req)).status).toBe(401);
+    expect(spy).not.toHaveBeenCalled();
   });
 });
 
@@ -238,8 +262,9 @@ describe("çok dersli oyun", () => {
 
   it("aynı ders iki kez seçilemez", async () => {
     const konuId = getUniteler(10, "fizik")[0].id;
-    const req = jsonRequest("/api/compose", { sinif: 10, dersler: [{ ders: "fizik", konuId }, { ders: "fizik", konuId }], sure: 40, deneyim: "dengeli", alan: "sinif" });
     const { route } = await loadCompose();
+    const req = jsonRequest("/api/compose", { sinif: 10, dersler: [{ ders: "fizik", konuId }, { ders: "fizik", konuId }], sure: 40, deneyim: "dengeli", alan: "sinif" });
+    req.headers.set("cookie", cerez!);
     expect((await route.POST(req)).status).toBe(422);
   });
 });

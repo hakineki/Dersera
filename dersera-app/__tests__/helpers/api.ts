@@ -13,6 +13,14 @@ export async function buildApi() {
     libraryPublish: typeof import("@/app/api/library/[id]/publish/route");
     libraryStore: typeof import("@/lib/libraryStore");
     libraryService: typeof import("@/lib/libraryService");
+    libraryTasi: typeof import("@/app/api/library/tasi/route");
+    kayit: typeof import("@/app/api/auth/kayit/route");
+    giris: typeof import("@/app/api/auth/giris/route");
+    cikis: typeof import("@/app/api/auth/cikis/route");
+    ben: typeof import("@/app/api/auth/ben/route");
+    sifre: typeof import("@/app/api/auth/sifre/route");
+    ad: typeof import("@/app/api/auth/ad/route");
+    authStore: typeof import("@/lib/authStore");
   };
   await jest.isolateModulesAsync(async () => {
     mods = {
@@ -26,6 +34,14 @@ export async function buildApi() {
       libraryPublish: await import("@/app/api/library/[id]/publish/route"),
       libraryStore: await import("@/lib/libraryStore"),
       libraryService: await import("@/lib/libraryService"),
+      libraryTasi: await import("@/app/api/library/tasi/route"),
+      kayit: await import("@/app/api/auth/kayit/route"),
+      giris: await import("@/app/api/auth/giris/route"),
+      cikis: await import("@/app/api/auth/cikis/route"),
+      ben: await import("@/app/api/auth/ben/route"),
+      sifre: await import("@/app/api/auth/sifre/route"),
+      ad: await import("@/app/api/auth/ad/route"),
+      authStore: await import("@/lib/authStore"),
     };
   });
   return {
@@ -50,4 +66,22 @@ export function samplePublish(overrides: Record<string, unknown> = {}) {
     stops: [0, 1, 2].map((i) => defaultGameStop(i)),
     ...overrides,
   };
+}
+
+// Set-Cookie başlığından "ad=değer" çifti (Cookie başlığında gönderilecek biçim).
+export function oturumCerezi(res: Response): string | null {
+  const c = res.headers.get("set-cookie");
+  return c ? c.split(";")[0] : null;
+}
+
+export function cerezli(req: Request, cerez: string | null): Request {
+  if (cerez) req.headers.set("cookie", cerez);
+  return req;
+}
+
+// Yeni hesap açar ve oturum çerezini döndürür.
+export async function hesapAc(api: Awaited<ReturnType<typeof buildApi>>, kullaniciAdi: string, sifre = "gizli-sifre-1"): Promise<string> {
+  const res = await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi, sifre }));
+  if (res.status !== 201) throw new Error(`hesap açılamadı: ${res.status}`);
+  return oturumCerezi(res)!;
 }
