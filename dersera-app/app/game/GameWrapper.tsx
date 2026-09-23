@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import type { Stop } from "@/data/stops";
 import {
@@ -28,7 +28,7 @@ type View =
   | { kind: "code"; notice?: string }
   | { kind: "message"; icon: string; title: string; text: string }
   | { kind: "choice" }
-  | { kind: "nickname" }
+  | { kind: "nickname"; notice?: string }
   | { kind: "game" };
 
 // Son bilinen kopya varsa sunucudan tazelenir; ağ yoksa yerel kopyayla devam edilir.
@@ -49,6 +49,9 @@ export default function GameWrapper() {
   const [allStops, setAllStops] = useState<Stop[]>([]);
   const [nickname, setNickname] = useState("");
   const [startTime, setStartTime] = useState(0);
+  const [joining, setJoining] = useState(false);
+  // Takma ad formu onConfirm'u beklemeden yeniden etkinleşir; çift dokunuş öğrencinin kendi adı için 409 üretmesin.
+  const joiningRef = useRef(false);
 
   const resolve = useCallback(
     (g: PublicGame) => {
@@ -139,13 +142,23 @@ export default function GameWrapper() {
     resolve(g);
   }
 
-  function handleNicknameConfirm(nick: string) {
+  async function handleNicknameConfirm(nick: string) {
+    if (!game || joiningRef.current) return;
+    joiningRef.current = true;
+    setJoining(true);
+    const joined = await joinGameRequest(game.code, nick);
+    joiningRef.current = false;
+    setJoining(false);
+    if (joined.status === "taken") {
+      setView({ kind: "nickname", notice: `“${nick}” bu oyunda başka bir öğrencide. Farklı bir takma ad seç.` });
+      return;
+    }
+    if (joined.status === "joined") savePlayerToken(joined.playerToken);
     const now = Date.now();
     saveNickname(nick);
     saveStartTime(now);
     setNickname(nick);
     setStartTime(now);
-    if (game) joinGameRequest(game.code, nick).then((token) => token && savePlayerToken(token));
     setView({ kind: "game" });
   }
 
@@ -203,7 +216,21 @@ export default function GameWrapper() {
         </div>
       );
     case "nickname":
-      return <NicknameEntry onConfirm={handleNicknameConfirm} />;
+      return (
+        <>
+          {view.notice && (
+            <div role="alert" className="fixed top-4 inset-x-4 z-50 mx-auto max-w-sm bg-amber-400 text-gray-900 text-sm font-semibold rounded-xl px-4 py-3 shadow-lg">
+              {view.notice}
+            </div>
+          )}
+          <NicknameEntry key={view.notice ?? "ilk"} onConfirm={handleNicknameConfirm} />
+          {joining && (
+            <div role="status" className="fixed inset-0 z-50 bg-indigo-950/70 flex items-center justify-center text-white text-sm font-semibold">
+              Oyuna katılınıyor…
+            </div>
+          )}
+        </>
+      );
     case "game":
       if (!stop || !game) return null;
       return (

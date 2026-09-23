@@ -368,8 +368,11 @@ export default function GameClient({ stop, allStops, gameCode, nickname, startTi
     (async () => {
       let token = loadPlayerToken();
       if (!token) {
-        token = await joinGameRequest(gameCode, summaryData.nickname);
-        if (token) savePlayerToken(token);
+        const joined = await joinGameRequest(gameCode, summaryData.nickname);
+        if (joined.status === "joined") {
+          token = joined.playerToken;
+          savePlayerToken(token);
+        }
       }
       return token ? submitResult(gameCode, token, summaryData) : false;
     })().then((ok) => {

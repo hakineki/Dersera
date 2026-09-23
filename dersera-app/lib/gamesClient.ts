@@ -51,17 +51,20 @@ export async function endGameRequest(code: string, adminToken: string): Promise<
   }
 }
 
-// Başarısız olursa oyun yine sürer; sonuç gönderilmeden önce yeniden denenir, olmazsa sonuç kodu yedektir.
-export async function joinGameRequest(code: string, nickname: string): Promise<string | null> {
+export type JoinResponse = { status: "joined"; playerToken: string } | { status: "taken" } | { status: "error" };
+
+// "error" (ağ yok vb.) oyunu durdurmaz; sonuç gönderilmeden önce katılım yeniden denenir, olmazsa sonuç kodu yedektir.
+export async function joinGameRequest(code: string, nickname: string): Promise<JoinResponse> {
   try {
     const res = await fetch(`/api/games/${encodeURIComponent(code)}/join`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ nickname }),
     });
-    if (!res.ok) return null;
-    return ((await res.json()) as { playerToken?: string }).playerToken ?? null;
+    if (res.status === 409) return { status: "taken" };
+    const token = res.ok ? ((await res.json()) as { playerToken?: string }).playerToken : undefined;
+    return token ? { status: "joined", playerToken: token } : { status: "error" };
   } catch {
-    return null;
+    return { status: "error" };
   }
 }

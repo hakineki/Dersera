@@ -1,4 +1,4 @@
-import { isGameActive, type PublicGame, type PublishRequest } from "@/lib/games";
+import type { PublicGame, PublishRequest } from "@/lib/games";
 import type { GamesStore, StoredGame } from "@/lib/gamesStore";
 
 // I, O, Q, W, X çıkarıldı: tahtaya yazılırken 1/0 ile karışmasın, Türk klavyesinde sorun çıkarmasın.
@@ -67,7 +67,7 @@ export async function publishGame(
   return null;
 }
 
-export type JoinResult = { status: "joined"; playerToken: string } | { status: "taken" | "not-found" | "closed" };
+export type JoinResult = { status: "joined"; playerToken: string } | { status: "taken" | "not-found" };
 
 export async function joinGame(
   store: GamesStore,
@@ -77,7 +77,8 @@ export async function joinGame(
 ): Promise<JoinResult> {
   const game = await store.get(code);
   if (!game) return { status: "not-found" };
-  if (!isGameActive(game, now)) return { status: "closed" };
+  // Bitmiş oyuna da katılım kabul edilir: çevrimdışı bitiren öğrenci sonucunu sonradan gönderebilsin.
+  // Yeni oyuncunun soru açması ise istemcide kod ekranında engellenir.
   const playerToken = createAdminToken();
   const added = await store.addPlayer(code, nickname, await hashToken(playerToken), now, game.expiresAt);
   return added ? { status: "joined", playerToken } : { status: "taken" };
