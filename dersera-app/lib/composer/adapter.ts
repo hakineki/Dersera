@@ -5,13 +5,9 @@ import { DersKonuSchema } from "@/lib/composer/input";
 import { z } from "zod";
 import { revalidate } from "@/lib/composer/service";
 import type { ValidationResult } from "@/lib/composer/validator";
-import type { GameStop, PublishRequest } from "@/lib/games";
+import { publishWindowMinutes, type GameStop, type PublishRequest } from "@/lib/games";
 
 // Game Definition → mevcut oyun kaydı. Kod üretimi, katılım, sonuçlar ve süre mevcut sistemden gelir.
-
-export function publishWindowMinutes(sureDk: number): number {
-  return Math.max(60, sureDk * 2);
-}
 
 // Birden çok ders seçildiyse klasik alanlar için ilk ders kullanılır.
 function dersKeyOf(def: GameDefinition): Ders {

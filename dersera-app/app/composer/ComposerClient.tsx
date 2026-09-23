@@ -10,6 +10,7 @@ import type { GameDefinition } from "@/lib/composer/definition";
 import { validateGame, type ValidationResult } from "@/lib/composer/validator";
 import { loadTeacherSession } from "@/lib/teacherAuth";
 import { saveTeacherGame } from "@/lib/teacherGame";
+import { kutuphaneAnahtari } from "@/lib/libraryClient";
 import type { PublishResponse } from "@/lib/gamesClient";
 import ComposerPreview from "./ComposerPreview";
 import DurakEditor, { type Duzenlenen } from "./DurakEditor";
@@ -225,7 +226,7 @@ export default function ComposerClient({
       const res = await fetch("/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ composer: { definition: sonuc.definition, dersler: sonuc.dersler } }),
+        body: JSON.stringify({ composer: { definition: sonuc.definition, dersler: sonuc.dersler }, kutuphane: kutuphaneAnahtari() }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
