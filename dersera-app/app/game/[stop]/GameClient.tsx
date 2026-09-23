@@ -9,62 +9,154 @@ import {
   saveEndTime,
   formatElapsed,
   GameProgress,
+  loadPenaltySeconds,
+  addPenalty,
+  addLeaderboardEntry,
 } from "@/lib/gameState";
-import {
-  getSorular,
-  DERS_ADI,
-  AYLAR,
-} from "@/data/mufredat";
+import { getSorular, DERS_ADI, AYLAR } from "@/data/mufredat";
 import type { Soru } from "@/data/mufredat";
 
-interface Props {
-  stop: Stop;
-  nickname: string;
-  startTime: number;
-  aylar: string[];
+// ── Hikaye metinleri ──────────────────────────────────────────────────────────
+const HIKAYE: Record<string, string> = {
+  bahce:
+    "Okul müdürünün masasından gizli bir dosya çalındı! Tek ipucu bahçede bırakılmış. Matematik şifreni çöz ve dosyanın izini sürdür...",
+  koridor:
+    "Birinci iz çözüldü! Kamera görüntüleri şüpheliyi koridorda gösteriyor. Fizik bilginle koridordaki gizemi aç!",
+  "fizik-lab":
+    "İz laboratuvara uzanıyor! Masada kimyasal bir not bırakılmış. Kimya sorusunu çöz ve ipucunu yakala!",
+  kutuphane:
+    "Laboratuvardan çıkan iz kütüphaneye ulaştı. Eski kitabın içine gizlenmiş şifreli mesaj var. Türk Dili ve Edebiyatı bilginle kilidi aç!",
+  "mudur-odasi":
+    "Son adım! Dosyanın müdür odasında saklandığı kesinleşti. Son soruyu çöz ve dosyayı kurtar!",
+};
+
+// ── Konfeti parçacıkları — mount'ta hesaplanır, her render'da değişmez ────────
+const PARCALAR = Array.from({ length: 60 }, (_, i) => ({
+  id: i,
+  left: `${(i * 17 + 3) % 100}%`,
+  delay: `${(i * 0.05) % 1}s`,
+  dur: `${1 + (i * 0.04) % 1.5}s`,
+  color: ["#ff6b6b", "#ffd93d", "#6bcb77", "#4d96ff", "#c77dff", "#ff922b"][i % 6],
+  size: `${5 + (i % 4)}px`,
+  circle: i % 3 === 0,
+}));
+
+function ConfettiRain({ active }: { active: boolean }) {
+  if (!active) return null;
+  return (
+    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+      <style>{`
+        @keyframes kfall {
+          0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
+          100% { transform: translateY(110vh)  rotate(720deg); opacity: 0; }
+        }
+      `}</style>
+      {PARCALAR.map((p) => (
+        <div
+          key={p.id}
+          style={{
+            position: "absolute",
+            left: p.left,
+            top: "-10px",
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            animation: `kfall ${p.dur} ${p.delay} ease-in forwards`,
+            borderRadius: p.circle ? "50%" : "2px",
+          }}
+        />
+      ))}
+    </div>
+  );
 }
 
-type Screen = "loading" | "question" | "already-done" | "correct" | "summary";
-
-function computeElapsed(startTime: number, endTime?: number): number {
-  return Math.floor(((endTime ?? Date.now()) - startTime) / 1000);
+function KanitAnimasyon({ show, count }: { show: boolean; count: number }) {
+  if (!show) return null;
+  return (
+    <div className="fixed inset-0 pointer-events-none z-40 flex items-center justify-center">
+      <style>{`
+        @keyframes kpop {
+          from { transform: scale(0.4); opacity: 0; }
+          60%  { transform: scale(1.15); opacity: 1; }
+          to   { transform: scale(1);   opacity: 1; }
+        }
+      `}</style>
+      <div
+        className="bg-yellow-400 text-gray-900 font-bold text-xl px-8 py-5 rounded-2xl shadow-2xl"
+        style={{ animation: "kpop 0.4s ease-out" }}
+      >
+        🔍 Kanıt #{count} Toplandı!
+      </div>
+    </div>
+  );
 }
 
+// ── Özet (final) ekranı ───────────────────────────────────────────────────────
 function SummaryScreen({
   nickname,
-  elapsedSeconds,
+  netSeconds,
+  penaltySeconds,
   progress,
+  resultCode,
 }: {
   nickname: string;
-  elapsedSeconds: number;
+  netSeconds: number;
+  penaltySeconds: number;
   progress: GameProgress;
+  resultCode: string;
 }) {
   const totalHints = Object.values(progress).reduce(
     (sum, p) => sum + p.hintsUsed,
     0
   );
+  const totalSeconds = netSeconds + penaltySeconds;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex flex-col items-center justify-center px-5 py-10">
-      <div className="w-full max-w-sm">
+      <ConfettiRain active />
+      <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-6">
-          <div className="text-6xl mb-3">🏆</div>
-          <h1 className="text-2xl font-bold text-white">Tebrikler, {nickname}!</h1>
-          <p className="text-purple-300 text-sm mt-1">Okulun şifresi çözüldü!</p>
+          <div className="text-6xl mb-2">🗂️</div>
+          <h1 className="text-2xl font-bold text-white">Dosya Tamamlandı!</h1>
+          <p className="text-purple-300 text-sm mt-1">
+            Tebrikler, {nickname}! Gizem çözüldü.
+          </p>
         </div>
-        <div className="bg-yellow-500/20 border border-yellow-400/40 rounded-2xl p-5 mb-4 text-center">
-          <p className="text-yellow-300 text-xs font-semibold uppercase tracking-widest mb-1">
-            Toplam Süre
+
+        {/* Süre kartı */}
+        <div className="bg-yellow-500/20 border border-yellow-400/40 rounded-2xl p-5 mb-3">
+          <p className="text-yellow-300 text-xs font-semibold uppercase tracking-widest mb-3 text-center">
+            Süre Özeti
           </p>
-          <p className="text-4xl font-bold text-white font-mono">
-            {formatElapsed(elapsedSeconds)}
-          </p>
-          <p className="text-yellow-200/60 text-xs mt-1">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-yellow-200/70 text-sm">Net süre</span>
+            <span className="text-white font-mono font-bold text-lg">
+              {formatElapsed(netSeconds)}
+            </span>
+          </div>
+          {penaltySeconds > 0 && (
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-red-300/80 text-sm">Ceza</span>
+              <span className="text-red-300 font-mono font-bold text-lg">
+                +{formatElapsed(penaltySeconds)}
+              </span>
+            </div>
+          )}
+          <div className="border-t border-yellow-400/30 pt-2 mt-2 flex justify-between items-center">
+            <span className="text-yellow-300 text-sm font-semibold">Toplam</span>
+            <span className="text-4xl font-bold text-white font-mono">
+              {formatElapsed(totalSeconds)}
+            </span>
+          </div>
+          <p className="text-yellow-200/50 text-xs text-center mt-2">
             {totalHints === 0
               ? "İpucu kullanmadan tamamladın! 🌟"
               : `${totalHints} ipucu kullandın`}
           </p>
         </div>
-        <div className="bg-white/10 border border-white/20 rounded-2xl overflow-hidden mb-6">
+
+        {/* Kanıt listesi */}
+        <div className="bg-white/10 border border-white/20 rounded-2xl overflow-hidden mb-4">
           {stops.map((s, i) => {
             const p = progress[s.id];
             return (
@@ -81,41 +173,94 @@ function SummaryScreen({
                 </div>
                 <span className="text-green-400 text-xs font-semibold">
                   {p
-                    ? `✅ ${p.hintsUsed > 0 ? `${p.hintsUsed} ipucu` : "Temiz!"}`
+                    ? `✅ ${p.hintsUsed > 0 ? `${p.hintsUsed}✗` : "Temiz!"}`
                     : "—"}
                 </span>
               </div>
             );
           })}
         </div>
-        <p className="text-center text-white/50 text-sm">
-          Öğretmenine giderek ödülünü al! 🎁
-        </p>
+
+        {/* Sonuç kodu */}
+        <div className="bg-indigo-600/40 border border-indigo-400/40 rounded-xl p-4 mb-4 text-center">
+          <p className="text-indigo-300 text-xs font-semibold mb-1">
+            Sonuç Kodun
+          </p>
+          <p className="text-white font-mono font-bold text-2xl tracking-widest">
+            {resultCode}
+          </p>
+          <p className="text-indigo-300/70 text-xs mt-1">
+            Öğretmenine dön ve bu kodu göster!
+          </p>
+        </div>
       </div>
     </div>
   );
 }
 
+// ── Ana bileşen ───────────────────────────────────────────────────────────────
+interface Props {
+  stop: Stop;
+  nickname: string;
+  startTime: number;
+  aylar: string[];
+}
+
+type Screen =
+  | "loading"
+  | "question"
+  | "backup-question"
+  | "already-done"
+  | "correct"
+  | "summary";
+
+function computeElapsed(startTime: number, endTime?: number): number {
+  return Math.floor(((endTime ?? Date.now()) - startTime) / 1000);
+}
+
 export default function GameClient({ stop, nickname, startTime, aylar }: Props) {
   const [screen, setScreen] = useState<Screen>("loading");
   const [soru, setSoru] = useState<Soru | null>(null);
+  const [backupSoru, setBackupSoru] = useState<Soru | null>(null);
+  const [wrongCount, setWrongCount] = useState(0);
   const [hintsRevealed, setHintsRevealed] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [backupSelectedIndex, setBackupSelectedIndex] = useState<number | null>(null);
+  const [backupFailed, setBackupFailed] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [penaltySeconds, setPenaltySeconds] = useState(0);
   const [progress, setProgress] = useState<GameProgress>({});
+  const [showKanitAnim, setShowKanitAnim] = useState(false);
+  const [kanitCount, setKanitCount] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [summaryData, setSummaryData] = useState<{
+    netSeconds: number;
+    penaltySeconds: number;
+    resultCode: string;
+  } | null>(null);
 
   const ayAdi = aylar
     .map((slug) => AYLAR.find((a) => a.ay === slug)?.ad ?? slug)
     .join(", ");
 
+  // İlk yükleme
   useEffect(() => {
     const saved = loadProgress();
+    const savedPenalty = loadPenaltySeconds();
     setProgress(saved);
+    setPenaltySeconds(savedPenalty);
+    setKanitCount(Object.keys(saved).length);
 
     if (saved[stop.id]) {
       const endTime = loadEndTime();
       if (stop.nextStopId === null && endTime) {
-        setElapsedSeconds(computeElapsed(startTime, endTime));
+        const net = computeElapsed(startTime, endTime);
+        setSummaryData({
+          netSeconds: net,
+          penaltySeconds: savedPenalty,
+          resultCode: buildResultCode(nickname, net + savedPenalty),
+        });
+        setElapsedSeconds(net);
         setScreen("summary");
       } else {
         setScreen("already-done");
@@ -125,15 +270,16 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
 
     const sorular = getSorular(stop.dersKey, aylar);
     if (!sorular.length) {
-      // No questions for this subject/month combination — show already-done
       setScreen("question");
       return;
     }
     const picked = sorular[Math.floor(Math.random() * sorular.length)];
     setSoru(picked);
     setScreen("question");
-  }, [stop.id, stop.nextStopId, stop.dersKey, startTime, aylar]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stop.id]);
 
+  // Kronometre
   useEffect(() => {
     if (screen === "summary" || screen === "loading") return;
     const endTime = loadEndTime();
@@ -148,47 +294,130 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
     return () => clearInterval(id);
   }, [startTime, screen]);
 
-  const isLastStop = stop.nextStopId === null;
-  const visibleHint =
-    hintsRevealed >= 2
-      ? soru?.ipucu2
-      : hintsRevealed === 1
-      ? soru?.ipucu1
-      : null;
+  // Konfeti otomatik kapat
+  useEffect(() => {
+    if (!showConfetti) return;
+    const t = setTimeout(() => setShowConfetti(false), 3500);
+    return () => clearTimeout(t);
+  }, [showConfetti]);
+
+  // Kanıt animasyonu otomatik kapat
+  useEffect(() => {
+    if (!showKanitAnim) return;
+    const t = setTimeout(() => setShowKanitAnim(false), 2000);
+    return () => clearTimeout(t);
+  }, [showKanitAnim]);
+
+  function buildResultCode(nick: string, totalSec: number): string {
+    const prefix = nick.slice(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "X").padEnd(3, "X");
+    return `${prefix}-${String(totalSec).padStart(4, "0")}`;
+  }
+
+  function applyPenalty() {
+    addPenalty(15);
+    setPenaltySeconds((p) => p + 15);
+  }
+
+  function completeStop(hintsUsed: number) {
+    markStopComplete(stop.id, hintsUsed);
+    const updated = loadProgress();
+    const newKanitCount = Object.keys(updated).length;
+    setProgress(updated);
+    setKanitCount(newKanitCount);
+    setShowKanitAnim(true);
+
+    if (stop.nextStopId === null) {
+      const endTs = Date.now();
+      saveEndTime(endTs);
+      const net = computeElapsed(startTime, endTs);
+      const totalPenalty = loadPenaltySeconds();
+      const code = buildResultCode(nickname, net + totalPenalty);
+      addLeaderboardEntry({
+        nickname,
+        netSeconds: net,
+        penaltySeconds: totalPenalty,
+        hintsUsed: Object.values(updated).reduce((s, p) => s + p.hintsUsed, 0),
+        completedAt: endTs,
+      });
+      setSummaryData({ netSeconds: net, penaltySeconds: totalPenalty, resultCode: code });
+      setElapsedSeconds(net);
+      setShowConfetti(true);
+      setTimeout(() => setScreen("summary"), 2100);
+    } else {
+      setShowConfetti(true);
+      setTimeout(() => setScreen("correct"), 600);
+    }
+  }
 
   function handleAnswer(index: number) {
     if (!soru) return;
     setSelectedIndex(index);
+
     if (index === soru.dogruIndex) {
-      const hintsUsed = hintsRevealed;
-      markStopComplete(stop.id, hintsUsed);
-      const updated = loadProgress();
-      if (isLastStop) {
-        const endTs = Date.now();
-        saveEndTime(endTs);
-        setElapsedSeconds(computeElapsed(startTime, endTs));
-        setProgress(updated);
-        setScreen("summary");
-      } else {
-        setProgress(updated);
-        setScreen("correct");
-      }
+      completeStop(wrongCount);
+      return;
+    }
+
+    // Yanlış cevap
+    const newWrong = wrongCount + 1;
+    setWrongCount(newWrong);
+    applyPenalty();
+
+    if (newWrong < 3) {
+      setHintsRevealed(newWrong); // 1. yanlış → ipucu1, 2. yanlış → ipucu2
     } else {
-      setHintsRevealed((h) => Math.min(h + 1, 2));
+      // 3. yanlış → yedek soru
+      const sorular = getSorular(stop.dersKey, aylar);
+      const alternatives = sorular.filter((s) => s.soru !== soru.soru);
+      if (alternatives.length > 0) {
+        const backup = alternatives[Math.floor(Math.random() * alternatives.length)];
+        setBackupSoru(backup);
+      } else {
+        setBackupSoru(soru); // havuzda başka soru yok, aynısını ver
+      }
+      setBackupSelectedIndex(null);
+      setBackupFailed(false);
+      setScreen("backup-question");
     }
   }
 
-  if (screen === "summary") {
+  function handleBackupAnswer(index: number) {
+    if (!backupSoru) return;
+    setBackupSelectedIndex(index);
+
+    if (index === backupSoru.dogruIndex) {
+      completeStop(wrongCount);
+    } else {
+      // Yedek de yanlış → açıklama göster, durak geçilecek
+      applyPenalty();
+      setBackupFailed(true);
+    }
+  }
+
+  function handleForceAdvance() {
+    completeStop(wrongCount + 1);
+  }
+
+  const isLastStop = stop.nextStopId === null;
+  const displaySeconds = elapsedSeconds + penaltySeconds;
+  const visibleHint =
+    hintsRevealed >= 2 ? soru?.ipucu2 : hintsRevealed === 1 ? soru?.ipucu1 : null;
+
+  // ── SUMMARY ─────────────────────────────────────────────────────────────────
+  if (screen === "summary" && summaryData) {
     return (
       <SummaryScreen
         nickname={nickname}
-        elapsedSeconds={elapsedSeconds}
+        netSeconds={summaryData.netSeconds}
+        penaltySeconds={summaryData.penaltySeconds}
         progress={progress}
+        resultCode={summaryData.resultCode}
       />
     );
   }
 
-  if (screen === "loading" || !soru) {
+  // ── LOADING ──────────────────────────────────────────────────────────────────
+  if (screen === "loading" || (!soru && screen === "question")) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center">
         <div className="text-white/40 text-sm">Soru yükleniyor...</div>
@@ -196,17 +425,36 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
     );
   }
 
+  // ── ORTAK SARMALAYICI ────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex flex-col items-center px-4 py-6">
+      <ConfettiRain active={showConfetti} />
+      <KanitAnimasyon show={showKanitAnim} count={kanitCount} />
+
       <div className="w-full max-w-md">
+        {/* Üst çubuk: Süre + Kanıt sayacı */}
         <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-semibold text-purple-300 uppercase tracking-widest">
-            Durak {stop.order} / 5
-          </span>
-          <span className="font-mono text-white/80 text-sm bg-white/10 px-2.5 py-0.5 rounded-lg">
-            ⏱ {formatElapsed(elapsedSeconds)}
-          </span>
+          <div className="flex items-center gap-1">
+            <span className="text-xs font-semibold text-purple-300 uppercase tracking-widest">
+              Durak {stop.order} / 5
+            </span>
+            <span className="ml-2 text-xs text-yellow-300 font-semibold">
+              🔍 {kanitCount}/5
+            </span>
+          </div>
+          <div className="text-right">
+            <span className="font-mono text-white text-sm bg-white/10 px-2.5 py-0.5 rounded-lg">
+              ⏱ {formatElapsed(displaySeconds)}
+            </span>
+            {penaltySeconds > 0 && (
+              <div className="text-red-300 text-xs font-mono mt-0.5 text-right">
+                +{formatElapsed(penaltySeconds)} ceza
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Oyuncu / Dönem */}
         <div className="flex items-center justify-between mb-4">
           <p className="text-purple-400 text-xs">
             Oyuncu:{" "}
@@ -218,7 +466,8 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
           </p>
         </div>
 
-        <div className="text-center mb-5">
+        {/* Durak başlığı */}
+        <div className="text-center mb-4">
           <div className="text-5xl mb-2">{stop.emoji}</div>
           <h1 className="text-xl font-bold text-white">{stop.name}</h1>
           <span className="inline-block mt-1 px-2.5 py-0.5 bg-purple-700/60 text-purple-200 text-xs rounded-full">
@@ -226,7 +475,8 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
           </span>
         </div>
 
-        <div className="flex justify-center gap-2 mb-5">
+        {/* İlerleme noktaları */}
+        <div className="flex justify-center gap-2 mb-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
@@ -241,6 +491,16 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
           ))}
         </div>
 
+        {/* ── Hikaye metni ── */}
+        {(screen === "question" || screen === "backup-question") && HIKAYE[stop.id] && (
+          <div className="bg-blue-900/40 border border-blue-500/30 rounded-xl px-4 py-3 mb-4">
+            <p className="text-blue-200 text-xs leading-relaxed italic">
+              📖 {HIKAYE[stop.id]}
+            </p>
+          </div>
+        )}
+
+        {/* ── ALREADY DONE ── */}
         {screen === "already-done" && (
           <div className="bg-green-500/20 border border-green-400/40 rounded-2xl p-5 text-center">
             <div className="text-3xl mb-2">✅</div>
@@ -255,7 +515,8 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
           </div>
         )}
 
-        {screen === "question" && (
+        {/* ── SORU EKRANI ── */}
+        {screen === "question" && soru && (
           <>
             <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-5 mb-4">
               <p className="text-white font-medium text-base leading-relaxed">
@@ -267,6 +528,14 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
               <div className="bg-amber-500/20 border border-amber-400/40 rounded-xl px-4 py-3 mb-4">
                 <p className="text-amber-200 text-sm leading-relaxed">
                   {visibleHint}
+                </p>
+              </div>
+            )}
+
+            {wrongCount >= 2 && !visibleHint && (
+              <div className="bg-red-500/20 border border-red-400/40 rounded-xl px-4 py-2 mb-4 text-center">
+                <p className="text-red-300 text-xs">
+                  ⚠️ Bir sonraki yanlış cevapta yedek soru verilecek (+15sn ceza)
                 </p>
               </div>
             )}
@@ -294,25 +563,88 @@ export default function GameClient({ stop, nickname, startTime, aylar }: Props) 
               })}
             </div>
 
-            {hintsRevealed < 2 && (
-              <button
-                onClick={() => setHintsRevealed((h) => Math.min(h + 1, 2))}
-                className="w-full py-2.5 bg-amber-600/30 hover:bg-amber-600/50 border border-amber-500/40 text-amber-200 text-sm font-semibold rounded-xl transition-all duration-200 active:scale-95"
-              >
-                {hintsRevealed === 0
-                  ? "💡 İpucu Al (1. kademe)"
-                  : "💡 Daha Güçlü İpucu (2. kademe)"}
-              </button>
+            {wrongCount > 0 && (
+              <p className="text-center text-red-300/70 text-xs">
+                {wrongCount} yanlış cevap — +{wrongCount * 15}sn ceza
+              </p>
             )}
           </>
         )}
 
-        {screen === "correct" && (
+        {/* ── YEDEK SORU EKRANI ── */}
+        {screen === "backup-question" && backupSoru && (
+          <>
+            <div className="bg-orange-500/20 border border-orange-400/40 rounded-xl px-4 py-3 mb-4 text-center">
+              <p className="text-orange-200 text-sm font-semibold">
+                🔄 Ek Görev! 3 yanlış sonucu yedek soru verildi.
+              </p>
+            </div>
+
+            {!backupFailed ? (
+              <>
+                <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-5 mb-4">
+                  <p className="text-white font-medium text-base leading-relaxed">
+                    {backupSoru.soru}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2.5 mb-4">
+                  {backupSoru.secenekler.map((option, index) => {
+                    const wasWrong =
+                      backupSelectedIndex === index &&
+                      index !== backupSoru.dogruIndex;
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => handleBackupAnswer(index)}
+                        className={`w-full text-left px-4 py-3.5 rounded-xl font-medium text-sm transition-all duration-150 active:scale-95 ${
+                          wasWrong
+                            ? "bg-red-500/30 border border-red-400/60 text-red-200"
+                            : "bg-white/10 border border-white/20 text-white hover:bg-white/20 hover:border-white/40"
+                        }`}
+                      >
+                        <span className="text-purple-300 mr-2">
+                          {String.fromCharCode(65 + index)})
+                        </span>
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              // Yedek de yanlış → açıklama
+              <div className="space-y-4">
+                <div className="bg-red-500/20 border border-red-400/40 rounded-2xl p-5">
+                  <p className="text-red-200 font-bold mb-2">Yedek Soru da Yanlış</p>
+                  <p className="text-white/80 text-sm">
+                    Doğru cevap:{" "}
+                    <span className="font-bold text-green-300">
+                      {backupSoru.secenekler[backupSoru.dogruIndex]}
+                    </span>
+                  </p>
+                  <p className="text-white/50 text-xs mt-2 leading-relaxed">
+                    {backupSoru.ipucu2}
+                  </p>
+                </div>
+                <button
+                  onClick={handleForceAdvance}
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl text-sm transition-colors"
+                >
+                  Bir Sonraki Durağa Devam Et →
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── DOĞRU / SONRAKI DURAK ── */}
+        {screen === "correct" && soru && (
           <div>
             <div className="bg-green-500/20 border border-green-400/40 rounded-2xl p-5 text-center mb-4">
               <div className="text-3xl mb-2">✅</div>
               <p className="text-green-200 font-bold text-lg mb-1">
-                Doğru Cevap!
+                Doğru Cevap! Kanıt toplandı 🔍
               </p>
               <p className="text-green-100/70 text-sm">
                 {soru.secenekler[soru.dogruIndex]}

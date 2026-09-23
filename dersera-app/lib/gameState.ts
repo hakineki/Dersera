@@ -4,6 +4,8 @@ export const STORAGE_KEYS = {
   PROGRESS: "dersera:progress",
   END_TIME: "dersera:endTime",
   CUSTOM_STOPS: "dersera:custom-stops",
+  PENALTY: "dersera:penalty",
+  LEADERBOARD: "dersera:leaderboard",
 } as const;
 
 export interface StopProgress {
@@ -22,6 +24,14 @@ export interface CustomStop {
   dersKey: string;
   nextStopId: string | null;
   nextClue: string;
+}
+
+export interface LeaderboardEntry {
+  nickname: string;
+  netSeconds: number;
+  penaltySeconds: number;
+  hintsUsed: number;
+  completedAt: number;
 }
 
 function safeGet(key: string): string | null {
@@ -81,6 +91,37 @@ export function saveEndTime(ts: number): void {
   safeSet(STORAGE_KEYS.END_TIME, String(ts));
 }
 
+export function loadPenaltySeconds(): number {
+  const v = safeGet(STORAGE_KEYS.PENALTY);
+  return v ? Number(v) : 0;
+}
+
+export function addPenalty(seconds: number): void {
+  const current = loadPenaltySeconds();
+  safeSet(STORAGE_KEYS.PENALTY, String(current + seconds));
+}
+
+export function loadLeaderboard(): LeaderboardEntry[] {
+  try {
+    const raw = safeGet(STORAGE_KEYS.LEADERBOARD);
+    return raw ? (JSON.parse(raw) as LeaderboardEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addLeaderboardEntry(entry: LeaderboardEntry): void {
+  const board = loadLeaderboard();
+  // Aynı takma adın önceki girişini sil (en iyi skor değil, en son)
+  const filtered = board.filter((e) => e.nickname !== entry.nickname);
+  safeSet(
+    STORAGE_KEYS.LEADERBOARD,
+    JSON.stringify([...filtered, entry].sort(
+      (a, b) => (a.netSeconds + a.penaltySeconds) - (b.netSeconds + b.penaltySeconds)
+    ))
+  );
+}
+
 export function loadCustomStops(): CustomStop[] {
   try {
     const raw = safeGet(STORAGE_KEYS.CUSTOM_STOPS);
@@ -124,6 +165,7 @@ export function clearGameState(): void {
       STORAGE_KEYS.START_TIME,
       STORAGE_KEYS.PROGRESS,
       STORAGE_KEYS.END_TIME,
+      STORAGE_KEYS.PENALTY,
     ].forEach((k) => localStorage.removeItem(k));
   } catch {
     /* ignore */
