@@ -46,10 +46,10 @@ describe("composeGame", () => {
     expect(calls[0].body.model).toBe("claude-opus-5");
   });
 
-  it("30 sn sınırını, yeniden denemesiz ve iptal sinyaliyle uygular", async () => {
+  it("150 sn sınırını, yeniden denemesiz ve iptal sinyaliyle uygular", async () => {
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(input)));
     await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
-    expect(calls[0].options).toMatchObject({ timeout: 30_000, maxRetries: 0 });
+    expect(calls[0].options).toMatchObject({ timeout: 150_000, maxRetries: 0 });
     expect(calls[0].options.signal).toBeInstanceOf(AbortSignal);
   });
 
