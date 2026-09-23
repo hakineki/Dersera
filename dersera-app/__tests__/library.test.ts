@@ -4,7 +4,6 @@ import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 import { KUTUPHANE_HEADER, KUTUPHANE_LIMIT, kayitOlustur } from "@/lib/library";
 import { createRedisLibraryStore } from "@/lib/libraryStore";
-import type { GameDefinition } from "@/lib/composer/definition";
 
 const input = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const definition = makeDefinition(input, 7);
@@ -30,8 +29,17 @@ describe("oyun kütüphanesi", () => {
   };
   const get = (path: string, key: string | null) => withKey(new Request(`http://localhost${path}`), key);
 
-  async function composerYayinla(key: string | null = A, def: GameDefinition = definition) {
-    const res = await api.games.POST(jsonRequest("/api/games", { composer: { definition: def, dersler }, kutuphane: key }));
+  async function kaydet(key: string | null = A, def: unknown = definition) {
+    const res = await api.library.POST(withKey(jsonRequest("/api/library", { definition: def, dersler }), key));
+    return { res, data: await res.json() };
+  }
+  async function guncelle(id: string, def: unknown, key: string | null = A) {
+    const req = withKey(new Request(`http://localhost/api/library/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ definition: def }) }), key);
+    const res = await api.libraryItem.PUT(req, api.idParams(id));
+    return { res, data: await res.json() };
+  }
+  async function detay(id: string, key: string | null = A) {
+    const res = await api.libraryItem.GET(get(`/api/library/${id}`, key), api.idParams(id));
     return { res, data: await res.json() };
   }
   async function liste(key: string | null) {
@@ -43,14 +51,15 @@ describe("oyun kütüphanesi", () => {
     return { res, data: await res.json() };
   }
 
-  it("composer yayını kütüphaneye düşer; liste özet alanlarını verir, tam tanımı vermez", async () => {
-    const { res, data } = await composerYayinla();
+  it("Kütüphaneye kaydet oyunu ekler; liste özet alanlarını verir, tam tanımı vermez", async () => {
+    const { res, data } = await kaydet();
     expect(res.status).toBe(201);
-    expect(data.kutuphaneId).toMatch(/^[a-z0-9]{8,32}$/);
+    expect(data.id).toMatch(/^[a-z0-9]{8,32}$/);
+    expect(data.validation.gecerli).toBe(true);
     const { data: l } = await liste(A);
     expect(l.oyunlar).toHaveLength(1);
     expect(l.oyunlar[0]).toMatchObject({
-      id: data.kutuphaneId,
+      id: data.id,
       baslik: definition.meta.baslik,
       ders: definition.meta.ders,
       konu: definition.meta.konu,
@@ -58,35 +67,86 @@ describe("oyun kütüphanesi", () => {
       sure_dk: 40,
       deneyim: "dengeli",
       durakSayisi: 7,
-      sonKod: data.game.code,
+      sonKod: null,
+      sonYayin: null,
     });
     expect(typeof l.oyunlar[0].createdAt).toBe("number");
     expect(l.oyunlar[0]).not.toHaveProperty("definition");
   });
 
   it("anahtarsız ya da bozuk anahtarla 401; başka anahtar başkasının oyunlarını görmez", async () => {
-    await composerYayinla();
+    await kaydet();
     expect((await liste(null)).res.status).toBe(401);
     expect((await liste("kisa")).res.status).toBe(401);
     expect((await liste(B)).data.oyunlar).toEqual([]);
   });
 
-  it("anahtar göndermeyen yayın ve klasik yayın kütüphaneye düşmez", async () => {
-    expect((await composerYayinla(null)).data.kutuphaneId).toBeNull();
-    const klasik = await api.games.POST(
-      jsonRequest("/api/games", { durationMinutes: 60, aylar: ["eylul"], stops: [{ qr: 1, name: "A", emoji: "x", dersKey: "matematik", hikaye: "h" }], kutuphane: A })
-    );
-    expect(klasik.status).toBe(201);
-    expect((await klasik.json()).kutuphaneId).toBeNull();
+  it("yayınlamak kütüphaneye yazmaz; kaydetmek anahtar ister", async () => {
+    const yayin = await api.games.POST(jsonRequest("/api/games", { composer: { definition, dersler }, kutuphane: A }));
+    expect(yayin.status).toBe(201);
+    expect(await yayin.json()).not.toHaveProperty("kutuphaneId");
     expect((await liste(A)).data.oyunlar).toEqual([]);
+    expect((await kaydet(null)).res.status).toBe(401);
+  });
+
+  it("doğrulamadan geçmeyen oyun da kaydedilir (sonra düzeltilir); şemaya uymayan ya da konusu tutmayan reddedilir", async () => {
+    const yarim = JSON.parse(JSON.stringify(definition));
+    yarim.duraklar[0].gorev.soru = "";
+    const { res, data } = await kaydet(A, yarim);
+    expect(res.status).toBe(201);
+    expect(data.validation.gecerli).toBe(false);
+    expect((await kaydet(A, { meta: {} })).res.status).toBe(422);
+    const baskaKonu = JSON.parse(JSON.stringify(definition));
+    baskaKonu.meta.konu = "Uydurma";
+    expect((await kaydet(A, baskaKonu)).res.status).toBe(422);
+  });
+
+  it("detay düzenleyici için hedefleri, ders hedeflerini ve doğrulamayı verir", async () => {
+    const { data } = await kaydet();
+    const d = await detay(data.id);
+    expect(d.res.status).toBe(200);
+    expect(d.data.oyun.definition).toEqual(definition);
+    expect(d.data.hedefler.map((h: { kod: string }) => h.kod)).toEqual(input.ogrenmeCiktilari.map((o) => o.kod));
+    expect(Object.keys(d.data.hedefDersleri)).toEqual(["Fizik"]);
+    expect(d.data.validation.gecerli).toBe(true);
+  });
+
+  it("düzenleme aynı kayda yazılır; oluşturulma tarihi ve son kod korunur", async () => {
+    const { data } = await kaydet();
+    const yayin = await yenidenYayinla(data.id);
+    const duzenli = JSON.parse(JSON.stringify(definition));
+    duzenli.duraklar[0].gorev.soru = "Yeni soru?";
+    duzenli.meta.baslik = "Yeni Başlık";
+    const u = await guncelle(data.id, duzenli);
+    expect(u.res.status).toBe(200);
+    expect(u.data.validation.gecerli).toBe(true);
+    const d = await detay(data.id);
+    expect(d.data.oyun.definition.duraklar[0].gorev.soru).toBe("Yeni soru?");
+    expect(d.data.oyun.baslik).toBe("Yeni Başlık");
+    expect(d.data.oyun.sonKod).toBe(yayin.data.game.code);
+    const l = (await liste(A)).data.oyunlar;
+    expect(l).toHaveLength(1);
+    expect(l[0].createdAt).toBe(d.data.oyun.createdAt);
+    // Tekrar yayın düzenlenmiş hâli kullanır.
+    expect((await yenidenYayinla(data.id)).data.game.definition.duraklar[0].gorev.soru).toBe("Yeni soru?");
+  });
+
+  it("düzenleme ders/konu değiştiremez, başkasının kaydına yazamaz, bozuk tanımı reddeder", async () => {
+    const { data } = await kaydet();
+    const baskaDers = JSON.parse(JSON.stringify(definition));
+    baskaDers.meta.ders = "Kimya";
+    expect((await guncelle(data.id, baskaDers)).res.status).toBe(422);
+    expect((await guncelle(data.id, definition, B)).res.status).toBe(404);
+    expect((await guncelle(data.id, { duraklar: "x" })).res.status).toBe(422);
+    expect((await guncelle("olmayanid1", definition)).res.status).toBe(404);
+    expect((await detay(data.id)).data.oyun.definition).toEqual(definition);
   });
 
   it("tekrar yayın yeni kod üretir, dış API çağrısı yapmaz, son kodu günceller", async () => {
-    const { data } = await composerYayinla();
-    const r = await yenidenYayinla(data.kutuphaneId);
+    const { data } = await kaydet();
+    const r = await yenidenYayinla(data.id);
     expect(r.res.status).toBe(201);
     expect(r.data.game.code).toMatch(/^[A-Z]{3}-\d{3}$/);
-    expect(r.data.game.code).not.toBe(data.game.code);
     expect(r.data.game.definition).toEqual(definition);
     expect(typeof r.data.adminToken).toBe("string");
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -96,16 +156,16 @@ describe("oyun kütüphanesi", () => {
   });
 
   it("tekrar yayında süre ayarlanır; geçersiz süre 422", async () => {
-    const { data } = await composerYayinla();
-    const r = await yenidenYayinla(data.kutuphaneId, A, { durationMinutes: 30 });
+    const { data } = await kaydet();
+    const r = await yenidenYayinla(data.id, A, { durationMinutes: 30 });
     expect(r.data.game.expiresAt - r.data.game.createdAt).toBe(30 * 60 * 1000);
-    expect((await yenidenYayinla(data.kutuphaneId, A, { durationMinutes: 2 })).res.status).toBe(422);
-    expect((await yenidenYayinla(data.kutuphaneId, A, { durationMinutes: "60" })).res.status).toBe(422);
+    expect((await yenidenYayinla(data.id, A, { durationMinutes: 2 })).res.status).toBe(422);
+    expect((await yenidenYayinla(data.id, A, { durationMinutes: "60" })).res.status).toBe(422);
   });
 
   it("başkasının oyununu yayınlayamaz, göremez, silemez", async () => {
-    const { data } = await composerYayinla();
-    const id = data.kutuphaneId;
+    const { data } = await kaydet();
+    const id = data.id;
     expect((await yenidenYayinla(id, B)).res.status).toBe(404);
     expect((await api.libraryItem.GET(get(`/api/library/${id}`, B), api.idParams(id))).status).toBe(404);
     const sil = await api.libraryItem.DELETE(withKey(new Request(`http://localhost/api/library/${id}`, { method: "DELETE" }), B), api.idParams(id));
@@ -114,8 +174,8 @@ describe("oyun kütüphanesi", () => {
   });
 
   it("önizleme tam tanımı döndürür; silinen oyun listeden kalkar ve tekrar yayınlanamaz", async () => {
-    const { data } = await composerYayinla();
-    const id = data.kutuphaneId;
+    const { data } = await kaydet();
+    const id = data.id;
     const tam = await api.libraryItem.GET(get(`/api/library/${id}`, A), api.idParams(id));
     expect((await tam.json()).oyun.definition).toEqual(definition);
     const sil = () => api.libraryItem.DELETE(withKey(new Request(`http://localhost/api/library/${id}`, { method: "DELETE" }), A), api.idParams(id));
@@ -126,7 +186,7 @@ describe("oyun kütüphanesi", () => {
   });
 
   it("tekrar yayın, bu arada silinen kaydı geri getirmez", async () => {
-    const { data } = await composerYayinla();
+    const { data } = await kaydet();
     // Kayıt yayın sırasında silinmiş gibi: replace yazmamalı.
     const store = api.libraryStore.getLibraryStore();
     const sahip = await api.libraryService.sahipOf(A);
@@ -134,29 +194,28 @@ describe("oyun kütüphanesi", () => {
     await store.remove(sahip, kayit.id);
     expect(await store.replace(sahip, kayit)).toBe(false);
     expect(await store.list(sahip)).toEqual([]);
-    expect((await yenidenYayinla(data.kutuphaneId)).res.status).toBe(404);
+    expect((await yenidenYayinla(data.id)).res.status).toBe(404);
   });
 
-  it("kütüphane deposu hata verse de composer yayını 201 döner", async () => {
+  it("kütüphane deposu hata verirse kaydet 503 döner", async () => {
     const spy = jest.spyOn(api.libraryStore, "getLibraryStore").mockImplementation(() => {
       throw new Error("redis kapalı");
     });
     const err = jest.spyOn(console, "error").mockImplementation(() => {});
-    const { res, data } = await composerYayinla();
+    const { res } = await kaydet();
     spy.mockRestore();
     err.mockRestore();
-    expect(res.status).toBe(201);
-    expect(data.kutuphaneId).toBeNull();
+    expect(res.status).toBe(503);
   });
 
   it("kayıtlı tanım doğrulamadan geçmiyorsa tekrar yayın 422 döner", async () => {
-    const { data } = await composerYayinla();
+    const { data } = await kaydet();
     const store = api.libraryStore.getLibraryStore();
     const sahip = await api.libraryService.sahipOf(A);
-    const kayit = await store.get(sahip, data.kutuphaneId);
+    const kayit = await store.get(sahip, data.id);
     kayit!.definition.duraklar[0].gorev.soru = "";
     await store.put(sahip, kayit!);
-    const r = await yenidenYayinla(data.kutuphaneId);
+    const r = await yenidenYayinla(data.id);
     expect(r.res.status).toBe(422);
     expect(r.data.validation.hatalar.map((h: { kod: string }) => h.kod)).toContain("soru-bos");
   });
@@ -166,18 +225,18 @@ describe("oyun kütüphanesi", () => {
     expect((await api.libraryItem.GET(get("/api/library/ABC", A), api.idParams("ABC"))).status).toBe(404);
   });
 
-  it(`kütüphane ${KUTUPHANE_LIMIT} oyunla dolunca yayın yine olur ama kütüphaneye eklenmez`, async () => {
-    for (let i = 0; i < KUTUPHANE_LIMIT; i++) expect((await composerYayinla()).data.kutuphaneId).not.toBeNull();
-    const { res, data } = await composerYayinla();
-    expect(res.status).toBe(201);
-    expect(data.kutuphaneId).toBeNull();
+  it(`kütüphane ${KUTUPHANE_LIMIT} oyunla dolunca yeni kayıt 409 döner`, async () => {
+    for (let i = 0; i < KUTUPHANE_LIMIT; i++) expect((await kaydet()).res.status).toBe(201);
+    const { res, data } = await kaydet();
+    expect(res.status).toBe(409);
+    expect(data.error).toContain("dolu");
     expect((await liste(A)).data.oyunlar).toHaveLength(KUTUPHANE_LIMIT);
   });
 
   it("liste en yeni oyunu önce verir", async () => {
     jest.spyOn(Date, "now").mockReturnValueOnce(1000);
-    const eski = (await composerYayinla()).data.kutuphaneId;
-    const yeni = (await composerYayinla()).data.kutuphaneId;
+    const eski = (await kaydet()).data.id;
+    const yeni = (await kaydet()).data.id;
     jest.restoreAllMocks();
     expect((await liste(A)).data.oyunlar.map((o: { id: string }) => o.id)).toEqual([yeni, eski]);
   });

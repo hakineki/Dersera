@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { ozetOf } from "@/lib/library";
 import { getLibraryStore } from "@/lib/libraryStore";
-import { anahtarOf, sahipOf } from "@/lib/libraryService";
+import { anahtarOf, kutuphaneyeEkle, sahipOf } from "@/lib/libraryService";
 
 export async function GET(req: Request) {
   const anahtar = anahtarOf(req);
@@ -14,5 +14,20 @@ export async function GET(req: Request) {
   } catch (err) {
     console.error("[kutuphane] listeleme hatası", err);
     return NextResponse.json({ error: "Kütüphane okunamadı" }, { status: 503 });
+  }
+}
+
+// Composer'daki "Kütüphaneye kaydet" butonu. Yayınlamadan bağımsızdır.
+export async function POST(req: Request) {
+  const anahtar = anahtarOf(req);
+  if (!anahtar) return NextResponse.json({ error: "Kütüphane anahtarı gerekli" }, { status: 401 });
+  const body = await req.json().catch(() => null);
+  try {
+    const r = await kutuphaneyeEkle(getLibraryStore(), anahtar, body);
+    if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
+    return NextResponse.json({ id: r.id, validation: r.validation }, { status: 201 });
+  } catch (err) {
+    console.error("[kutuphane] kayıt hatası", err);
+    return NextResponse.json({ error: "Oyun kütüphaneye kaydedilemedi" }, { status: 503 });
   }
 }

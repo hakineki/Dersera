@@ -10,7 +10,7 @@ import type { GameDefinition } from "@/lib/composer/definition";
 import { validateGame, type ValidationResult } from "@/lib/composer/validator";
 import { loadTeacherSession } from "@/lib/teacherAuth";
 import { saveTeacherGame } from "@/lib/teacherGame";
-import { kutuphaneAnahtari } from "@/lib/libraryClient";
+import { kutuphaneOyunu, kutuphaneyeKaydet } from "@/lib/libraryClient";
 import type { PublishResponse } from "@/lib/gamesClient";
 import ComposerPreview from "./ComposerPreview";
 import DurakEditor, { type Duzenlenen } from "./DurakEditor";
@@ -128,11 +128,39 @@ export default function ComposerClient({
   const [duzenlenen, setDuzenlenen] = useState<Duzenlenen | null>(null);
   const [yayinlaniyor, setYayinlaniyor] = useState(false);
   const [yayinHatasi, setYayinHatasi] = useState("");
+  // Kütüphane kaydı: id yoksa henüz kaydedilmedi; degisti, kayıttan sonra düzenlendi demektir.
+  const [kutuphaneId, setKutuphaneId] = useState<string | null>(null);
+  const [kutuphaneDurumu, setKutuphaneDurumu] = useState<"kayitsiz" | "degisti" | "kaydedildi" | "kaydediliyor">("kayitsiz");
+  const [kutuphaneHatasi, setKutuphaneHatasi] = useState("");
   const istek = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setOgretmen(loadTeacherSession()));
     return () => clearTimeout(t);
+  }, []);
+
+  // /composer?kutuphane=<id>: kütüphanedeki oyun aynı düzenleyiciyle açılır.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("kutuphane");
+    if (!id) return;
+    let iptal = false;
+    const t = setTimeout(async () => {
+      setDurum({ tur: "yukleniyor" });
+      const d = await kutuphaneOyunu(id);
+      if (iptal) return;
+      if (!d || !d.validation) {
+        setDurum({ tur: "hata", mesaj: "Kütüphanedeki oyun açılamadı." });
+        return;
+      }
+      setSonuc({ definition: d.oyun.definition, validation: d.validation, dersler: d.oyun.dersler, hedefler: d.hedefler, hedefDersleri: d.hedefDersleri });
+      setKutuphaneId(id);
+      setKutuphaneDurumu("kaydedildi");
+      setDurum({ tur: "onizleme" });
+    });
+    return () => {
+      iptal = true;
+      clearTimeout(t);
+    };
   }, []);
 
   // İlerleme %93'e asimptotik yaklaşır; yanıt gelince %100'e atlar. Üretim 1,5–3 dakika sürebilir.
@@ -216,6 +244,22 @@ export default function ComposerClient({
     });
     setSonuc({ ...sonuc, definition: def, validation: validateGame(def, ctx) });
     setDuzenlenen(null);
+    if (kutuphaneId) setKutuphaneDurumu("degisti");
+  }
+
+  async function kutuphaneyeEkle() {
+    if (!sonuc) return;
+    setKutuphaneDurumu("kaydediliyor");
+    setKutuphaneHatasi("");
+    const r = await kutuphaneyeKaydet(sonuc.definition, sonuc.dersler, kutuphaneId);
+    if ("error" in r) {
+      setKutuphaneHatasi(r.error);
+      setKutuphaneDurumu(kutuphaneId ? "degisti" : "kayitsiz");
+      return;
+    }
+    setKutuphaneId(r.id);
+    setKutuphaneDurumu("kaydedildi");
+    setSonuc((s) => (s ? { ...s, validation: r.validation } : s));
   }
 
   async function yayinla() {
@@ -226,7 +270,7 @@ export default function ComposerClient({
       const res = await fetch("/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ composer: { definition: sonuc.definition, dersler: sonuc.dersler }, kutuphane: kutuphaneAnahtari() }),
+        body: JSON.stringify({ composer: { definition: sonuc.definition, dersler: sonuc.dersler } }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -236,7 +280,6 @@ export default function ComposerClient({
       }
       const pub = json as PublishResponse;
       saveTeacherGame({ game: pub.game, adminToken: pub.adminToken });
-      if (!pub.kutuphaneId) window.alert("Oyun yayınlandı ama kütüphaneye eklenemedi (kütüphane dolu olabilir). Yer açmak için kütüphaneden eski bir oyunu silebilirsin.");
       router.push("/ogretmen");
     } catch {
       setYayinHatasi("Oyun yayınlanamadı. Bağlantınızı kontrol edin.");
@@ -250,7 +293,7 @@ export default function ComposerClient({
       <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <DerseraLogo />
-          <p className="text-xs font-semibold text-indigo-200 border-l border-indigo-700 pl-3">Yeni Oyun Oluştur</p>
+          <p className="text-xs font-semibold text-indigo-200 border-l border-indigo-700 pl-3">{kutuphaneId ? "Kütüphane Oyununu Düzenle" : "Yeni Oyun Oluştur"}</p>
         </div>
         <Link href="/ogretmen" className="text-indigo-300 hover:text-white text-sm whitespace-nowrap">
           ← Panel
@@ -381,8 +424,13 @@ export default function ComposerClient({
             onPublish={yayinla}
             onNew={() => {
               setSonuc(null);
+              setKutuphaneId(null);
+              setKutuphaneDurumu("kayitsiz");
+              setKutuphaneHatasi("");
+              window.history.replaceState(null, "", "/composer");
               setDurum({ tur: "form" });
             }}
+            kutuphane={{ durum: kutuphaneDurumu, hata: kutuphaneHatasi, onSave: kutuphaneyeEkle }}
             publishing={yayinlaniyor}
             publishError={yayinHatasi}
           />

@@ -24,6 +24,7 @@ export default function ComposerPreview({
   onNew,
   publishing,
   publishError,
+  kutuphane,
 }: {
   definition: GameDefinition;
   validation: ValidationResult;
@@ -33,6 +34,7 @@ export default function ComposerPreview({
   onNew: () => void;
   publishing: boolean;
   publishError: string;
+  kutuphane: { durum: "kayitsiz" | "degisti" | "kaydedildi" | "kaydediliyor"; hata: string; onSave: () => void };
 }) {
   const ozet = summarize(definition);
   const hedefMetni = (kod: string) => hedefler.find((h) => h.kod === kod)?.metin ?? "";
@@ -135,9 +137,22 @@ export default function ComposerPreview({
         </p>
       )}
 
+      {kutuphane.hata && (
+        <p role="alert" className="text-sm text-red-600">
+          {kutuphane.hata}
+        </p>
+      )}
+
       <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur py-3 flex gap-2">
         <button onClick={() => onEdit({ tur: "durak", durak: definition.duraklar[0] })} className="flex-1 border border-indigo-300 text-indigo-700 font-semibold py-3 rounded-xl">
           Düzenle
+        </button>
+        <button
+          onClick={kutuphane.onSave}
+          disabled={kutuphane.durum === "kaydedildi" || kutuphane.durum === "kaydediliyor"}
+          className="flex-1 border border-indigo-300 text-indigo-700 disabled:text-green-700 disabled:border-green-300 font-semibold py-3 rounded-xl"
+        >
+          {{ kayitsiz: "📚 Kütüphaneye kaydet", degisti: "📚 Kütüphanede güncelle", kaydedildi: "✓ Kütüphanede", kaydediliyor: "Kaydediliyor…" }[kutuphane.durum]}
         </button>
         <button
           onClick={onPublish}
