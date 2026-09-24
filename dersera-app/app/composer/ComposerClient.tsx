@@ -7,6 +7,7 @@ import DerseraLogo from "@/components/DerseraLogo";
 import type { KonuSecenegi, OgrenmeCiktisi } from "@/data/mufredat/programlar";
 import { validationContext } from "@/lib/composer/context";
 import type { GameDefinition } from "@/lib/composer/definition";
+import type { YzDenetim } from "@/lib/composer/yzDenetim";
 import { validateGame, type ValidationResult } from "@/lib/composer/validator";
 import { oturumBilgisi } from "@/lib/authClient";
 import { saveTeacherGame } from "@/lib/teacherGame";
@@ -50,6 +51,9 @@ interface DersKonu {
 interface ComposeResponse {
   definition: GameDefinition;
   validation: ValidationResult;
+  // Sunucudaki yapay zekâ denetimi ve hangi tanım için yapıldığı (düzenleme yeni tanım üretir; denetim yayında yenilenir).
+  guvenlik?: YzDenetim;
+  guvenlikTanimi?: GameDefinition;
   dersler: DersKonu[];
   hedefler: OgrenmeCiktisi[];
   hedefDersleri: Record<string, string[]>;
@@ -274,7 +278,7 @@ export default function ComposerClient({
         return;
       }
       setIlerleme(100);
-      setSonuc(json as ComposeResponse);
+      setSonuc({ ...(json as ComposeResponse), guvenlikTanimi: (json as ComposeResponse).definition });
       setTimeout(() => setDurum({ tur: "onizleme" }), 250);
     } catch {
       setDurum({ tur: "hata", mesaj: "Oyun şu anda oluşturulamadı. Tekrar deneyin." });
@@ -347,7 +351,7 @@ export default function ComposerClient({
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (json.validation) setSonuc({ ...sonuc, validation: json.validation });
+        if (json.validation) setSonuc({ ...sonuc, validation: json.validation, ...(json.guvenlik && { guvenlik: json.guvenlik, guvenlikTanimi: sonuc.definition }) });
         setYayinHatasi(json.error ?? "Oyun yayınlanamadı. Tekrar deneyin.");
         return;
       }
@@ -563,6 +567,7 @@ export default function ComposerClient({
           <ComposerPreview
             definition={sonuc.definition}
             validation={sonuc.validation}
+            guvenlik={sonuc.guvenlik && sonuc.guvenlikTanimi === sonuc.definition ? sonuc.guvenlik : { durum: "bekliyor" }}
             hedefler={sonuc.hedefler}
             onEdit={setDuzenlenen}
             onPublish={yayinla}

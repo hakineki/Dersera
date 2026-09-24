@@ -7,20 +7,23 @@ import { makeDefinition, resolvedInput, toModelOutput } from "./helpers/composer
 
 type ComposeRoute = typeof import("@/app/api/compose/route");
 type AnthropicMod = typeof import("@/lib/composer/anthropic");
+type YzMod = typeof import("@/lib/composer/yzDenetimService");
 
 // Route ve anthropic modülü aynı izole kayıttan yüklenir; spy ve hata sınıfı route'un gördüğüyle aynı olur.
 // Ücretli uç nokta oturum ister: aynı kayıtta bir öğretmen hesabı açılır ve çerezi isteklere eklenir.
 let cerez: string | null = null;
 
-async function loadCompose(): Promise<{ route: ComposeRoute; anthropic: AnthropicMod }> {
+async function loadCompose(): Promise<{ route: ComposeRoute; anthropic: AnthropicMod; yz: YzMod }> {
   let route!: ComposeRoute;
   let anthropic!: AnthropicMod;
+  let yz!: YzMod;
   let auth!: typeof import("@/lib/auth");
   let authStore!: typeof import("@/lib/authStore");
   let krediStore!: typeof import("@/lib/krediStore");
   await jest.isolateModulesAsync(async () => {
     anthropic = await import("@/lib/composer/anthropic");
     route = await import("@/app/api/compose/route");
+    yz = await import("@/lib/composer/yzDenetimService");
     auth = await import("@/lib/auth");
     authStore = await import("@/lib/authStore");
     krediStore = await import("@/lib/krediStore");
@@ -32,7 +35,7 @@ async function loadCompose(): Promise<{ route: ComposeRoute; anthropic: Anthropi
   cerez = `${auth.OTURUM_CEREZI}=${await auth.oturumAc(store, hesap.value)}`;
   // Bu dosya üretim hattını ve oran sınırını dener; kredi ayrı dosyada (kredi.test.ts) denetlenir.
   await krediStore.getKrediStore().odul(hesap.value.id, 10_000, Date.now(), "test");
-  return { route, anthropic };
+  return { route, anthropic, yz };
 }
 
 const body = (sinif: number, ders: string, sure: number, deneyim: string, alan: string, ip = "1.1.1.1") => {
@@ -47,13 +50,39 @@ describe("POST /api/compose", () => {
   let route: ComposeRoute;
   let anthropic: AnthropicMod;
   let spy: jest.SpyInstance;
+  let yzSpy: jest.SpyInstance;
   const errSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
   beforeEach(async () => {
     clearRedisEnv();
     process.env.ANTHROPIC_API_KEY = "test-key";
-    ({ route, anthropic } = await loadCompose());
+    let yz: YzMod;
+    ({ route, anthropic, yz } = await loadCompose());
     spy = jest.spyOn(anthropic, "composeGame").mockImplementation(async (input: ResolvedInput) => toModelOutput(makeDefinition(input, input.sure === 20 ? 5 : input.sure === 40 ? 7 : 9)));
+    yzSpy = jest.spyOn(yz, "yzDenetle").mockResolvedValue({ durum: "tamam", bulgular: [] });
+  });
+
+  it("yanıt çocuk güvenliği denetimini taşır; denetim kalan süreyle ve en çok 25 sn yapılır", async () => {
+    const json = await (await route.POST(body(10, "fizik", 40, "dengeli", "sinif").req)).json();
+    expect(json.guvenlik).toEqual({ durum: "tamam", bulgular: [] });
+    expect(yzSpy).toHaveBeenCalledTimes(1);
+    const [def, secenek] = yzSpy.mock.calls[0];
+    expect(def.meta.baslik).toBe(json.definition.meta.baslik);
+    expect(secenek.timeoutMs).toBeGreaterThanOrEqual(8_000);
+    expect(secenek.timeoutMs).toBeLessThanOrEqual(25_000);
+    // Oturumlu uç nokta: oran sınırı oluşturma sınırıyla zaten uygulanır.
+    expect(secenek.ip).toBeUndefined();
+  });
+
+  it("geçersiz oyunda denetim yapılmaz (yayınlanamaz; çağrı boşa gider)", async () => {
+    spy.mockImplementationOnce(async (input: ResolvedInput) => {
+      const d = toModelOutput(makeDefinition(input));
+      d.duraklar[2].varsayilan_sonraki_durak_id = "yok";
+      return d;
+    });
+    const json = await (await route.POST(body(10, "fizik", 40, "dengeli", "sinif").req)).json();
+    expect(json.guvenlik).toEqual({ durum: "bekliyor" });
+    expect(yzSpy).not.toHaveBeenCalled();
   });
   afterEach(() => spy.mockRestore());
   afterAll(() => errSpy.mockRestore());

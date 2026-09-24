@@ -13,6 +13,7 @@ import type { LibraryStore } from "@/lib/libraryStore";
 import type { ValidationResult } from "@/lib/composer/validator";
 import type { YonetisimSonucu } from "@/lib/composer/yonetisim";
 import { IZ_SURUMU, parmakizi, surumKarari, type Parmakizi } from "@/lib/surum";
+import { yzDenetle } from "@/lib/composer/yzDenetimService";
 
 // Eski (hesap öncesi) kütüphaneler tarayıcı anahtarının özetine bağlıydı; yalnız hesaba taşımada kullanılır.
 export const eskiSahipOf = (anahtar: string) => hashToken(anahtar);
@@ -133,7 +134,8 @@ export function parseSure(v: unknown): number | null | undefined {
   return Number.isInteger(v) && (v as number) >= MIN_DURATION_MIN && (v as number) <= MAX_DURATION_MIN ? (v as number) : null;
 }
 
-// Kayıtlı oyunu yeni kodla yayınlar. Anthropic çağrısı yoktur; tanım yayın öncesi müfredata göre yeniden doğrulanır.
+// Kayıtlı oyunu yeni kodla yayınlar. Oyun yeniden üretilmez; tanım yayın öncesi müfredata göre yeniden doğrulanır ve
+// çocuk güvenliği denetimi (içerik değişmediyse önbellekten) uygulanır.
 export async function yenidenYayinla(
   library: LibraryStore,
   games: GamesStore,
@@ -144,7 +146,7 @@ export async function yenidenYayinla(
 ): Promise<YenidenYayinSonucu> {
   const kayit = await library.get(sahip, id);
   if (!kayit) return { ok: false, status: 404, error: "Oyun kütüphanede bulunamadı" };
-  const composed = parseComposerPublish({ composer: { definition: kayit.definition, dersler: kayit.dersler } });
+  const composed = await parseComposerPublish({ composer: { definition: kayit.definition, dersler: kayit.dersler } }, (def) => yzDenetle(def));
   if (!composed.ok) return composed;
   const published = await publishGame(games, { ...composed.request, durationMinutes: sure ?? composed.request.durationMinutes }, now);
   if (!published) return { ok: false, status: 503, error: "Benzersiz oyun kodu üretilemedi" };

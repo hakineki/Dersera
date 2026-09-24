@@ -3,6 +3,7 @@ import type { Hesap } from "@/lib/authStore";
 import { parseComposerDefinition } from "@/lib/composer/adapter";
 import { checkLimit } from "@/lib/composer/rateLimit";
 import { yonetisimDegerlendir, type YonetisimSonucu } from "@/lib/composer/yonetisim";
+import { yzDenetle, yzOnbellektenOku } from "@/lib/composer/yzDenetimService";
 import { kutuphaneIstatistikleri } from "@/lib/istatistikService";
 import { toplulukOdulu } from "@/lib/krediService";
 import type { LibraryStore } from "@/lib/libraryStore";
@@ -116,7 +117,7 @@ export async function topluluktaPaylas(
 
   const r = parseComposerDefinition(kutuphaneKaydi.definition, kutuphaneKaydi.dersler);
   if (!r.ok) return { ok: false, status: r.status, error: r.error };
-  const yonetisim = yonetisimDegerlendir(r.definition, r.validation);
+  const yonetisim = yonetisimDegerlendir(r.definition, r.validation, r.validation.gecerli ? await yzDenetle(r.definition) : undefined);
   if (yonetisim.karar === "BLOCK") return { ok: false, status: 422, error: "Oyun içerik denetiminden geçmedi; topluluğa gönderilemez.", yonetisim };
 
   const [ist] = await kutuphaneIstatistikleri([kaynak]);
@@ -233,7 +234,9 @@ export async function incelemeDetayi(store: ToplulukStore, hesap: Hesap, id: str
   const r = await incelenebilirKayit(store, hesap, id, now);
   if (!r.ok) return r;
   const detay = kullanimDetayi(r.kayit);
-  return { ok: true as const, ...detay, yonetisim: detay.validation ? yonetisimDegerlendir(r.kayit.definition, detay.validation) : null, ...say(r.incelemeler) };
+  // İnceleme ekranı model çağırmaz: gönderimde yapılan denetim önbellekten okunur.
+  const yz = detay.validation ? await yzOnbellektenOku(r.kayit.definition) : undefined;
+  return { ok: true as const, ...detay, yonetisim: detay.validation ? yonetisimDegerlendir(r.kayit.definition, detay.validation, yz) : null, ...say(r.incelemeler) };
 }
 
 // Hesap başına tek oy. Gerekli kabul sayısına ulaşınca yayına girer (önceki sürüm listeden çıkar); ret eşiğinde reddedilir.

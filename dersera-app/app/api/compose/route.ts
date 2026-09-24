@@ -3,6 +3,8 @@ import { ComposeError } from "@/lib/composer/anthropic";
 import { parseComposeInput } from "@/lib/composer/input";
 import { checkComposeLimit, clientIp, LimiterUnavailableError } from "@/lib/composer/rateLimit";
 import { composeAndValidate } from "@/lib/composer/service";
+import { YZ_DENETIM, yzDenetle } from "@/lib/composer/yzDenetimService";
+import type { YzDenetim } from "@/lib/composer/yzDenetim";
 import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { olusturmaMaliyeti } from "@/lib/kredi";
 import { krediDurumu, krediHarca, krediIade, krediTamamla, type Harcama } from "@/lib/krediService";
@@ -11,8 +13,12 @@ import { krediDurumu, krediHarca, krediIade, krediTamamla, type Harcama } from "
 export const maxDuration = 280; // Vercel Fluid (Hobby) üst sınırı 300 sn
 
 const GENEL_HATA = "Oyun şu anda oluşturulamadı. Tekrar deneyin.";
+// Çocuk güvenliği denetimi üretimden sonra kalan süreyle yapılır; süre yetmezse yayında yapılır.
+const DENETIM_SONU_MS = (maxDuration - 8) * 1000;
+const DENETIM_EN_AZ_MS = 8_000;
 
 export async function POST(req: Request) {
+  const basla = Date.now();
   // Ücretli uç nokta yalnız giriş yapmış öğretmene açıktır.
   const koken = kokenReddi(req);
   if (koken) return koken;
@@ -58,10 +64,13 @@ export async function POST(req: Request) {
   try {
     const { definition, validation } = await composeAndValidate(parsed.input);
     await krediTamamla(hesap.id, harcama);
+    const kalan = Math.min(DENETIM_SONU_MS - (Date.now() - basla), YZ_DENETIM.sureMs);
+    const guvenlik: YzDenetim = !validation.gecerli || kalan < DENETIM_EN_AZ_MS ? { durum: "bekliyor" } : await yzDenetle(definition, { timeoutMs: kalan });
     return NextResponse.json({
       kredi: await krediDurumu(hesap.id).catch(() => null),
       definition,
       validation,
+      guvenlik,
       dersler: parsed.input.dersler.map((k) => ({ ders: k.ders, konuId: k.konuId })),
       hedefler: parsed.input.ogrenmeCiktilari,
       hedefDersleri: parsed.input.hedefDersleri,
