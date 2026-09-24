@@ -10,6 +10,8 @@ import { getToplulukStore } from "@/lib/toplulukStore";
 export const KOD_BASINA_EN_COK_OGRENCI = 60;
 // Sahte bitirişe karşı: bitiriş ancak katılımdan en az bu kadar süre sonra gelirse sayılır (oyun süresinin dörtte biri,
 // en az 2 dakika). Katılım zamanı sunucuda kaydedilir; istemcinin bildirdiği süreye güvenilmez.
+// BİLİNEN SINIR: oturumsuz (gizli sekme) biri birden çok takma adla katılıp bu süre kadar bekleyerek bitiriş üretebilir;
+// süre saldırıyı pahalılaştırır ama önlemez. Kesin çözüm doğrulanmış öğrenci (V2 okul katmanı) gerektirir.
 export const EN_AZ_OYUN_ORANI = 0.25;
 export const EN_AZ_OYUN_SN = 120;
 const KATILIM_SAKLAMA_MS = 7 * 24 * 60 * 60 * 1000;
@@ -79,7 +81,8 @@ export async function bitirisSay(kod: string, nickname: string, istekSahibi: str
     const store = getIstatistikStore();
     const kaynak = await store.kodunKaynagi(kod);
     const oyuncu = oyuncuOf(kod, nickname);
-    // Katılım kaydı yoksa (bu değişiklikten önceki katılım) süre denetlenmez.
+    // Katılım kaydı yoksa süre denetlenmez: bu değişiklikten önceki katılımlar ve katılım kaydının yazılamadığı
+    // geçici depo hataları (bilinçli olarak açık kalır; öğrencinin bitirişi kaybolmasın).
     const katilim = await store.katilimZamani(kod, oyuncu);
     const yeterliSure = katilim === null || now - katilim >= enAzOyunMs(sureDk);
     const sayilsin = yeterliSure && !sahibinKaynagi(kaynak, istekSahibi);
