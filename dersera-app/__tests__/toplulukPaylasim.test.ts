@@ -166,6 +166,36 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     expect((await paylas(id)).status).toBe(201);
   });
 
+  it("eşzamanlı geri çekme ile son onay yarışında geri çekme kazanır (oyun yayına girmez)", async () => {
+    const id = await kaydet(oyun("Yarış"));
+    await esikGec(id);
+    await paylas(id);
+    const [i1, i2] = [await eskiHesap("inceleyen1"), await eskiHesap("inceleyen2")];
+    const tid = await bekleyenId(i1);
+    await incele(tid, i1, "kabul");
+    // İkinci oy yazıldıktan hemen sonra, eşik geçişinden önce sahibi geri çeker.
+    const store = api.toplulukStore.getToplulukStore();
+    const gercek = store.incelemeEkle.bind(store);
+    jest.spyOn(store, "incelemeEkle").mockImplementationOnce(async (oyunId, inc) => {
+      const r = await gercek(oyunId, inc);
+      expect((await geriCek(id)).status).toBe(200);
+      return r;
+    });
+    const res = await incele(tid, i2, "kabul");
+    expect(await res.json()).toMatchObject({ durum: "geri-cekildi", kabul: 2 });
+    expect(await liste()).toEqual([]);
+    expect((await kartOf(id)).topluluk).toMatchObject({ durum: "geri-cekildi" });
+  });
+
+  it("aynı anda iki gönderim günlük sınırı delemez", async () => {
+    const a = await kaydet(oyun("Eş A"));
+    const b = await kaydet(oyun("Eş B"));
+    await esikGec(a);
+    await esikGec(b);
+    const sonuclar = (await Promise.all([paylas(a), paylas(b)])).map((r) => r.status).sort();
+    expect(sonuclar).toEqual([201, 429]);
+  });
+
   it("günde en fazla bir gönderim", async () => {
     const a = await kaydet(oyun("A"));
     const b = await kaydet(oyun("B"));

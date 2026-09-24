@@ -1,7 +1,7 @@
 import { kutuphaneSahibi } from "@/lib/auth";
 import type { Hesap } from "@/lib/authStore";
 import { parseComposerDefinition } from "@/lib/composer/adapter";
-import { limitAsildi, limitKaydet } from "@/lib/composer/rateLimit";
+import { checkLimit } from "@/lib/composer/rateLimit";
 import { yonetisimDegerlendir, type YonetisimSonucu } from "@/lib/composer/yonetisim";
 import { kutuphaneIstatistikleri } from "@/lib/istatistikService";
 import type { LibraryStore } from "@/lib/libraryStore";
@@ -54,28 +54,39 @@ const say = (incelemeler: Inceleme[]) => ({
   ret: incelemeler.filter((i) => i.karar === "ret").length,
 });
 
-// Kütüphane listesi için: her kaydın son topluluk gönderiminin durumu (hiç gönderilmediyse null). Okunamazsa null.
+// Kimlik listesini (boşluklu) tek MGET ile kayıtlara çevirir; sıra korunur.
+async function kayitlarOf(store: ToplulukStore, idler: (string | null | undefined)[]): Promise<(ToplulukKaydi | null)[]> {
+  const dolu = idler.filter((id): id is string => !!id);
+  const okunan = await store.getMany(dolu);
+  const harita = new Map(dolu.map((id, i) => [id, okunan[i]]));
+  return idler.map((id) => (id ? (harita.get(id) ?? null) : null));
+}
+
+// Kütüphane listesi için: her kaydın son topluluk gönderiminin durumu (hiç gönderilmediyse null). Toplu okunur:
+// kaynaklar, kayıtlar ve önceki sürümler birer MGET; inceleme sayıları yalnız incelemedeki/reddedilen kayıtlar için.
+// Okunamazsa liste yine gelir (hepsi null).
 export async function toplulukDurumlari(store: ToplulukStore, kaynaklar: string[]): Promise<(ToplulukDurumOzeti | null)[]> {
-  return Promise.all(
-    kaynaklar.map(async (kaynak) => {
-      try {
-        const id = await store.kaynakOku(kaynak);
-        const kayit = id ? await store.get(id) : null;
-        if (!id || !kayit) return null;
-        const incelemeler = await store.incelemeler(id);
-        const onceki = kayit.onceki_id ? await store.get(kayit.onceki_id) : null;
+  try {
+    const kayitlar = await kayitlarOf(store, await store.kaynaklariOku(kaynaklar));
+    const oncekiler = await kayitlarOf(store, kayitlar.map((k) => k?.onceki_id));
+    return await Promise.all(
+      kayitlar.map(async (kayit, i) => {
+        if (!kayit) return null;
+        const durum = durumOf(kayit);
+        const incelemeler = durum === "inceleme" || durum === "reddedildi" ? await store.incelemeler(kayit.oyun_id) : [];
+        const onceki = oncekiler[i];
         return {
-          durum: durumOf(kayit),
+          durum,
           ...say(incelemeler),
-          retNotlari: incelemeler.filter((i) => i.karar === "ret").map((i) => i.not),
-          oncekiYayinda: !!onceki && durumOf(onceki) === "yayinda" && onceki.aktif,
+          retNotlari: incelemeler.filter((x) => x.karar === "ret").map((x) => x.not),
+          oncekiYayinda: !!onceki && durumOf(onceki) === "yayinda",
         };
-      } catch (err) {
-        console.error("[topluluk] durum okunamadı", err instanceof Error ? err.message : err);
-        return null;
-      }
-    })
-  );
+      })
+    );
+  } catch (err) {
+    console.error("[topluluk] durum okunamadı", err instanceof Error ? err.message : err);
+    return kaynaklar.map(() => null);
+  }
 }
 
 // Öğretmen kütüphanesindeki oyunu topluluğa gönderir: eşikler, içerik denetimi, tekrar ve günlük sınır denetlenir.
@@ -115,17 +126,17 @@ export async function topluluktaPaylas(
     if (d === "reddedildi") return { ok: false, status: 409, error: "Reddedilen oyun değiştirilmeden yeniden gönderilemez." };
     // Sahibinin geri çektiği aynı içerik: daha önce onaylandıysa doğrudan yayına, değilse incelemeye döner.
     const onaylanmis = say(await store.incelemeler(ayniId)).kabul >= K.gerekliKabul;
-    if (onaylanmis) await store.durumYaz(ayniId, "yayinda", now);
-    else {
-      await store.durumYaz(ayniId, "inceleme");
-      await store.kuyrugaEkle(ayniId, now);
+    const yeni: ToplulukDurumu = onaylanmis ? "yayinda" : "inceleme";
+    if (!(await store.durumGecis(ayniId, ["geri-cekildi"], yeni, d, onaylanmis ? now : undefined))) {
+      return { ok: false, status: 409, error: "Oyunun topluluk durumu az önce değişti; sayfayı yenileyip tekrar dene." };
     }
+    if (!onaylanmis) await store.kuyrugaEkle(ayniId, now);
     await store.kaynakGuncelle(kaynak, ayniId);
-    return { ok: true, id: ayniId, durum: onaylanmis ? "yayinda" : "inceleme" };
+    return { ok: true, id: ayniId, durum: yeni };
   }
 
-  const gunlukAnahtar = `dersera:topluluk:gonderim:${sahip}`;
-  if (await limitAsildi(gunlukAnahtar, GUN, K.gunlukGonderim)) {
+  // Tüm denetimlerden sonra, kayıt açılmadan hemen önce: atomik sayaç (eşzamanlı iki gönderim sınırı delemez).
+  if (!(await checkLimit(`dersera:topluluk:gonderim:${sahip}`, GUN, K.gunlukGonderim))) {
     return { ok: false, status: 429, error: `Günde en fazla ${K.gunlukGonderim} oyun gönderebilirsin. Yarın tekrar dene.` };
   }
   // Onaylanınca yerini alacağı, o an yayındaki kendi önceki sürümü.
@@ -136,7 +147,6 @@ export async function topluluktaPaylas(
   if (id !== kayit.oyun_id) return { ok: false, status: 409, error: "Bu oyunun aynısı toplulukta zaten var." };
   await store.kuyrugaEkle(id, now);
   await store.kaynakGuncelle(kaynak, id);
-  await limitKaydet(gunlukAnahtar, GUN);
   return { ok: true, id, durum: "inceleme" };
 }
 
@@ -151,12 +161,16 @@ export async function topluluktanGeriCek(store: ToplulukStore, hesap: Hesap, kut
   const kaldirilacak = [son, onceki].filter(
     (k): k is ToplulukKaydi => !!k && k.olusturan === sahip && (durumOf(k) === "inceleme" || durumOf(k) === "yayinda")
   );
-  if (kaldirilacak.length === 0) return { ok: false, status: 409, error: "Bu oyun toplulukta değil." };
+  let kaldirilan = 0;
   for (const k of kaldirilacak) {
-    await store.kuyruktanCikar(k.oyun_id);
-    await store.durumYaz(k.oyun_id, "geri-cekildi");
+    // Atomik: bu arada onaylanan ya da reddedilen kayıt için geçiş olmaz; eşzamanlı onay geri çekmeyi ezemez.
+    if (await store.durumGecis(k.oyun_id, ["inceleme", "yayinda"], "geri-cekildi", durumOf(k))) {
+      await store.kuyruktanCikar(k.oyun_id);
+      kaldirilan++;
+    }
   }
-  return { ok: true, kaldirilan: kaldirilacak.length };
+  if (kaldirilan === 0) return { ok: false, status: 409, error: "Bu oyun toplulukta değil." };
+  return { ok: true, kaldirilan };
 }
 
 export interface IncelemeOgesi {
@@ -180,16 +194,19 @@ const KUYRUK_SAYFA = 20;
 export async function incelemeKuyrugu(store: ToplulukStore, hesap: Hesap, now = Date.now()): Promise<{ inceleyebilir: boolean; neden?: string; oyunlar: IncelemeOgesi[] }> {
   if (!hesapYeterliMi(hesap, now)) return { inceleyebilir: false, neden: HESAP_GENC, oyunlar: [] };
   const sahip = kutuphaneSahibi(hesap);
-  const oyunlar: IncelemeOgesi[] = [];
-  for (const id of await store.kuyruk(KUYRUK_TARAMA)) {
-    if (oyunlar.length === KUYRUK_SAYFA) break;
-    const k = await store.get(id);
-    if (!k || durumOf(k) !== "inceleme" || k.olusturan === sahip) continue;
-    const incelemeler = await store.incelemeler(id);
-    if (incelemeler.some((i) => i.inceleyen === sahip)) continue;
-    const { oyun_id, baslik, ders, konu, sinif, sure_dk, alan, deneyim } = k;
-    oyunlar.push({ oyun_id, baslik, ders, konu, sinif, sure_dk, alan, deneyim, gonderim_tarihi: k.gonderim_tarihi ?? k.yayin_tarihi, ...say(incelemeler) });
-  }
+  // Kayıtlar tek MGET ile, incelemeler paralel okunur.
+  const adaylar = (await kayitlarOf(store, await store.kuyruk(KUYRUK_TARAMA))).filter(
+    (k): k is ToplulukKaydi => !!k && durumOf(k) === "inceleme" && k.olusturan !== sahip
+  );
+  const incelemeler = await Promise.all(adaylar.map((k) => store.incelemeler(k.oyun_id)));
+  const oyunlar: IncelemeOgesi[] = adaylar
+    .map((k, i) => ({ k, inc: incelemeler[i] }))
+    .filter(({ inc }) => !inc.some((x) => x.inceleyen === sahip))
+    .slice(0, KUYRUK_SAYFA)
+    .map(({ k, inc }) => {
+      const { oyun_id, baslik, ders, konu, sinif, sure_dk, alan, deneyim } = k;
+      return { oyun_id, baslik, ders, konu, sinif, sure_dk, alan, deneyim, gonderim_tarihi: k.gonderim_tarihi ?? k.yayin_tarihi, ...say(inc) };
+    });
   return { inceleyebilir: true, oyunlar };
 }
 
@@ -231,19 +248,19 @@ export async function incele(
   if (!(await store.incelemeEkle(id, { inceleyen: kutuphaneSahibi(hesap), karar, not, tarih: now }))) {
     return { ok: false, status: 409, error: "Bu oyunu zaten inceledin." };
   }
-  // Eşik kararı güncel incelemelerle verilir; aynı anda gelen iki son oy aynı durumu yazar (işlem tekrarlanabilir).
+  // Eşik kararı güncel incelemelerle verilir. Geçiş atomiktir ve yalnız "inceleme"den yapılır: bu arada sahibi geri
+  // çektiyse ya da eşzamanlı son oy geçişi zaten yaptıysa yazılmaz, kaydın güncel durumu döner.
   const sayim = say(await store.incelemeler(id));
-  let durum: ToplulukDurumu = "inceleme";
-  if (sayim.kabul >= K.gerekliKabul) {
-    durum = "yayinda";
-    await store.durumYaz(id, "yayinda", now);
-    await store.kuyruktanCikar(id);
-    const onceki = r.kayit.onceki_id ? await store.get(r.kayit.onceki_id) : null;
-    if (onceki && onceki.olusturan === r.kayit.olusturan && durumOf(onceki) === "yayinda") await store.durumYaz(onceki.oyun_id, "geri-cekildi");
-  } else if (sayim.ret >= K.redEsigi) {
-    durum = "reddedildi";
-    await store.durumYaz(id, "reddedildi");
-    await store.kuyruktanCikar(id);
+  const hedef: ToplulukDurumu | null = sayim.kabul >= K.gerekliKabul ? "yayinda" : sayim.ret >= K.redEsigi ? "reddedildi" : null;
+  if (!hedef) return { ok: true, durum: "inceleme", ...sayim };
+  if (!(await store.durumGecis(id, ["inceleme"], hedef, "inceleme", hedef === "yayinda" ? now : undefined))) {
+    const guncel = await store.get(id);
+    return { ok: true, durum: guncel ? durumOf(guncel) : hedef, ...sayim };
   }
-  return { ok: true, durum, ...sayim };
+  await store.kuyruktanCikar(id);
+  if (hedef === "yayinda") {
+    const onceki = r.kayit.onceki_id ? await store.get(r.kayit.onceki_id) : null;
+    if (onceki && onceki.olusturan === r.kayit.olusturan) await store.durumGecis(onceki.oyun_id, ["yayinda"], "geri-cekildi", durumOf(onceki));
+  }
+  return { ok: true, durum: hedef, ...sayim };
 }

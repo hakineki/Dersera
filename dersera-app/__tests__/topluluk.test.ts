@@ -169,7 +169,7 @@ describe("topluluk kütüphanesi", () => {
     expect(JSON.stringify(d)).not.toMatch(/olusturan|kaynak|onceki_id|"durum"|gonderim_tarihi|hesap:/);
     expect((await oku(cerez, "bozuk")).status).toBe(404);
     expect((await oku(cerez, "00000000-0000-4000-8000-000000000000")).status).toBe(404);
-    await api.toplulukStore.getToplulukStore().durumYaz(id, "inceleme");
+    await api.toplulukStore.getToplulukStore().durumGecis(id, ["yayinda"], "inceleme", "yayinda");
     expect((await oku(cerez)).status).toBe(404);
   });
 
@@ -259,6 +259,13 @@ describe("Redis topluluk deposu", () => {
         return 1;
       }
       if (cmd === "HVALS") return [...(hash.get(a[1])?.values() ?? [])];
+      // Durum geçiş betiği: ARGV = yeni, mevcut, izinli...
+      if (cmd === "EVAL" && a[1].includes("if not d then")) {
+        const [, , , anahtar, yeni, mevcut, ...izinli] = a;
+        if (!izinli.includes(db.get(anahtar) ?? mevcut)) return 0;
+        db.set(anahtar, yeni);
+        return 1;
+      }
       return 1;
     });
     return { ...rc, db, zset };
@@ -272,12 +279,13 @@ describe("Redis topluluk deposu", () => {
     const s = createRedisToplulukStore(r.command);
     expect(await s.ekle(kayit(A, 1000), "ozet")).toBe(A);
     const nxSira = r.calls.findIndex((c) => c.includes("NX"));
-    expect(r.calls.slice(0, nxSira).map((c) => c[0])).toEqual(["SET", "SET", "SET", "ZADD"]);
+    expect(r.calls.slice(0, nxSira).map((c) => c[0])).toEqual(["SET", "SET", "SET", "SET", "ZADD"]);
     expect(r.calls.find((c) => c[0] === "ZADD")).toEqual(["ZADD", "dersera:topluluk:sira", String(siraSkoru(1000, A)), A]);
     expect(await s.ekle(kayit(B, 2000), "ozet")).toBe(A);
     expect(r.zset.has(B)).toBe(false);
     expect(r.db.has(`dersera:topluluk:oyun:${B}`)).toBe(false);
     expect(r.db.has(`dersera:topluluk:olusturan:${B}`)).toBe(false);
+    expect(r.db.has(`dersera:topluluk:durum:${B}`)).toBe(false);
     await s.kodBagla("ABC-123", A, 5000);
     expect(r.calls.at(-1)).toEqual(["SET", "dersera:topluluk:kod:ABC-123", A, "PX", "5000"]);
   });
@@ -308,14 +316,15 @@ describe("Redis topluluk deposu", () => {
     expect(devam.map((o) => o.ozet?.oyun_id)).toEqual([A]);
   });
 
-  it("durum yazımı: yayından çıkan sıradan çıkar; yayına giren yeni tarihle sıraya girer; özete iç durum yazılmaz", async () => {
+  it("durum geçişi: yayından çıkan sıradan çıkar; yayına giren yeni tarihle sıraya girer; özete iç durum yazılmaz", async () => {
     const r = sahteRedis();
     const s = createRedisToplulukStore(r.command);
     await s.ekle(kayit(A, 1000), "a");
-    await s.durumYaz(A, "geri-cekildi");
+    expect(r.db.get(`dersera:topluluk:durum:${A}`)).toBe("yayinda");
+    expect(await s.durumGecis(A, ["yayinda"], "geri-cekildi", "yayinda")).toBe(true);
     expect(r.zset.has(A)).toBe(false);
     expect(JSON.parse(r.db.get(`dersera:topluluk:oyun:${A}`)!)).toMatchObject({ aktif: false, durum: "geri-cekildi" });
-    await s.durumYaz(A, "yayinda", 5000);
+    expect(await s.durumGecis(A, ["geri-cekildi"], "yayinda", "geri-cekildi", 5000)).toBe(true);
     expect(r.zset.get(A)).toBe(siraSkoru(5000, A));
     expect(JSON.parse(r.db.get(`dersera:topluluk:oyun:${A}`)!)).toMatchObject({ aktif: true, durum: "yayinda", yayin_tarihi: 5000 });
     const ozet = JSON.parse(r.db.get(`dersera:topluluk:ozet:${A}`)!);
@@ -323,6 +332,34 @@ describe("Redis topluluk deposu", () => {
     expect(ozet).not.toHaveProperty("durum");
     expect(await s.kaynakGuncelle("hesap:x:k1", A)).toBeNull();
     expect(await s.kaynakOku("hesap:x:k1")).toBe(A);
+  });
+
+  it("durum geçişi atomik: izinli olmayan durumdan geçiş yazılmaz (eşzamanlı geri çekme ve onay); durum anahtarı yoksa kayıttaki durum esas", async () => {
+    const r = sahteRedis();
+    const s = createRedisToplulukStore(r.command);
+    await s.ekle({ ...kayit(A, 1000, false), durum: "inceleme" }, "a");
+    expect(await s.durumGecis(A, ["inceleme", "yayinda"], "geri-cekildi", "inceleme")).toBe(true);
+    // Geri çekildikten sonra gelen son onay yayına alamaz.
+    expect(await s.durumGecis(A, ["inceleme"], "yayinda", "inceleme", 9000)).toBe(false);
+    expect(r.zset.has(A)).toBe(false);
+    expect(JSON.parse(r.db.get(`dersera:topluluk:oyun:${A}`)!).durum).toBe("geri-cekildi");
+    // Eski kayıt (durum anahtarı yok): çağıranın verdiği mevcut durum esas alınır.
+    r.db.delete(`dersera:topluluk:durum:${A}`);
+    expect(await s.durumGecis(A, ["yayinda"], "reddedildi", "yayinda")).toBe(true);
+    const gecis = r.calls.filter((c) => c[0] === "EVAL").at(-1)!;
+    expect(gecis.slice(2)).toEqual(["1", `dersera:topluluk:durum:${A}`, "reddedildi", "yayinda", "yayinda"]);
+  });
+
+  it("toplu okuma: kaynaklar ve kayıtlar tek MGET", async () => {
+    const r = sahteRedis();
+    const s = createRedisToplulukStore(r.command);
+    await s.ekle(kayit(A, 1000), "a");
+    await s.kaynakGuncelle("hesap:x:k1", A);
+    const once = r.calls.length;
+    expect(await s.kaynaklariOku(["hesap:x:k1", "hesap:x:k2"])).toEqual([A, null]);
+    expect((await s.getMany([A, B])).map((k) => k?.oyun_id ?? null)).toEqual([A, null]);
+    expect(r.calls.slice(once).map((c) => c[0])).toEqual(["MGET", "MGET"]);
+    expect(await s.getMany([])).toEqual([]);
   });
 
   it("inceleme kuyruğu gönderim sırasıyla; inceleme hesap başına bir kez yazılır", async () => {
