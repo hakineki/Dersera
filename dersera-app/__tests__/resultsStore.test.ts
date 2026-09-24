@@ -52,6 +52,24 @@ describe("createRedisStore", () => {
     expect(calls[0]).toEqual(["HVALS", resultsKey("ABC-123")]);
     expect(list.map((e) => e.nickname)).toEqual(["hizli", "yavas"]);
   });
+
+  it("has: tabloyu okumadan tek HEXISTS ile, takma ad normalize edilerek", async () => {
+    const { command, calls } = recordingCommand((a) => (a[2] === "kartal" ? 1 : 0));
+    const store = createRedisStore(command);
+    expect(await store.has("ABC-123", " Kartal ")).toBe(true);
+    expect(await store.has("ABC-123", "Şahin")).toBe(false);
+    expect(calls[0]).toEqual(["HEXISTS", resultsKey("ABC-123"), "kartal"]);
+  });
+});
+
+describe("createMemoryStore has", () => {
+  it("kayıtlı takma adı büyük/küçük harf duyarsız bulur", async () => {
+    const store = createMemoryStore();
+    await store.save("ABC-123", entry("Kartal", 100));
+    expect(await store.has("ABC-123", "kartal")).toBe(true);
+    expect(await store.has("ABC-123", "Şahin")).toBe(false);
+    expect(await store.has("XYZ-999", "Kartal")).toBe(false);
+  });
 });
 
 describe("createRedisCommand", () => {

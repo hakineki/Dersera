@@ -68,11 +68,6 @@ export async function bitirisSay(kod: string, nickname: string, istekSahibi: str
   }
 }
 
-async function sonucuVar(kod: string, nickname: string) {
-  const anahtar = nicknameKey(nickname);
-  return (await getResultsStore().list(kod)).some((e) => nicknameKey(e.nickname) === anahtar);
-}
-
 export type PuanSonucu = "kaydedildi" | "zaten-verildi" | "bitirmedi";
 
 // Oyuncu doğrulandıktan sonra çağrılır. Yalnız oyunu bitirmiş (sonucu kaydedilmiş) oyuncu, takma ad başına bir kez oy verir.
@@ -82,7 +77,7 @@ export async function puanVer(kod: string, nickname: string, puan: number, istek
   const oyuncu = oyuncuOf(kod, nickname);
   let bitiris = await store.bitirisDurumu(kod, oyuncu);
   // Sonuç kaydedildi ama bitiriş sayımı o an yazılamadıysa: kayıtlı sonuç kanıttır, bitiriş şimdi yazılır.
-  if (bitiris === "yok" && (await sonucuVar(kod, nickname))) {
+  if (bitiris === "yok" && (await getResultsStore().has(kod, nickname))) {
     await bitirisSay(kod, nickname, istekSahibi, expiresAt, now);
     bitiris = await store.bitirisDurumu(kod, oyuncu);
   }

@@ -1,7 +1,6 @@
 import { redisFromEnv, type RedisCommand } from "@/lib/redis";
 import type { ToplulukKaydi, ToplulukOzeti } from "@/lib/topluluk";
-import { BOS_PUAN_SAYACI, gosterilecekOrtalama, kovaliPuanEkle, PUAN_KOVASI, type PuanSayaci } from "@/lib/istatistik";
-import { kovaliPuanLua } from "@/lib/istatistikStore";
+import { BOS_PUAN_SAYACI, gosterilecekOrtalama, kovaliPuanEkle, kovaliPuanLua, PUAN_KOVASI, type PuanSayaci } from "@/lib/istatistik";
 
 // Anahtarlar: özet (liste), tam kayıt (Oyunu Kullan), yayın zamanına göre sıralı küme, içerik özeti → id
 // (aynı oyun tekrar yayınlanınca yeni kayıt açılmaz), kaynak → son id (kütüphanede düzenlenip yeniden yayınlanan
@@ -139,6 +138,10 @@ export function createMemoryToplulukStore(): ToplulukStore {
 }
 
 export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
+  const kayitOku = async (id: string): Promise<ToplulukKaydi | null> => {
+    const raw = (await command(["GET", kayitKey(id)])) as string | null;
+    return raw ? (JSON.parse(raw) as ToplulukKaydi) : null;
+  };
   const aktifYaz = async (id: string, aktif: boolean): Promise<ToplulukKaydi | null> => {
     let kayit: ToplulukKaydi | null = null;
     for (const key of [kayitKey(id), ozetKey(id)]) {
@@ -167,10 +170,7 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
     async icerikId(h) {
       return ((await command(["GET", icerikKey(h)])) as string | null) ?? null;
     },
-    async get(id) {
-      const raw = (await command(["GET", kayitKey(id)])) as string | null;
-      return raw ? (JSON.parse(raw) as ToplulukKaydi) : null;
-    },
+    get: kayitOku,
     async sirali(imlec, adet) {
       const ust = imlec === null ? "+inf" : `(${imlec}`;
       const yanit = ((await command(["ZREVRANGEBYSCORE", SIRA, ust, "-inf", "WITHSCORES", "LIMIT", 0, adet])) as string[] | null) ?? [];
@@ -227,7 +227,7 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
       const o = (await command(["GET", olusturanKey(id)])) as string | null;
       if (o) return o;
       // Bu anahtardan önce açılmış kayıt: bir kez tam kayıttan okunup yazılır.
-      const k = await this.get(id);
+      const k = await kayitOku(id);
       if (k?.olusturan) await command(["SET", olusturanKey(id), k.olusturan]);
       return k?.olusturan ?? null;
     },

@@ -1,5 +1,5 @@
 import { redisFromEnv, type RedisCommand } from "@/lib/redis";
-import { BOS_PUAN_SAYACI, kovaliPuanEkle, PUAN_KOVASI, type PuanSayaci } from "@/lib/istatistik";
+import { BOS_PUAN_SAYACI, kovaliPuanEkle, kovaliPuanLua, PUAN_KOVASI, type PuanSayaci } from "@/lib/istatistik";
 
 // Kütüphane oyunlarının saha istatistikleri. Oyun kodu yayın anında kütüphane kaydına ("sahip:kutuphaneId") bağlanır.
 // Öğrenci sayısı = oyunu BİTİRİP sonucu kaydedilen oyuncular (katılım sayılmaz). Puan yalnız bitiren oyuncudan alınır.
@@ -42,14 +42,6 @@ const TUM_ALANLAR: Alan[] = ["ogrenci", ...PUAN_ALANLARI];
 const OKUNAN_ALANLAR: Alan[] = ["ogrenci", "puanToplamGoster", "puanSayisiGoster"];
 // Kaynağı olmayan kodda sayaç yazılmaz; betiğe yine geçerli bir anahtar verilir.
 const YOK = "-";
-
-// Kovalı puan artışı (Lua parçası). KEYS[k..k+3]: canlı toplam, canlı sayı, gösterim toplamı, gösterim sayısı.
-// ARGV[p]: puan, ARGV[p+1]: kova. Sayı kovanın katına geldiğinde anlık görüntü yazılır.
-export function kovaliPuanLua(k: number, p: number) {
-  return `local t = redis.call('INCRBY', KEYS[${k}], ARGV[${p}])
-local n = redis.call('INCR', KEYS[${k + 1}])
-if n % tonumber(ARGV[${p + 1}]) == 0 then redis.call('MSET', KEYS[${k + 2}], t, KEYS[${k + 3}], n) end`;
-}
 
 export function createMemoryIstatistikStore(): IstatistikStore {
   const kodlar = new Map<string, string>();
