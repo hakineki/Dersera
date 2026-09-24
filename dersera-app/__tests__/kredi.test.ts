@@ -267,3 +267,12 @@ describe("oluşturmada kredi", () => {
     expect((await oturumsuz()).status).toBe(401);
   });
 });
+
+describe("askı süresi ile oluşturma süre sınırı", () => {
+  it("askıdaki harcama, oluşturma route'unun en uzun süresinden önce iade edilmez", async () => {
+    const { ASKI_SURESI_MS } = await import("@/lib/krediService");
+    const { maxDuration } = await import("@/app/api/compose/route");
+    // En az bir dakika pay: uzun süren ama başarılı bir oluşturma, tamamlanmadan önce iade edilmesin.
+    expect(ASKI_SURESI_MS).toBeGreaterThanOrEqual((maxDuration + 60) * 1000);
+  });
+});
