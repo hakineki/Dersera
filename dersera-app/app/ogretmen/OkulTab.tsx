@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { davetYenile, okulaKatil, okulBilgisi, okuldanAyril, okulOlustur, okulPanosu, okulPaylasimKaldir, okulPaylasimlari, uyeCikar } from "@/lib/okulClient";
-import type { OkulumYaniti, PanoOgretmeni, PaylasimListesiOgesi } from "@/lib/okulService";
+import { davetYenile, okulaKatil, okulBilgisi, okuldanAyril, okulKrediSiniri, okulOlustur, okulPanosu, okulPaylasimKaldir, okulPaylasimlari, uyeCikar } from "@/lib/okulClient";
+import type { OkulPanosu as Pano, OkulumYaniti, PanoHavuzu, PanoOgretmeni, PaylasimListesiOgesi } from "@/lib/okulService";
 import { OKUL } from "@/lib/okul";
+import { OKUL_HAVUZU, type OkulKredisi } from "@/lib/kredi";
+import { krediDurumuGetir } from "@/lib/krediClient";
 
 const tarih = (ms: number) => new Date(ms).toLocaleDateString("tr-TR", { day: "numeric", month: "long" });
+const ayAdi = (ay: string) => new Date(`${ay}-15T12:00:00Z`).toLocaleDateString("tr-TR", { month: "long", year: "numeric" });
 const girdi = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 
 function OkulYok({ onOkul }: { onOkul: (o: OkulumYaniti) => void }) {
@@ -124,8 +127,81 @@ function OkulKutuphanesi({ oyunlar, onYenile }: { oyunlar: PaylasimListesiOgesi[
   );
 }
 
-function OkulPanosu() {
-  const [pano, setPano] = useState<{ ogretmenler: PanoOgretmeni[]; toplam: { ogretmen: number; kutuphaneOyun: number; paylasim: number; ogrenci: number } } | null>(null);
+// Okul yöneticisi: bu ayki havuz ve öğretmen başına aylık sınır.
+function KrediHavuzu({ havuz, onDegisti }: { havuz: PanoHavuzu | null; onDegisti: () => void }) {
+  const [sinir, setSinir] = useState(String(havuz?.sinir ?? ""));
+  const [durum, setDurum] = useState<{ hata?: string; tamam?: string }>({});
+  const [calisiyor, setCalisiyor] = useState(false);
+  if (!havuz) {
+    return (
+      <p className="bg-white border border-dashed border-gray-300 rounded-xl p-3 text-sm text-gray-500">
+        Okuluna kredi havuzu atanmamış. Havuz, Dersera ile yapılan okul anlaşmasına göre platform yöneticisince atanır; öğretmenler o zamana kadar kendi kredilerini kullanır.
+      </p>
+    );
+  }
+  async function kaydet() {
+    const deger = sinir.trim() === "" ? 0 : Number(sinir);
+    setCalisiyor(true);
+    setDurum({});
+    const r = await okulKrediSiniri(deger);
+    setCalisiyor(false);
+    if ("error" in r) setDurum({ hata: r.error });
+    else {
+      setDurum({ tamam: r.sinir ? `Öğretmen başına aylık sınır: ${r.sinir} kredi.` : "Öğretmen başına sınır kaldırıldı." });
+      onDegisti();
+    }
+  }
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-3 space-y-2">
+      <p className="text-sm text-gray-800">
+        <span aria-hidden="true">💳 </span>
+        <strong>Okul kredi havuzu</strong> ({ayAdi(havuz.ay)}): {havuz.kullanilan}/{havuz.hak} kullanıldı · <strong>{havuz.kalan} kredi kaldı</strong>
+      </p>
+      <p className="text-xs text-gray-500">Öğretmenler önce kendi aylık hakkını, bitince okul havuzunu, en son kazandıkları krediyi kullanır. Havuz her ay başında yenilenir.</p>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          kaydet();
+        }}
+        className="flex flex-wrap items-end gap-2"
+      >
+        <div>
+          <label htmlFor="okul-sinir" className="block text-xs font-medium text-gray-600">
+            Öğretmen başına aylık sınır (boş: sınır yok)
+          </label>
+          <input
+            id="okul-sinir"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={OKUL_HAVUZU.sinirEnCok}
+            value={sinir}
+            onChange={(e) => setSinir(e.target.value)}
+            placeholder="sınır yok"
+            className="w-32 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <button type="submit" disabled={calisiyor} className="text-sm bg-indigo-600 text-white font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40">
+          Kaydet
+        </button>
+      </form>
+      {durum.hata && (
+        <p role="alert" className="text-sm text-red-600">
+          {durum.hata}
+        </p>
+      )}
+      {durum.tamam && (
+        <p role="status" className="text-sm text-green-700">
+          {durum.tamam}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// onHavuzDegisti: sınır değişince üstteki "kullanabileceğin" satırı da yenilensin.
+function OkulPanosu({ onHavuzDegisti }: { onHavuzDegisti: () => void }) {
+  const [pano, setPano] = useState<Pano | null>(null);
   const [hata, setHata] = useState("");
   const yukle = useCallback(async () => {
     const r = await okulPanosu();
@@ -170,6 +246,13 @@ function OkulPanosu() {
               </div>
             ))}
           </dl>
+          <KrediHavuzu
+            havuz={pano.havuz}
+            onDegisti={() => {
+              yukle();
+              onHavuzDegisti();
+            }}
+          />
           <div className="overflow-x-auto bg-white border border-gray-200 rounded-xl">
             <table className="w-full text-sm">
               <caption className="sr-only">Okuldaki öğretmenler</caption>
@@ -180,6 +263,11 @@ function OkulPanosu() {
                   <th scope="col" className="px-3 py-2 font-medium">Paylaşım</th>
                   <th scope="col" className="px-3 py-2 font-medium">Öğrenci</th>
                   <th scope="col" className="px-3 py-2 font-medium">Puan</th>
+                  {pano.havuz && (
+                    <th scope="col" className="px-3 py-2 font-medium">
+                      Havuzdan
+                    </th>
+                  )}
                   <th scope="col" className="px-3 py-2 font-medium">
                     <span className="sr-only">İşlem</span>
                   </th>
@@ -196,6 +284,12 @@ function OkulPanosu() {
                     <td className="px-3 py-2">{o.paylasim}</td>
                     <td className="px-3 py-2">{o.ogrenci}</td>
                     <td className="px-3 py-2">{o.puanOrtalama === null ? "—" : o.puanOrtalama.toLocaleString("tr-TR")}</td>
+                    {pano.havuz && (
+                      <td className="px-3 py-2">
+                        {o.havuzdan}
+                        {pano.havuz.sinir && <span className="text-gray-400">/{pano.havuz.sinir}</span>}
+                      </td>
+                    )}
                     <td className="px-3 py-2 text-right">
                       {o.rol !== "yonetici" && (
                         <button onClick={() => cikar(o)} className="text-xs text-red-600 font-semibold hover:underline">
@@ -221,6 +315,7 @@ export default function OkulTab() {
   const [hata, setHata] = useState("");
   const [kopyalandi, setKopyalandi] = useState(false);
   const [yenileniyor, setYenileniyor] = useState(false);
+  const [okulKredisi, setOkulKredisi] = useState<OkulKredisi | null>(null);
   // Durum yeniden çizilmeden gelen ikinci tıklamayı da engeller (her yenileme eski kodu geçersiz kılar).
   const yenilemeKilidi = useRef(false);
 
@@ -229,8 +324,9 @@ export default function OkulTab() {
     if ("error" in r) return setHata(r.error);
     setBilgi(r);
     if (r.okul) {
-      const l = await okulPaylasimlari();
+      const [l, k] = await Promise.all([okulPaylasimlari(), krediDurumuGetir()]);
       setOyunlar("error" in l ? [] : l.oyunlar);
+      setOkulKredisi(k?.okul ?? null);
     }
   }, []);
   useEffect(() => {
@@ -278,6 +374,12 @@ export default function OkulTab() {
           <p className="text-sm text-gray-600">
             {bilgi.rol === "yonetici" ? "Okul yöneticisisin" : "Öğretmensin"} · {bilgi.okul.uyeSayisi} öğretmen
           </p>
+          {okulKredisi && (
+            <p className="text-sm text-gray-700 mt-1">
+              <span aria-hidden="true">💳 </span>Okul havuzundan bu ay kullanabileceğin: <strong>{okulKredisi.kalan} kredi</strong>
+              {okulKredisi.sinir !== null && <span className="text-gray-500"> (sınır {okulKredisi.sinir}, kullandığın {okulKredisi.kullandigin})</span>}
+            </p>
+          )}
         </div>
         {kod ? (
           <div className="text-right">
@@ -311,7 +413,7 @@ export default function OkulTab() {
         </p>
       )}
       <OkulKutuphanesi oyunlar={oyunlar} onYenile={yukle} />
-      {bilgi.rol === "yonetici" && <OkulPanosu />}
+      {bilgi.rol === "yonetici" && <OkulPanosu onHavuzDegisti={() => krediDurumuGetir().then((k) => setOkulKredisi(k?.okul ?? null))} />}
     </div>
   );
 }

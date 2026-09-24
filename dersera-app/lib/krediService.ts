@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
-import { ayOf, KREDI_KURALLARI as K, type KrediDurumu } from "@/lib/kredi";
+import { ayOf, KREDI_KURALLARI as K, okulKredisiOf, type KrediDurumu } from "@/lib/kredi";
 import { getKrediStore } from "@/lib/krediStore";
+import { getOkulStore } from "@/lib/okulStore";
 
 // Aylık hak ve askı kayıtları ay bitince silinir; takvim ayından uzun tutulur ki ay sonunda başlayan iade eksik düşmesin.
 const SAKLAMA_MS = 40 * 24 * 60 * 60 * 1000;
@@ -13,6 +14,7 @@ export interface Harcama {
   id: string;
   ay: string;
   aylik: number;
+  okul: number;
   kazanilan: number;
 }
 
@@ -32,21 +34,36 @@ async function uzlastir(hesapId: string, now: number) {
   }
 }
 
+// Öğretmenin okulu (havuz için). Okul deposu okunamazsa öğretmen kişisel kredisiyle devam eder.
+async function okulKimligi(hesapId: string): Promise<string | null> {
+  try {
+    return await getOkulStore().okulOf(hesapId);
+  } catch (err) {
+    console.error("[kredi] okul okunamadı; havuz kullanılmadı", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 export async function krediDurumu(hesapId: string, now = Date.now()): Promise<KrediDurumu> {
   await uzlastir(hesapId, now);
   const ay = ayOf(now);
-  const k = await getKrediStore().oku(hesapId, ay, GOSTERILEN_HAREKET);
+  const store = getKrediStore();
+  const okulId = await okulKimligi(hesapId);
+  const [k, havuz] = await Promise.all([store.oku(hesapId, ay, GOSTERILEN_HAREKET), okulId ? store.okulHavuzu(okulId, ay) : null]);
   const aylikKalan = Math.max(0, K.aylikHak - k.kullanilan);
-  return { ay, aylikHak: K.aylikHak, aylikKalan, kazanilan: k.kazanilan, toplam: aylikKalan + k.kazanilan, hareketler: k.hareketler };
+  const okul = havuz && havuz.hak > 0 ? okulKredisiOf(havuz, hesapId) : null;
+  return { ay, aylikHak: K.aylikHak, aylikKalan, kazanilan: k.kazanilan, okul, toplam: aylikKalan + (okul?.kalan ?? 0) + k.kazanilan, hareketler: k.hareketler };
 }
 
-// Oluşturma öncesi: bakiye yetiyorsa atomik olarak düşer ve askıya yazılır. Yetmezse null.
+// Oluşturma öncesi: bakiye yetiyorsa atomik olarak düşer ve askıya yazılır. Yetmezse null. Üyelik istek başında okunur:
+// okuldan çıkarılmayla aynı anda başlayan tek harcama hâlâ okul havuzundan düşebilir (iade de o havuza yapılır).
 export async function krediHarca(hesapId: string, miktar: number, aciklama: string, now = Date.now()): Promise<Harcama | null> {
   await uzlastir(hesapId, now);
   const ay = ayOf(now);
   const id = randomUUID();
-  const r = await getKrediStore().harca(hesapId, ay, K.aylikHak, miktar, now, aciklama, SAKLAMA_MS, id);
-  return r.ok ? { id, ay, aylik: r.aylik, kazanilan: r.kazanilan } : null;
+  const okulId = await okulKimligi(hesapId);
+  const r = await getKrediStore().harca(hesapId, ay, K.aylikHak, miktar, now, aciklama, SAKLAMA_MS, id, okulId);
+  return r.ok ? { id, ay, aylik: r.aylik, okul: r.okul, kazanilan: r.kazanilan } : null;
 }
 
 // Başarılı oluşturma: harcama kesinleşir. Yazılamazsa askıda kalır ve süre sonunda iade edilir (öğretmen lehine hata).

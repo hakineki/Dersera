@@ -1,21 +1,13 @@
 import { NextResponse } from "next/server";
-import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
+import { kokenReddi } from "@/lib/authRequest";
 import { getGamesStore } from "@/lib/gamesStore";
 import { MODERASYON } from "@/lib/moderasyon";
 import { moderasyonKarari } from "@/lib/moderasyonService";
 import { getModerasyonStore } from "@/lib/moderasyonStore";
 import { getToplulukStore } from "@/lib/toplulukStore";
-import { yoneticiMi } from "@/lib/yonetici";
+import { yoneticiHesabi } from "@/lib/yoneticiIstek";
 
 const ID = /^[0-9a-f-]{36}$/;
-
-// Yalnız yönetici: oturum yoksa 401, yönetici değilse 403.
-async function yoneticiHesabi(req: Request) {
-  const hesap = await istekHesabi(req);
-  if (!hesap) return { yanit: oturumGerekli() };
-  if (!(await yoneticiMi(hesap))) return { yanit: NextResponse.json({ error: "Bu sayfa yalnız yöneticilere açık." }, { status: 403 }) };
-  return { hesap };
-}
 
 export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {

@@ -3,11 +3,18 @@ import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import type { Hesap } from "@/lib/authStore";
 import { getAuthStore } from "@/lib/authStore";
 import { getIstatistikStore } from "@/lib/istatistikStore";
+import { getKrediStore } from "@/lib/krediStore";
 import { getLibraryStore } from "@/lib/libraryStore";
 import type { OkulDeps } from "@/lib/okulService";
 import { getOkulStore } from "@/lib/okulStore";
 
-export const okulDepolari = (): OkulDeps => ({ okul: getOkulStore(), auth: getAuthStore(), library: getLibraryStore(), istatistik: getIstatistikStore() });
+export const okulDepolari = (): OkulDeps => ({
+  okul: getOkulStore(),
+  auth: getAuthStore(),
+  library: getLibraryStore(),
+  istatistik: getIstatistikStore(),
+  kredi: getKrediStore(),
+});
 
 // Okul uç noktalarının ortak kalıbı: (yazmada) köken denetimi, oturum, hata → 503. Sonuç { ok, ... } biçimindedir.
 // Gövdesiz yazma (DELETE) JSON içerik türü gerektirmez.
