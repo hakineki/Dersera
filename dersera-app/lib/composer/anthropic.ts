@@ -7,7 +7,7 @@ import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
 import { oyunTokenSiniri, type Recipe } from "@/lib/composer/recipe";
 
 export const DEFAULT_MODEL = "claude-sonnet-4-6";
-export const COMPOSE_TIMEOUT_MS = 240_000; // tam oyun 8–16k token; model bunu 1,5–3 dakikada yazar
+export const COMPOSE_TIMEOUT_MS = 240_000; // ilk üretim çağrısının üst sınırı; düzeltme çağrısı toplam bütçeden kalanla yapılır (service.ts)
 // Tam oyun 1,5–3 dakikada üretilir; çıktı kısa tutulur ve maliyet üst sınırı konur.
 
 export type ComposeFailure = "config" | "timeout" | "upstream" | "invalid-output";
@@ -49,13 +49,13 @@ export async function composeGame(
 }
 
 // Sistem prompt'u + tek kullanıcı mesajı → şemaya uyan JSON. Oyun üretimi ve durak düzeltmesi bunu kullanır.
-export async function yapilandirilmisIstek<T>(
-  schema: z.ZodType<T>,
+export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>(
+  schema: S,
   user: string,
   maxTokens: number,
   client: ComposeClient = clientFromEnv(),
   timeoutMs = COMPOSE_TIMEOUT_MS
-): Promise<T> {
+): Promise<z.infer<S>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -66,7 +66,7 @@ export async function yapilandirilmisIstek<T>(
         max_tokens: maxTokens,
         system: SYSTEM_PROMPT,
         messages: [{ role: "user", content: user }],
-        output_config: { format: zodOutputFormat(schema as z.ZodType<T> & Parameters<typeof zodOutputFormat>[0]) },
+        output_config: { format: zodOutputFormat(schema) },
       },
       { signal: controller.signal, timeout: timeoutMs, maxRetries: 0 }
     );

@@ -84,7 +84,7 @@ Bu oyun üretildi ama aşağıdaki duraklar doğrulamadan geçmedi:
 ${hatalar.map((h) => `- ${h}`).join("\n")}
 
 Yalnız bu durakları hataları gidererek yeniden yaz ve duraklar dizisinde döndür. Yukarıdaki alan kurallarına birebir uy.
-id, sahne_turu, secimler, varsayilan_sonraki_durak_id, odul_id ve qr_durak_id değerlerini aynen koru; yalnız görev içeriğini (soru, görev türü, seçenekler, doğru cevap, ipuçları, destek görevi) ve gerekirse hikâye metnini değiştir.
+Tüm oyunu DEĞİL, yalnız bu durakları yaz. id, sahne_turu, secimler, varsayilan_sonraki_durak_id, odul_id, qr_durak_id değerlerini ve (hata listesinde öğrenme hedefi hatası yoksa) ogrenme_hedefi kodunu aynen koru; yalnız görev içeriğini (soru, görev türü, seçenekler, doğru cevap, ipuçları, destek görevi) ve gerekirse hikâye metnini değiştir.
 
 Düzeltilecek duraklar (JSON):
 ${JSON.stringify(duraklar)}`;

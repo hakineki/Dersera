@@ -97,8 +97,11 @@ function kirp(tur: string, secenekler: string[], dogru: string): { secenekler: s
     const kalan = secenekler.slice(0, ust);
     return { secenekler: kalan, dogru: joinAnswer(kalan) };
   }
-  // Sıralama: doğru sıranın ilk öğeleri tutulur; öğeler karışık sıralarını korur.
-  const sira = splitAnswer(dogru).slice(0, ust);
+  // Sıralama: yalnız doğru sıra öğelerin tamamını içeriyorsa kırpılır (tutarsızlık gizlenmesin).
+  const tumSira = splitAnswer(dogru);
+  const ayniKume = tumSira.length === secenekler.length && tumSira.every((s) => secenekler.some((o) => normalize(o) === normalize(s)));
+  if (!ayniKume) return null;
+  const sira = tumSira.slice(0, ust);
   const tut = new Set(sira.map(normalize));
   return { secenekler: secenekler.filter((s) => tut.has(normalize(s))), dogru: joinAnswer(sira) };
 }

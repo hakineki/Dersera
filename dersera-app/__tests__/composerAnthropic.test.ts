@@ -82,8 +82,8 @@ describe("composeGame", () => {
     expect(user).not.toMatch(/takma ad|e-?posta|telefon|nickname/i);
     expect(user).not.toContain("qr-1");
     expect(user).toMatch(/Metinleri kısa tut/);
-    // 40 dk = 8 durak: 6000 + 8 × 2500
-    expect(calls[0].body.max_tokens).toBe(26000);
+    // 40 dk = 8 durak: 6000 + 8 × 3200
+    expect(calls[0].body.max_tokens).toBe(31600);
     expect(calls[0].body).not.toHaveProperty("thinking");
   });
 

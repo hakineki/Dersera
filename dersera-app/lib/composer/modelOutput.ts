@@ -60,7 +60,7 @@ export const DuzeltmeSchema = z.object({ duraklar: z.array(DurakCiktisiSchema) }
 export type Duzeltme = z.infer<typeof DuzeltmeSchema>;
 
 // Modelin ham JSON metni → şemadaki tip. Kesik ya da şemaya uymayan metin hata döner.
-export function parseJsonText<T>(text: string, schema: z.ZodType<T>): { ok: true; output: T } | { ok: false; error: string } {
+export function parseJsonText<S extends z.ZodType>(text: string, schema: S): { ok: true; output: z.output<S> } | { ok: false; error: string } {
   let json: unknown;
   try {
     json = JSON.parse(text);

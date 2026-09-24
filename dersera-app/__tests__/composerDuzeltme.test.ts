@@ -12,9 +12,9 @@ const codes = (def: GameDefinition) => validateGame(def, validationContext(input
 
 describe("durak sayıları ve token sınırı", () => {
   it.each([
-    [20, 5, 18_500],
-    [40, 8, 26_000],
-    [60, 12, 32_000],
+    [20, 5, 22_000],
+    [40, 8, 31_600],
+    [60, 12, 40_000],
   ])("%i dk → %i durak, %i token", (sure, durak, token) => {
     const r = buildRecipe(sure, "dengeli", "sinif");
     expect(r.anaGorev).toEqual({ min: durak, max: durak });
@@ -52,6 +52,20 @@ describe("fazla seçenek kırpma", () => {
     expect(codes(onar(def).definition)).toEqual([]);
   });
 
+  it("tutarsız sıralamayı kırpmaz (doğru sıra öğelerin tamamını içermiyor); hata görünür kalır", () => {
+    const def = clone(makeDefinition(input, 8));
+    Object.assign(def.duraklar[0].gorev, { tur: "siralama", secenekler: ["a", "b", "c", "d", "e", "f", "g", "h"], dogru_cevap: "a | b | c" });
+    const r = onar(def);
+    expect(r.definition.duraklar[0].gorev.secenekler).toHaveLength(8);
+    expect(codes(r.definition)).toContain("cevap-bicimi");
+  });
+
+  it("final görevindeki fazla seçenekleri de kırpar", () => {
+    const def = clone(makeDefinition(input, 8));
+    Object.assign(def.final, { gorev_turu: "coktan_secmeli", secenekler: ["A", "B", "C", "D", "E", "F"], dogru_cevap: "A" });
+    expect(onar(def).definition.final.secenekler).toHaveLength(5);
+  });
+
   it("eksik seçeneği uydurmaz: 2 çiftli eşleştirme hatalı kalır", () => {
     const def = clone(makeDefinition(input, 8));
     Object.assign(def.duraklar[0].gorev, { tur: "eslestirme", secenekler: ["a => 1", "b => 2"], dogru_cevap: "a => 1 | b => 2" });
@@ -67,12 +81,12 @@ describe("hedefli durak düzeltmesi", () => {
   };
   // Sırayla yanıt veren sahte Anthropic istemcisi.
   function sahte(yanitlar: (unknown | Error)[]) {
-    const calls: { body: { max_tokens: number; messages: { content: string }[] } }[] = [];
+    const calls: { body: { max_tokens: number; messages: { content: string }[] }; options: { timeout: number } }[] = [];
     let i = 0;
     const client = {
       messages: {
-        create: async (body: never) => {
-          calls.push({ body });
+        create: async (body: never, options: never) => {
+          calls.push({ body, options });
           const y = yanitlar[i++];
           if (y instanceof Error) throw y;
           return { model: "test", stop_reason: "end_turn", usage: { output_tokens: 1 }, content: [{ type: "text", text: JSON.stringify(y) }] };
@@ -94,7 +108,8 @@ describe("hedefli durak düzeltmesi", () => {
     const { client, calls } = sahte([out, { duraklar: [duzelmis] }]);
     const { definition, validation } = await composeAndValidate(input, client);
     expect(calls).toHaveLength(2);
-    expect(calls[1].body.max_tokens).toBe(8000);
+    expect(calls[1].body.max_tokens).toBe(1_500 + 3_500);
+    expect(calls[1].options.timeout).toBe(90_000);
     expect(calls[1].body.messages[0].content).toContain("3-5 çift olmalı");
     expect(calls[1].body.messages[0].content).toContain('"id":"d2"');
     expect(validation.gecerli).toBe(true);
@@ -103,7 +118,35 @@ describe("hedefli durak düzeltmesi", () => {
     // Model rota/ödül alanlarını değiştirse bile ilk çıktıdaki değerler kalır.
     expect(yeni.secimler).toEqual(makeDefinition(input, 8).duraklar[1].secimler);
     expect(yeni.sahne_turu).toBe("secim");
+    expect(yeni.varsayilan_sonraki_durak_id).toBe(makeDefinition(input, 8).duraklar[1].varsayilan_sonraki_durak_id);
+    expect(yeni.gorev.odul_id).toBe(makeDefinition(input, 8).duraklar[1].gorev.odul_id);
+    // Durakta hedef-disi hatası yoktu: öğrenme hedefi korunur.
+    expect(yeni.gorev.ogrenme_hedefi).toBe(makeDefinition(input, 8).duraklar[1].gorev.ogrenme_hedefi);
     expect(validation.uyarilar[0].mesaj).toContain("yeniden yazdırıldı");
+  });
+
+  it("düzeltme yeni türde hata doğurursa (başka durakta) reddedilir, yalnız temiz duraklar alınır", async () => {
+    const out = bozuk();
+    Object.assign(out.duraklar[2], { ipucu_2: out.duraklar[2].ipucu_1 }); // d3: ipucu-ayni
+    const d2 = { ...out.duraklar[1], gorev_turu: "coktan_secmeli", secenekler: ["Bilgi", "Şükür", "Sabır"], dogru_cevap: "Bilgi" };
+    const d3 = { ...out.duraklar[2], ipucu_2: "", ipucu_1: "" }; // d3 daha kötü: ipucu-eksik
+    const { client } = sahte([out, { duraklar: [d2, d3] }]);
+    const { definition, validation } = await composeAndValidate(input, client);
+    const kodlar = validation.hatalar.map((h) => `${h.kod}|${h.durakId}`);
+    expect(kodlar).toEqual(["ipucu-ayni|d3"]);
+    expect(definition.duraklar[1].gorev.tur).toBe("coktan_secmeli");
+    expect(validation.uyarilar[0].mesaj).toContain(`"${out.duraklar[1].isim}"`);
+    expect(validation.uyarilar[0].mesaj).not.toContain(`"${out.duraklar[2].isim}"`);
+  });
+
+  it("en çok 3 durak hedeflenir", async () => {
+    const out = toModelOutput(makeDefinition(input, 8));
+    for (const i of [0, 2, 3, 4, 5]) out.duraklar[i].ipucu_2 = out.duraklar[i].ipucu_1;
+    const { client, calls } = sahte([out, { duraklar: [] }]);
+    await composeAndValidate(input, client);
+    const gonderilen = calls[1].body.messages[0].content.split("Düzeltilecek duraklar (JSON):")[1];
+    expect(JSON.parse(gonderilen)).toHaveLength(3);
+    expect(calls[1].body.max_tokens).toBe(1_500 + 3 * 3_500);
   });
 
   it("hata yoksa ikinci çağrı yapılmaz", async () => {
@@ -130,7 +173,7 @@ describe("hedefli durak düzeltmesi", () => {
   it("ilk üretim süre bütçesini doldurduysa düzeltme denenmez", async () => {
     const { client, calls } = sahte([bozuk()]);
     let t = 0;
-    const now = () => (t += 240_000);
+    const now = () => (t += 210_000);
     await composeAndValidate(input, client, now);
     expect(calls).toHaveLength(1);
   });

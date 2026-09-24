@@ -47,7 +47,7 @@ describe("OpenAI sağlayıcısı", () => {
     const { client, calls } = fakeOpenAI(out);
     expect(await composeGameOpenAI(input, recipe, IZINLI_QR_IDLERI, client)).toEqual(out);
     const body = calls[0].body as { max_completion_tokens: number; messages: { role: string; content: string }[]; response_format: { type: string; json_schema: { strict: boolean; schema: { required: string[] } } } };
-    expect(body.max_completion_tokens).toBe(26000);
+    expect(body.max_completion_tokens).toBe(31600);
     expect(body.messages[0]).toEqual({ role: "system", content: SYSTEM_PROMPT });
     expect(body.response_format.type).toBe("json_schema");
     expect(body.response_format.json_schema.strict).toBe(true);

@@ -36,14 +36,14 @@ export async function composeGameOpenAI(
   return yapilandirilmisIstekOpenAI(ModelOutputSchema, "dersera_oyun", buildUserPrompt(input, recipe, izinliQrIdleri), oyunTokenSiniri(recipe), client, timeoutMs);
 }
 
-export async function yapilandirilmisIstekOpenAI<T>(
-  schema: z.ZodType<T>,
+export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawShape>>(
+  schema: S,
   semaAdi: string,
   user: string,
   maxTokens: number,
   client: OpenAIComposeClient = clientFromEnv(),
   timeoutMs = COMPOSE_TIMEOUT_MS
-): Promise<T> {
+): Promise<z.infer<S>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -56,7 +56,7 @@ export async function yapilandirilmisIstekOpenAI<T>(
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: user },
         ],
-        response_format: zodResponseFormat(schema as z.ZodType<T> & Parameters<typeof zodResponseFormat>[0], semaAdi),
+        response_format: zodResponseFormat(schema, semaAdi),
       },
       { signal: controller.signal, timeout: timeoutMs, maxRetries: 0 }
     );
