@@ -226,8 +226,8 @@ function PublishForm({
       stops: stops.map((s) => ({ ...s, name: s.name.trim(), emoji: s.emoji.trim() })),
     });
     setBusy(false);
-    if (res) onPublished({ game: res.game, adminToken: res.adminToken }, res.persistent);
-    else setError("Oyun yayınlanamadı. Bağlantını kontrol edip tekrar dene.");
+    if ("error" in res) setError(res.error);
+    else onPublished({ game: res.game, adminToken: res.adminToken }, res.persistent);
   }
 
   return (

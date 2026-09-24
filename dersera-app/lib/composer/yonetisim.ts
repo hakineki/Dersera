@@ -83,14 +83,15 @@ function tekrarlananSorular(def: GameDefinition, ekle: (b: Bulgu) => void) {
   }
 }
 
-// Metindeki sayılar. Sıra sayısı ("2. yasa", "3.'sü") alınmaz; "1.000" binlik, "9,8" ve "9.8" ondalık okunur.
+// Metindeki sayılar. Sıra sayısı ("2. yasa", "3.'sü", "2'nci") alınmaz; "1.000" binlik, "9,8" ve "9.8" ondalık okunur.
 export function metindekiSayilar(metin: string): number[] {
   const out: number[] = [];
   for (const m of metin.matchAll(/(?<![\p{L}\p{N}])-?\d+(?:[.,]\d+)*(?![\p{L}\p{N}])/gu)) {
     const ham = m[0];
     const sonra = metin.slice(m.index + ham.length);
-    // Sıra sayısı: noktadan sonra küçük harfle devam ("2. yasa") ya da kesme ("3.'sü"). Cümle sonu ("Cevap 12.") sayıdır.
-    if (/^\.(\s+\p{Ll}|['’])/u.test(sonra)) continue;
+    // Sıra sayısı: noktadan sonra küçük harfle devam ("2. yasa"), kesme ("3.'sü") ya da -(i)nci eki ("2'nci", "3'üncü").
+    // Cümle sonu ("Cevap 12.") sayıdır.
+    if (/^\.(\s+\p{Ll}|['’])/u.test(sonra) || /^['’][iıuü]?nc[iıuü]/u.test(sonra)) continue;
     if (/^-?\d{1,3}(\.\d{3})+$/.test(ham)) out.push(Number(ham.replace(/\./g, "")));
     else {
       const n = parseNumber(ham);

@@ -84,6 +84,8 @@ describe("içerik yönetişimi: kapılar", () => {
     expect(kapi(oyun((d) => sayisalGorev(d, { dogru_cevap: "1", ipucu_1: "1.000 gramı kilograma çevir." })), "ogrenme-kalitesi").karar).toBe("PASS");
     expect(kapi(oyun((d) => sayisalGorev(d, { soru: "Kütlesi 2 kg olan cisme 4 N uygulanıyor; kütle kaç kg?", dogru_cevap: "2", ipucu_1: "2 kg'lık cismi düşün." })), "ogrenme-kalitesi").karar).toBe("PASS");
     expect(metindekiSayilar("Bu 2. yasa; 3,5 m; 1.250 kg; x2 değil; -4 derece.")).toEqual([3.5, 1250, -4]);
+    expect(metindekiSayilar("2'nci Dünya Savaşı 1939'da başladı; 3'üncü ve 5’inci sıra.")).toEqual([1939]);
+    expect(kapi(oyun((d) => sayisalGorev(d, { dogru_cevap: "2", ipucu_1: "2'nci Dünya Savaşı'nı hatırla." })), "ogrenme-kalitesi").karar).toBe("PASS");
   });
 
   it("rozetler: REVIEW ve BLOCK doğru rozete ve Yayına Uygunluk'a yansır", () => {
@@ -115,6 +117,9 @@ describe("çocuk güvenliği taraması", () => {
     expect(tara("Kumar masasına otur.")[0]).toMatchObject({ kategori: "kumar", engel: false });
     expect(tek("Bahis oynayalım")[0]).toMatchObject({ kategori: "kumar", terim: "bahis oynayalım" });
     expect(tek("Bu iksir eroindir.")[0]).toMatchObject({ kategori: "madde", engel: false });
+    expect(tek("Sigara içmek harika hissettiriyor, hep içmelisin!")[0]).toMatchObject({ kategori: "madde", engel: false, terim: "sigara içmek" });
+    expect(tek("Hadi içki içelim")[0]).toMatchObject({ kategori: "madde" });
+    expect(tek("Köylüleri vahşice öldürdüler")[0]).toMatchObject({ kategori: "siddet" });
     expect(tek("Telefon numaranı buraya yaz.")[0]).toMatchObject({ kategori: "kisisel-veri" });
     expect(tek("Kendine zarar verme oyunu.")[0]).toMatchObject({ kategori: "kendine-zarar" });
   });

@@ -15,7 +15,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     const store = getToplulukStore();
     const kayit = await store.get(id);
     if (!kayit || !kayit.aktif) return NextResponse.json({ error: "Oyun bulunamadı" }, { status: 404 });
-    // Yönetişimden önce eklenmiş kayıt engelleyen ifade içeriyorsa verilmez ve listeden kaldırılır.
+    // Yönetişimden önce eklenmiş (ya da engelleme listesi sonradan genişlemiş) kayıt engelleyen ifade içeriyorsa
+    // verilmez ve listeden kaldırılır. Kasıtlı yan etki: pasife alma sahibinin yeni sürüm yayınıyla geri açılabilir.
     if (cocukGuvenligiTara(kayit.definition).some((e) => e.engel)) {
       await store.pasiflestir(id).catch((err) => console.error("[topluluk] pasife alınamadı", err instanceof Error ? err.message : err));
       return NextResponse.json({ error: "Oyun bulunamadı" }, { status: 404 });
