@@ -44,11 +44,15 @@ export function yeniToplulukKaydi(
 // Yayının yan etkisi: oyun toplulukta zaten varsa (aynı içerik) oyun kodu o kayda bağlanır, böylece sınıf yayınları
 // ve "Oyunu Kullan" kopyaları topluluk kaydının oynanma/puan sayısına katkı verir. Topluluğa ekleme yalnız öğretmenin
 // "Toplulukta paylaş" gönderimi ve iki öğretmen incelemesiyle olur. Hata yayını bozmaz.
-export async function toplulukKodunuBagla(definition: GameDefinition, kod: string, expiresAt: number, now = Date.now()): Promise<void> {
+// yayinlayan: yayını yapan öğretmen; bitiren öğrenciler onun öğretmen puanı uygunluğuna sayılır.
+export async function toplulukKodunuBagla(definition: GameDefinition, kod: string, expiresAt: number, now = Date.now(), yayinlayan: string | null = null): Promise<void> {
   try {
     const store = getToplulukStore();
     const id = await store.icerikId(icerikOzetiOf(definition));
-    if (id) await store.kodBagla(kod, id, expiresAt + GAME_RETENTION_MS - now);
+    if (!id) return;
+    const ttl = expiresAt + GAME_RETENTION_MS - now;
+    await store.kodBagla(kod, id, ttl);
+    if (yayinlayan) await store.kodYayinlayanBagla(kod, yayinlayan, ttl);
   } catch (err) {
     console.error("[topluluk] kod bağlanamadı", err instanceof Error ? err.message : err);
   }

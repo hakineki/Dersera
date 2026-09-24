@@ -61,8 +61,12 @@ export async function bitirisSay(kod: string, nickname: string, istekSahibi: str
     const topluluk = getToplulukStore();
     const id = await topluluk.kodunOyunu(kod);
     if (!id) return;
-    if (istekSahibi && (await topluluk.olusturani(id)) === istekSahibi) return;
+    const olusturan = await topluluk.olusturani(id);
+    if (istekSahibi && olusturan === istekSahibi) return;
     await topluluk.oynanmaArtir(id);
+    // Kodu yayınlayan öğretmenin bu oyunu sınıfında oynattığının kanıtı (öğretmen puanı uygunluğu); sahip sayılmaz.
+    const yayinlayan = await topluluk.kodYayinlayani(kod);
+    if (yayinlayan && yayinlayan !== olusturan) await topluluk.ogretmenKullanimArtir(id, yayinlayan);
   } catch (err) {
     console.error("[istatistik] bitiriş sayılamadı", err instanceof Error ? err.message : err);
   }

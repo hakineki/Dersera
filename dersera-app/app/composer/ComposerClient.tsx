@@ -161,6 +161,8 @@ export default function ComposerClient({
   const [kutuphaneBilgisi, setKutuphaneBilgisi] = useState("");
   const [kutuphaneSurum, setKutuphaneSurum] = useState<number | undefined>(undefined);
   const [toplulukKopyasi, setToplulukKopyasi] = useState(false);
+  // "Oyunu Kullan" kopyasının topluluk kimliği: ilk kütüphane kaydına kaynak olarak yazılır (öğretmen puanı için).
+  const [toplulukKaynagi, setToplulukKaynagi] = useState<string | null>(null);
   const istek = useRef<AbortController | null>(null);
   const sonTanim = useRef<GameDefinition | null>(null);
   useEffect(() => {
@@ -195,6 +197,7 @@ export default function ComposerClient({
       }
       setSonuc({ definition: d.oyun.definition, validation: d.validation, dersler: d.oyun.dersler, hedefler: d.hedefler, hedefDersleri: d.hedefDersleri });
       setToplulukKopyasi(!id);
+      setToplulukKaynagi(id ? null : topluluk);
       if (id) {
         setKutuphaneId(id);
         setKutuphaneSurum((d.oyun as { surum?: number }).surum ?? 1);
@@ -300,7 +303,7 @@ export default function ComposerClient({
     setKutuphaneDurumu("kaydediliyor");
     setKutuphaneHatasi("");
     setKutuphaneBilgisi("");
-    const r = await kutuphaneyeKaydet(gonderilen, sonuc.dersler, kutuphaneId, kutuphaneId ? kutuphaneSurum : undefined);
+    const r = await kutuphaneyeKaydet(gonderilen, sonuc.dersler, kutuphaneId, kutuphaneId ? kutuphaneSurum : undefined, kutuphaneId ? null : toplulukKaynagi);
     if ("error" in r) {
       setKutuphaneHatasi(r.error);
       setKutuphaneDurumu(kutuphaneId ? "degisti" : "kayitsiz");
@@ -530,6 +533,7 @@ export default function ComposerClient({
               setKutuphaneBilgisi("");
               setKutuphaneSurum(undefined);
               setToplulukKopyasi(false);
+              setToplulukKaynagi(null);
               window.history.replaceState(null, "", "/composer");
               setDurum({ tur: "form" });
             }}

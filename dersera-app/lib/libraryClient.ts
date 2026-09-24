@@ -73,10 +73,17 @@ export type KayitYaniti = { id: string; validation: ValidationResult; surum?: Su
 
 // id verilirse aynı kayıt güncellenir, yoksa yeni kayıt açılır.
 // surum: düzenlenen sürüm; sunucu daha yeni bir sürümü ezmemek için denetler.
-export async function kutuphaneyeKaydet(definition: GameDefinition, dersler: { ders: string; konuId: string }[], id: string | null, surum?: number): Promise<KayitYaniti> {
+// toplulukId: topluluktan "Oyunu Kullan" ile açılan oyunun ilk kaydında kaynak (öğretmen puanı için).
+export async function kutuphaneyeKaydet(
+  definition: GameDefinition,
+  dersler: { ders: string; konuId: string }[],
+  id: string | null,
+  surum?: number,
+  toplulukId?: string | null
+): Promise<KayitYaniti> {
   const res = id
     ? await istek(`/api/library/${id}`, { method: "PUT", body: JSON.stringify({ definition, ...(surum ? { surum } : {}) }) })
-    : await istek("/api/library", { method: "POST", body: JSON.stringify({ definition, dersler }) });
+    : await istek("/api/library", { method: "POST", body: JSON.stringify({ definition, dersler, ...(toplulukId ? { toplulukId } : {}) }) });
   if (!res) return { error: "Bağlantı kurulamadı." };
   const json = await res.json().catch(() => ({}));
   return res.ok ? (json as { id: string; validation: ValidationResult; surum?: SurumBilgisi }) : { error: json.error ?? "Oyun kütüphaneye kaydedilemedi." };

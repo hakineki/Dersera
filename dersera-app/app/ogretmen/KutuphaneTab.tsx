@@ -7,7 +7,7 @@ import { PUAN_KOVASI } from "@/lib/istatistik";
 import type { KutuphaneKaydi, KutuphaneListeOgesi } from "@/lib/library";
 import { kutuphanedenSil, kutuphanedenYayinla, kutuphaneListesi, kutuphaneOyunu } from "@/lib/libraryClient";
 import { TOPLULUK_KURALLARI } from "@/lib/topluluk";
-import { toplulugaGonder, topluluktanGeriCekIstegi } from "@/lib/toplulukClient";
+import { ogretmenPuaniGetir, ogretmenPuaniVer, toplulugaGonder, topluluktanGeriCekIstegi, type OgretmenPuaniDurumu } from "@/lib/toplulukClient";
 import { krediDurumuGetir, krediMetni } from "@/lib/krediClient";
 import type { KrediDurumu } from "@/lib/kredi";
 import type { TeacherGame } from "@/lib/teacherGame";
@@ -35,6 +35,70 @@ function Onizleme({ oyun }: { oyun: KutuphaneKaydi }) {
           <p className="text-indigo-800">{d.final.soru}</p>
         </li>
       </ol>
+    </div>
+  );
+}
+
+const PUAN_ADI = ["Zayıf", "Geliştirilmeli", "İyi", "Çok iyi", "Mükemmel"];
+
+// Topluluktan alınan oyun: topluluğun öğretmen puanı, öğretmenin kendi puanı ve puan verme (sınıfında oynattıysa).
+export function OgretmenPuaniBolumu({ toplulukId }: { toplulukId: string }) {
+  const [d, setD] = useState<OgretmenPuaniDurumu | null>(null);
+  const [hata, setHata] = useState("");
+  const [gonderiliyor, setGonderiliyor] = useState(false);
+  useEffect(() => {
+    let iptal = false;
+    ogretmenPuaniGetir(toplulukId).then((x) => !iptal && setD(x));
+    return () => {
+      iptal = true;
+    };
+  }, [toplulukId]);
+  if (!d) return null;
+
+  async function ver(puan: number) {
+    setGonderiliyor(true);
+    setHata("");
+    const r = await ogretmenPuaniVer(toplulukId, puan);
+    setGonderiliyor(false);
+    if ("error" in r) setHata(r.error);
+    else setD(r);
+  }
+
+  return <OgretmenPuaniGorunumu d={d} onVer={ver} gonderiliyor={gonderiliyor} hata={hata} />;
+}
+
+export function OgretmenPuaniGorunumu({ d, onVer, gonderiliyor, hata }: { d: OgretmenPuaniDurumu; onVer: (puan: number) => void; gonderiliyor: boolean; hata: string }) {
+  return (
+    <div className="mt-2 text-xs text-gray-600 space-y-1">
+      <p>
+        <span aria-hidden="true">🍎 </span>Topluluk oyunu · öğretmen puanı:{" "}
+        {d.ortalama === null ? `${TOPLULUK_KURALLARI.ogretmenPuaniGosterim} öğretmen puanlayınca görünür` : `${d.ortalama.toLocaleString("tr-TR")} / 5 (${d.sayi} öğretmen)`}
+      </p>
+      {d.uygun ? (
+        <fieldset disabled={gonderiliyor} className="flex items-center gap-1 flex-wrap">
+          <legend className="sr-only">Bu oyuna puanın</legend>
+          <span>{d.benim ? "Senin puanın:" : "Sınıfında oynattın; puanın:"}</span>
+          {PUAN_ADI.map((ad, i) => (
+            <button
+              key={ad}
+              type="button"
+              onClick={() => onVer(i + 1)}
+              aria-pressed={d.benim === i + 1}
+              aria-label={`${i + 1} yıldız: ${ad}`}
+              className={`w-8 h-8 text-lg leading-none ${d.benim && i < d.benim ? "" : "opacity-30 grayscale"} hover:opacity-100 hover:grayscale-0`}
+            >
+              <span aria-hidden="true">⭐</span>
+            </button>
+          ))}
+        </fieldset>
+      ) : (
+        d.neden && <p className="text-gray-500">{d.neden}</p>
+      )}
+      {hata && (
+        <p role="alert" className="text-red-600">
+          {hata}
+        </p>
+      )}
     </div>
   );
 }
@@ -183,6 +247,7 @@ function OyunKarti({
             {DENEYIM_SECENEKLERI.find((d) => d.key === oyun.deneyim)?.ad} · Sürüm {oyun.surum ?? 1}
           </p>
           {oyun.turetildigi && <p className="text-xs text-indigo-700 mt-0.5">“{oyun.turetildigi.baslik}” oyunundan türetilmiş varyant</p>}
+          {oyun.topluluk_kaynagi && <OgretmenPuaniBolumu toplulukId={oyun.topluluk_kaynagi} />}
           <p className="text-xs text-gray-600 mt-1">
             <span aria-hidden="true">👥 </span>
             {oyun.ogrenci_sayisi} öğrenci ·{" "}

@@ -68,6 +68,24 @@ function Kart({ oyun }: { oyun: ToplulukOzeti }) {
             {oyun.oynanma_sayisi} kez oynandı
           </dd>
         </div>
+        {oyun.puan_ortalama !== null && (
+          <div>
+            <dt className="sr-only">Öğrenci puanı</dt>
+            <dd>
+              <span aria-hidden="true">⭐ </span>
+              Öğrenci {oyun.puan_ortalama.toLocaleString("tr-TR")}
+            </dd>
+          </div>
+        )}
+        {oyun.ogretmen_puan_ortalama != null && (
+          <div>
+            <dt className="sr-only">Öğretmen puanı</dt>
+            <dd>
+              <span aria-hidden="true">🍎 </span>
+              Öğretmen {oyun.ogretmen_puan_ortalama.toLocaleString("tr-TR")} ({oyun.ogretmen_puan_sayisi})
+            </dd>
+          </div>
+        )}
       </dl>
       <Link href={`/composer?topluluk=${oyun.oyun_id}`} aria-label={`${oyun.baslik} oyununu kullan`} className="mt-4 text-center text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3 py-2 rounded-lg">
         Oyunu Kullan

@@ -52,7 +52,7 @@ export async function POST(req: Request) {
       const sahip = await istekSahibi(req);
       const kaynak = await kutuphaneKaynagi(body, sahip);
       await kodKaynagaBagla(published.game.code, kaynak, published.game.expiresAt);
-      await toplulukKodunuBagla(request.definition, published.game.code, published.game.expiresAt);
+      await toplulukKodunuBagla(request.definition, published.game.code, published.game.expiresAt, Date.now(), sahip);
     }
     return NextResponse.json({ ...published, persistent: store.persistent, ...(yonetisim && { yonetisim }) }, { status: 201 });
   } catch (err) {
