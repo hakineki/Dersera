@@ -42,12 +42,12 @@ describe("OpenAI sağlayıcısı", () => {
     delete process.env.AI_MODEL;
   });
 
-  it("aynı şemayı strict JSON schema olarak, 16000 token sınırı ve sistem prompt'uyla gönderir", async () => {
+  it("aynı şemayı strict JSON schema olarak, durak sayısına göre token sınırı ve sistem prompt'uyla gönderir", async () => {
     const out = toModelOutput(makeDefinition(input));
     const { client, calls } = fakeOpenAI(out);
     expect(await composeGameOpenAI(input, recipe, IZINLI_QR_IDLERI, client)).toEqual(out);
     const body = calls[0].body as { max_completion_tokens: number; messages: { role: string; content: string }[]; response_format: { type: string; json_schema: { strict: boolean; schema: { required: string[] } } } };
-    expect(body.max_completion_tokens).toBe(16000);
+    expect(body.max_completion_tokens).toBe(26000);
     expect(body.messages[0]).toEqual({ role: "system", content: SYSTEM_PROMPT });
     expect(body.response_format.type).toBe("json_schema");
     expect(body.response_format.json_schema.strict).toBe(true);

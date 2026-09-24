@@ -55,18 +55,17 @@ describe("parseComposeInput", () => {
     expect(r.input.konuAdi).toBe(`${konu.ad} · ${mat.ad}`);
   });
 
-  it("60 dakikalık oyunda sekiz ders birlikte seçilebilir (programı olan sınıfta)", () => {
+  it("60 dakikalık oyunda dokuz dersin tamamı seçilebilir (programı olan sınıfta)", () => {
     const hepsi = ["matematik", "fizik", "kimya", "turk-dili", "biyoloji", "tarih", "cografya", "felsefe", "din-kulturu"].map((ders) => ({
       ders,
       konuId: getUniteler(11, ders).find((u) => u.ogrenmeCiktilari.length)!.id,
     }));
-    expect(parseComposeInput({ ...valid, sinif: 11, sure: 60, dersler: hepsi.slice(0, 8) }).ok).toBe(true);
+    expect(parseComposeInput({ ...valid, sinif: 11, sure: 60, dersler: hepsi }).ok).toBe(true);
   });
 
   it.each([
-    [20, 4],
-    [40, 6],
-    [60, 8],
+    [20, 5],
+    [40, 8],
   ])("%i dakikada %i dersten fazlası Anthropic'e gitmeden reddedilir", (sure, enFazla) => {
     const hepsi = ["matematik", "fizik", "kimya", "turk-dili", "biyoloji", "tarih", "cografya", "felsefe", "din-kulturu"].map((ders) => ({
       ders,
@@ -97,9 +96,9 @@ describe("parseComposeInput", () => {
 
 describe("tarif", () => {
   it.each([
-    [20, 4, 4],
-    [40, 6, 6],
-    [60, 8, 8],
+    [20, 5, 5],
+    [40, 8, 8],
+    [60, 12, 12],
   ])("%i dk → %i-%i ana görev", (sure, min, max) => {
     expect(buildRecipe(sure, "dengeli", "sinif").anaGorev).toEqual({ min, max });
   });

@@ -1,6 +1,7 @@
 import { PROGRAM_DERS_ADI } from "@/data/mufredat/programlar";
 import type { ResolvedInput } from "@/lib/composer/input";
 import type { Recipe } from "@/lib/composer/recipe";
+import type { DurakCiktisi } from "@/lib/composer/modelOutput";
 
 export const SYSTEM_PROMPT = `Dersera için eğitim oyunu tasarlarsın. Tüm metinler Türkçe.
 - Verilen sınıf, ders, konu ve öğrenme çıktılarının dışına çıkma; yalnız gönderilen müfredat verisini kullan, kod uydurma.
@@ -66,10 +67,25 @@ Alan kuralları:
 - Dallar kısa olsun ve bir "birlesme" durağında yeniden birleşsin: her dalın son durağı varsayilan_sonraki_durak_id ile birleşme durağına bağlanır. Seçim sahneleri ve son durak dışında her durağın varsayilan_sonraki_durak_id alanı doludur; hiçbir durak kopuk kalmaz.
 - Oyunu sondan başa tasarla: önce finali ve final.gerekli_nesneler listesini yaz, sonra durakları bu nesneleri kazandıracak biçimde kur.
 - final.gerekli_nesneler içindeki HER nesne, en az bir durağın odul_id alanında birebir yer alır. Bu nesneleri yalnız her rotanın geçtiği duraklarda (dallanmadan önce ya da birleşmeden sonra) ver; yalnız bir dalda verilen nesne finalde istenmez.
-- eslestirme çiftlerinde sol taraflar birbirinden, sağ taraflar da birbirinden farklıdır.
+- eslestirme çiftlerinde sol taraflar birbirinden, sağ taraflar da birbirinden farklıdır. Konu en az 3 anlamlı çift çıkarmıyorsa (ör. yalnız iki ayet ya da iki kavram) eşleştirme yerine coktan_secmeli kullan.
+- Seçenek, öğe ve çift sayılarına birebir uy; eksik ya da fazla olan görev geçersizdir.
 - Durak sayısı yukarıdaki üst sınırı aşmaz.
 - Boş/yok değerleri için boş metin ("") kullan: odul_id, varsayilan_sonraki_durak_id (son duraklarda ve seçim sahnelerinde), qr_durak_id (tek sınıfta).
 
 Metinleri kısa tut (oyun hızlı üretilmeli): hikaye_metni en fazla 2 cümle; soru tek cümle; ipuçları, destek açıklaması ve sonraki durak tarifi tek kısa cümle; seçenekler birkaç kelime.
 Görev türlerini konuya uygun biçimde çeşitlendir. Durak id'leri d1, d2, ...; nesne id'leri n1, n2, ... biçiminde olsun. İlk durak başlangıçtır.`;
+}
+
+// Doğrulamadan geçmeyen durakları, aynı bağlamla ve hata listesiyle yeniden yazdırır (küçük ikinci çağrı).
+export function buildDuzeltmePrompt(anaPrompt: string, duraklar: DurakCiktisi[], hatalar: string[]): string {
+  return `${anaPrompt}
+
+Bu oyun üretildi ama aşağıdaki duraklar doğrulamadan geçmedi:
+${hatalar.map((h) => `- ${h}`).join("\n")}
+
+Yalnız bu durakları hataları gidererek yeniden yaz ve duraklar dizisinde döndür. Yukarıdaki alan kurallarına birebir uy.
+id, sahne_turu, secimler, varsayilan_sonraki_durak_id, odul_id ve qr_durak_id değerlerini aynen koru; yalnız görev içeriğini (soru, görev türü, seçenekler, doğru cevap, ipuçları, destek görevi) ve gerekirse hikâye metnini değiştir.
+
+Düzeltilecek duraklar (JSON):
+${JSON.stringify(duraklar)}`;
 }
