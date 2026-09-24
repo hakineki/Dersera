@@ -1,0 +1,3918 @@
+{
+ "kaynak": "https://tymm.meb.gov.tr",
+ "alinma": "2026-09-24",
+ "aciklama": "Türkiye Yüzyılı Maarif Modeli temel eğitim (ilkokul, 1–4. sınıf) öğretim programları; tymm.meb.gov.tr ünite sayfalarından birebir alınmıştır (scripts/tymm-temel-egitim.mjs).",
+ "programlar": {
+  "turkce": {
+   "1": [
+    {
+     "id": "265",
+     "ad": "Güzel Davranışlarımız",
+     "amac": "Bu temada, iyi bir insan olmanın ve toplumda güzel davranışlarla örnek olmanın önemi vb. tema içeriğine uygun bir şiir ve üç öyküleyici dinleme metni işlenirken ilk okuma ve yazma sürecine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır. Tema boyunca “a-A, n-N, e-E, t-T” harfleri ve “1, 2, 3, 4” rakamlar öğretilmektedir.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.1.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.1.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.1.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.1.4",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.1.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.1.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.1.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.Y.1.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.1.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.1.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "269",
+     "ad": "Mustafa Kemal’den Atatürk’e",
+     "amac": "Bu temada Gazi Mustafa Kemal Atatürk, millî egemenlik, millî irade, millî kimlik, Millî Mücadele, kahramanlık, cesaret, fedakârlık, gazilik, şehitlik, vatanseverlik vb. tema içeriğine uygun bir şiir ve üç öyküleyici dinleme metni işlenirken ilk okuma ve yazma sürecine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır. Tema boyunca birinci grupta yer alan “i-İ, l-L” ve ikinci grupta yer alan “o-O, k-K, u-U” harfleri ve “5, 6, 7, 8, 9, 0” rakamları öğretilmektedir.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.1.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.1.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.1.3",
+       "metin": "Dinlediği/izlediğini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.1.4",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.1.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.1.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.1.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.Y.1.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.1.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.1.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "286",
+     "ad": "Çevremizdeki Yaşam",
+     "amac": "Bu temada doğa, çevre ve tasarruf vb. tema içeriğine uygun bir şiir ve üç öyküleyici dinleme metni işlenirken ilk okuma ve yazma sürecine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır. Tema boyunca öğrencilerin ikinci grupta yer alan “r-R, ı-I, m-M” ve üçüncü grupta yer alan “ü-Ü, s-S, ö-Ö, y-Y, d-D, z-Z” harflerinin öğretim süreci yer almaktadır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.1.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.1.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.1.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.1.4",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.1.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.1.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.1.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.Y.1.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.1.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.1.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "289",
+     "ad": "Yol Arkadaşımız Kitaplar",
+     "amac": "Bu temada kitap, okuma sevgisi, kütüphane vb. tema içeriğine uygun bir şiir ve üç öyküleyici dinleme metni işlenirken ilk okuma ve yazma sürecine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır. Tema boyunca dördüncü grupta yer alan “ç-Ç, b-B, g-G, c-C, ş-Ş” ve son grupta yer alan “p-P, h-H, v-V, ğ-Ğ, f-F, j-J” harflerinin öğretim süreci yer almaktadır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.1.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.1.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.1.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.1.4",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.1.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.1.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.1.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.Y.1.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.1.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "292",
+     "ad": "Yeteneklerimizi Keşfediyoruz",
+     "amac": "Bu temada özgünlük, festival, fotoğraf, geleneksel sanatlar, el sanatları, yeteneklerin keşfi vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izle\u0002me, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.1.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.1.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.1.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.1.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.1.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.1.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.1.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.1.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.1.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.1.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.1.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "326",
+     "ad": "Minik Kâşifler",
+     "amac": "Bu temada bilim ve teknoloji vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.1.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.1.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.1.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.1.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.1.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.1.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.1.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.1.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.1.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.1.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.1.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.1.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "337",
+     "ad": "Atalarımızın İzleri",
+     "amac": "Bu temada millî kültürümüz vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.1.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.1.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.1.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.1.4",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.1.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.1.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.1.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.K.1.4",
+       "metin": "Konuşma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.O.1.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.1.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.1.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.O.1.4",
+       "metin": "Okuma sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.O.1.5",
+       "metin": "Okuma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.Y.1.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.1.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.1.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.Y.1.4",
+       "metin": "Yazma sürecini değerlendirebilme"
+      }
+     ]
+    },
+    {
+     "id": "347",
+     "ad": "Sorumluluklarımızın Farkındayız",
+     "amac": "Bu temada temel hak ve sorumluluklar vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.1.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.1.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.1.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.1.4",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.1.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.1.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.1.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.K.1.4",
+       "metin": "Konuşma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.O.1.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.1.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.1.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.O.1.4",
+       "metin": "Okuma sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.O.1.5",
+       "metin": "Okuma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.Y.1.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.1.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.1.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.Y.1.4",
+       "metin": "Yazma sürecini değerlendirebilme"
+      }
+     ]
+    }
+   ],
+   "2": [
+    {
+     "id": "353",
+     "ad": "Değerlerimizle Varız",
+     "amac": "Bu temada nezaket kuralları ve erdemler vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.2.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.2.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.2.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.2.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.2.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.2.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.2.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.2.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.2.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.2.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.2.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.2.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "357",
+     "ad": "Atatürk Ve Çocuk",
+     "amac": "Bu temada Gazi Mustafa Kemal Atatürk, millî egemenlik, millî irade, millî kimlik, Millî Mücadele, kahramanlık, cesaret, fedakârlık, gazilik, şehitlik, vatanseverlik vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.2.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.2.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.2.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.2.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.2.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.2.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.2.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.2.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.2.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.2.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.2.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.2.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "373",
+     "ad": "Doğada Neler Oluyor?",
+     "amac": "Bu temada doğa, çevre, doğal kaynakları tasarruflu kullanma vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerilerine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.2.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.2.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.2.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.2.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.2.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.2.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.K.2.5",
+       "metin": "Konuşma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.O.2.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.2.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.2.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.2.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.2.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.2.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "374",
+     "ad": "Okuma Serüvenimiz",
+     "amac": "Bu temada okuma alışkanlığı kazanma, kitap sevgisi, okuryazarlık becerileri vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.2.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.2.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.2.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.2.4",
+       "metin": "Dinleme/izleme sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.D.2.5",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.2.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.2.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.2.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.2.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.2.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.2.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.O.2.4",
+       "metin": "Okuma sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.Y.2.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.2.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.2.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.Y.2.5",
+       "metin": "Yazma sürecini değerlendirebilme"
+      }
+     ]
+    },
+    {
+     "id": "378",
+     "ad": "Yeteneklerimizi Tanıyoruz",
+     "amac": "Bu temada yeteneklerin keşfi vb. tema içeriğine uygun metinler işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.2.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.2.2",
+       "metin": "Dinledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.2.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.2.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.2.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.2.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.2.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.2.2",
+       "metin": "Okumaları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.2.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.2.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.2.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.2.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.Y.2.4",
+       "metin": "Yazma sürecine etki eden durumları gözden geçirebilme"
+      }
+     ]
+    },
+    {
+     "id": "380",
+     "ad": "Mucit Çocuk",
+     "amac": "Bu temada yeteneklerin keşfi vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.2.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.2.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.2.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.2.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.2.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.2.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.K.2.4",
+       "metin": "Konuşma sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.O.2.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.2.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.2.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.2.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.2.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.2.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "382",
+     "ad": "Kültür Hazinemiz",
+     "amac": "Bu temada vatan, bayrak, insani ve kültürel değerler vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.2.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "TD.2.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.2.3",
+       "metin": "Dinledikleri/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.2.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.2.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.2.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.2.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.2.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.2.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.O.2.5",
+       "metin": "Okuma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.Y.2.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.2.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.2.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "385",
+     "ad": "Haklarımızı Biliyoruz",
+     "amac": "Bu temada temel hak ve sorumluluklar vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.2.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.2.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.2.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.2.5",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.2.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.2.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.2.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.K.2.5",
+       "metin": "Konuşma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.O.2.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.2.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.2.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.O.2.4",
+       "metin": "Okuma sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.O.2.5",
+       "metin": "Okuma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.Y.2.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.2.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.2.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    }
+   ],
+   "3": [
+    {
+     "id": "354",
+     "ad": "Değerlerimizle Yaşıyoruz",
+     "amac": "Bu temada erdemler ve nezaket kuralları vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, okuma, konuşma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.3.1",
+       "metin": "Dinlemeyi/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.3.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.3.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.3.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.3.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.3.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.3.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.3.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.3.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.3.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.3.3",
+       "metin": "Yazma kurallarını uygulayabilme b) Yazılarında sözcükleri yerinde ve anlamına uygun kullanır."
+      }
+     ]
+    },
+    {
+     "id": "360",
+     "ad": "Atatürk Ve Kahramanlarımız",
+     "amac": "Bu temada Gazi Mustafa Kemal Atatürk, millî egemenlik, millî irade, millî kimlik, Millî Mücadele, kahramanlık, cesaret, fedakârlık, gazilik, şehitlik, vatanseverlik vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, okuma, konuşma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.3.1",
+       "metin": "Dinlemeyi/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.3.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.3.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.3.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.3.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.3.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.3.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.3.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.3.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.3.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.3.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.3.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "381",
+     "ad": "Doğayı Tanıyoruz",
+     "amac": "Bu temada doğa vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/ izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.3.1",
+       "metin": "Dinlemeyi/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.3.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.3.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.3.5",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.3.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.3.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.3.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.K.3.5",
+       "metin": "Konuşma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.O.3.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.3.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.3.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.O.3.5",
+       "metin": "Okuma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.Y.3.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.3.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.3.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "387",
+     "ad": "Bilgi Hazinemiz",
+     "amac": "Bu temada okuryazarlık türleri, okuma sevgisi vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.3.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.3.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.3.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.3.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.3.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.3.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.3.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.3.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.3.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.3.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.3.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.3.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.Y.3.5",
+       "metin": "Yazma sürecini değerlendirebilme"
+      }
+     ]
+    },
+    {
+     "id": "391",
+     "ad": "Yeteneklerimizi Kullanıyoruz",
+     "amac": "Bu temada sanat, spor, edebiyat vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.3.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.3.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.3.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.3.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.3.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.3.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.3.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.3.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.3.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.3.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.3.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.3.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "395",
+     "ad": "Bilim Yolculuğu",
+     "amac": "Bu temada bilim ve teknoloji vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.3.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.3.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.3.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.3.4",
+       "metin": "Dinleme/izleme sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.D.3.5",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.3.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.3.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.3.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.3.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.3.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.3.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.O.3.5",
+       "metin": "Okuma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.Y.3.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.3.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.3.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "396",
+     "ad": "Millî Kültürümüz",
+     "amac": "Bu temada Türk kültürü, millî ve manevi değerler vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.3.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.3.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.3.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.3.4",
+       "metin": "Dinleme/izleme sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.D.3.5",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.3.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.3.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.3.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.3.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.3.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.3.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.3.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.3.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.3.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "393",
+     "ad": "Hak Ve Sorumluluklarımız",
+     "amac": "Bu temada temel haklar, özgürlükler, sorumluluklar vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.3.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.3.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.3.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.3.4",
+       "metin": "Dinleme/izleme sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.D.3.5",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.3.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.3.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.3.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.K.3.4",
+       "metin": "Konuşma sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.K.3.5",
+       "metin": "Konuşma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.O.3.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.3.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.3.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.O.3.4",
+       "metin": "Okuma sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.O.3.5",
+       "metin": "Okuma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.Y.3.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.3.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.3.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.Y.3.4",
+       "metin": "Yazma sürecine etki eden durumları gözden geçirebilme"
+      }
+     ]
+    }
+   ],
+   "4": [
+    {
+     "id": "390",
+     "ad": "Erdemler",
+     "amac": "Bu temada değerler ve toplumsal uyum becerileri vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, okuma, konuşma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerilerine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.4.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.4.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.4.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.4.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.4.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.4.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.4.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.4.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.4.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.4.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.4.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.Y.4.4",
+       "metin": "Yazma sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.Y.4.5",
+       "metin": "Yazma sürecini değerlendirebilme"
+      }
+     ]
+    },
+    {
+     "id": "392",
+     "ad": "Millî Mücadele Ve Atatürk",
+     "amac": "Bu temada Gazi Mustafa Kemal Atatürk, millî egemenlik, millî irade, millî kimlik, Millî Mücadele, kahramanlık, cesaret, fedakârlık, gazilik, şehitlik, vatanseverlik vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, okuma, konuşma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerilerine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.4.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.4.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.4.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.4.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.4.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.4.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.4.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.4.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.4.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.4.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.4.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.4.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.Y.4.5",
+       "metin": "Yazma sürecini değerlendirebilme"
+      }
+     ]
+    },
+    {
+     "id": "398",
+     "ad": "Doğa Ve İnsan",
+     "amac": "Bu temada doğa vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerilerine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.4.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.4.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.4.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.4.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.4.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.4.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.4.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.4.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.4.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.O.4.5",
+       "metin": "Okuma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.Y.4.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.4.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.4.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "397",
+     "ad": "Kütüphanemiz",
+     "amac": "Bu temada okuryazarlık türleri, okuma sevgisi vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerilerine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.4.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.4.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.4.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.4.5",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.4.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.4.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.4.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.K.4.5",
+       "metin": "Konuşma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.O.4.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.4.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.4.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.O.4.5",
+       "metin": "Okuma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.Y.4.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.4.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.4.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "401",
+     "ad": "Kendimizi Geliştiriyoruz",
+     "amac": "Bu temada sanat, spor, edebiyat vb. tema içeriğine uygun ilgili dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerilerine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.4.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.4.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.4.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.4.5",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.4.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.4.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.4.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.4.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.4.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.O.4.5",
+       "metin": "Okuma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.Y.4.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.4.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.4.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.Y.4.5",
+       "metin": "Yazma sürecini değerlendirebilme"
+      }
+     ]
+    },
+    {
+     "id": "406",
+     "ad": "Bilim Ve Teknoloji",
+     "amac": "Bu temada bilim ve teknoloji vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerilerine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.4.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.4.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.4.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.4.4",
+       "metin": "Dinleme/izleme sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.K.4.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.4.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.4.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.K.4.4",
+       "metin": "Konuşma sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.K.4.5",
+       "metin": "Konuşma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.O.4.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.4.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.O.4.4",
+       "metin": "Okuma sürecine etki eden durumları gözden geçirebilme"
+      },
+      {
+       "kod": "T.O.4.5",
+       "metin": "Okuma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.Y.4.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.4.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.4.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.Y.4.5",
+       "metin": "Yazma sürecini değerlendirebilme"
+      }
+     ]
+    },
+    {
+     "id": "403",
+     "ad": "Geçmişten Geleceğe Mirasımız",
+     "amac": "Bu temada Türk kültürü, millî ve manevi değerler vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerilerine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.4.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.4.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.4.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.K.4.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.4.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.4.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.O.4.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.4.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.4.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.O.4.5",
+       "metin": "Okuma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.Y.4.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.4.2",
+       "metin": "Yazılarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.Y.4.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "400",
+     "ad": "Demokratik Yaşam",
+     "amac": "Bu temada sorumluluklar, temel hak ve özgürlükler vb. tema içeriğine uygun dört okuma ve bir dinleme metni işlenirken dinleme/izleme, konuşma, okuma, yazma becerilerine ilişkin belirlenen öğrenme çıktılarına ulaşmak amaçlanır.",
+     "konular": [
+      "Bu temadaki etkinlikler ve metinler aracılığı ile dinleme/izleme, konuşma, okuma, yazma becerisine ait öğrenme çıktılarının kazandırılması beklenmektedir."
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "T.D.4.1",
+       "metin": "Dinleme/izlemeyi yönetebilme"
+      },
+      {
+       "kod": "T.D.4.2",
+       "metin": "Dinledikleri/izledikleri ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.D.4.3",
+       "metin": "Dinlediklerini/izlediklerini çözümleyebilme"
+      },
+      {
+       "kod": "T.D.4.5",
+       "metin": "Dinleme/izleme sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.K.4.1",
+       "metin": "Konuşmalarını yönetebilme"
+      },
+      {
+       "kod": "T.K.4.2",
+       "metin": "Konuşmalarında içerik oluşturabilme"
+      },
+      {
+       "kod": "T.K.4.3",
+       "metin": "Konuşma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.K.4.5",
+       "metin": "Konuşma sürecini değerlendirebilme"
+      },
+      {
+       "kod": "T.O.4.1",
+       "metin": "Okuma sürecini yönetebilme"
+      },
+      {
+       "kod": "T.O.4.2",
+       "metin": "Okudukları ile ilgili anlam oluşturabilme"
+      },
+      {
+       "kod": "T.O.4.3",
+       "metin": "Okuduklarını çözümleyebilme"
+      },
+      {
+       "kod": "T.Y.4.1",
+       "metin": "Yazılı anlatım becerilerini yönetebilme"
+      },
+      {
+       "kod": "T.Y.4.2",
+       "metin": "Yazılarında içerik oluşturabilme ö) Yazılarını görsel/dijital içeriklerle destekler."
+      },
+      {
+       "kod": "T.Y.4.3",
+       "metin": "Yazma kurallarını uygulayabilme"
+      },
+      {
+       "kod": "T.Y.4.5",
+       "metin": "Yazma sürecini değerlendirebilme"
+      }
+     ]
+    }
+   ]
+  },
+  "matematik": {
+   "1": [
+    {
+     "id": "45",
+     "ad": "Sayılar Ve Nicelikler (1)",
+     "amac": "Bu temada öğrencilerin rakam ve sayıları niceliklerin büyüklüklerini temsil edebilmek için kullanabilmeleri, 20’ye kadar olan nesne grubunu sayarken (20 dâhil) parçalar arasındaki ilişkileri ve sayıların sırasını belirleyebilmeleri, iki niceliğin büyüklüğünü karşılaştırabilmeleri, 100’e kadar (100 dâhil) ileriye ve 20’den geriye ritmik sayabilmeleri, artan ve azalan sayı örüntüleri ile tekrar eden şekil örüntülerini çözümleyebilmeleri ve 20’ye kadar olan nesnelerin sayısını tahmin edebilmeleri amaçlanmaktadır.",
+     "konular": [
+      "Rakamlar ve Sayılar, Sayıları Çözümleme, Sıra Sayıları, Büyüklükleri Karşılaştırma, Ritmik Sayma, Sayı ve Şekil Örüntüleri, Nesne Sayısını Tahmin Etme"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.1.1.1",
+       "metin": "Rakamları ve 20’ye kadar olan sayıları (20 dâhil), niceliklerin büyüklüklerini temsil etmek için kullanabilme"
+      },
+      {
+       "kod": "MAT.1.1.2",
+       "metin": "Ögeleri dağınık veya düzenli bir şekilde bulunan bir nesne grubunu sayarken parçalar arasında ilişkileri çözümleyebilme"
+      },
+      {
+       "kod": "MAT.1.1.3",
+       "metin": "Nesnelerin sıra sayısını gösterebilme"
+      },
+      {
+       "kod": "MAT.1.1.4",
+       "metin": "İki niceliğin büyüklüğünü “çok”, “daha çok”, “az”, “daha az” veya “eşit” terimleriyle karşılaştırabilme"
+      },
+      {
+       "kod": "MAT.1.1.5",
+       "metin": "100’e kadar ileriye ve 20’den geriye doğru ritmik sayabilme"
+      },
+      {
+       "kod": "MAT.1.1.6",
+       "metin": "Artan veya azalan sayı ve şekil örüntülerini çözümleyebilme"
+      },
+      {
+       "kod": "MAT.1.1.7",
+       "metin": "Verilen bir çokluktaki ilişkilerden yararlanarak 20’ye kadar (20 dâhil) olan nesnelerin sayısını tahmin edebilme"
+      }
+     ]
+    },
+    {
+     "id": "86",
+     "ad": "Sayılar Ve Nicelikler (2)",
+     "amac": "Bu temada öğrencilerin standart olmayan uygun ölçme araçları ile nesnelerin uzunluğunu ve tartacağı kütlenin ölçüm sonuçlarını tahmin edebilmeleri amaçlanmaktadır.",
+     "konular": [
+      "Uzunluk ve Kütle Ölçme"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.1.1.8",
+       "metin": "Standart olmayan uygun ölçme araçları ile nesnelerin uzunluğunu ve tartacağı kütlenin ölçüm sonuçlarını tahmin edebilme"
+      }
+     ]
+    },
+    {
+     "id": "95",
+     "ad": "Sayılar Ve Nicelikler (3)",
+     "amac": "Bu temada öğrencilerin paraları (1 TL, 5 TL, 10 TL, 20 TL, 50 TL, 100 TL ve 200 TL) temsil ettiği büyüklükleri tanıyabilmeleri amaçlanmaktadır.",
+     "konular": [
+      "Paralarımız"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.1.1.9",
+       "metin": "Paraların (1 TL, 5 TL, 10 TL, 20 TL, 50 TL, 100 TL ve 200 TL) temsil ettiği büyüklükleri tanıyabilme"
+      }
+     ]
+    },
+    {
+     "id": "99",
+     "ad": "İşlemlerden Cebirsel Düşünmeye",
+     "amac": "Bu temada öğrencilerin günlük yaşamın içerdiği toplama ve çıkarma işlemlerini çözümleyebilmesi; 20’den küçük sayılarla toplamları 20’ye kadar (20 dâhil) olan eldesiz toplama işlemi ve onluk bozma gerektirmeyen 20’den (20 dâhil) küçük sayılarla çıkarma işlemi yapabilmesi; toplama ve çıkarma işlemi bağlamında eşitliği yorumlayabilmesi; toplama ve çıkarma işlemlerinin sonuçlarını tahminde bulunarak ve zihinden işlem yaparak muhakeme edebilmesi; toplama ve çıkarma işlemi arasındaki ilişkiyi yorumlayabilmesi; toplama işleminde değişme özelliğini ve işlemlerde verilmeyen terimi belirleyebilmesi; problem durumunu toplama ve çıkarma işlemi ile çözümleyebilmesi amaçlanmaktadır.",
+     "konular": [
+      "Toplama ve Çıkarma İşlemlerini Çözümleme, Toplama ve Çıkarma İşlemlerinin Sonuçlarını Tahmin Etme ve Zihinden İşlem, Toplama ve Çıkarma İşlemlerinde Eşitlik, Toplama ve Çıkarma İşlemlerinin İlişkisi"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.1.2.1",
+       "metin": "Günlük yaşamın içerdiği toplama ve çıkarma işlemlerini çözümleyebilme"
+      },
+      {
+       "kod": "MAT.1.2.2",
+       "metin": "Toplama ve çıkarma işlemlerinin sonuçlarını tahminde bulunarak ve zihinden işlem yaparak muhakeme edebilme"
+      },
+      {
+       "kod": "MAT.1.2.3",
+       "metin": "Eşit işaretinin anlamını toplama ve çıkarma işlemi bağlamında yorumlayabilme"
+      },
+      {
+       "kod": "MAT.1.2.4",
+       "metin": "Toplama ve çıkarma işlemlerinin ilişkisini yorumlayabilme"
+      }
+     ]
+    },
+    {
+     "id": "109",
+     "ad": "Nesnelerin Geometrisi (1)",
+     "amac": "Bu temada öğrencilerin yer, yön ve konum bildiren kavramları belirleyebilmesi; yönergeleri kullanarak başlangıç noktası ve hedef arasında ilişki kurabilmesi ve yönergeleri uygulayarak hedefe ulaşabilmesi amaçlanmaktadır. Ayrıca bu temada öğrencilerin çevresinde gördüğü nesnelerin eşini bulmak için rengi, boyu, şekli gibi görsel özelliklerini ölçüt olarak belirleyebilmesi; belirlediği ölçütü kullanarak eş olabilecek nesnelerin bilgilerine ulaşması ve ulaştığı bilgiler doğrultusunda nesnelerin eşliği hakkında yargıda bulunabilmesi amaçlanmaktadır.",
+     "konular": [
+      "Uzamsal İlişkiler, Eş Nesneler"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.1.3.1",
+       "metin": "Hedefe ulaşmak için mesafeleri ve yönleri içeren yönergeleri çözümleyebilme"
+      },
+      {
+       "kod": "MAT.1.3.2",
+       "metin": "Nesnelerin eşliğini değerlendirebilme"
+      }
+     ]
+    },
+    {
+     "id": "113",
+     "ad": "Nesnelerin Geometrisi (2)",
+     "amac": "Bu temada öğrencilerin günlük yaşamda karşılaştığı farklı geometrik şekillere benzeyen uygun nesneleri yuvarlak ve köşeli olarak ifade edebilmeleri; günlük yaşamdaki geometrik yapıları inceleyerek geometrik yapılarda yer alan geometrik şekilleri, köşe (üç köşeli, dört köşeli, köşesi olmayan vb.) ve kenar sayılarını (üç kenarlı, dört kenarlı ve kenarı olmayan vb.) dikkate alarak belirleyebilmeleri; üçgen, kare, dikdörtgen ve çemberi biçimsel özelliklerine göre sınıflandırabilmeleri amaçlanmaktadır.",
+     "konular": [
+      "Nesnelerin Biçimsel Özellikleri, Geometrik Yapılardaki Geometrik Şekiller, Geometrik Şekilleri Sınıflandırma"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.1.3.3",
+       "metin": "Günlük yaşamdaki nesneleri biçimsel özelliklerine göre ayırt edebilme"
+      },
+      {
+       "kod": "MAT.1.3.4",
+       "metin": "Günlük yaşamda karşılaşılan geometrik yapılardaki geometrik şekilleri çözümleyebilme"
+      },
+      {
+       "kod": "MAT.1.3.5",
+       "metin": "Biçimsel özelliklerine göre geometrik şekilleri sınıflandırabilme"
+      }
+     ]
+    },
+    {
+     "id": "115",
+     "ad": "Veriye Dayalı Araştırma",
+     "amac": "Bu temada, öğrencilerin istatistiksel araştırma sürecinin adımlarını kategorik veriye dayalı tek veri grubuna yönelik yürütebilmeleri amaçlanmaktadır.",
+     "konular": [
+      "Veriyle Çalışma ve Veriye Dayalı Karar Verme"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.1.4.1",
+       "metin": "Kategorik veriye dayalı temel veri grubu ile çalışabilme ve veriye dayalı karar"
+      }
+     ]
+    }
+   ],
+   "2": [
+    {
+     "id": "116",
+     "ad": "Sayılar Ve Nicelikler (1)",
+     "amac": "Bu temada öğrencilerin niceliklerin büyüklüklerine karşılık gelen 100’e kadar olan sayıları kullanabilmesi; nesne sayısı 100’e kadar olan nesne grubunu çözümleyebilmesi; sayıların sırasını belirleyebilmesi; 100’e kadar (100 dâhil) ileriye doğru ritmik sayabilmesi; sayı ve sayı temsiline dönüşen şekil örüntülerine dayalı çıkarım yapabilmesi; bir çokluktaki ilişkilerden yararlanarak 50’ye kadar olan nesnelerin sayısını tahmin edebilmesi amaçlanmaktadır.",
+     "konular": [
+      "Sayılar, Sayıları Çözümleme, Sayıları Sıralama, Ritmik Sayma, Sayı ve Şekil Örüntüleri, Nesne Sayısını Tahmin Etme"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.2.1.1",
+       "metin": "100’e kadar olan niceliklerin büyüklüklerini temsil etmede sayıların sembolik temsillerinden yararlanabilme"
+      },
+      {
+       "kod": "MAT.2.1.2",
+       "metin": "İki basamaklı sayıları çözümleyebilme"
+      },
+      {
+       "kod": "MAT.2.1.3",
+       "metin": "Sayıların sırasını belirleyebilme"
+      },
+      {
+       "kod": "MAT.2.1.4",
+       "metin": "İleriye ve geriye doğru ritmik sayabilme"
+      },
+      {
+       "kod": "MAT.2.1.5",
+       "metin": "Sayı ve sayı temsiline dönüşen şekil örüntülerine dayalı çıkarım yapabilme"
+      },
+      {
+       "kod": "MAT.2.1.6",
+       "metin": "Bir çokluktaki ilişkilerden yararlanarak 50’ye kadar olan nesnelerin sayısını tahmin edebilme"
+      }
+     ]
+    },
+    {
+     "id": "125",
+     "ad": "Sayılar Ve Nicelikler (2)",
+     "amac": "Bu temada öğrencilerin bütün, yarım ve çeyreği ifade ettikten sonra bütün, yarım ve çeyrek parçaların arasındaki ilişkiyi belirleyebilmeleri; paraları değerine göre ilişkilendirerek çözümleyebilmeleri; zaman ölçü birimlerini okuyabilmeleri ve yazabilmeleri; standart uzunluk ve kütle ölçme araçlarını tanıyabilmeleri; nesneleri standart ölçme araçlarıyla ölçerek ölçüm sonuçlarını tahminleri ile karşılaştırabilmeleri amaçlanmaktadır.",
+     "konular": [
+      "Kesirler, Paralarımız, Zaman Ölçme, Uzunluk ve Kütle Ölçme Araç ve Birimleri, Uzunluk ve Kütle Ölçmede Tahmin"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.2.1.7",
+       "metin": "Bütün, yarım ve çeyrek arasındaki ilişkiyi çözümleyebilme"
+      },
+      {
+       "kod": "MAT.2.1.8",
+       "metin": "Paraları değerlerine göre ilişkilendirerek çözümleyebilme"
+      },
+      {
+       "kod": "MAT.2.1.9",
+       "metin": "Zaman ölçü birimlerini okuyabilme ve yazabilme"
+      },
+      {
+       "kod": "MAT.2.1.10",
+       "metin": "Standart uzunluk ve kütle ölçme araçlarının ve birimlerinin gerekliliğini yansıtabilme"
+      },
+      {
+       "kod": "MAT.2.1.11",
+       "metin": "Standart uzunluk ve kütle ölçü birimleri cinsinden uzunlukları ve kütleleri tahmin edebilme"
+      }
+     ]
+    },
+    {
+     "id": "164",
+     "ad": "İşlemlerden Cebirsel Düşünmeye",
+     "amac": "Bu temada öğrencilerin toplama ve çıkarma işlemleri gerektiren günlük yaşam problemlerini çözebilmesi; toplama ve çıkarma işlemlerinin sonuçlarını tahminde bulunarak ve zihinden işlem yaparak muhakeme edebilmesi; toplama ve çıkarma işlemlerinin ilişkisini yorumlayabilmesi; çarpma işlemini tekrarlı toplama, bölme işlemini ardışık çıkarma ile anlamlandırabilmesi; tahmin ederek veya zihinden işlemlerle çarpma ve bölme işleminin sonucunu bulabilmesi; dört işlem bağlamında eşitliği yorumlayabilmesi amaçlanmaktadır.",
+     "konular": [
+      "Toplama ve Çıkarma İşlemleriyle İlgili Problemler, Toplama ve Çıkarma İşlemlerinin SonuçlarınıTahmin Etme ve Zihinden İşlem, Toplama ve Çıkarma İşlemlerinin İlişkisi, Çarpma ve Bölme İşlemleri, Çarpma ve Bölme İşlemlerinin Sonuçlarını Tahmin Etme ve Zihinden İşlem, Dört İşlemde Eşitlik"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.2.2.1",
+       "metin": "Toplama ve çıkarma işlemleri gerektiren günlük yaşam problemlerini çözebilme"
+      },
+      {
+       "kod": "MAT.2.2.2",
+       "metin": "Toplama ve çıkarma işlemlerinin sonuçlarını tahminde bulunarak ve zihinden işlem yaparak muhakeme edebilme"
+      },
+      {
+       "kod": "MAT.2.2.3",
+       "metin": "Toplama ve çıkarma işlemlerinin ilişkisini yorumlayabilme"
+      },
+      {
+       "kod": "MAT.2.2.4",
+       "metin": "Çarpma ve bölme işlemlerini toplama ve çıkarma işlemlerine dayalı olarak çözümleyebilme"
+      },
+      {
+       "kod": "MAT.2.2.5",
+       "metin": "Çarpma ve bölme işlemlerinin sonuçlarını tahminde bulunarak ve zihinden işlem yaparak muhakeme edebilme"
+      },
+      {
+       "kod": "MAT.2.2.6",
+       "metin": "Dört işlem bağlamında eşitliğin farklı anlamlarını yorumlayabilme"
+      }
+     ]
+    },
+    {
+     "id": "165",
+     "ad": "Nesnelerin Geometrisi (1)",
+     "amac": "Bu temada öğrencilerin günlük yaşamda kullanılan farklı nesneleri biçimsel özelliklerine göre belirleyebilmesi, ayırabilmesi, tasnif edebilmesi ve adlandırabilmesi; geometri yapılardaki geometrik cisimleri belirleyebilmesi; bu geometrik cisimlerin aralarında ilişki kurması ve geometrik cisimlerden özgün bir yapı modeli oluşturabilmesi; üçgen, kare, dikdörtgen, çember ve daire arasında ilişkiler kurması ve bu şekilleri birleştirerek özgün modeller oluşturabilmesi amaçlanmaktadır. Ayrıca bu temada öğrencilerin geometrik şekil ve cisimlerin yön, konum veya büyüklükleri değiştiğinde biçimsel özelliklerinin değişmediğinin farkına varabilmesi; standart olmayan sıvı ölçme araçları ile sıvı miktarını tahmin edebilmesi ve ölçüm sonuçlarını tahmin sonuçlarıyla karşılaştırabilmesi amaçlanmaktadır.",
+     "konular": [
+      "Geometrik Cisimler, Geometrik Cisim Modelleri, Geometrik Şekil Modelleri, Geometrik Şekil ve Cisimlerin Biçimsel Özellikleri, Sıvı Miktarını Tahmin Etme"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.2.3.1",
+       "metin": "Günlük yaşamda kullanılan nesneleri biçimsel özelliklerine göre geometrik cisim olarak sınıflandırabilme"
+      },
+      {
+       "kod": "MAT.2.3.2",
+       "metin": "Geometrik cisim modellerini kullanarak yapılar sentezleyebilme"
+      },
+      {
+       "kod": "MAT.2.3.3",
+       "metin": "Geometrik şekiller kullanarak modeller sentezleyebilme"
+      },
+      {
+       "kod": "MAT.2.3.4",
+       "metin": "Geometrik şekil ve cisimlerin yön, konum veya büyüklükleri değiştiğinde biçimsel özelliklerinin değişmediğini yorumlayabilme"
+      },
+      {
+       "kod": "MAT.2.3.5",
+       "metin": "Standart olmayan sıvı ölçme araçları ile sıvı miktarını tahmin edebilme"
+      }
+     ]
+    },
+    {
+     "id": "166",
+     "ad": "Nesnelerin Geometrisi (2)",
+     "amac": "Bu temada öğrencilerin mesafe ve yönleri içerecek şekilde hedefe ulaşmak için kullanacağı uygun stratejilere karar verebilmesi; verilen şekiller arasından simetrik olanları ayırt edebilmesi amaçlanmaktadır.",
+     "konular": [
+      "Yer ve Yön Bulma, Simetri"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.2.3.6",
+       "metin": "Mesafe ve yönleri içerecek şekilde hedefe ulaşmak için uygun stratejilere karar verebilme"
+      },
+      {
+       "kod": "MAT.2.3.7",
+       "metin": "Verilen şekiller arasından simetrik olanları ayırt edebilme"
+      }
+     ]
+    },
+    {
+     "id": "240",
+     "ad": "Veriye Dayalı Araştırma",
+     "amac": "Bu temada öğrencilerin istatistiksel araştırma sürecinin adımlarını kategorik veriye dayalı en çok iki veri grubuna yönelik yürütebilmesi amaçlanmaktadır.",
+     "konular": [
+      "Veriyle Çalışma ve Veriye Dayalı Karar Verme"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.2.4.1",
+       "metin": "Kategorik veriye dayalı en çok iki veri grubu ile çalışabilme ve veriye dayalı karar verebilme"
+      }
+     ]
+    }
+   ],
+   "3": [
+    {
+     "id": "249",
+     "ad": "Sayılar Ve Nicelikler (1)",
+     "amac": "Bu temada öğrencilerin niceliklerin büyüklüklerine karşılık gelen 1000’e kadar olan sayıların temsillerini kullanabilmesi; okuyup yazabilmesi; basamak ve basamak değerleri açısından sayıları çözümleyebilmesi; sayıları öncelik/sonralık açısından sıralayabilmesi; sayıları onluklarına ve yüzlüklerine ayırarak tasnif edebilmesi; ileriye ve geriye doğru ritmik sayabilmesi; sayıları tek ve çift şeklinde tasnif edebilmesi; tek ve çift sayıların toplamlarının tek ya da çift olduğunu belirleyebilmesi; sayı ve sayı temsiline dönüşen şekil örüntülerine dayalı çıkarım yapabilmesi; bir çokluktaki ilişkilerden yararlanarak 100’e kadar olan nesnelerin sayısını tahmin edebilmesi amaçlanmaktadır.",
+     "konular": [
+      "Sayılar, Sayıları Çözümleme, Sayıları Sıralama, Ritmik Sayma, Tek ve Çift Sayılar, Tek ve Çift Sayıların Toplamı, Sayı ve Şekil Örüntüleri, Nesne Sayısını Tahmin Etme"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.3.1.1",
+       "metin": "Niceliklerin büyüklüklerine karşılık gelen 1000’e kadar olan sayıların temsillerinden yararlanabilme"
+      },
+      {
+       "kod": "MAT.3.1.2",
+       "metin": "1000’e kadar olan sayıları çözümleyebilme"
+      },
+      {
+       "kod": "MAT.3.1.3",
+       "metin": "Sayıları sıralayabilme"
+      },
+      {
+       "kod": "MAT.3.1.4",
+       "metin": "Sayıları ileriye ve geriye doğru ritmik sayabilme"
+      },
+      {
+       "kod": "MAT.3.1.5",
+       "metin": "Sayıları tek-çift olarak sınıflandırabilme"
+      },
+      {
+       "kod": "MAT.3.1.6",
+       "metin": "Tek ve çift sayıların toplamlarının tek ya da çift olma durumu arasındaki ilişkiye yönelik tümevarımsal akıl yürütebilme"
+      },
+      {
+       "kod": "MAT.3.1.7",
+       "metin": "Sayı ve sayı temsiline dönüşen şekil örüntülerine dayalı çıkarım yapabilme"
+      },
+      {
+       "kod": "MAT.3.1.8",
+       "metin": "Bir çokluktaki ilişkilerden yararlanarak 100’e kadar olan nesnelerin sayısını tahmin edebilme"
+      }
+     ]
+    },
+    {
+     "id": "254",
+     "ad": "Sayılar Ve Nicelikler (2)",
+     "amac": "Bu temada öğrencilerin bütün, yarım ve çeyreğin kesirle gösterimi için modellerden yararlanabilmesi; bir bütünü eş parçalar oluşturacak şekilde birim kesir olarak çözümleyebilmesi; bir kesrin payı ile paydası arasındaki ilişkiyi çözümleyebilmesi; analog ve dijital saatleri okuyup yazabilmesi; zaman ölçme birimlerinden saat, dakika ve saniyeyi anlayıp dönüşümlerini yapabilmesi; olayların oluş sürelerini tahmin ederek yargıda bulunabilmesi amaçlanmaktadır. Ayrıca öğrencilerin uzunluk ölçüm birimlerinden santimetre, metre ve kilometreyi; kütle ölçüm birimlerinden gram, kilogram ve tonu tanıyarak bunların kendi içlerinde dönüşümünü yapabilmesi; paralarımızı değerlerine göre madenî ve kâğıt paralar olarak birbirlerine dönüştürülebilmesi amaçlanmaktadır.",
+     "konular": [
+      "Bütün, Yarım ve Çeyreğin Kesir Gösterimi, Bir Bütünü Oluşturan Eş Parçalar, Bir Kesrin Payı İle Paydası Arasındaki İlişki, Analog ve Dijital Saatlerde Zamanı Okuma ve Yazma, Zaman Ölçü Birimleri, Olayların Oluş Sürelerini Tahmin Etme, Uzunluk ve Kütle Ölçü Birimleri, Madenî ve Kâğıt Paralar"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.3.1.9",
+       "metin": "Bütün, yarım ve çeyreğin kesirle gösterimi için modellerden yararlanabilme"
+      },
+      {
+       "kod": "MAT.3.1.10",
+       "metin": "Bir bütünü eş parçalar oluşturacak şekilde birim kesir olarak çözümleyebilme"
+      },
+      {
+       "kod": "MAT.3.1.11",
+       "metin": "Bir kesrin payı ile paydası arasındaki ilişkiyi çözümleyebilme"
+      },
+      {
+       "kod": "MAT.3.1.12",
+       "metin": "Analog ve dijital saatlerde zamanı okuyabilme ve yazabilme"
+      },
+      {
+       "kod": "MAT.3.1.13",
+       "metin": "Zaman ölçü birimlerini çözümleyebilme"
+      },
+      {
+       "kod": "MAT.3.1.14",
+       "metin": "Olayların oluş sürelerini tahmin ederek yargıda bulunabilme"
+      },
+      {
+       "kod": "MAT.3.1.15",
+       "metin": "Uzunluk ve kütle birimleri arasındaki ilişkileri kullanarak bu birimleri kendi içerisinde çözümleyebilme"
+      },
+      {
+       "kod": "MAT.3.1.16",
+       "metin": "Madenî ve kâğıt paraları değerlerine göre ilişkilendirerek yorumlayabilme"
+      }
+     ]
+    },
+    {
+     "id": "264",
+     "ad": "İşlemlerden Cebirsel Düşünmeye",
+     "amac": "Bu tema ile öğrencilerin toplama ve çıkarma işlemlerinin sonuçlarını tahmin ederek ve zihinden işlem yaparak muhakeme edebilmesi; toplama ve çıkarma işlemlerini çözümleyebilmesi; çarpma ve bölme işlemlerinin sonuçlarını tahmin ederek ve zihinden işlem yaparak muhakeme edebilmesi; çarpma ve bölme işlemlerini çözümleyebilmesi amaçlanmaktadır. Ayrıca öğrencilerin dört işlem içeren durumlardaki süreci verilen yönergeleri takip ederek yorumlayabilmesi; dört işlem gerektiren günlük yaşam problemlerini çözebilmesi; dört işlem gerektiren problem durumlarını yapılandırabilmesi; dört işlem bağlamında eşitliğin farklı anlamlarını yorumlayabilmesi de amaçlanmaktadır.",
+     "konular": [
+      "Toplama ve Çıkarma İşlemlerinin Sonuçlarını Tahmin Etme ve Zihinden İşlem, Toplama ve Çıkarma İşlemlerini Çözümleme, Çarpma ve Bölme İşlemlerinin Sonuçlarını Tahmin Etme ve Zihinden İşlem, Çarpma ve Bölme İşlemlerini Çözümleme, Dört İşlemi Yönergelere Göre Yorumlama, Dört İşlem Gerektiren Problemleri Çözme, Dört İşlem Gerektiren Problemleri Yapılandırma, Dört İşlemde Eşitlik"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.3.2.1",
+       "metin": "Toplama ve çıkarma işlemlerinin sonuçlarını tahminde bulunarak ve zihinden işlem yaparak muhakeme edebilme"
+      },
+      {
+       "kod": "MAT.3.2.2",
+       "metin": "Toplama ve çıkarma işlemlerini çözümleyebilme"
+      },
+      {
+       "kod": "MAT.3.2.3",
+       "metin": "Çarpma ve bölme işlemlerinin sonuçlarını tahminde bulunarak ve zihinden işlem yaparak muhakeme edebilme"
+      },
+      {
+       "kod": "MAT.3.2.4",
+       "metin": "Çarpma ve bölme işlemlerini çözümleyebilme"
+      },
+      {
+       "kod": "MAT.3.2.5",
+       "metin": "Dört işlem gerektiren durumlar için verilen yönergeleri takip ederek yorumlayabilme"
+      },
+      {
+       "kod": "MAT.3.2.6",
+       "metin": "Dört işlem gerektiren günlük yaşam problemlerini çözebilme"
+      },
+      {
+       "kod": "MAT.3.2.7",
+       "metin": "Dört işlem gerektiren problem durumlarını yapılandırabilme"
+      },
+      {
+       "kod": "MAT.3.2.8",
+       "metin": "Dört işlem bağlamında eşitliğin farklı anlamlarını yorumlayabilme"
+      }
+     ]
+    },
+    {
+     "id": "275",
+     "ad": "Nesnelerin Geometrisi (1)",
+     "amac": "Bu temada öğrencilerin geometrik cisimlerin köşe, yüz ve ayrıt özelliklerini ayırt edebilmesi; geometrik şekilleri kenar sayılarına göre sınıflandırabilmesi ve üçgen, dörtgen, beşgen, altıgen ve sekizgen olarak adlandırabilmesi; matematiksel araç ve gereç kullanarak geometrik şekil ve cisimler çizebilmesi amaçlanmaktadır. Ayrıca bu temada öğrencilerin standart ve standart olmayan uzunluk ölçme araçları ile şekillerin çevre uzunluğunu, standart sıvı ölçü birimleri cinsinden de sıvı miktarını tahmin edebilmesi ve tahminini ölçüm sonucu ile karşılaştırabilmesi amaçlanmaktadır.",
+     "konular": [
+      "Geometrik Cisimlerin Özellikleri, Geometrik Şekilleri Sınıflandırma, Geometrik Şekiller ve Cisimler Çizme, Geometrik Şekillerin Çevre Uzunluklarını Tahmin Etme, Sıvı Miktarını Tahmin Etme"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.3.3.1",
+       "metin": "Geometrik cisimlerin özelliklerini yorumlayabilme"
+      },
+      {
+       "kod": "MAT.3.3.2",
+       "metin": "Kenar sayılarına göre geometrik şekilleri sınıflandırabilme"
+      },
+      {
+       "kod": "MAT.3.3.3",
+       "metin": "Matematiksel araç ve teknolojileri kullanarak çeşitli geometrik şekilleri ve cisimleri çizebilme"
+      },
+      {
+       "kod": "MAT.3.3.4",
+       "metin": "Standart olmayan ve standart ölçme araçları ile geometrik şekillerin çevre uzunluğunu tahmin edebilme"
+      },
+      {
+       "kod": "MAT.3.3.5",
+       "metin": "Standart sıvı ölçü birimleri cinsinden sıvı miktarını tahmin edebilme"
+      }
+     ]
+    },
+    {
+     "id": "284",
+     "ad": "Nesnelerin Geometrisi (2)",
+     "amac": "Bu temada öğrencilerin kare, dikdörtgen, daire gibi şekillerin birden fazla simetri doğrusu olduğunu çözümleyebilmesi; bir parçası verilen simetrik şekli yatay ve dikey simetri doğrularına göre yapılandırabilmesi; yönerge ile yapılandırılan bir şeklin simetrisini oluşturmaya ilişkin kodlama stratejilerine karar verebilmesi ve aldığı kararları uygulayarak şeklin simetrisini oluşturabilmesi amaçlanmaktadır.",
+     "konular": [
+      "Simetri Doğrusu, Simetrik Şekli Tamamlama, Simetrik Şekil Oluşturma"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.3.3.6",
+       "metin": "Birden fazla simetri doğrusu olan şekilleri çözümleyebilme"
+      },
+      {
+       "kod": "MAT.3.3.7",
+       "metin": "Bir parçası verilen simetrik şekli simetri doğrusuna göre yapılandırabilme"
+      },
+      {
+       "kod": "MAT.3.3.8",
+       "metin": "Yönerge ile yapılandırılan ve bir parçası verilen bir şekli tamamlayarak simetrisini oluşturmaya ilişkin kodlama stratejilerini kullanarak yargıda bulunabilme"
+      }
+     ]
+    },
+    {
+     "id": "288",
+     "ad": "Veriye Dayalı Araştırma",
+     "amac": "Bu temada öğrencilerin istatistiksel araştırma sürecinin adımlarını kategorik ve sayma ile elde edilen nicel veriye dayalı tek veri grubuna yönelik yürütebilmesi amaçlanmaktadır.",
+     "konular": [
+      "Veriyle Çalışma ve Veriye Dayalı Karar Verme"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.3.4.1",
+       "metin": "Kategorik ve sayma ile elde edilen nicel veriye dayalı tek veri grubu ile çalışabilme ve veriye dayalı karar verebilme"
+      }
+     ]
+    }
+   ],
+   "4": [
+    {
+     "id": "294",
+     "ad": "Sayılar Ve Nicelikler (1)",
+     "amac": "Bu temada öğrencilerin niceliklerin büyüklüklerine karşılık gelen en fazla altı basamaklı sayıların temsillerini kullanabilmesi; en fazla altı basamaklı sayıları basamakları ve basamak değerleri açısından çözümleyebilmesi; en fazla altı basamaklı sayıların basamaklarını ve bölüklerini belirleyebilmesi; basamak ile bölük ve basamak ile sayı değerleri arasındaki ilişkileri belirleyebilmesi; en fazla altı basamaklı olan sayıları büyüklük/küçüklük açısından sembol kullanarak sıralayabilmesi; 1000000’e kadar olan sayıları onluk, yüzlük ve binliklerine ayırıp tasnif edebilmesi; 10000’e kadar yüzer ve biner ileriye ve geriye doğru ritmik sayabilmesi; artan azalan sayı örüntüleri ve şekil örüntülerindeki değişimi genelleyebilmesi amaçlanmaktadır.",
+     "konular": [
+      "Sayılar, Sayıları Çözümleme, Sayıları Sıralama, Ritmik Sayma, Sayı ve Şekil Örüntüleri"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.4.1.1",
+       "metin": "Niceliklerin büyüklükleri için en fazla altı basamaklı olan sayıların temsillerinden yararlanabilme"
+      },
+      {
+       "kod": "MAT.4.1.2",
+       "metin": "En fazla altı basamaklı sayıları çözümleyebilme"
+      },
+      {
+       "kod": "MAT.4.1.3",
+       "metin": "Sayıları sıralayabilme"
+      },
+      {
+       "kod": "MAT.4.1.4",
+       "metin": "İleriye ve geriye doğru ritmik saymayı yapılandırabilme"
+      },
+      {
+       "kod": "MAT.4.1.5",
+       "metin": "Artan azalan sayı örüntüleri ve şekil örüntülerindeki değişimi genelleyebilme"
+      }
+     ]
+    },
+    {
+     "id": "299",
+     "ad": "Sayılar Ve Nicelikler (2)",
+     "amac": "Bu temada öğrencilerin basit, bileşik ve tam sayılı kesirler ile denk kesirleri oluşturmak için matematiksel temsillerden yararlanabilmesi; birim kesirler ile paydaları eşit olan kesirlerin büyüklük küçüklük ilişkilerini çözümleyebilmesi; bir çokluğun basit kesir kadarını veya basit kesir kadarı verilen çokluğun tamamını çözümleyebilmesi; paydaları eşit kesirlerle toplama ve çıkarma işlemini yapılandırabilmesi ve gerçekleştirebilmesi; uzunluk ve kütle ölçüm biriminin alt ve üst birimlerini birbirlerine çevirebilmesi amaçlanmaktadır.",
+     "konular": [
+      "Basit, Bileşik ve Tam Sayılı Kesirler, Denk Kesirler, Birim Kesirlerde Büyüklük ve Küçüklük İlişkisi, Paydaları Eşit Kesirlerde Büyüklük ve Küçüklük İlişkisi, Kesirlerde Çözümleme, Kesirlerle Toplama ve Çıkarma İşlemi, Kesirlerle Problemler, Uzunluk ve Kütle Ölçü Birimlerini Dönüştürme"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.4.1.6",
+       "metin": "Basit, bileşik ve tam sayılı kesirleri kullanmak için matematiksel temsillerden yararlanabilme"
+      },
+      {
+       "kod": "MAT.4.1.7",
+       "metin": "Denk kesirleri kullanmak için matematiksel temsillerden yararlanabilme"
+      },
+      {
+       "kod": "MAT.4.1.8",
+       "metin": "Birim kesirlerin büyüklük küçüklük ilişkilerini çözümleyebilme"
+      },
+      {
+       "kod": "MAT.4.1.9",
+       "metin": "Paydaları eşit olan kesirlerin büyüklük küçüklük ilişkilerini çözümleyebilme"
+      },
+      {
+       "kod": "MAT.4.1.10",
+       "metin": "Bir çokluğun basit kesir kadarını ve bir basit kesir kadarı verilen çokluğun tamamını çözümleyebilme"
+      },
+      {
+       "kod": "MAT.4.1.11",
+       "metin": "Paydaları eşit kesirlerle toplama ve çıkarma işlemini yapılandırabilme"
+      },
+      {
+       "kod": "MAT.4.1.12",
+       "metin": "Paydaları eşit kesirlerle toplama ve çıkarma işlemi gerektiren günlük yaşam problemlerine çözüm geliştirebilme"
+      },
+      {
+       "kod": "MAT.4.1.13",
+       "metin": "Uzunluk ve kütle birimlerinin kendi içerisindeki dönüşümlerini yorumlayabilme"
+      }
+     ]
+    },
+    {
+     "id": "300",
+     "ad": "İşlemlerden Cebirsel Düşünmeye",
+     "amac": "Bu temada öğrencilerin toplama ve çıkarma işlemlerini zihinden yaparak çözümleyebilmesi; en çok dört basamaklı sayılarla toplama ve çıkarma işlemini yapılandırabilmesi; çarpma ve bölme işlemlerini çözümleyebilmesi; çarpma ve bölme işlemlerinin sonuçlarını tahmin edebilmesi amaçlanmaktadır. Ayrıca öğrencilerin 10, 100 ve 1000 ile kısa yoldan çarpma ve bölme işlemlerini yapabilmesi; çarpma ve bölme işlemleri arasındaki ilişkiyi yorumlayabilmesi; dört işlem içeren adımlardan oluşan yönergeler oluşturabilmesi ve bu süreci yorumlayabilmesi bu temanın amaçları arasındadır. Bunun yanında bu temada öğrencilerin en çok dört basamaklı sayılarla dört işlemi gerektiren problemleri çözümleyebilmesi; çarpma ve bölme işlemleri gerektiren problemleri çözümleyebilmesi ve yapılandırabilmesi; çarpma ve bölme işlemlerinde eşitlik kavramını yorumlayabilmesi amaçlanmaktadır.",
+     "konular": [
+      "Toplama ve Çıkarma İşlemlerinde Zihinden İşlem, Toplama ve Çıkarma İşlemlerini Yapılandırma, Çarpma ve Bölme İşlemlerinde Tahmin, Kısa Yoldan Çarpma ve Bölme İşlemleri, Çarpma ve Bölme İşlemlerini Çözümleme, Dört İşlem İçeren Yönergeler, Dört İşlem Gerektiren Problemleri Çözme, Dört İşlem Gerektiren Problemleri Yapılandırma, Dört İşlemde Eşitlik"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.4.2.1",
+       "metin": "Toplama ve çıkarma işlemlerini zihinden yaparak çözümleyebilme"
+      },
+      {
+       "kod": "MAT.4.2.2",
+       "metin": "En çok dört basamaklı sayılarla toplama ve çıkarma işlemlerini yapılandırabilme"
+      },
+      {
+       "kod": "MAT.4.2.3",
+       "metin": "Çarpma ve bölme işlemlerinin sonucunu tahmin edebilme"
+      },
+      {
+       "kod": "MAT.4.2.4",
+       "metin": "Zihinden çözümlenen çarpma ve bölme işlemleri ile bu işlemlerin kısa yollarını yapılandırabilme"
+      },
+      {
+       "kod": "MAT.4.2.5",
+       "metin": "Çarpma ve bölme işlemlerini çözümleyebilme"
+      },
+      {
+       "kod": "MAT.4.2.6",
+       "metin": "Dört işlem içeren yönergeler oluşturarak süreci yorumlayabilme"
+      },
+      {
+       "kod": "MAT.4.2.7",
+       "metin": "Dört işlem gerektiren problemleri çözebilme"
+      },
+      {
+       "kod": "MAT.4.2.8",
+       "metin": "Dört işlem gerektiren problem durumlarını yapılandırabilme"
+      },
+      {
+       "kod": "MAT.4.2.9",
+       "metin": "Dört işlem bağlamında eşitliğin farklı anlamlarını yorumlayabilme"
+      }
+     ]
+    },
+    {
+     "id": "301",
+     "ad": "Nesnelerin Geometrisi (1)",
+     "amac": "Bu temada öğrencilerin geometrik cisimlerin farklı açınımlarını yapılandırabilmesi; üçgen, kare ve dikdörtgenin kenar ve köşe özelliklerini yorumlayabilmesi amaçlanmaktadır. Ayrıca bu temada öğrencilerin geometrik şekillerin çevre uzunluğunu ölçmede matematiksel araç ve teknolojiden yararlanabilmesi; standart olmayan ölçü birimini kullanarak şeklin alanına ilişkin tahminde bulunabilmesi; tahminini ölçüm sonuçlarıyla karşılaştırarak tahminine ilişkin yargıda bulunabilmesi amaçlanmaktadır.",
+     "konular": [
+      "Geometrik Cisimlerin Açınımları, Geometrik Şekiller, Geometrik Şekillerin Çevre Uzunluğu, Geometrik Şekillerin Alanlarını Tahmin Etme"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.4.3.1",
+       "metin": "Geometrik cisimlerin açınımlarını yapılandırabilme"
+      },
+      {
+       "kod": "MAT.4.3.2",
+       "metin": "Geometrik şekilleri kenar ve köşelerine göre yorumlayabilme"
+      },
+      {
+       "kod": "MAT.4.3.3",
+       "metin": "Geometrik şekillerin çevre uzunluğunu ölçmede matematiksel araç ve teknolojiden yararlanabilme"
+      },
+      {
+       "kod": "MAT.4.3.4",
+       "metin": "Standart olmayan ölçü birimleri cinsinden şekillerin alanlarını tahmin edebilme"
+      }
+     ]
+    },
+    {
+     "id": "302",
+     "ad": "Nesnelerin Geometrisi (2)",
+     "amac": "Bu temada öğrencilerin günlük yaşamdan örneklerle açıyı bir dönme miktarı olarak yorumlayabilmesi; açı ölçümüne ilişkin standart ölçme araçlarının gerekliliğini değerlendirebilmesi; dik açıyı referans alarak açıları dar ve geniş olarak sınıflandırabilmesi amaçlanmaktadır.",
+     "konular": [
+      "Açı, Açı Ölçümü, Dar ve Geniş Açı"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.4.3.5",
+       "metin": "Günlük yaşamdan örneklerle açıyı bir dönme miktarı olarak yorumlayabilme"
+      },
+      {
+       "kod": "MAT.4.3.6",
+       "metin": "Açı ölçümüne ilişkin standart ölçme araçlarının gerekliliğini değerlendirebilme"
+      },
+      {
+       "kod": "MAT.4.3.7",
+       "metin": "Dik açıyı referans alarak açıları dar ve geniş olarak sınıflandırabilme"
+      }
+     ]
+    },
+    {
+     "id": "303",
+     "ad": "Nesnelerin Geometrisi (3)",
+     "amac": "Bu temada öğrencilerin geometrik nesneler ve şekiller üzerinden doğruya göre simetrinin aynaya göre simetri olduğunu yorumlayabilmesi; bir şeklin doğruya göre simetrisini oluşturabilmesi; geometrik şekillere dayalı bir yapı oluşturabilmek için kodlama stratejisi oluşturabilmesi amaçlanmaktadır.",
+     "konular": [
+      "Doğruya Göre Simetriyi Yorumlama, Doğruya Göre Simetriyi Yapılandırma, Geometrik Şekil ve Yapı"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.4.3.8",
+       "metin": "Geometrik nesneler ve şekiller üzerinden doğruya göre simetriyi yorumlayabilme"
+      },
+      {
+       "kod": "MAT.4.3.9",
+       "metin": "Bir şeklin doğruya göre simetrisini yapılandırabilme"
+      },
+      {
+       "kod": "MAT.4.3.10",
+       "metin": "Geometrik şekillere dayalı bir yapı oluşturabilmek için kodlama stratejilerini yapılandırabilme"
+      }
+     ]
+    },
+    {
+     "id": "304",
+     "ad": "Olayların Olasılığı Ve Veriye Dayalı Araştırma",
+     "amac": "Bu temada öğrencilerin günlük yaşamdan herhangi bir olayın olma olasılığını “imkansız, olabilir, kesin” olarak belirleyebilmesi ve istatistiksel araştırma sürecinin adımlarını kategorik ve sayma ile elde edilen nicel veriye dayalı en çok iki veri grubuna yönelik yürütebilmesi, kategorik veriye ve sayma ile elde edilen nicel veriye dayalı en çok iki veri grubu ile çalışabilmesi ve veriye dayalı karar verebilmesi amaçlanmaktadır.",
+     "konular": [
+      "Olasılık, Veriyle Çalışma ve Veriye Dayalı Karar Verme"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "MAT.4.4.1",
+       "metin": "Günlük yaşamdan herhangi bir olayın olasılığını “imkânsız, olabilir, kesin” olarak belirleyebilme"
+      },
+      {
+       "kod": "MAT.4.4.2",
+       "metin": "Kategorik veriye ve sayma ile elde edilen nicel veriye dayalı en çok iki veri grubu ile çalışabilme ve veriye dayalı karar verebilme"
+      }
+     ]
+    }
+   ]
+  },
+  "hayat-bilgisi": {
+   "1": [
+    {
+     "id": "96",
+     "ad": "Ben Ve Okulum",
+     "amac": "Bu öğrenme alanında öğrencilerin öğretmen ve arkadaşlarıyla tanışabilmeleri, sınıf ve okul ortamını tanıyabilmeleri, sınıf ve okul ortamında kurallara uygun davranabilmeleri, bireysel özelliklerini açıklayabilmeleri amaçlanmaktadır.",
+     "konular": [
+      "Öğretmen ve Arkadaşlar",
+      "Okul Ortamı",
+      "Sınıf ve Okul Kuralları",
+      "Bireysel Özellikler"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.1.1.1",
+       "metin": "Öğretmeni ve arkadaşlarıyla tanışabilme"
+      },
+      {
+       "kod": "HB.1.1.2",
+       "metin": "Sınıf ve okul ortamını tanıyabilme"
+      },
+      {
+       "kod": "HB.1.1.3",
+       "metin": "Sınıf ve okul ortamında kurallara uygun davranabilme"
+      },
+      {
+       "kod": "HB.1.1.4",
+       "metin": "Bireysel özelliklerini açıklayabilme"
+      }
+     ]
+    },
+    {
+     "id": "102",
+     "ad": "Sağlığım Ve Güvenliğim",
+     "amac": "Bu öğrenme alanında öğrencilerin sağlıklı büyüme ve gelişme için yapılması gerekenleri belirlemeleri, kişisel alan sınırlarını korumaları, temel trafik kurallarına uygun davranmaları, acil durumda yapılması gerekenleri belirlemeleri amaçlanmaktadır.",
+     "konular": [
+      "Sağlıklı Büyüme ve Gelişme",
+      "Kişisel Alan",
+      "Temel Trafik Kuralları",
+      "Acil Durumlar"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.1.2.1",
+       "metin": "Sağlıklı büyüme ve gelişme için yapılması gerekenleri belirleyebilme"
+      },
+      {
+       "kod": "HB.1.2.2",
+       "metin": "Kişisel alan sınırlarını koruyabilme"
+      },
+      {
+       "kod": "HB.1.2.3",
+       "metin": "Temel trafik kurallarına uygun davranabilme"
+      },
+      {
+       "kod": "HB.1.2.4",
+       "metin": "Acil durumlarda yapılması gerekenleri belirleyebilme"
+      }
+     ]
+    },
+    {
+     "id": "105",
+     "ad": "Ailem Ve Toplum",
+     "amac": "Bu öğrenme alanında öğrencilerin ailenin özelliklerini ifade etmeleri, aile yaşamında nezaket ve görgü kurallarına uygun davranmaları, aile bireylerinin görev ve sorumluluklarını çözümlemeleri amaçlanmaktadır.",
+     "konular": [
+      "Ailenin Önemi",
+      "Ailede Nezaket ve Görgü Kuralları",
+      "Ailedeki Görev ve Sorumluluklar"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.1.3.1",
+       "metin": "Ailenin özelliklerini ifade edebilme"
+      },
+      {
+       "kod": "HB.1.3.2",
+       "metin": "Aile yaşamında nezaket ve görgü kurallarına uygun davranabilme"
+      },
+      {
+       "kod": "HB.1.3.3",
+       "metin": "Aile bireylerinin görev ve sorumluluklarını çözümleyebilme"
+      }
+     ]
+    },
+    {
+     "id": "117",
+     "ad": "Yaşadığım Yer Ve Ülkem",
+     "amac": "Bu öğrenme alanında öğrencilerin yaşadığı yerin ve ülkemizin genel özelliklerini açıklamaları, Türk bayrağının ve İstiklâl Marşı’nın önemini fark etmeleri, Mustafa Kemal Atatürk’ün hayatı ile ilgili bilgileri ifade etmeleri, millî gün ve bayramlar ile dinî gün ve bayramlarda yaşadığı duyguları ifade etmeleri amaçlanmaktadır.",
+     "konular": [
+      "Yaşadığımız Yer ve Ülkemizin Genel Özellikleri",
+      "Türk Bayrağı ve İstiklâl Marşı",
+      "Mustafa Kemal Atatürk’ün Hayatı",
+      "Millî Gün ve Bayramlar",
+      "Dinî Gün ve Bayramlar"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.1.4.1",
+       "metin": ". Yaşadığı yerin ve ülkemizin genel özelliklerini açıklayabilme"
+      },
+      {
+       "kod": "HB.1.4.2",
+       "metin": "Türk bayrağı ve İstiklâl Marşı’nın önemini ifade edebilme"
+      },
+      {
+       "kod": "HB.1.4.3",
+       "metin": "Mustafa Kemal Atatürk’ün hayatıyla ilgili bilgileri ifade edebilme"
+      },
+      {
+       "kod": "HB.1.4.4",
+       "metin": ". Millî gün ve bayramlarda yaşadığı duyguları ifade edebilme"
+      },
+      {
+       "kod": "HB.1.4.5",
+       "metin": ". Dinî gün ve bayramlarda yaşadığı duyguları ifade edebilme"
+      }
+     ]
+    },
+    {
+     "id": "126",
+     "ad": "Doğa Ve Çevre",
+     "amac": "Bu öğrenme alanında öğrencilerin yakın çevresinde bulunan doğadaki varlıkları gözlemlemeleri, modeller üzerinden gök cisimlerini karşılaştırmaları, afet türlerini tanımaları ve geri dönüştürülebilen atıkları sınıflandırmaları amaçlanmaktadır.",
+     "konular": [
+      "Doğayı Gözlemleme",
+      "Gök Cisimleri (Güneş, Dünya, Ay)",
+      "Afetler",
+      "Geri Dönüşüm"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.1.5.1",
+       "metin": "Yakın çevresinde bulunan doğadaki varlıkları gözlemleyebilme"
+      },
+      {
+       "kod": "HB.1.5.2",
+       "metin": "Modeller üzerinden gök cisimlerini karşılaştırabilme"
+      },
+      {
+       "kod": "HB.1.5.3",
+       "metin": "Afet türlerini tanıyabilme"
+      },
+      {
+       "kod": "HB.1.5.4",
+       "metin": "Geri dönüştürülebilen atıkları sınıflandırabilme"
+      }
+     ]
+    },
+    {
+     "id": "127",
+     "ad": "Bilim, Teknoloji Ve Sanat",
+     "amac": "Bu öğrenme alanında öğrencilerin bilim, teknoloji ve sanat ile ilgili merak ettikleri soruları sormaları amaçlanmaktadır.",
+     "konular": [
+      "Bilim ile İlgili Merak Edilenler",
+      "Teknoloji ile İlgili Merak Edilenler",
+      "Sanat ile İlgili Merak Edilenler"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.1.6.1",
+       "metin": "Bilimle ilgili merak ettiklerini sorabilme"
+      },
+      {
+       "kod": "HB.1.6.2",
+       "metin": "Teknoloji ile ilgili merak ettiklerini sorabilme"
+      },
+      {
+       "kod": "HB.1.6.3",
+       "metin": "Sanatla ilgili merak ettiklerini sorabilme"
+      }
+     ]
+    }
+   ],
+   "2": [
+    {
+     "id": "238",
+     "ad": "Ben Ve Okulum",
+     "amac": "Bu öğrenme alanında öğrencilerin planlı olmanın kişisel yaşama etkilerini fark etmeleri, öğretmen ve arkadaşlarıyla etkili iletişim kurmaları, arkadaşlık ilişkilerini düzenlemeleri, sınıf içi karar alma süreçlerinde sosyal temas oluşturmaları amaçlanmaktadır.",
+     "konular": [
+      "Zaman Yönetimi",
+      "İletişim Kuralları",
+      "Arkadaşlık İlişkilerini Etkileyen Davranışlar",
+      "Sınıf İçi Karar Alma Süreçleri"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.2.1.1",
+       "metin": "Planlı olmanın kişisel yaşama etkilerini fark edebilme"
+      },
+      {
+       "kod": "HB.2.1.2",
+       "metin": "Öğretmen ve arkadaşlarıyla etkili iletişim kurabilme"
+      },
+      {
+       "kod": "HB.2.1.3",
+       "metin": "Arkadaşlık ilişkilerini düzenleyebilme"
+      },
+      {
+       "kod": "HB.2.1.4",
+       "metin": "Sınıf içi karar alma süreçlerinde sosyal temas oluşturabilme"
+      }
+     ]
+    },
+    {
+     "id": "239",
+     "ad": "Sağlığım Ve Güvenliğim",
+     "amac": "Bu öğrenme alanında öğrencilerin sağlıklı büyüyüp gelişmeleri ile alışkanlıkları arasındaki ilişkileri çözümlemeleri, çevrim içi ortamlarda kişisel güvenliklerini sağlamaları, temel trafik işaret levhalarını tanımaları ve acil bir durumda yetkililerle iletişim kurmaları amaçlanmaktadır.",
+     "konular": [
+      "Sağlıklı Büyüme ve Gelişmeyi Etkileyen Alışkanlıklar Çevrim",
+      "İçi Ortamlarda Kişisel Güvenlik",
+      "Trafik İşaret Levhaları",
+      "Acil Durumlarda İletişim"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.2.2.1",
+       "metin": "Sağlıklı büyüme ve gelişme ile alışkanlıkları arasındaki ilişkiyi çözümleyebilme"
+      },
+      {
+       "kod": "HB.2.2.2",
+       "metin": "Çevrim içi ortamlarda kişisel güvenliğini sağlayabilme"
+      },
+      {
+       "kod": "HB.2.2.3",
+       "metin": "Temel trafik işaret levhalarını tanıyabilme"
+      },
+      {
+       "kod": "HB.2.2.4",
+       "metin": ". Acil bir durumda yetkililerle etkili iletişim kurabilme"
+      }
+     ]
+    },
+    {
+     "id": "241",
+     "ad": "Ailem Ve Toplum",
+     "amac": "Bu öğrenme alanında öğrencilerin ailenin önemini yorumlamaları, toplumsal yaşamda nezaket ve görgü kurallarına uygun davranmaları, yakın çevresinde üzerilerine düşen görev ve sorumlulukları günlük yaşamlarına yansıtmaları amaçlanmaktadır.",
+     "konular": [
+      "Ailenin Önemi",
+      "Nezaket ve Görgü Kuralları",
+      "Görev ve Sorumluluklar"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.2.3.1",
+       "metin": "Ailenin önemini yorumlayabilme"
+      },
+      {
+       "kod": "HB.2.3.2",
+       "metin": "Toplumsal yaşamda nezaket ve görgü kurallarına uygun davranabilme"
+      },
+      {
+       "kod": "HB.2.3.3",
+       "metin": "Yakın çevresinde üzerine düşen görev ve sorumlulukları günlük yaşamına yan sıtabilme"
+      }
+     ]
+    },
+    {
+     "id": "245",
+     "ad": "Yaşadığım Yer Ve Ülkem",
+     "amac": "Bu öğrenme alanında öğrencilerin yakın çevresinde bulunan tarihî mekân ve doğal güzellikleri belirlemeleri, yaşadıkları yerin yönetim birimleri ile ilgili kaynaklardan bilgi toplamaları, Mustafa Kemal Atatürk’ün öğrencilik hayatını ifade etmeleri, millî gün ve bayramlar ile dinî gün ve bayramların önemini yorumlamaları amaçlanmaktadır.",
+     "konular": [
+      "Tarihî Mekânlar ve Doğal Güzellikler",
+      "Yaşadığı Yerin Yönetim Birimleri",
+      "Mustafa Kemal Atatürk’ün Öğrencilik Hayatı",
+      "Millî Gün ve Bayramların Önemi",
+      "Dinî Gün ve Bayramların Önemi"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.2.4.1",
+       "metin": "Yakın çevresinde bulunan tarihî mekân ve doğal güzellikleri belirleyebilme"
+      },
+      {
+       "kod": "HB.2.4.2",
+       "metin": "Yaşadığı yerin yönetim birimleri ile ilgili kaynaklardan bilgi toplayabilme"
+      },
+      {
+       "kod": "HB.2.4.3",
+       "metin": "Mustafa Kemal Atatürk’ün öğrencilik hayatını ifade edebilme"
+      },
+      {
+       "kod": "HB.2.4.4",
+       "metin": "Millî gün ve bayramların önemini yorumlayabilme"
+      },
+      {
+       "kod": "HB.2.4.5",
+       "metin": ". Dinî gün ve bayramların önemini yorumlayabilme"
+      }
+     ]
+    },
+    {
+     "id": "246",
+     "ad": "Doğa Ve Çevre",
+     "amac": "Bu öğrenme alanında öğrencilerin hava olayları ve mevsimler arasındaki ilişkiyi çözümlemeleri, doğadan yararlanarak yönlerin belirlemeleri, afetlere karşı alınması gereken önlemlere ilişkin bilgi toplamaları, doğal kaynakları tasarruflu kullanmanın önemini değerlendirmeleri amaçlanmaktadır.",
+     "konular": [
+      "Hava Olayları ve Mevsimler",
+      "Doğadan Yararlanarak Yön Bulma",
+      "Afetlere Karşı Alınacak Önlemler",
+      "Doğal Kaynakları Tasarruflu Kullanma"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.2.5.1",
+       "metin": "Hava olayları ve mevsimler arasındaki ilişkiyi çözümleyebilme"
+      },
+      {
+       "kod": "HB.2.5.2",
+       "metin": "Doğadan yararlanarak yönünü belirleyebilme"
+      },
+      {
+       "kod": "HB.2.5.3",
+       "metin": "Afetlere karşı alınması gereken önlemlere ilişkin bilgi toplayabilme"
+      },
+      {
+       "kod": "HB.2.5.4",
+       "metin": "Doğal kaynakları tasarruflu kullanma davranışlarını günlük yaşamına yansıta bilme"
+      }
+     ]
+    },
+    {
+     "id": "308",
+     "ad": "Bilim, Teknoloji Ve Sanat",
+     "amac": "Bu öğrenme alanında öğrencilerin bilim insanlarının bilime katkılarına yönelik kaynaklardan bilgi toplamaları, teknolojik bir ürünün değişim ve sürekliliğine dair kanıta dayalı öngörüde bulunmaları ve sanatın günlük yaşamdaki yerini belirlemeleri amaçlanmaktadır.",
+     "konular": [
+      "Bilim İnsanlarının Bilime Katkıları",
+      "Teknolojik Ürünlerin Zaman İçerisindeki Değişimi",
+      "Sanatın Günlük Yaşamdaki Yeri"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.2.6.1",
+       "metin": "Bilim insanlarının bilime katkılarına yönelik kaynaklardan bilgi toplayabilme"
+      },
+      {
+       "kod": "HB.2.6.2",
+       "metin": "Teknolojik bir ürünün değişim ve sürekliliğine dair kanıta dayalı öngörüde bu lunabilme"
+      },
+      {
+       "kod": "HB.2.6.3",
+       "metin": "Sanatın günlük yaşamdaki yerini belirleyebilme"
+      }
+     ]
+    }
+   ],
+   "3": [
+    {
+     "id": "310",
+     "ad": "Ben Ve Okulum",
+     "amac": "Bu öğrenme alanında öğrencilerin güçlü ve gelişime açık oldukları alanlara karar vermeleri, okuldaki hak ve sorumluluklarına uygun davranmaları, çocuk haklarını tanıtmak için fikirlerini eyleme dönüştürmeleri amaçlanmaktadır.",
+     "konular": [
+      "Güçlü ve Gelişime Açık Alanlar",
+      "Okuldaki Hak ve Sorumluluklar",
+      "Çocuk Hakları"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.3.1.1",
+       "metin": "Güçlü ve gelişime açık olduğu alanlara karar verebilme"
+      },
+      {
+       "kod": "HB.3.1.2",
+       "metin": "Okuldaki hak ve sorumluluklarına uygun davranabilme"
+      },
+      {
+       "kod": "HB.3.1.3",
+       "metin": "Çocuk haklarını tanıtmak için fikirlerini eyleme dönüştürebilme"
+      }
+     ]
+    },
+    {
+     "id": "311",
+     "ad": "Sağlığım Ve Güvenliğim",
+     "amac": "Bu öğrenme alanında öğrencilerin sağlığını korumaya yönelik davranışlarını düzenlemeleri, güvenliklerini tehdit eden durumları fark ederek bu durumlarda yapılması gerekenleri sorgulamaları ve trafik kurallarına uymanın güvenlik açısından önemini ilişkilendirerek özgün ürünler oluşturmaları amaçlanmaktadır.",
+     "konular": [
+      "Sağlığı Koruma",
+      "Güvenliği Tehdit Eden Durumlar",
+      "Trafik Kuralları"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.3.2.1",
+       "metin": "Sağlığını korumaya yönelik davranışlarını düzenleyebilme"
+      },
+      {
+       "kod": "HB.3.2.2",
+       "metin": "Güvenliğini tehdit eden bir durumla karşılaştığında yapılması gerekenleri sor gulayabilme"
+      },
+      {
+       "kod": "HB.3.2.3",
+       "metin": "Trafik kurallarına uymanın önemine ilişkin özgün ürünler sentezleyebilme"
+      }
+     ]
+    },
+    {
+     "id": "313",
+     "ad": "Ailem Ve Toplum",
+     "amac": "Bu öğrenme alanında öğrencilerin aile ve toplum arasındaki ilişkiyi çözümlemeleri, yardıma ihtiyacı olan bireylerin yaşamını kolaylaştırmak için fikirlerini eyleme dönüştürmeleri, mesleklerin toplumsal yaşamdaki önemini yorumlamaları amaçlanmaktadır.",
+     "konular": [
+      "Aile ve Toplum",
+      "Yardımlaşma",
+      "Toplumsal Yaşamda Meslekler"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.3.3.1",
+       "metin": "Aile ve toplum arasındaki ilişkiyi çözümleyebilme"
+      },
+      {
+       "kod": "HB.3.3.2",
+       "metin": "Yardıma ihtiyacı olan bireylerin yaşamını kolaylaştırmak için fikirlerini eyleme dönüştürebilme"
+      },
+      {
+       "kod": "HB.3.3.3",
+       "metin": "Mesleklerin toplumsal yaşamdaki önemini yorumlayabilme"
+      }
+     ]
+    },
+    {
+     "id": "320",
+     "ad": "Yaşadığım Yer Ve Ülkem",
+     "amac": "Bu öğrenme alanında öğrencilerin yakın çevresindeki tarihî mekân ve doğal güzelliklerin korunmasının önemini fark etmeleri, ülkemizin yönetim şekli ile ilgili kaynaklardan bilgi toplamaları, Mustafa Kemal Atatürk’ün kişilik özellikleri ve başarıları arasındaki ilişkiyi çözümlemeleri, millî birlik ve beraberliğimizin ülkemize katkılarını açıklamaları amaçlanmaktadır.",
+     "konular": [
+      "Tarihî Mekân ve Doğal Güzellikler",
+      "Ülkemizin Yönetim Şekli",
+      "Mustafa Kemal Atatürk’ün Başarıları ve Kişilik Özellikleri",
+      "Millî Birlik ve Beraberlik"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.3.4.1",
+       "metin": "Yakın çevresindeki tarihî mekân ve doğal güzelliklerin korunmasının önemini fark edebilme"
+      },
+      {
+       "kod": "HB.3.4.2",
+       "metin": "Ülkemizin yönetim şekli ile ilgili kaynaklardan bilgi toplayabilme"
+      },
+      {
+       "kod": "HB.3.4.3",
+       "metin": "Mustafa Kemal Atatürk’ün kişilik özelliklerini çözümleyebilme"
+      },
+      {
+       "kod": "HB.3.4.4",
+       "metin": "Millî birlik ve beraberliğimizin ülkemize katkılarını açıklayabilme"
+      }
+     ]
+    },
+    {
+     "id": "324",
+     "ad": "Doğa Ve Çevre",
+     "amac": "Bu öğrenme alanında öğrencilerin doğadaki varlıkların insan yaşamı için önemini yorumlamaları, krokiyi kullanarak bulundukları yerin konumunu algılamaları, afetlere yönelik yapılması gerekenleri sınıflandırmaları ve çevresel sürdürülebilirliğe yönelik kaynaklardan bilgi toplamaları amaçlanmaktadır.",
+     "konular": [
+      "Doğadaki Varlıkların İnsan Yaşamındaki Önemi",
+      "Kroki ve Konum",
+      "Afet Öncesi, Afet Anı ve Afet Sonrasında Yapılması Gerekenler",
+      "Çevresel Sürdürülebilirlik"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.3.5.1",
+       "metin": "Doğadaki varlıkların insan yaşamı için önemini yorumlayabilme"
+      },
+      {
+       "kod": "HB.3.5.2",
+       "metin": "Krokiyi kullanarak bulunduğu yerin konumunu algılayabilme"
+      },
+      {
+       "kod": "HB.3.5.3",
+       "metin": "Afetlere yönelik yapılması gerekenleri sınıflandırabilme"
+      },
+      {
+       "kod": "HB.3.5.4",
+       "metin": "Çevresel sürdürülebilirliğe yönelik kaynaklardan bilgi toplayabilme"
+      }
+     ]
+    },
+    {
+     "id": "328",
+     "ad": "Bilim, Teknoloji Ve Sanat",
+     "amac": "Bu öğrenme alanında öğrencilerin bilimsel gelişmelerin günlük yaşama etkisini yorumlamaları, teknolojik gelişmelerin günlük yaşama etkisini çözümlemeleri ve sanatçıların sanata katkılarına yönelik bilgi toplamaları amaçlanmaktadır.",
+     "konular": [
+      "Bilimsel Gelişmelerin Günlük Yaşama Etkisi",
+      "Teknolojik Gelişmelerin Günlük Yaşama Etkisi",
+      "Sanatçıların Sanata Katkıları"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "HB.3.6.1",
+       "metin": "Bilimsel gelişmelerin günlük yaşama etkisini yorumlayabilme"
+      },
+      {
+       "kod": "HB.3.6.2",
+       "metin": "Teknolojik gelişmelerin günlük yaşama etkisini çözümleyebilme"
+      },
+      {
+       "kod": "HB.3.6.3",
+       "metin": "Sanatçıların sanata katkılarına yönelik kaynaklardan bilgi toplayabilme"
+      }
+     ]
+    }
+   ]
+  },
+  "fen-bilimleri": {
+   "3": [
+    {
+     "id": "327",
+     "ad": "Bilimsel Keşif Yolculuğu",
+     "amac": "Bu ünitede bilimsel bilgiye ulaşma yollarının sorgulanması ve bilim insanlarının özelliklerine ilişkin genelleme yapılması amaçlanmaktadır",
+     "konular": [
+      "Bilimsel Bilgiye Ulaşma Yolları",
+      "Bilim İnsanlarının Özellikleri"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.3.1.1",
+       "metin": "Bilimsel bilgiye ulaşma yollarını sorgulayabilme"
+      },
+      {
+       "kod": "FB.3.1.2",
+       "metin": "Bilim insanlarının özelliklerine ilişkin genelleme yapabilme"
+      }
+     ]
+    },
+    {
+     "id": "331",
+     "ad": "Canlılar Dünyasına Yolculuk",
+     "amac": "Bu ünitede canlıların mikroskopla görülebilen canlılar, mantarlar, bitkiler ve hayvanlar şeklinde sınıflandırılması; duyu organları aracılığıyla çevrenin algılanmasına ilişkin bilimsel çıkarımda bulunulması ve canlıların yaşam döngüleri ile ilgili tümevarımsal akıl yürütülmesi amaçlanmaktadır.",
+     "konular": [
+      "Canlıların Sınıflandırılması",
+      "Duyu Organlarının İşlevleri",
+      "Canlıların Yaşam Döngüleri"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.3.2.1",
+       "metin": "Canlıları; mikroskopla görülebilen canlılar, mantarlar, bitkiler ve hayvanlar olarak sınıflandırabilme"
+      },
+      {
+       "kod": "FB.3.2.2",
+       "metin": "Canlıların çevrelerini farklı yollarla algılamaları konusunda bilimsel çıkarım yapabilme"
+      },
+      {
+       "kod": "FB.3.2.3",
+       "metin": "Canlıların yaşam döngülerini açıklamada tümevarımsal akıl yürütebilme"
+      }
+     ]
+    },
+    {
+     "id": "454",
+     "ad": "Yer Bilimciler İş Başında",
+     "amac": "Bu ünitede kayaçlar, madenler ve mineraller ile ilgili tümdengelimsel akıl yürütülmesi; sentezleme becerisi ile fosil konusunun ve paleontoloji biliminin öğrenilmesi amaçlanmaktadır.",
+     "konular": [
+      "Kayaçlar, Madenler ve Mineraller Fosil Oluşumu"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.3.3.1",
+       "metin": "Kayaçlar, madenler ve mineraller ile ilgili tümdengelimsel akıl yürütebilme"
+      },
+      {
+       "kod": "FB.3.3.2",
+       "metin": "Fosil oluşumu ile ilgili sentez yapabilme"
+      }
+     ]
+    },
+    {
+     "id": "334",
+     "ad": "Maddeyi Tanıyalım, Karıştırıp Ayıralım",
+     "amac": "Bu ünitede maddenin katı, sıvı ve gaz hâli olmak üzere üç grupta sınıflandırılması ve karışımların ayrılmasına yönelik deney yapılması amaçlanmaktadır. Ayrıca karışımların ayrılması ile atıkların ayrıştırılması arasında bağlantı kurularak atıkların ayrıştırılmasına ilişkin problem çözülebilmesi amaçlanmaktadır.",
+     "konular": [
+      "Maddenin Katı, Sıvı ve Gaz Hâli",
+      "Karışımlar ve Karışımların Ayrılması",
+      "Atıkların Ayrıştırılması"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.3.4.1",
+       "metin": "Çevresindeki maddeleri hâllerine göre sınıflandırabilme"
+      },
+      {
+       "kod": "FB.3.4.2",
+       "metin": "Günlük yaşamda karşılaştığı karışımların ayrılmasında kullanılabilecek uygun yöntemleri kullanarak deney yapabilme"
+      },
+      {
+       "kod": "FB.3.4.3",
+       "metin": "Atıkların ayrıştırılmasına ilişkin problem çözebilme"
+      }
+     ]
+    },
+    {
+     "id": "336",
+     "ad": "Hareketi Keşfediyorum",
+     "amac": "Bu ünitede, hareket eden varlıkların hareketlerinin gözleme dayalı tahmin edilmesi ile kuvvetin nesneler üzerindeki etkilerinin bilimsel gözleme dayalı tahmin edilmesi amaçlanmaktadır.",
+     "konular": [
+      "Varlıkların Hareketleri",
+      "Kuvvet ve Etkileri"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.3.5.1",
+       "metin": "Varlıkların hareket durumlarını gözleme dayalı tahmin edebilme"
+      },
+      {
+       "kod": "FB.3.5.2",
+       "metin": "Kuvvetin varlıklar üzerindeki etkilerini bilimsel gözleme dayalı tahmin edebilme"
+      }
+     ]
+    },
+    {
+     "id": "339",
+     "ad": "Yaşamımızı Kolaylaştıran Elektrik",
+     "amac": "Bu ünitede bazı araç gerecin elektrikli olduğuna ilişkin bilimsel çıkarım yapılması, elektrikli araç gerecin güvenli kullanımı ile ilgili eleştirel düşünülmesi ve elektriği tasarruflu kullanma yolları hakkında veriye dayalı tahminler oluşturulması amaçlanmaktadır.",
+     "konular": [
+      "Elektrikli Araç Gereçler",
+      "Elektrikli Araç Gereçlerin Güvenli Kullanımı",
+      "Elektriğin Tasarruflu Kullanım"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.3.6.1",
+       "metin": "Bazı araç gerecin elektrikli olduğuna ilişkin bilimsel çıkarım yapabilme"
+      },
+      {
+       "kod": "FB.3.6.2",
+       "metin": "Elektrikli araç gerecin güvenli kullanımı ile ilgili eleştirel düşünebilme"
+      },
+      {
+       "kod": "FB.3.6.3",
+       "metin": "Elektriği tasarruflu kullanma konusunda bilimsel veriye dayalı tahmin edebilme"
+      }
+     ]
+    },
+    {
+     "id": "342",
+     "ad": "Toprağı Tanıyorum, Tarımı Keşfediyorum",
+     "amac": "Bu ünitede toprağın oluşumu ve yapısıyla ilgili bilimsel gözlem ve bir bitkinin yetişmesi için gerekenlere ilişkin genelleme yapılması amaçlanmaktadır.",
+     "konular": [
+      "Toprak Oluşumu ve Yapısı",
+      "Bitki Yetiştirme"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.3.7.1",
+       "metin": "Toprak oluşumuna ve yapısına ilişkin bilimsel gözlem yapabilme"
+      },
+      {
+       "kod": "FB.3.7.2",
+       "metin": "Bir bitkinin yetişmesi için gerekenlere ilişkin genelleme yapabilme"
+      }
+     ]
+    },
+    {
+     "id": "344",
+     "ad": "Canlıların Yaşam Alanlarına Yolculuk",
+     "amac": "Bu ünitede canlıların yaşam alanlarının özelliklerinin kanıt kullanarak belirlenmesi, yaşam alanındaki canlı çeşitliliğinin operasyonel olarak tanımlanması ve yaşam alanlarının korunması için yapılması gerekenlerin sorgulanması amaçlanmaktadır.",
+     "konular": [
+      "Yaşam Alanları",
+      "Canlı Çeşitliliği",
+      "Yaşam Alanlarının Korunmasının Canlı Çeşitliliğine Etkisi"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.3.8.1",
+       "metin": "Canlıların yaşam alanlarının özelliklerini belirlemeye yönelik kanıt kullanabilme"
+      },
+      {
+       "kod": "FB.3.8.2",
+       "metin": "Yaşam alanındaki canlı çeşitliliğini operasyonel olarak tanımlayabilme"
+      },
+      {
+       "kod": "FB.3.8.3",
+       "metin": "Yaşam alanlarının korunması için yapılacakları sorgulayabilme"
+      }
+     ]
+    }
+   ],
+   "4": [
+    {
+     "id": "352",
+     "ad": "Bilime Yolculuk",
+     "amac": "Bu ünitede bilimin özellikleri ile ilgili yansıtma yapılması ve bilimsel bilgi kaynaklarının güvenilirliğinin sorgulanması amaçlanmaktadır.",
+     "konular": [
+      "Bilimin Özellikleri",
+      "Bilgi Kaynaklarının Güvenilirliği"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.4.1.1",
+       "metin": "Bilimin özellikleri ile ilgili deneyimlerini yansıtabilme"
+      },
+      {
+       "kod": "FB.4.1.2",
+       "metin": "Bilgi kaynağının güvenilirliğini sorgulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "356",
+     "ad": "Sağlıklı Besleniyorum",
+     "amac": "Bu ünitede besin içeriklerini ayırt etmek için deney yapılması, besinlerde vitaminler ve minerallerin bulunduğuna ilişkin genellemelere ulaşılması, dengeli beslenmede besinlerin işlevleri ile ilgili hipotez oluşturulması amaçlanmaktadır.",
+     "konular": [
+      "Besinlerin İçerikleri",
+      "Besinler ve Sağlıklı Yaşam"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.4.2.1",
+       "metin": "Besin içeriklerini ayırt etmek için deney yapabilme"
+      },
+      {
+       "kod": "FB.4.2.2",
+       "metin": "Besinlerde vitamin ve/veya mineral bulunduğuna ilişkin genelleme yapabilme"
+      },
+      {
+       "kod": "FB.4.2.3",
+       "metin": "Besinlerin işlevleri ile ilgili hipotez oluşturabilme"
+      }
+     ]
+    },
+    {
+     "id": "359",
+     "ad": "Dünya’mızı Keşfedelim",
+     "amac": "Bu ünitede Dünya’nın şeklinin bilimsel gözleme dayalı tahmin edilmesi, Dünya’nın yapısının (hava küre, su küre, taş küre, canlı küre) bilimsel model oluşturularak gösterilmesi, Dünya’nın hareketlerinin (dönme ve dolanma) gözleme dayalı tahmin edilmesi ve Dünya’nın hareketleri sonucunda meydana gelen durumların (gün ve yıl) kavranması amaçlanmaktadır",
+     "konular": [
+      "Dünya’nın Şekli",
+      "Dünya’nın Yapısı",
+      "Dünya’nın Hareketleri"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.4.3.1",
+       "metin": "Dünya’nın şekli ile ilgili bilimsel gözleme dayalı tahmin yapabilme"
+      },
+      {
+       "kod": "FB.4.3.2",
+       "metin": "Dünya’nın yapısıyla ilgili bilimsel model oluşturabilme"
+      },
+      {
+       "kod": "FB.4.3.3",
+       "metin": "Dünya’nın hareketlerini gözlemlerine dayanarak tahmin edebilme"
+      }
+     ]
+    },
+    {
+     "id": "361",
+     "ad": "Maddenin Değişimi",
+     "amac": "Bu ünitede maddelerin hâl değişimine yönelik bilimsel çıkarım yapılması ve maddelerin ısı etkisiyle değişiminin deney yapılarak anlaşılması amaçlanmaktadır.",
+     "konular": [
+      "Maddenin Hâl Değişimleri",
+      "Maddelerin Isı Etkisiyle Değişimi"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.4.4.1",
+       "metin": "Maddelerin hâl değişimine yönelik bilimsel çıkarım yapabilme"
+      },
+      {
+       "kod": "FB.4.4.2",
+       "metin": "Maddelerin ısı etkisiyle değişimine yönelik deney yapabilme"
+      }
+     ]
+    },
+    {
+     "id": "363",
+     "ad": "Mıknatısı Keşfediyorum",
+     "amac": "Bu ünitede tümevarımsal akıl yürütme yoluyla çeşitli şekillerde verilen mıknatısların kutupları ve kutupların etkileşimlerinin açıklanması, mıknatısın etki ettiği maddelere ilişkin bilimsel gözleme dayalı tahminde bulunulması ve mıknatısın kullanım alanlarını keşfetmeye yönelik bilimsel sorgulama yapılması amaçlanmaktadır.",
+     "konular": [
+      "Mıknatısın Kutupları ve Etkileşimleri",
+      "Mıknatısın Etki Ettiği Maddeler",
+      "Mıknatısın Kullanım Alanları"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.4.5.1",
+       "metin": "Mıknatısın kutupları ve birbirleriyle etkileşimleri ile ilgili tümevarımsal akıl yürütebilme"
+      },
+      {
+       "kod": "FB.4.5.2",
+       "metin": "Mıknatısın etki ettiği maddelere ilişkin bilimsel gözleme dayalı tahmin yapabilme"
+      },
+      {
+       "kod": "FB.4.5.3",
+       "metin": "Mıknatısın kullanım alanlarına yönelik bilimsel olarak sorgulayabilme"
+      }
+     ]
+    },
+    {
+     "id": "364",
+     "ad": "Elektrik Ve Enerji Kaynakları",
+     "amac": "Bu ünitede çalışan basit bir elektrik devresi kurmaya ilişkin bilimsel sorgulama yapılması, eleştirel düşünme yoluyla elektrik üretiminde yenilenebilir ve yenilenemeyen enerji kaynaklarının kullanımına ilişkin değerlendirme yapılması amaçlanmaktadır.",
+     "konular": [
+      "Basit Elektrik Devresi",
+      "Yenilenebilir ve Yenilenemeyen Enerji Kaynakları"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.4.6.1",
+       "metin": "Basit bir elektrik devresi kurmaya ilişkin bilimsel olarak sorgulayabilme"
+      },
+      {
+       "kod": "FB.4.6.2",
+       "metin": "Elektrik üretiminde yenilenebilir ve yenilenemeyen enerji kaynaklarını kullanmaya ilişkin eleştirel düşünebilme"
+      }
+     ]
+    },
+    {
+     "id": "365",
+     "ad": "Işığı Tanıyalım",
+     "amac": "Bu ünitede görme olayının gerçekleşebilmesi için ışığın olması gerektiğini gösteren deney tasarlanması, doğal ve yapay ışık kaynaklarının karşılaştırılması, ışık kirliliğinin canlılara etkisine ilişkin problemlere çözüm önerilerinin değerlendirilmesi amaçlanmaktadır.",
+     "konular": [
+      "Işığın Görmedeki Rolü",
+      "Işık Kaynakları",
+      "Işık Kirliliği"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.4.7.1",
+       "metin": "Görme olayının gerçekleşebilmesi için ışığın rolüne ilişkin deney yapabilme"
+      },
+      {
+       "kod": "FB.4.7.2",
+       "metin": "Doğal ve yapay ışık kaynaklarını karşılaştırabilme"
+      },
+      {
+       "kod": "FB.4.7.3",
+       "metin": "Işık kirliliğinin canlılara etkisine ilişkin problemleri çözebilme"
+      }
+     ]
+    },
+    {
+     "id": "366",
+     "ad": "Sürdürülebilir Yaşam Alanları",
+     "amac": "Bu ünitede sürdürülebilir bir yaşam alanı kurmaya ilişkin bilimsel sorgulama yapılması amaçlanmaktadır.",
+     "konular": [
+      "Sürdürülebilir Yaşam"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "FB.4.8.1",
+       "metin": "Sürdürülebilir bir yaşam alanı kurmaya ilişkin bilimsel sorgulama yapabilme"
+      }
+     ]
+    }
+   ]
+  },
+  "sosyal-bilgiler": {
+   "4": [
+    {
+     "id": "338",
+     "ad": "Birlikte Yaşamak",
+     "amac": "Bu öğrenme alanında öğrencilerin sosyal bilgiler dersinin çerçevesi ile ilgili fikir sahibi olmaları, derse yönelik olumlu tutum geliştirmeleri için sosyal bilgiler dersini tanımaları ve bireysel özelliklere saygı duymanın önemini fark ederek toplumsal birliği sürdürmeye yönelik öneriler geliştirmeleri amaçlanmaktadır.",
+     "konular": [
+      "Sosyal Bilgiler Dersinin Hayatımıza Katkıları",
+      "Bireysel Özelliklere Saygı Duyma",
+      "Toplumsal Birliğin Sürdürülmesi"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "SB.4.1.1",
+       "metin": "Sosyal bilgiler dersinin hayatına sunacağı katkıları yorumlayabilme"
+      },
+      {
+       "kod": "SB.4.1.2",
+       "metin": "Bireysel özelliklere saygı duymayı hayatına yansıtabilme"
+      },
+      {
+       "kod": "SB.4.1.3",
+       "metin": "Toplumsal birliği sürdürmeye yönelik fikir üretebilme"
+      }
+     ]
+    },
+    {
+     "id": "343",
+     "ad": "Evimiz Dünya",
+     "amac": "Bu öğrenme alanında öğrencilerin temel düzeyde harita kullanma becerilerini geliştirmeleri, insanın yaşadığı yerin doğal çevre unsurlarından nasıl etkilendiğine ve doğal çevreyi nasıl etkilediğine yönelik farkındalık kazanmaları, yakın çevrelerinde yaşanan ve yaşanma olasılığı bulunan afetlere ilişkin verilen kaynakları incelemeleri ve bu afetlerin olası etkilerini azaltmak için evde aileleriyle alabilecekleri önlemlere yönelik ürün oluşturmaları amaçlanmaktadır.",
+     "konular": [
+      "Temel Harita Bilgisi ve Harita Türleri",
+      "Doğa-İnsan İlişkisi",
+      "Afetlerin Etkilerinin Azaltılması"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "SB.4.2.1",
+       "metin": "Konum ve yön bulmada haritaları okuyabilme"
+      },
+      {
+       "kod": "SB.4.2.2",
+       "metin": "Yakın çevresinden hareketle doğa ve insan ilişkisini çözümleyebilme"
+      },
+      {
+       "kod": "SB.4.2.3",
+       "metin": "Afetlerin etkilerini azaltma konusunda yapılabileceklere ilişkin oluşturduğu ürünü paylaşabilme"
+      }
+     ]
+    },
+    {
+     "id": "346",
+     "ad": "Ortak Mirasımız",
+     "amac": "Bu öğrenme alanında öğrencilerin oyun, oyuncak ve aile tarihi ile ilgili yapılacak etkinliklerden hareketle ortak mirası anlamlandırmaları, yakın çevresindeki ortak miras ögelerini tanımaları ve böylece ortak mirasımıza ait bir bakış açısı geliştirmeleri amaçlanmaktadır.",
+     "konular": [
+      "Geçmişten Bugüne Oyun ve Oyuncak",
+      "Ailenin Tarihi",
+      "Yakın Çevredeki Ortak Miras Ögeleri"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "SB.4.3.1",
+       "metin": "Geçmişten günümüze çocuk oyun ve oyuncaklarının değişimini karşılaştırabilme"
+      },
+      {
+       "kod": "SB.4.3.2",
+       "metin": "Aile tarihini yansıtan bir ürün paylaşabilme"
+      },
+      {
+       "kod": "SB.4.3.3",
+       "metin": "Yakın çevresindeki ortak miras ögelerini tanımanın önemini yorumlayabilme"
+      }
+     ]
+    },
+    {
+     "id": "349",
+     "ad": "Yaşayan Demokrasimiz",
+     "amac": "Bu öğrenme alanında öğrencilerin cumhuriyetin ilanına giden yolda Mustafa Kemal Atatürk’ün ve Türk milletinin gösterdiği dayanışma ve fedakârlığı, cumhuriyetin hayatımıza katkılarını ve okulda demokratik katılımın önemini anlamlandırabilmeleri amaçlanmaktadır",
+     "konular": [
+      "Cumhuriyete Giden Yolda Mustafa Kemal Atatürk ve Türk Milleti",
+      "Cumhuriyetin Getirdiği Yenilikler",
+      "Okulda Demokratik Katılım"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "SB.4.4.1",
+       "metin": "Millî Mücadele Dönemi’nde Mustafa Kemal Atatürk’ün ve Türk milletinin yaptığı fedakârlıkları yorumlayabilme"
+      },
+      {
+       "kod": "SB.4.4.2",
+       "metin": "Cumhuriyetin getirdiği değişimlerin hayatımıza katkılarını yorumlayabilme"
+      },
+      {
+       "kod": "SB.4.4.3",
+       "metin": "Okulda karar alma ve demokratik katılım süreçlerine ilişkin fikir üretebilme"
+      }
+     ]
+    },
+    {
+     "id": "375",
+     "ad": "Hayatımızdaki Ekonomi",
+     "amac": "Bu öğrenme alanında öğrencilerin doğal kaynakların sınırlı olduğunu kavramaları, istek ve ihtiyaçlarını belirlerken bilinçli seçimler yapabilmeleri, istek ve ihtiyaç olarak nitelendirilebilecek ürünlerin hangi aşamalardan geçerek insanların tüketimine sunulduğu hakkında bir farkındalık geliştirmeleri amaçlanmaktadır.",
+     "konular": [
+      "Doğal Kaynakların Tüketimi",
+      "İstek ve İhtiyaçlar",
+      "Ürünlerin Yolculuğu"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "SB.4.5.1",
+       "metin": "Doğal kaynakların tüketimi ile ilgili grafik yorumlayabilme"
+      },
+      {
+       "kod": "SB.4.5.2",
+       "metin": "İstek ve ihtiyaçları arasındaki bilinçli seçimleri hayatına yansıtabilme"
+      },
+      {
+       "kod": "SB.4.5.3",
+       "metin": "Bir ürünün üretim, dağıtım ve tüketim süreçlerini çözümleyebilme"
+      }
+     ]
+    },
+    {
+     "id": "376",
+     "ad": "Teknoloji Ve Sosyal Bilimler",
+     "amac": "Bu öğrenme alanında öğrencilerin çevrim içi ortamları güvenli bir biçimde kullanabilmeleri için almaları gereken önlemlerin neler olduğunu belirleyerek çevrim içi ortamlarda güvenlik ve gizliliğe ilişkin farkındalık kazanmaları ve bilim insanlarının çocuklukları ile kendileri arasında bağ kurarak bilime ilişkin olumlu bir bakış açısı geliştirmeleri amaçlanmaktadır.",
+     "konular": [
+      "Çevrim İçi Ortamda Güvenlik Kuralları",
+      "Bilim İnsanlarının Çocukluk Hayatları"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "SB.4.6.1",
+       "metin": "Çevrim içi ortamda uyulması gereken güvenlik kurallarını eylemlerine yansıtabilme"
+      },
+      {
+       "kod": "SB.4.6.2",
+       "metin": "Bilim insanlarının çocukluk hayatlarına ilişkin tarihsel bağlam oluşturabilme"
+      }
+     ]
+    }
+   ]
+  },
+  "din-kulturu": {
+   "4": [
+    {
+     "id": "4",
+     "ad": "Günlük Hayat Ve Din",
+     "amac": "Bu ünitede günlük hayattaki dinî ifadeler, temizlik, şükür ve sağlıklı beslenme konuları ele alınmaktadır. Öğrencilerin günlük hayatta kullanılan dinî ifadeleri ayırt etmeleri, İslam’ın temizliğe verdiği önemi müşahede etmeleri, şükrün ve şükretmenin önemini kavrayarak bu değerleri günlük hayatlarına yansıtmaları, temiz ve sağlıklı beslenmenin İslam dinindeki önemi hakkında bilgi toplamaları hedeflenmektedir. Sübhaneke duasını ve bu duanın anlamını okuyarak yorumlamaları amaçlanmaktadır.",
+     "konular": [
+      "Günlük Hayatta Dinî İfadeler",
+      "Allah Temiz Olmamı İster",
+      "Allah Şükretmemi İster",
+      "Allah Sağlıklı Beslenmemi İster",
+      "Bir Dua Öğreniyorum: Sübhaneke Duası"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "DKAB.4.1.1",
+       "metin": "Günlük hayatta kullanılan dinî ifadeleri ayırt edebilme"
+      },
+      {
+       "kod": "DKAB.4.1.2",
+       "metin": "İslam’ın temizliğe verdiği önemi müşahede edebilme"
+      },
+      {
+       "kod": "DKAB.4.1.3",
+       "metin": "Allah’a (cc) şükrün önemini hayatına yansıtabilme"
+      },
+      {
+       "kod": "DKAB.4.1.4",
+       "metin": "İslam’a göre helal ve sağlıklı beslenmenin önemi konusunda bilgi toplayabilme"
+      },
+      {
+       "kod": "DKAB.4.1.5",
+       "metin": "Sübhaneke duasını ve bu duanın anlamını okuyarak yorumlayabilme"
+      }
+     ]
+    },
+    {
+     "id": "6",
+     "ad": "Allah Sevgisi",
+     "amac": "Bu ünitede Allah’ın (cc) birliği ve yüceliği, Allah’ın (cc) kullarına olan sevgisi, dua, kelimeitevhit ve kelimeişehadet konuları ele alınmaktadır. Öğrencilerin Allah’ın (cc) birliği ve yüceliği hakkında bilgi sahibi olmaları ve öğrendikleri bilgileri yorumlamaları amaçlanmaktadır. Gözlemlerinden yola çıkarak Allah’ın (cc) insanlara olan sevgisini, merhametini ve iyiliğini fark etmeleri, dua etme ihtiyacı hakkında çıkarımda bulunmaları, kelimeitevhit ve kelimeişehadet hakkında bilgi toplamaları amaçlanmaktadır. Amentü duasını ve bu duanın anlamını okuyarak yorumlamaları amaçlanmaktadır.",
+     "konular": [
+      "Allah’ı Tanıyorum",
+      "Allah Bizi Seviyor",
+      "Allah’a Dua Ediyorum",
+      "Kelimeitevhit ve Kelimeişehadet",
+      "Bir Dua Öğreniyorum: Amentü Duası"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "DKAB.4.2.1",
+       "metin": "Allah’ın (cc) birliğini ve yüceliğini kavrayabilme"
+      },
+      {
+       "kod": "DKAB.4.2.2",
+       "metin": "Allah’ın (cc) kullarına olan sevgisini gözleme dayalı tahmin edebilme"
+      },
+      {
+       "kod": "DKAB.4.2.3",
+       "metin": "Dua etme ihtiyacı hakkında düşünebilme"
+      },
+      {
+       "kod": "DKAB.4.2.4",
+       "metin": "Kelimeitevhit ve kelimeişehadet hakkında bilgi toplayabilme"
+      },
+      {
+       "kod": "DKAB.4.2.5",
+       "metin": "Amentü duasını ve bu duanın anlamını okuyarak yorumlayabilme"
+      }
+     ]
+    },
+    {
+     "id": "7",
+     "ad": "Peygamberlerin Sevgisi",
+     "amac": "Bu ünitede peygamberlerin çocuklarla ve toplumla ilişkisi, çevreyi ve çalışmayı sevmesi konuları ele alınmaktadır. Öğrencilerin peygamberlerin çocuk sevgisi hakkında örnekler üzerinden bilgi toplamaları, peygamberlerin toplumlarına olan sevgisini dua örneklerinden yola çıkarak yapılandırmaları, çevreye karşı duyarlılıklarıyla doğa ve hayvan sevgisi arasında ilişki kurmaları, peygamberlerin mesleklerinden yola çıkarak çalışmayı sevdiklerine dair çıkarım yapmaları amaçlanmaktadır. Salli ve Barik dualarını ve bu duaların anlamlarını okuyarak yorumlamaları amaçlanmaktadır.",
+     "konular": [
+      "Peygamberler Çocukları Sever",
+      "Peygamberler Toplumlarını Sever",
+      "Peygamberler Çevreyi Sever",
+      "Peygamberler Çalışmayı Sever",
+      "Bir Dua Öğreniyorum: Salli ve Barik Duaları"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "DKAB.4.3.1",
+       "metin": "Peygamberlerin çocuk sevgisiyle ilgili bilgi toplayabilme"
+      },
+      {
+       "kod": "DKAB.4.3.2",
+       "metin": "Peygamberlerin toplumlarına olan sevgisini yapılandırabilme"
+      },
+      {
+       "kod": "DKAB.4.3.3",
+       "metin": "Peygamberlerin çevre sevgisine ilişkin akıl yürütebilme"
+      },
+      {
+       "kod": "DKAB.4.3.4",
+       "metin": "Peygamberlerin çalışmayı sevdiğine dair çıkarım yapabilme"
+      },
+      {
+       "kod": "DKAB.4.3.5",
+       "metin": "Salli ve Barik dualarını ve bu duaların anlamlarını okuyarak yorumlayabilme"
+      }
+     ]
+    },
+    {
+     "id": "44",
+     "ad": "Ahlaki Değerlerimiz",
+     "amac": "Bu ünitede adalet, sabır ve yardımseverlik değerleri ve bu değerlerin davranışlara yansımaları ele alınmaktadır. Öğrencilerin adaletli davranmayı sorgulamaları, sabrın önemini yapılandırmaları, gözlemlerinden yola çıkarak yardımseverliğin insan ilişkilerindeki rolünü ve önemini tahmin etmeleri amaçlanmaktadır. Fatiha suresini ve bu surenin anlamını okuyarak yorumlamaları amaçlanmaktadır.",
+     "konular": [
+      "Adalet",
+      "Sabır",
+      "Yardımseverlik",
+      "Bir Sure Öğreniyorum: Fatiha Suresi"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "DKAB.4.4.1",
+       "metin": "Adaletli davranmayı sorgulayabilme"
+      },
+      {
+       "kod": "DKAB.4.4.2",
+       "metin": "Sabır değerinin önemini yapılandırabilme"
+      },
+      {
+       "kod": "DKAB.4.4.3",
+       "metin": "Yardımseverliğin insan ilişkilerindeki rolünü ve önemini gözleme dayalı tahmin edebilme"
+      },
+      {
+       "kod": "DKAB.4.4.4",
+       "metin": "Fatiha suresini ve bu surenin anlamını okuyarak yorumlayabilme"
+      }
+     ]
+    },
+    {
+     "id": "50",
+     "ad": "Haklar Ve Sorumluluklar",
+     "amac": "Bu ünitede hak ve sorumluluklar konusu ele alınmaktadır. Öğrencilerin toplumdaki herkesin temel hak ve özgürlüklere sahip olduğunu açıklamaları, kişisel hakları sentezleyerek bunlara saygı duymaları, temel bir hak olarak mahremiyeti sorgulamaları ve bu hakkın korunması gerektiğine dair farkındalık kazandırmaları amaçlanmaktadır. Allah’a (cc) karşı sorumluluklarını inanç ve ibadet açısından çözümlemeleri ve diğer insanlara karşı sorumluluklarını özetlemeleri amaçlanmaktadır. Rabbena dualarını ve bu duaların anlamlarını okuyarak yorumlamaları amaçlanmaktadır.",
+     "konular": [
+      "Kişisel Haklar ve Haklara Saygı",
+      "Mahremiyet",
+      "Allah’a Karşı Sorumluluklarım",
+      "İnsanlara Karşı Sorumluluklarım",
+      "Bir Dua Öğreniyorum: Rabbena Duaları"
+     ],
+     "ogrenmeCiktilari": [
+      {
+       "kod": "DKAB.4.5.1",
+       "metin": "Kişisel hakları sentezleyebilme"
+      },
+      {
+       "kod": "DKAB.4.5.2",
+       "metin": "Mahremiyet hakkını sorgulayabilme"
+      },
+      {
+       "kod": "DKAB.4.5.3",
+       "metin": "Allah’a (cc) karşı sorumluluklarını çözümleyebilme"
+      },
+      {
+       "kod": "DKAB.4.5.4",
+       "metin": "İnsanlara karşı sorumluluklarını özetleyebilme"
+      },
+      {
+       "kod": "DKAB.4.5.5",
+       "metin": "Rabbena dualarını ve bu duaların anlamlarını okuyarak yorumlayabilme"
+      }
+     ]
+    }
+   ]
+  }
+ }
+}

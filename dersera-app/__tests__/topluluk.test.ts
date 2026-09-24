@@ -146,15 +146,15 @@ describe("topluluk kütüphanesi", () => {
     expect((await liste("limit=3")).data.oyunlar).toHaveLength(3);
   });
 
-  it.each([["ders=astroloji"], ["sinif=4"], ["sinif=13"], ["alan=bahce"], ["deneyim=zor"], ["limit=21"], ["limit=0"], ["cursor=abc"], [`q=${"a".repeat(101)}`]])(
+  it.each([["ders=astroloji"], ["sinif=0"], ["sinif=13"], ["alan=bahce"], ["deneyim=zor"], ["limit=21"], ["limit=0"], ["cursor=abc"], [`q=${"a".repeat(101)}`]])(
     "geçersiz sorgu 422: %s",
     async (qs) => {
       expect((await liste(qs)).res.status).toBe(422);
     }
   );
 
-  it("ortaokul sınıfı ve dersiyle filtrelenebilir (5–8)", async () => {
-    for (const qs of ["sinif=6", "sinif=8&ders=inkilap-tarihi", "ders=fen-bilimleri"]) expect((await liste(qs)).res.status).toBe(200);
+  it("ilkokul ve ortaokul sınıfı ve dersiyle filtrelenebilir (1–8)", async () => {
+    for (const qs of ["sinif=1", "sinif=3&ders=hayat-bilgisi", "sinif=6", "sinif=8&ders=inkilap-tarihi", "ders=fen-bilimleri"]) expect((await liste(qs)).res.status).toBe(200);
   });
 
   it("'Oyunu Kullan' tam oyunu yalnız öğretmen oturumuyla ve yalnız yayındaki kayıt için verir; gizli alanlar dışarı çıkmaz", async () => {

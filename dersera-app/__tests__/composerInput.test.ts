@@ -14,6 +14,10 @@ describe("müfredat verisi", () => {
       for (const s of [5, 6, 7, 8]) expect(secenekler[`${s}:${ders}`]?.length).toBeGreaterThan(0);
     }
     for (const s of [5, 6, 7]) expect(secenekler[`${s}:sosyal-bilgiler`]?.length).toBeGreaterThan(0);
+    for (const ders of ["turkce", "matematik"]) for (const s of [1, 2, 3, 4]) expect(secenekler[`${s}:${ders}`]?.length).toBeGreaterThan(0);
+    for (const s of [1, 2, 3]) expect(secenekler[`${s}:hayat-bilgisi`]?.length).toBeGreaterThan(0);
+    for (const k of ["3:fen-bilimleri", "4:fen-bilimleri", "4:sosyal-bilgiler", "4:din-kulturu"]) expect(secenekler[k]?.length).toBeGreaterThan(0);
+    expect(secenekler["4:hayat-bilgisi"]).toBeUndefined();
     expect(secenekler["8:inkilap-tarihi"]?.length).toBeGreaterThan(0);
     // Kademe dışı ders yok: lise dersi ortaokulda, ortaokul dersi lisede görünmez.
     expect(secenekler["6:fizik"]).toBeUndefined();

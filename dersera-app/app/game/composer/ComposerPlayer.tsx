@@ -27,10 +27,25 @@ import TaskView from "./TaskView";
 // Yaş profiline göre zemin (docs/URUN-BAGLAMI.md §5): lise daha olgun ve atmosferik, ortaokul canlı.
 const ZEMIN: Record<YasProfili, string> = {
   PRESCHOOL_3_5: "from-indigo-900 via-purple-900 to-pink-900",
-  PRIMARY_6_10: "from-indigo-900 via-purple-900 to-pink-900",
+  PRIMARY_6_10: "from-sky-800 via-indigo-800 to-fuchsia-800",
   MIDDLE_11_14: "from-indigo-900 via-purple-900 to-pink-900",
   HIGH_15_18: "from-slate-950 via-indigo-950 to-slate-900",
 };
+// İlkokulda yazı ve dokunma alanları orantılı büyür: bileşenler rem ölçüsü kullandığından kök yazı boyutu büyütülür
+// (oyun ekranından çıkınca eski değer geri gelir).
+const KOK_YAZI: Partial<Record<YasProfili, string>> = { PRESCHOOL_3_5: "125%", PRIMARY_6_10: "112.5%" };
+function useKokYazi(sinif: number) {
+  useEffect(() => {
+    const boyut = KOK_YAZI[yasProfiliOf(sinif)];
+    if (!boyut) return;
+    const kok = document.documentElement;
+    const onceki = kok.style.fontSize;
+    kok.style.fontSize = boyut;
+    return () => {
+      kok.style.fontSize = onceki;
+    };
+  }, [sinif]);
+}
 const shellOf = (sinif: number) => `min-h-screen bg-gradient-to-br ${ZEMIN[yasProfiliOf(sinif)]} px-4 py-6`;
 const kart = "bg-white/10 border border-white/20 rounded-2xl p-5";
 const devam = "w-full bg-white text-indigo-900 font-bold py-3 rounded-xl";
@@ -121,6 +136,7 @@ export default function ComposerPlayer({
   startTime: number;
   qr: number | null;
 }) {
+  useKokYazi(def.meta.sinif);
   const [scene, setScene] = useState<SceneState>(() => loadSceneState());
   const [progress, setProgress] = useState<GameProgress>(() => loadProgress());
   const [ceza, setCeza] = useState(() => loadPenaltySeconds());

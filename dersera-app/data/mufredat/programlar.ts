@@ -1,7 +1,9 @@
 import lise from "./tymm-programlar.json";
 import ortaokul from "./tymm-ortaokul.json";
+import ilkokul from "./tymm-ilkokul.json";
 
-// Türkiye Yüzyılı Maarif Modeli öğretim programları: ortaokul (5–8, scripts/tymm-ortaokul.mjs) ve ortaöğretim (9–12).
+// Türkiye Yüzyılı Maarif Modeli öğretim programları: ilkokul (1–4) ve ortaokul (5–8) scripts/tymm-temel-egitim.mjs ile,
+// ortaöğretim (9–12) tymm-programlar.json.
 // Composer yalnızca bu veriyi kullanır; konu (ünite/tema) ve öğrenme çıktısı uydurulamaz. Aylık soru bankası (sinif10)
 // ayrı bir kaynaktır.
 
@@ -29,7 +31,7 @@ interface ProgramVerisi {
 }
 
 // İki kaynak ders → sınıf düzeyinde birleşir (aynı ders anahtarı, ör. matematik, iki kademede de vardır).
-const KAYNAKLAR = [lise, ortaokul] as ProgramVerisi[];
+const KAYNAKLAR = [lise, ortaokul, ilkokul] as ProgramVerisi[];
 const PROGRAMLAR: ProgramVerisi["programlar"] = {};
 for (const k of KAYNAKLAR)
   for (const [ders, siniflar] of Object.entries(k.programlar)) PROGRAMLAR[ders as ProgramDersi] = { ...PROGRAMLAR[ders as ProgramDersi], ...siniflar };

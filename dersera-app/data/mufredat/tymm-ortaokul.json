@@ -1,7 +1,7 @@
 {
  "kaynak": "https://tymm.meb.gov.tr",
  "alinma": "2026-09-24",
- "aciklama": "Türkiye Yüzyılı Maarif Modeli temel eğitim (ortaokul, 5–8. sınıf) öğretim programları; tymm.meb.gov.tr ünite sayfalarından birebir alınmıştır (scripts/tymm-ortaokul.mjs).",
+ "aciklama": "Türkiye Yüzyılı Maarif Modeli temel eğitim (ortaokul, 5–8. sınıf) öğretim programları; tymm.meb.gov.tr ünite sayfalarından birebir alınmıştır (scripts/tymm-temel-egitim.mjs).",
  "programlar": {
   "matematik": {
    "5": [
