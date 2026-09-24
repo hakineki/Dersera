@@ -383,11 +383,12 @@ describe("Redis topluluk deposu", () => {
     const s = createRedisToplulukStore(r.command);
     expect(await s.ekle(kayit(A, 1000), "ozet")).toBe(A);
     const nxSira = r.calls.findIndex((c) => c.includes("NX"));
-    expect(r.calls.slice(0, nxSira).map((c) => c[0])).toEqual(["SET", "SET", "ZADD"]);
+    expect(r.calls.slice(0, nxSira).map((c) => c[0])).toEqual(["SET", "SET", "SET", "ZADD"]);
     expect(r.calls.find((c) => c[0] === "ZADD")).toEqual(["ZADD", "dersera:topluluk:sira", String(siraSkoru(1000, A)), A]);
     expect(await s.ekle(kayit(B, 2000), "ozet")).toBe(A);
     expect(r.zset.has(B)).toBe(false);
     expect(r.db.has(`dersera:topluluk:oyun:${B}`)).toBe(false);
+    expect(r.db.has(`dersera:topluluk:olusturan:${B}`)).toBe(false);
     await s.kodBagla("ABC-123", A, 5000);
     expect(r.calls.at(-1)).toEqual(["SET", "dersera:topluluk:kod:ABC-123", A, "PX", "5000"]);
   });

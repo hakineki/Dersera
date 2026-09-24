@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { DURATION_PRESETS_MIN, publishWindowMinutes } from "@/lib/games";
+import { PUAN_KOVASI } from "@/lib/istatistik";
 import type { KutuphaneKaydi, KutuphaneListeOgesi } from "@/lib/library";
 import { kutuphanedenSil, kutuphanedenYayinla, kutuphaneListesi, kutuphaneOyunu } from "@/lib/libraryClient";
 import type { TeacherGame } from "@/lib/teacherGame";
@@ -95,7 +96,9 @@ function OyunKarti({
             <span aria-hidden="true">👥 </span>
             {oyun.ogrenci_sayisi} öğrenci ·{" "}
             <span aria-hidden="true">⭐ </span>
-            {oyun.puan_ortalama === null ? "henüz puan yok" : `${oyun.puan_ortalama.toLocaleString("tr-TR")} / 5 (${oyun.puan_sayisi} oy)`}
+            {oyun.puan_ortalama === null
+              ? `puan ${PUAN_KOVASI} oydan sonra görünür`
+              : `${oyun.puan_ortalama.toLocaleString("tr-TR")} / 5 (${oyun.puan_sayisi}+ oy)`}
           </p>
         </div>
         {oyun.sonKod && (

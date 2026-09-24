@@ -3,6 +3,7 @@ import { nicknameKey } from "@/lib/gameState";
 import { GAME_RETENTION_MS } from "@/lib/gamesStore";
 import { gosterilecekOrtalama } from "@/lib/istatistik";
 import { getIstatistikStore, type Istatistik } from "@/lib/istatistikStore";
+import { getResultsStore } from "@/lib/resultsStore";
 import { getToplulukStore } from "@/lib/toplulukStore";
 
 // Tek bir yayın kodu (bir sınıf oturumu) en çok bu kadar öğrenci sayısı ekleyebilir: tek kodla şişirmeye karşı.
@@ -12,8 +13,8 @@ export function istatistikOzeti(i: Istatistik) {
   return { ogrenci_sayisi: i.ogrenci, puan_ortalama: gosterilecekOrtalama(i.puanToplam, i.puanSayisi), puan_sayisi: i.puanSayisi };
 }
 
-// Oyuncu kimliği takma adın özetidir; takma ad düz metin saklanmaz.
-const oyuncuOf = (nickname: string) => createHash("sha256").update(nicknameKey(nickname)).digest("hex");
+// Oyuncu kimliği koda göre tuzlanmış takma ad özetidir: takma ad düz metin saklanmaz, oyunlar arasında eşleşmez.
+const oyuncuOf = (kod: string, nickname: string) => createHash("sha256").update(`${kod}:${nicknameKey(nickname)}`).digest("hex");
 
 // İsteği yapan oyunun sahibi mi? Öğretmen kendi oyununu kendi oturumuyla oynarsa sayılmaz.
 const sahibinKaynagi = (kaynak: string | null, istekSahibi: string | null) => !!(kaynak && istekSahibi && kaynak.startsWith(`${istekSahibi}:`));
@@ -55,17 +56,21 @@ export async function bitirisSay(kod: string, nickname: string, istekSahibi: str
   try {
     const store = getIstatistikStore();
     const kaynak = await store.kodunKaynagi(kod);
-    const sonuc = await store.bitirenKaydet(kod, oyuncuOf(nickname), kaynak, !sahibinKaynagi(kaynak, istekSahibi), KOD_BASINA_EN_COK_OGRENCI, expiresAt + GAME_RETENTION_MS - now);
+    const sonuc = await store.bitirenKaydet(kod, oyuncuOf(kod, nickname), kaynak, !sahibinKaynagi(kaynak, istekSahibi), KOD_BASINA_EN_COK_OGRENCI, expiresAt + GAME_RETENTION_MS - now);
     if (sonuc !== "yeni-sayildi") return;
     const topluluk = getToplulukStore();
     const id = await topluluk.kodunOyunu(kod);
     if (!id) return;
-    const kayit = await topluluk.get(id);
-    if (!kayit || (istekSahibi && kayit.olusturan === istekSahibi)) return;
+    if (istekSahibi && (await topluluk.olusturani(id)) === istekSahibi) return;
     await topluluk.oynanmaArtir(id);
   } catch (err) {
     console.error("[istatistik] bitiriş sayılamadı", err instanceof Error ? err.message : err);
   }
+}
+
+async function sonucuVar(kod: string, nickname: string) {
+  const anahtar = nicknameKey(nickname);
+  return (await getResultsStore().list(kod)).some((e) => nicknameKey(e.nickname) === anahtar);
 }
 
 export type PuanSonucu = "kaydedildi" | "zaten-verildi" | "bitirmedi";
@@ -74,8 +79,13 @@ export type PuanSonucu = "kaydedildi" | "zaten-verildi" | "bitirmedi";
 // Bitirişi sayılmamış oyuncunun (sahibin oturumu, kod sınırı dışı) oyu kaydedilir ama toplamlara eklenmez.
 export async function puanVer(kod: string, nickname: string, puan: number, istekSahibi: string | null, expiresAt: number, now = Date.now()): Promise<PuanSonucu> {
   const store = getIstatistikStore();
-  const oyuncu = oyuncuOf(nickname);
-  const bitiris = await store.bitirisDurumu(kod, oyuncu);
+  const oyuncu = oyuncuOf(kod, nickname);
+  let bitiris = await store.bitirisDurumu(kod, oyuncu);
+  // Sonuç kaydedildi ama bitiriş sayımı o an yazılamadıysa: kayıtlı sonuç kanıttır, bitiriş şimdi yazılır.
+  if (bitiris === "yok" && (await sonucuVar(kod, nickname))) {
+    await bitirisSay(kod, nickname, istekSahibi, expiresAt, now);
+    bitiris = await store.bitirisDurumu(kod, oyuncu);
+  }
   if (bitiris === "yok") return "bitirmedi";
   const kaynak = await store.kodunKaynagi(kod);
   const sayilsin = bitiris === "sayildi" && !sahibinKaynagi(kaynak, istekSahibi);
@@ -84,8 +94,7 @@ export async function puanVer(kod: string, nickname: string, puan: number, istek
   try {
     const topluluk = getToplulukStore();
     const id = sayilsin ? await topluluk.kodunOyunu(kod) : null;
-    const kayit = id ? await topluluk.get(id) : null;
-    if (id && kayit && !(istekSahibi && kayit.olusturan === istekSahibi)) await topluluk.puanEkle(id, puan);
+    if (id && !(istekSahibi && (await topluluk.olusturani(id)) === istekSahibi)) await topluluk.puanEkle(id, puan);
   } catch (err) {
     console.error("[topluluk] puan eklenemedi", err instanceof Error ? err.message : err);
   }

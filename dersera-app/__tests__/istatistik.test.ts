@@ -3,7 +3,8 @@ import { buildApi, hesapAc, jsonRequest, katilVeBitir } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 import { createRedisIstatistikStore } from "@/lib/istatistikStore";
-import { ORTALAMA_EN_AZ_OY } from "@/lib/istatistik";
+import { createRedisToplulukStore } from "@/lib/toplulukStore";
+import { BOS_PUAN_SAYACI, kovaliPuanEkle, PUAN_KOVASI } from "@/lib/istatistik";
 import { KOD_BASINA_EN_COK_OGRENCI } from "@/lib/istatistikService";
 
 const fizik = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
@@ -13,7 +14,7 @@ const oyun = (baslik: string) => {
   d.meta.baslik = baslik;
   return d;
 };
-const ADLAR = ["Kartal", "Şahin", "Atmaca", "Doğan", "Kerkenez", "Baykuş", "Serçe"];
+const ADLAR = ["Kartal", "Şahin", "Atmaca", "Doğan", "Kerkenez", "Baykuş", "Serçe", "Martı", "Leylek", "Turna", "Bülbül"];
 
 describe("öğrenci puanı ve kütüphane istatistikleri", () => {
   let api: Awaited<ReturnType<typeof buildApi>>;
@@ -61,16 +62,36 @@ describe("öğrenci puanı ve kütüphane istatistikleri", () => {
     expect((await kutuphane())[0].ogrenci_sayisi).toBe(1);
   });
 
-  it(`ortalama ${ORTALAMA_EN_AZ_OY} oydan önce gösterilmez (k-anonimlik); sonra bir ondalık basamağa yuvarlanır`, async () => {
+  it(`ortalama ve oy sayısı yalnız her ${PUAN_KOVASI} oyda bir güncellenir (k-anonimlik: fark tek puanı vermez)`, async () => {
     const id = await kaydet("Eşik");
     const kod = await kutuphanedenYayinla(id);
-    const puanlar = [4, 4, 5, 4, 5];
-    for (let i = 0; i < puanlar.length - 1; i++) expect(await bitirVePuanla(kod, ADLAR[i], puanlar[i])).toBe(201);
-    expect((await kutuphane())[0]).toMatchObject({ ogrenci_sayisi: 4, puan_ortalama: null, puan_sayisi: 4 });
-    expect((await topluluk())[0]).toMatchObject({ puan_ortalama: null, puan_sayisi: 4 });
-    expect(await bitirVePuanla(kod, ADLAR[4], puanlar[4])).toBe(201);
+    const puanlar = [4, 4, 5, 4, 5, 1, 1, 1, 1, 1, 5];
+    const oyla = async (i: number) => expect(await bitirVePuanla(kod, ADLAR[i], puanlar[i])).toBe(201);
+    for (let i = 0; i < 4; i++) await oyla(i);
+    expect((await kutuphane())[0]).toMatchObject({ ogrenci_sayisi: 4, puan_ortalama: null, puan_sayisi: 0 });
+    expect((await topluluk())[0]).toMatchObject({ puan_ortalama: null, puan_sayisi: 0 });
+    await oyla(4);
     expect((await kutuphane())[0]).toMatchObject({ ogrenci_sayisi: 5, puan_ortalama: 4.4, puan_sayisi: 5 });
     expect((await topluluk())[0]).toMatchObject({ oynanma_sayisi: 5, puan_ortalama: 4.4, puan_sayisi: 5 });
+    // 6. öğrencinin (puan 1) oyu görünen değeri değiştirmez; öğretmen onun puanını çıkaramaz.
+    await oyla(5);
+    expect((await kutuphane())[0]).toMatchObject({ ogrenci_sayisi: 6, puan_ortalama: 4.4, puan_sayisi: 5 });
+    expect((await topluluk())[0]).toMatchObject({ puan_ortalama: 4.4, puan_sayisi: 5 });
+    for (let i = 6; i < 10; i++) await oyla(i);
+    expect((await kutuphane())[0]).toMatchObject({ puan_ortalama: 2.7, puan_sayisi: 10 });
+    expect((await topluluk())[0]).toMatchObject({ puan_ortalama: 2.7, puan_sayisi: 10 });
+    await oyla(10);
+    expect((await kutuphane())[0]).toMatchObject({ puan_ortalama: 2.7, puan_sayisi: 10 });
+  });
+
+  it("kova mantığı: anlık görüntü yalnız sayı kovanın katına gelince alınır", () => {
+    let p = BOS_PUAN_SAYACI;
+    for (const puan of [5, 5, 5, 5]) p = kovaliPuanEkle(p, puan);
+    expect(p).toEqual({ toplam: 20, sayi: 4, gosterToplam: 0, gosterSayi: 0 });
+    p = kovaliPuanEkle(p, 3);
+    expect(p).toEqual({ toplam: 23, sayi: 5, gosterToplam: 23, gosterSayi: 5 });
+    p = kovaliPuanEkle(p, 1);
+    expect(p).toEqual({ toplam: 24, sayi: 6, gosterToplam: 23, gosterSayi: 5 });
   });
 
   it("oyunu bitirmeyen öğrenci puan veremez (403)", async () => {
@@ -88,7 +109,11 @@ describe("öğrenci puanı ve kütüphane istatistikleri", () => {
     const t = await bitir(kod, "Kartal");
     expect((await puanVer(kod, { nickname: "Kartal", playerToken: t, puan: 5 })).status).toBe(201);
     expect((await puanVer(kod, { nickname: "kartal", playerToken: t, puan: 1 })).status).toBe(409);
-    expect((await kutuphane())[0]).toMatchObject({ puan_sayisi: 1 });
+    // Tekrar sayılsaydı dördüncü öğrencide kova dolar ve ortalama farklı olurdu.
+    for (let i = 1; i < 4; i++) await bitirVePuanla(kod, ADLAR[i], 1);
+    expect((await kutuphane())[0]).toMatchObject({ puan_ortalama: null, puan_sayisi: 0 });
+    await bitirVePuanla(kod, ADLAR[4], 1);
+    expect((await kutuphane())[0]).toMatchObject({ puan_ortalama: 1.8, puan_sayisi: 5 });
   });
 
   it("öğretmenin kendi oturumuyla bitirdiği ve puanladığı oyun sayılmaz", async () => {
@@ -96,20 +121,28 @@ describe("öğrenci puanı ve kütüphane istatistikleri", () => {
     const kod = await kutuphanedenYayinla(id);
     const t = await bitir(kod, "Öğretmen", ogretmen);
     expect((await puanVer(kod, { nickname: "Öğretmen", playerToken: t, puan: 5 }, ogretmen)).status).toBe(201);
-    expect((await kutuphane())[0]).toMatchObject({ ogrenci_sayisi: 0, puan_sayisi: 0 });
-    expect((await topluluk())[0]).toMatchObject({ oynanma_sayisi: 0, puan_sayisi: 0 });
+    expect((await kutuphane())[0]).toMatchObject({ ogrenci_sayisi: 0 });
+    expect((await topluluk())[0]).toMatchObject({ oynanma_sayisi: 0 });
     // Başka bir öğretmenin oturumu (ör. meslektaş sınıfta denedi) normal öğrenci gibi sayılır.
     const baska = await hesapAc(api, "ogretmen2");
     const t2 = await bitir(kod, "Misafir", baska);
     expect((await puanVer(kod, { nickname: "Misafir", playerToken: t2, puan: 3 }, baska)).status).toBe(201);
-    expect((await kutuphane())[0]).toMatchObject({ ogrenci_sayisi: 1, puan_sayisi: 1 });
+    for (let i = 0; i < 3; i++) await bitirVePuanla(kod, ADLAR[i], 3);
+    // Sahibin oyu sayılsaydı burada 5 oy olurdu.
+    expect((await kutuphane())[0]).toMatchObject({ ogrenci_sayisi: 4, puan_sayisi: 0 });
+    expect((await topluluk())[0]).toMatchObject({ oynanma_sayisi: 4, puan_sayisi: 0 });
+    await bitirVePuanla(kod, ADLAR[3], 3);
+    expect((await kutuphane())[0]).toMatchObject({ ogrenci_sayisi: 5, puan_ortalama: 3, puan_sayisi: 5 });
   });
 
   it(`tek bir yayın kodu en çok ${KOD_BASINA_EN_COK_OGRENCI} öğrenci sayar; sınır dışı oylar toplamlara eklenmez`, async () => {
     const kod = await kutuphanedenYayinla(await kaydet("Sınır"));
-    for (let i = 0; i < KOD_BASINA_EN_COK_OGRENCI; i++) await bitir(kod, `Ogrenci${i}`);
+    const tokenlar: string[] = [];
+    for (let i = 0; i < KOD_BASINA_EN_COK_OGRENCI; i++) tokenlar.push(await bitir(kod, `Ogrenci${i}`));
+    for (let i = 0; i < 4; i++) await puanVer(kod, { nickname: `Ogrenci${i}`, playerToken: tokenlar[i], puan: 5 });
     const fazla = await bitir(kod, "Fazladan");
     expect((await puanVer(kod, { nickname: "Fazladan", playerToken: fazla, puan: 1 })).status).toBe(201);
+    // Sınır dışı oy sayılsaydı kova dolardı.
     expect((await kutuphane())[0]).toMatchObject({ ogrenci_sayisi: KOD_BASINA_EN_COK_OGRENCI, puan_sayisi: 0 });
     expect((await topluluk())[0].oynanma_sayisi).toBe(KOD_BASINA_EN_COK_OGRENCI);
   });
@@ -155,13 +188,39 @@ describe("öğrenci puanı ve kütüphane istatistikleri", () => {
   it("kütüphane kaydı silinince sayaçları da silinir", async () => {
     const id = await kaydet("Silinecek");
     const kod = await kutuphanedenYayinla(id);
-    await bitirVePuanla(kod, "Kartal", 5);
+    for (let i = 0; i < PUAN_KOVASI; i++) await bitirVePuanla(kod, ADLAR[i], 5);
     const sahip = await api.libraryService.istekSahibi(cerezli(new Request("http://localhost/"), ogretmen));
     const sayaclar = () => api.istatistikStore.getIstatistikStore().istatistikler([`${sahip}:${id}`]);
-    expect(await sayaclar()).toEqual([{ ogrenci: 1, puanToplam: 5, puanSayisi: 1 }]);
+    expect(await sayaclar()).toEqual([{ ogrenci: 5, puanToplam: 25, puanSayisi: 5 }]);
     const sil = new Request(`http://localhost/api/library/${id}`, { method: "DELETE" });
     expect((await api.libraryItem.DELETE(cerezli(sil, ogretmen), api.idParams(id))).status).toBe(200);
     expect(await sayaclar()).toEqual([{ ogrenci: 0, puanToplam: 0, puanSayisi: 0 }]);
+  });
+
+  it("sonuç kaydında bitiriş yazılamadıysa, puan verirken kayıtlı sonuçtan kurtarılır", async () => {
+    const kod = await kutuphanedenYayinla(await kaydet("Kurtarma"));
+    const store = api.istatistikStore.getIstatistikStore();
+    const err = jest.spyOn(console, "error").mockImplementation(() => {});
+    const spy = jest.spyOn(store, "bitirenKaydet").mockRejectedValueOnce(new Error("redis kapalı"));
+    const t = await bitir(kod, "Kartal");
+    expect((await kutuphane())[0].ogrenci_sayisi).toBe(0);
+    expect((await puanVer(kod, { nickname: "Kartal", playerToken: t, puan: 4 })).status).toBe(201);
+    expect((await kutuphane())[0].ogrenci_sayisi).toBe(1);
+    spy.mockRestore();
+    err.mockRestore();
+  });
+
+  it("oyuncu özeti koda göre tuzlanır: takma ad saklanmaz, farklı oyunlarda eşleşmez", async () => {
+    const id = await kaydet("Tuz");
+    const kod1 = await kutuphanedenYayinla(id);
+    const kod2 = await kutuphanedenYayinla(id);
+    const spy = jest.spyOn(api.istatistikStore.getIstatistikStore(), "bitirenKaydet");
+    await bitir(kod1, "Kartal");
+    await bitir(kod2, "Kartal");
+    const [o1, o2] = spy.mock.calls.map((c) => c[1]);
+    expect(o1).toMatch(/^[0-9a-f]{64}$/);
+    expect(o1).not.toBe(o2);
+    spy.mockRestore();
   });
 
   it("tek tek puanlar ve takma adlar hiçbir yanıtta yer almaz; 'Oyunu Kullan' detayı saklı puan alanı vermez", async () => {
@@ -195,7 +254,7 @@ describe("öğrenci puanı ve kütüphane istatistikleri", () => {
     const store = api.toplulukStore.getToplulukStore();
     const spy = jest.spyOn(store, "puanEkle").mockRejectedValue(new Error("redis kapalı"));
     expect((await puanVer(kod, { nickname: "Kartal", playerToken: t, puan: 4 })).status).toBe(201);
-    expect((await kutuphane())[0].puan_sayisi).toBe(1);
+    expect((await puanVer(kod, { nickname: "Kartal", playerToken: t, puan: 4 })).status).toBe(409); // oy kaydedilmiş
     spy.mockRestore();
     err.mockRestore();
   });
@@ -211,24 +270,29 @@ describe("Redis istatistik deposu", () => {
     expect(await s.bitirisDurumu("ABC-123", oyuncu)).toBe("sayildi");
     expect(calls[1]).toEqual(["HGET", "dersera:istatistik:bitiren:ABC-123", oyuncu]);
     expect(await s.puanKaydet("ABC-123", oyuncu, "hesap:x:k1", 4, true, 5000)).toBe(true);
+    expect(calls[2][1]).toContain("MSET");
     expect(calls[2].slice(2)).toEqual([
-      "3",
+      "5",
       "dersera:istatistik:oy:ABC-123",
       "dersera:istatistik:kutuphane:hesap:x:k1:puanToplam",
       "dersera:istatistik:kutuphane:hesap:x:k1:puanSayisi",
+      "dersera:istatistik:kutuphane:hesap:x:k1:puanToplamGoster",
+      "dersera:istatistik:kutuphane:hesap:x:k1:puanSayisiGoster",
       oyuncu,
       "5000",
-      "4",
       "1",
+      "4",
+      String(PUAN_KOVASI),
     ]);
     // Tek bir EVAL: oy kaydı ile toplamlar ayrı ayrı yazılmaz.
     expect(calls.filter((c) => c[0] === "INCRBY" || c[0] === "INCR" || c[0] === "HSETNX")).toEqual([]);
     expect(await s.istatistikler(["hesap:x:k1"])).toEqual([{ ogrenci: 3, puanToplam: 11, puanSayisi: 3 }]);
+    // Liste yalnız anlık görüntüyü okur; canlı sayaçlar dışarı çıkmaz.
     expect(calls.at(-1)).toEqual([
       "MGET",
       "dersera:istatistik:kutuphane:hesap:x:k1:ogrenci",
-      "dersera:istatistik:kutuphane:hesap:x:k1:puanToplam",
-      "dersera:istatistik:kutuphane:hesap:x:k1:puanSayisi",
+      "dersera:istatistik:kutuphane:hesap:x:k1:puanToplamGoster",
+      "dersera:istatistik:kutuphane:hesap:x:k1:puanSayisiGoster",
     ]);
     await s.sil("hesap:x:k1");
     expect(calls.at(-1)).toEqual([
@@ -236,7 +300,34 @@ describe("Redis istatistik deposu", () => {
       "dersera:istatistik:kutuphane:hesap:x:k1:ogrenci",
       "dersera:istatistik:kutuphane:hesap:x:k1:puanToplam",
       "dersera:istatistik:kutuphane:hesap:x:k1:puanSayisi",
+      "dersera:istatistik:kutuphane:hesap:x:k1:puanToplamGoster",
+      "dersera:istatistik:kutuphane:hesap:x:k1:puanSayisiGoster",
     ]);
+  });
+
+  it("topluluk puanı tek betikte kovalı yazılır; oluşturan küçük anahtardan okunur, yoksa kayıttan bir kez doldurulur", async () => {
+    let olusturan: string | null = null;
+    const { command, calls } = recordingCommand((a) =>
+      a[0] === "GET" && a[1].includes(":olusturan:") ? olusturan : a[0] === "GET" ? JSON.stringify({ olusturan: "hesap:x" }) : 1
+    );
+    const s = createRedisToplulukStore(command);
+    await s.puanEkle("oyun1", 4);
+    expect(calls[0][1]).toContain("MSET");
+    expect(calls[0].slice(2)).toEqual([
+      "4",
+      "dersera:topluluk:puan-toplam:oyun1",
+      "dersera:topluluk:puan-sayisi:oyun1",
+      "dersera:topluluk:puan-toplam-goster:oyun1",
+      "dersera:topluluk:puan-sayisi-goster:oyun1",
+      "4",
+      String(PUAN_KOVASI),
+    ]);
+    expect(await s.olusturani("oyun1")).toBe("hesap:x");
+    expect(calls.at(-1)).toEqual(["SET", "dersera:topluluk:olusturan:oyun1", "hesap:x"]);
+    olusturan = "hesap:x";
+    const once = calls.length;
+    expect(await s.olusturani("oyun1")).toBe("hesap:x");
+    expect(calls.slice(once)).toEqual([["GET", "dersera:topluluk:olusturan:oyun1"]]);
   });
 
   it("betik dönüşleri doğru eşlenir: 0 zaten, 2 sayılmadı; HGET '0' sayılmadı, null yok", async () => {

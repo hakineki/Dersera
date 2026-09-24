@@ -1,11 +1,13 @@
 import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { BOS_PUAN_SAYACI, kovaliPuanEkle, PUAN_KOVASI, type PuanSayaci } from "@/lib/istatistik";
 
 // Kütüphane oyunlarının saha istatistikleri. Oyun kodu yayın anında kütüphane kaydına ("sahip:kutuphaneId") bağlanır.
 // Öğrenci sayısı = oyunu BİTİRİP sonucu kaydedilen oyuncular (katılım sayılmaz). Puan yalnız bitiren oyuncudan alınır.
-// Anonimlik: oyuncu, takma adın SHA-256 özetiyle ("oyuncu") tutulur; puan değerinin kendisi hiçbir yerde saklanmaz,
-// yalnız toplam ve sayı birikir. Kod başına kayıtlar oyunun saklama süresi kadar tutulur.
+// Anonimlik: oyuncu, koda göre tuzlanmış takma ad özetiyle ("oyuncu") tutulur; puan değerinin kendisi saklanmaz,
+// yalnız toplam ve sayı birikir ve dışarıya yalnız PUAN_KOVASI oyda bir alınan anlık görüntü verilir.
 // Tutarlılık: kayıt ve sayaç artışları tek bir Redis betiğinde yapılır (yarım yazılmış oy/sayaç kalmaz).
 
+// Dışarı verilen değerler: öğrenci sayısı ve puanın son kova anlık görüntüsü.
 export interface Istatistik {
   ogrenci: number;
   puanToplam: number;
@@ -23,27 +25,38 @@ export interface IstatistikStore {
   // (kaynak varsa) kaynağın öğrenci sayısını artırır.
   bitirenKaydet(kod: string, oyuncu: string, kaynak: string | null, sayilsin: boolean, kodBasinaEnCok: number, ttlMs: number): Promise<BitirenSonucu>;
   bitirisDurumu(kod: string, oyuncu: string): Promise<BitirisDurumu>;
-  // Oyuncu ilk kez oy veriyorsa kaydeder; sayilsin ise kaynağın puan toplamı ve sayısı artar. İlk oy ise true.
+  // Oyuncu ilk kez oy veriyorsa kaydeder; sayilsin ise kaynağın puan sayaçları artar. İlk oy ise true.
   puanKaydet(kod: string, oyuncu: string, kaynak: string | null, puan: number, sayilsin: boolean, ttlMs: number): Promise<boolean>;
   istatistikler(kaynaklar: string[]): Promise<Istatistik[]>;
   sil(kaynak: string): Promise<void>;
 }
 
+type Alan = "ogrenci" | "puanToplam" | "puanSayisi" | "puanToplamGoster" | "puanSayisiGoster";
 const kodKey = (kod: string) => `dersera:istatistik:kod:${kod}`;
-const sayacKey = (kaynak: string, alan: keyof Istatistik) => `dersera:istatistik:kutuphane:${kaynak}:${alan}`;
+const sayacKey = (kaynak: string, alan: Alan) => `dersera:istatistik:kutuphane:${kaynak}:${alan}`;
 const bitirenKey = (kod: string) => `dersera:istatistik:bitiren:${kod}`;
 const oyKey = (kod: string) => `dersera:istatistik:oy:${kod}`;
-const ALANLAR: (keyof Istatistik)[] = ["ogrenci", "puanToplam", "puanSayisi"];
+const PUAN_ALANLARI: Alan[] = ["puanToplam", "puanSayisi", "puanToplamGoster", "puanSayisiGoster"];
+const TUM_ALANLAR: Alan[] = ["ogrenci", ...PUAN_ALANLARI];
+// Liste okuması: öğrenci sayısı ve anlık görüntü (canlı puan sayaçları dışarı çıkmaz).
+const OKUNAN_ALANLAR: Alan[] = ["ogrenci", "puanToplamGoster", "puanSayisiGoster"];
 // Kaynağı olmayan kodda sayaç yazılmaz; betiğe yine geçerli bir anahtar verilir.
 const YOK = "-";
 
+// Kovalı puan artışı (Lua parçası). KEYS[k..k+3]: canlı toplam, canlı sayı, gösterim toplamı, gösterim sayısı.
+// ARGV[p]: puan, ARGV[p+1]: kova. Sayı kovanın katına geldiğinde anlık görüntü yazılır.
+export function kovaliPuanLua(k: number, p: number) {
+  return `local t = redis.call('INCRBY', KEYS[${k}], ARGV[${p}])
+local n = redis.call('INCR', KEYS[${k + 1}])
+if n % tonumber(ARGV[${p + 1}]) == 0 then redis.call('MSET', KEYS[${k + 2}], t, KEYS[${k + 3}], n) end`;
+}
+
 export function createMemoryIstatistikStore(): IstatistikStore {
   const kodlar = new Map<string, string>();
-  const sayac = new Map<string, number>();
+  const ogrenci = new Map<string, number>();
+  const puanlar = new Map<string, PuanSayaci>();
   const bitirenler = new Map<string, Map<string, boolean>>();
   const oylar = new Map<string, Set<string>>();
-  const artir = (k: string, n: number) => sayac.set(k, (sayac.get(k) ?? 0) + n);
-  const oyKumesi = (k: string) => oylar.get(k) ?? oylar.set(k, new Set()).get(k)!;
   return {
     async kodBagla(kod, kaynak) {
       kodlar.set(kod, kaynak);
@@ -57,7 +70,7 @@ export function createMemoryIstatistikStore(): IstatistikStore {
       const sayildi = sayilsin && m.size < kodBasinaEnCok;
       m.set(oyuncu, sayildi);
       if (!sayildi) return "yeni-sayilmadi";
-      if (kaynak) artir(sayacKey(kaynak, "ogrenci"), 1);
+      if (kaynak) ogrenci.set(kaynak, (ogrenci.get(kaynak) ?? 0) + 1);
       return "yeni-sayildi";
     },
     async bitirisDurumu(kod, oyuncu) {
@@ -65,24 +78,21 @@ export function createMemoryIstatistikStore(): IstatistikStore {
       return d === undefined ? "yok" : d ? "sayildi" : "sayilmadi";
     },
     async puanKaydet(kod, oyuncu, kaynak, puan, sayilsin) {
-      const s = oyKumesi(kod);
+      const s = oylar.get(kod) ?? oylar.set(kod, new Set()).get(kod)!;
       if (s.has(oyuncu)) return false;
       s.add(oyuncu);
-      if (kaynak && sayilsin) {
-        artir(sayacKey(kaynak, "puanToplam"), puan);
-        artir(sayacKey(kaynak, "puanSayisi"), 1);
-      }
+      if (kaynak && sayilsin) puanlar.set(kaynak, kovaliPuanEkle(puanlar.get(kaynak) ?? BOS_PUAN_SAYACI, puan));
       return true;
     },
     async istatistikler(kaynaklar) {
-      return kaynaklar.map((k) => ({
-        ogrenci: sayac.get(sayacKey(k, "ogrenci")) ?? 0,
-        puanToplam: sayac.get(sayacKey(k, "puanToplam")) ?? 0,
-        puanSayisi: sayac.get(sayacKey(k, "puanSayisi")) ?? 0,
-      }));
+      return kaynaklar.map((k) => {
+        const p = puanlar.get(k) ?? BOS_PUAN_SAYACI;
+        return { ogrenci: ogrenci.get(k) ?? 0, puanToplam: p.gosterToplam, puanSayisi: p.gosterSayi };
+      });
     },
     async sil(kaynak) {
-      ALANLAR.forEach((a) => sayac.delete(sayacKey(kaynak, a)));
+      ogrenci.delete(kaynak);
+      puanlar.delete(kaynak);
     },
   };
 }
@@ -97,12 +107,11 @@ if not sayildi then return 2 end
 if ARGV[5] == '1' then redis.call('INCR', KEYS[2]) end
 return 1`;
 
-// KEYS: oy hash, puan toplamı, puan sayısı. ARGV: oyuncu, ttl, puan, sayılsın (1/0). Dönüş: 1 ilk oy, 0 tekrar.
+// KEYS: oy hash, ardından kaynağın dört puan sayacı. ARGV: oyuncu, ttl, sayılsın (1/0), puan, kova. Dönüş: 1 ilk oy, 0 tekrar.
 const PUAN = `if redis.call('HSETNX', KEYS[1], ARGV[1], '1') == 0 then return 0 end
 redis.call('PEXPIRE', KEYS[1], ARGV[2])
-if ARGV[4] == '1' then
-  redis.call('INCRBY', KEYS[2], ARGV[3])
-  redis.call('INCR', KEYS[3])
+if ARGV[3] == '1' then
+${kovaliPuanLua(2, 4)}
 end
 return 1`;
 
@@ -126,20 +135,32 @@ export function createRedisIstatistikStore(command: RedisCommand): IstatistikSto
     },
     async puanKaydet(kod, oyuncu, kaynak, puan, sayilsin, ttlMs) {
       const k = kaynak ?? YOK;
-      const r = await command(["EVAL", PUAN, 3, oyKey(kod), sayacKey(k, "puanToplam"), sayacKey(k, "puanSayisi"), oyuncu, Math.max(1000, ttlMs), puan, kaynak && sayilsin ? "1" : "0"]);
+      const r = await command([
+        "EVAL",
+        PUAN,
+        1 + PUAN_ALANLARI.length,
+        oyKey(kod),
+        ...PUAN_ALANLARI.map((a) => sayacKey(k, a)),
+        oyuncu,
+        Math.max(1000, ttlMs),
+        kaynak && sayilsin ? "1" : "0",
+        puan,
+        PUAN_KOVASI,
+      ]);
       return Number(r) === 1;
     },
     async istatistikler(kaynaklar) {
       if (kaynaklar.length === 0) return [];
-      const degerler = ((await command(["MGET", ...kaynaklar.flatMap((k) => ALANLAR.map((a) => sayacKey(k, a)))])) as (string | null)[] | null) ?? [];
+      const n = OKUNAN_ALANLAR.length;
+      const degerler = ((await command(["MGET", ...kaynaklar.flatMap((k) => OKUNAN_ALANLAR.map((a) => sayacKey(k, a)))])) as (string | null)[] | null) ?? [];
       return kaynaklar.map((_, i) => ({
-        ogrenci: Number(degerler[i * 3] ?? 0),
-        puanToplam: Number(degerler[i * 3 + 1] ?? 0),
-        puanSayisi: Number(degerler[i * 3 + 2] ?? 0),
+        ogrenci: Number(degerler[i * n] ?? 0),
+        puanToplam: Number(degerler[i * n + 1] ?? 0),
+        puanSayisi: Number(degerler[i * n + 2] ?? 0),
       }));
     },
     async sil(kaynak) {
-      await command(["DEL", ...ALANLAR.map((a) => sayacKey(kaynak, a))]);
+      await command(["DEL", ...TUM_ALANLAR.map((a) => sayacKey(kaynak, a))]);
     },
   };
 }

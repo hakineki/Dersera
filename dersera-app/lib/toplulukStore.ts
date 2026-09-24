@@ -1,6 +1,7 @@
 import { redisFromEnv, type RedisCommand } from "@/lib/redis";
 import type { ToplulukKaydi, ToplulukOzeti } from "@/lib/topluluk";
-import { gosterilecekOrtalama } from "@/lib/istatistik";
+import { BOS_PUAN_SAYACI, gosterilecekOrtalama, kovaliPuanEkle, PUAN_KOVASI, type PuanSayaci } from "@/lib/istatistik";
+import { kovaliPuanLua } from "@/lib/istatistikStore";
 
 // Anahtarlar: özet (liste), tam kayıt (Oyunu Kullan), yayın zamanına göre sıralı küme, içerik özeti → id
 // (aynı oyun tekrar yayınlanınca yeni kayıt açılmaz), kaynak → son id (kütüphanede düzenlenip yeniden yayınlanan
@@ -26,8 +27,10 @@ export interface ToplulukStore {
   kodBagla(kod: string, id: string, ttlMs: number): Promise<void>;
   kodunOyunu(kod: string): Promise<string | null>;
   oynanmaArtir(id: string): Promise<void>;
-  // Öğrenci puanı: toplam ve sayı; özette puan_ortalama/puan_sayisi olarak görünür.
+  // Öğrenci puanı: özette yalnız son kova anlık görüntüsü puan_ortalama/puan_sayisi olarak görünür.
   puanEkle(id: string, puan: number): Promise<void>;
+  // Kaydı açan hesap (tam kaydı okumadan); sayımda sahibi ayırmak için.
+  olusturani(id: string): Promise<string | null>;
 }
 
 const ozetKey = (id: string) => `dersera:topluluk:ozet:${id}`;
@@ -35,6 +38,11 @@ const kayitKey = (id: string) => `dersera:topluluk:oyun:${id}`;
 const oynanmaKey = (id: string) => `dersera:topluluk:oynanma:${id}`;
 const puanToplamKey = (id: string) => `dersera:topluluk:puan-toplam:${id}`;
 const puanSayisiKey = (id: string) => `dersera:topluluk:puan-sayisi:${id}`;
+const puanToplamGosterKey = (id: string) => `dersera:topluluk:puan-toplam-goster:${id}`;
+const puanSayisiGosterKey = (id: string) => `dersera:topluluk:puan-sayisi-goster:${id}`;
+const olusturanKey = (id: string) => `dersera:topluluk:olusturan:${id}`;
+const PUAN_EKLE = `${kovaliPuanLua(1, 1)}
+return 1`;
 
 const icerikKey = (h: string) => `dersera:topluluk:icerik:${h}`;
 const kaynakKey = (k: string) => `dersera:topluluk:kaynak:${k}`;
@@ -70,7 +78,7 @@ export function createMemoryToplulukStore(): ToplulukStore {
   const kaynaklar = new Map<string, string>();
   const kodlar = new Map<string, string>();
   const oynanma = new Map<string, number>();
-  const puanlar = new Map<string, { toplam: number; sayi: number }>();
+  const puanlar = new Map<string, PuanSayaci>();
   return {
     persistent: false,
     async ekle(k, h) {
@@ -94,8 +102,9 @@ export function createMemoryToplulukStore(): ToplulukStore {
         .sort((a, b) => b.skor - a.skor)
         .slice(0, adet)
         .map((x) => {
-          const p = puanlar.get(x.k.oyun_id) ?? { toplam: 0, sayi: 0 };
-          return { skor: x.skor, ozet: { ...ozetOf(x.k, oynanma.get(x.k.oyun_id) ?? 0), puan_ortalama: gosterilecekOrtalama(p.toplam, p.sayi), puan_sayisi: p.sayi } };
+          const p = puanlar.get(x.k.oyun_id) ?? BOS_PUAN_SAYACI;
+          const ozet = ozetOf(x.k, oynanma.get(x.k.oyun_id) ?? 0);
+          return { skor: x.skor, ozet: { ...ozet, puan_ortalama: gosterilecekOrtalama(p.gosterToplam, p.gosterSayi), puan_sayisi: p.gosterSayi } };
         });
     },
     async kaynakGuncelle(kaynak, id) {
@@ -121,8 +130,10 @@ export function createMemoryToplulukStore(): ToplulukStore {
       oynanma.set(id, (oynanma.get(id) ?? 0) + 1);
     },
     async puanEkle(id, puan) {
-      const p = puanlar.get(id) ?? { toplam: 0, sayi: 0 };
-      puanlar.set(id, { toplam: p.toplam + puan, sayi: p.sayi + 1 });
+      puanlar.set(id, kovaliPuanEkle(puanlar.get(id) ?? BOS_PUAN_SAYACI, puan));
+    },
+    async olusturani(id) {
+      return kayitlar.get(id)?.olusturan ?? null;
     },
   };
 }
@@ -146,10 +157,11 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
       // var olmayan bir kaydı göstermez. Yarışı kaybeden yeni kayıt geri alınır ve mevcut id döner.
       await command(["SET", kayitKey(k.oyun_id), JSON.stringify(k)]);
       await command(["SET", ozetKey(k.oyun_id), JSON.stringify(ozetOf(k, 0))]);
+      await command(["SET", olusturanKey(k.oyun_id), k.olusturan]);
       await command(["ZADD", SIRA, siraSkoru(k.yayin_tarihi, k.oyun_id), k.oyun_id]);
       if ((await command(["SET", icerikKey(h), k.oyun_id, "NX"])) === "OK") return k.oyun_id;
       await command(["ZREM", SIRA, k.oyun_id]);
-      await command(["DEL", kayitKey(k.oyun_id), ozetKey(k.oyun_id)]);
+      await command(["DEL", kayitKey(k.oyun_id), ozetKey(k.oyun_id), olusturanKey(k.oyun_id)]);
       return ((await command(["GET", icerikKey(h)])) as string | null) ?? k.oyun_id;
     },
     async icerikId(h) {
@@ -170,7 +182,7 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
       }
       if (idler.length === 0) return [];
       const ozetler = ((await command(["MGET", ...idler.map(ozetKey)])) as (string | null)[] | null) ?? [];
-      const sayilar = ((await command(["MGET", ...idler.flatMap((id) => [oynanmaKey(id), puanToplamKey(id), puanSayisiKey(id)])])) as (string | null)[] | null) ?? [];
+      const sayilar = ((await command(["MGET", ...idler.flatMap((id) => [oynanmaKey(id), puanToplamGosterKey(id), puanSayisiGosterKey(id)])])) as (string | null)[] | null) ?? [];
       return idler.map((_, i) => {
         const sayi = Number(sayilar[i * 3 + 2] ?? 0);
         return {
@@ -208,8 +220,16 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
       await command(["INCR", oynanmaKey(id)]);
     },
     async puanEkle(id, puan) {
-      // Toplam ve sayı birlikte artar (yarım yazılmış ortalama olmaz).
-      await command(["EVAL", "redis.call('INCRBY', KEYS[1], ARGV[1]) redis.call('INCR', KEYS[2]) return 1", 2, puanToplamKey(id), puanSayisiKey(id), puan]);
+      // Canlı sayaçlar ve kova anlık görüntüsü tek betikte (yarım yazılmış ortalama olmaz).
+      await command(["EVAL", PUAN_EKLE, 4, puanToplamKey(id), puanSayisiKey(id), puanToplamGosterKey(id), puanSayisiGosterKey(id), puan, PUAN_KOVASI]);
+    },
+    async olusturani(id) {
+      const o = (await command(["GET", olusturanKey(id)])) as string | null;
+      if (o) return o;
+      // Bu anahtardan önce açılmış kayıt: bir kez tam kayıttan okunup yazılır.
+      const k = await this.get(id);
+      if (k?.olusturan) await command(["SET", olusturanKey(id), k.olusturan]);
+      return k?.olusturan ?? null;
     },
   };
 }
