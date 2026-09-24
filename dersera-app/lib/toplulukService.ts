@@ -13,6 +13,8 @@ const BASLIK_MAX = 120;
 export const GUNLUK_TOPLULUK_KAYDI = 20;
 const GUN = 24 * 60 * 60 * 1000;
 
+const icerikOzetiOf = (definition: GameDefinition) => createHash("sha256").update(JSON.stringify(definition)).digest("hex");
+
 export interface EklemeSecenekleri {
   // Aynı kaynaktan (ör. hesap + kütüphane kaydı) gelen yeni sürüm eskisini pasife alır.
   kaynak?: string;
@@ -30,7 +32,7 @@ export async function topluluguEkle(
   expiresAt: number,
   { kaynak, now = Date.now() }: EklemeSecenekleri = {}
 ): Promise<string> {
-  const icerikOzeti = createHash("sha256").update(JSON.stringify(definition)).digest("hex");
+  const icerikOzeti = icerikOzetiOf(definition);
   const m = definition.meta;
   const kayit: ToplulukKaydi = {
     oyun_id: randomUUID(),
@@ -51,11 +53,20 @@ export async function topluluguEkle(
   };
   const id = await store.ekle(kayit, icerikOzeti);
   await store.kodBagla(kod, id, expiresAt + GAME_RETENTION_MS - now);
-  if (kaynak) {
-    const onceki = await store.kaynakGuncelle(kaynak, id);
-    if (onceki && onceki !== id) await store.pasiflestir(onceki);
-  }
+  if (kaynak) await surumuGuncelle(store, kaynak, id, id === kayit.oyun_id ? kayit : await store.get(id), olusturan);
   return id;
+}
+
+// Aynı kaynaktan (hesap + kütüphane kaydı) gelen yeni sürüm eskisini pasife alır. Yalnız KENDİ kayıtlarına dokunur:
+// içerik başka bir öğretmenin kaydıyla aynıysa (kopya) kaynak bağlanmaz ve onun kaydı pasifleştirilmez.
+async function surumuGuncelle(store: ToplulukStore, kaynak: string, id: string, kayit: ToplulukKaydi | null, olusturan: string) {
+  if (!kayit || kayit.olusturan !== olusturan) return;
+  // Eski bir sürüme geri dönüldüyse o sürüm yeniden listelenir.
+  if (!kayit.aktif) await store.etkinlestir(id);
+  const onceki = await store.kaynakGuncelle(kaynak, id);
+  if (!onceki || onceki === id) return;
+  const eski = await store.get(onceki);
+  if (eski && eski.olusturan === olusturan) await store.pasiflestir(onceki);
 }
 
 // Yayının yan etkisi: hata olursa yayın yine başarılı sayılır, yalnız loglanır. Oturumsuz (anonim) yayın eklenmez.
@@ -69,11 +80,14 @@ export async function topluluguEkleGuvenli(
 ): Promise<void> {
   if (!olusturan) return;
   try {
-    if (!(await checkLimit(`dersera:topluluk:hesap:${olusturan}`, GUN, GUNLUK_TOPLULUK_KAYDI))) {
+    const store = getToplulukStore();
+    // Sınır yalnız YENİ kayıt açılacaksa sayılır; var olan oyunun yeni sınıf yayını her zaman koda bağlanır.
+    const yeni = (await store.icerikId(icerikOzetiOf(definition))) === null;
+    if (yeni && !(await checkLimit(`dersera:topluluk:hesap:${olusturan}`, GUN, GUNLUK_TOPLULUK_KAYDI))) {
       console.warn("[topluluk] günlük kayıt sınırı dolu; oyun yayınlandı ama topluluğa eklenmedi");
       return;
     }
-    await topluluguEkle(getToplulukStore(), definition, dersler, olusturan, kod, expiresAt, secenekler);
+    await topluluguEkle(store, definition, dersler, olusturan, kod, expiresAt, secenekler);
   } catch (err) {
     console.error("[topluluk] kayıt eklenemedi", err instanceof Error ? err.message : err);
   }

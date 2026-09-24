@@ -4,6 +4,8 @@ import { parsePublishRequest, type PublishRequest } from "@/lib/games";
 import { getGamesStore } from "@/lib/gamesStore";
 import { publishGame } from "@/lib/gamesService";
 import { istekSahibi } from "@/lib/libraryService";
+import { isKutuphaneId } from "@/lib/library";
+import { getLibraryStore } from "@/lib/libraryStore";
 import { topluluguEkleGuvenli } from "@/lib/toplulukService";
 import type { DersKonu } from "@/lib/composer/input";
 
@@ -38,7 +40,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Benzersiz oyun kodu üretilemedi" }, { status: 503 });
     }
     if (request.definition && dersler) {
-      await topluluguEkleGuvenli(request.definition, dersler, await istekSahibi(req), published.game.code, published.game.expiresAt);
+      const sahip = await istekSahibi(req);
+      await topluluguEkleGuvenli(request.definition, dersler, sahip, published.game.code, published.game.expiresAt, { kaynak: await kutuphaneKaynagi(body, sahip) });
     }
     return NextResponse.json({ ...published, persistent: store.persistent }, { status: 201 });
   } catch (err) {
@@ -47,3 +50,14 @@ export async function POST(req: Request) {
   }
 }
 
+// Composer'da kütüphane oyunu yayınlanıyorsa (düzenleme sonrası) topluluktaki eski sürümü değiştirmek için kaynak.
+// Kütüphane kaydı yalnız istekteki oturumun sahibine aitse kabul edilir.
+async function kutuphaneKaynagi(body: unknown, sahip: string | null): Promise<string | undefined> {
+  const id = (body as { kutuphaneId?: unknown }).kutuphaneId;
+  if (!sahip || !isKutuphaneId(id)) return undefined;
+  try {
+    return (await getLibraryStore().get(sahip, id)) ? `${sahip}:${id}` : undefined;
+  } catch {
+    return undefined;
+  }
+}

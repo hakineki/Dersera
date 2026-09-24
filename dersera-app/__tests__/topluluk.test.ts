@@ -228,6 +228,75 @@ describe("topluluk kütüphanesi", () => {
     expect((await liste()).data.oyunlar.map((o: { baslik: string }) => o.baslik)).toEqual(["Kütüphaneden (düzenlendi)"]);
   });
 
+  const kutuphaneyeKaydet = async (cerez: string, definition: GameDefinition) => {
+    const req = jsonRequest("/api/library", { definition, dersler: fizikDersler });
+    req.headers.set("cookie", cerez);
+    return (await (await api.library.POST(req)).json()).id as string;
+  };
+  const kutuphanedenYayinla = async (cerez: string, id: string) => {
+    const pub = jsonRequest(`/api/library/${id}/publish`, {});
+    pub.headers.set("cookie", cerez);
+    expect((await api.libraryPublish.POST(pub, api.idParams(id))).status).toBe(201);
+  };
+  const guncelle = async (cerez: string, id: string, definition: GameDefinition) => {
+    const put = new Request(`http://localhost/api/library/${id}`, { method: "PUT", headers: { "Content-Type": "application/json", cookie: cerez }, body: JSON.stringify({ definition }) });
+    expect((await api.libraryItem.PUT(put, api.idParams(id))).status).toBe(200);
+  };
+  const basliklar = async () => (await liste()).data.oyunlar.map((o: { baslik: string }) => o.baslik).sort();
+
+  it("başka öğretmenin kopyası aslını pasifleştiremez", async () => {
+    const t1 = await hesapAc(api, "ogretmen-t1");
+    const t2 = await hesapAc(api, "ogretmen-t2");
+    const asil = baslikli(fizik, "T1 Oyunu");
+    await kutuphanedenYayinla(t1, await kutuphaneyeKaydet(t1, asil));
+    // T2 aynı içeriği kendi kütüphanesine alır, yayınlar, sonra düzenleyip yeniden yayınlar.
+    const k2 = await kutuphaneyeKaydet(t2, asil);
+    await kutuphanedenYayinla(t2, k2);
+    await guncelle(t2, k2, baslikli(fizik, "T2 Uyarlaması"));
+    await kutuphanedenYayinla(t2, k2);
+    expect(await basliklar()).toEqual(["T1 Oyunu", "T2 Uyarlaması"]);
+  });
+
+  it("eski sürüme geri dönülünce o sürüm yeniden listelenir", async () => {
+    const t1 = await hesapAc(api, "ogretmen-t1");
+    const k = await kutuphaneyeKaydet(t1, baslikli(fizik, "Sürüm A"));
+    await kutuphanedenYayinla(t1, k);
+    await guncelle(t1, k, baslikli(fizik, "Sürüm B"));
+    await kutuphanedenYayinla(t1, k);
+    expect(await basliklar()).toEqual(["Sürüm B"]);
+    await guncelle(t1, k, baslikli(fizik, "Sürüm A"));
+    await kutuphanedenYayinla(t1, k);
+    expect(await basliklar()).toEqual(["Sürüm A"]);
+  });
+
+  it("composer'dan kütüphane oyunu yayınlanınca da eski sürüm pasife alınır; başkasının kütüphane kimliği yok sayılır", async () => {
+    const t1 = await hesapAc(api, "ogretmen-t1");
+    const k = await kutuphaneyeKaydet(t1, baslikli(fizik, "Taslak 1"));
+    const composerYayini = async (cerez: string, baslik: string, kutuphaneId: string) => {
+      const req = jsonRequest("/api/games", { composer: { definition: baslikli(fizik, baslik), dersler: fizikDersler }, kutuphaneId });
+      req.headers.set("cookie", cerez);
+      expect((await api.games.POST(req)).status).toBe(201);
+    };
+    await composerYayini(t1, "Taslak 1", k);
+    await composerYayini(t1, "Taslak 2", k);
+    expect(await basliklar()).toEqual(["Taslak 2"]);
+    // Başka öğretmen aynı kütüphane kimliğini gönderse de T1'in kaydına dokunamaz.
+    const t2 = await hesapAc(api, "ogretmen-t2");
+    await composerYayini(t2, "Yabancı", k);
+    expect(await basliklar()).toEqual(["Taslak 2", "Yabancı"]);
+  });
+
+  it("günlük sınır yalnız yeni kayıtta sayılır: aynı oyunun ek sınıf yayınları koda bağlanmaya devam eder", async () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    const d = baslikli(fizik, "Çok Sınıflı");
+    const kodlar: string[] = [];
+    for (let i = 0; i < GUNLUK_TOPLULUK_KAYDI + 3; i++) kodlar.push((await yayinla(d, fizikDersler)).game.code);
+    warn.mockRestore();
+    const son = kodlar[kodlar.length - 1];
+    expect((await api.join.POST(jsonRequest("/join", { nickname: "Kartal" }), api.params(son))).status).toBe(201);
+    expect((await liste()).data.oyunlar[0].oynanma_sayisi).toBe(1);
+  });
+
   it("kütüphaneden yayında topluluğa oynatılan (doğrulanmış) sürüm gider, yayın anında kaydedilen taslak değil", async () => {
     const cerez = await hesapAc(api, "ayse");
     const req = jsonRequest("/api/library", { definition: baslikli(fizik, "Geçerli"), dersler: fizikDersler });
@@ -314,7 +383,7 @@ describe("Redis topluluk deposu", () => {
     expect(r.calls.at(-1)).toEqual(["SET", "dersera:topluluk:kod:ABC-123", A, "PX", "5000"]);
   });
 
-  it("içerik anahtarı yazılamazsa yetim kayıt kalmaz: aynı içerik sonra eklenebilir", async () => {
+  it("içerik anahtarı yazılamazsa içerik anahtarı var olmayan kaydı göstermez", async () => {
     const hatali = sahteRedis({ nxHata: true });
     await expect(createRedisToplulukStore(hatali.command).ekle(kayit(A, 1000), "ozet")).rejects.toThrow();
     expect(hatali.db.has("dersera:topluluk:icerik:ozet")).toBe(false);

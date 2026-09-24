@@ -288,7 +288,7 @@ export default function ComposerClient({
       const res = await fetch("/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ composer: { definition: sonuc.definition, dersler: sonuc.dersler } }),
+        body: JSON.stringify({ composer: { definition: sonuc.definition, dersler: sonuc.dersler }, ...(kutuphaneId ? { kutuphaneId } : {}) }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {

@@ -14,12 +14,14 @@ export interface ToplulukStore {
   persistent: boolean;
   // İçerik özeti daha önce görüldüyse mevcut id döner, kayıt yazılmaz.
   ekle(kayit: ToplulukKaydi, icerikOzeti: string): Promise<string>;
+  icerikId(icerikOzeti: string): Promise<string | null>;
   get(id: string): Promise<ToplulukKaydi | null>;
   // yayin_tarihi azalan; imleç: bir önceki sayfanın son skoru (hariç).
   sirali(imlec: number | null, adet: number): Promise<SiraliOge[]>;
   // Kaynağın (ör. hesap + kütüphane kaydı) güncel topluluk kaydını yazar; öncekini döner.
   kaynakGuncelle(kaynak: string, id: string): Promise<string | null>;
   pasiflestir(id: string): Promise<void>;
+  etkinlestir(id: string): Promise<void>;
   kodBagla(kod: string, id: string, ttlMs: number): Promise<void>;
   kodunOyunu(kod: string): Promise<string | null>;
   oynanmaArtir(id: string): Promise<void>;
@@ -71,6 +73,9 @@ export function createMemoryToplulukStore(): ToplulukStore {
       kayitlar.set(k.oyun_id, k);
       return k.oyun_id;
     },
+    async icerikId(h) {
+      return icerik.get(h) ?? null;
+    },
     async get(id) {
       return kayitlar.get(id) ?? null;
     },
@@ -92,6 +97,10 @@ export function createMemoryToplulukStore(): ToplulukStore {
       const k = kayitlar.get(id);
       if (k) kayitlar.set(id, { ...k, aktif: false });
     },
+    async etkinlestir(id) {
+      const k = kayitlar.get(id);
+      if (k) kayitlar.set(id, { ...k, aktif: true });
+    },
     async kodBagla(kod, id) {
       kodlar.set(kod, id);
     },
@@ -105,6 +114,17 @@ export function createMemoryToplulukStore(): ToplulukStore {
 }
 
 export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
+  const aktifYaz = async (id: string, aktif: boolean): Promise<ToplulukKaydi | null> => {
+    let kayit: ToplulukKaydi | null = null;
+    for (const key of [kayitKey(id), ozetKey(id)]) {
+      const raw = (await command(["GET", key])) as string | null;
+      if (!raw) continue;
+      const guncel = { ...JSON.parse(raw), aktif };
+      if (key === kayitKey(id)) kayit = guncel;
+      await command(["SET", key, JSON.stringify(guncel)]);
+    }
+    return kayit;
+  };
   return {
     persistent: true,
     async ekle(k, h) {
@@ -117,6 +137,9 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
       await command(["ZREM", SIRA, k.oyun_id]);
       await command(["DEL", kayitKey(k.oyun_id), ozetKey(k.oyun_id)]);
       return ((await command(["GET", icerikKey(h)])) as string | null) ?? k.oyun_id;
+    },
+    async icerikId(h) {
+      return ((await command(["GET", icerikKey(h)])) as string | null) ?? null;
     },
     async get(id) {
       const raw = (await command(["GET", kayitKey(id)])) as string | null;
@@ -145,10 +168,11 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
     },
     async pasiflestir(id) {
       await command(["ZREM", SIRA, id]);
-      for (const key of [kayitKey(id), ozetKey(id)]) {
-        const raw = (await command(["GET", key])) as string | null;
-        if (raw) await command(["SET", key, JSON.stringify({ ...JSON.parse(raw), aktif: false })]);
-      }
+      await aktifYaz(id, false);
+    },
+    async etkinlestir(id) {
+      const k = await aktifYaz(id, true);
+      if (k) await command(["ZADD", SIRA, siraSkoru(k.yayin_tarihi, id), id]);
     },
     async kodBagla(kod, id, ttlMs) {
       await command(["SET", kodKey(kod), id, "PX", Math.max(1000, ttlMs)]);
