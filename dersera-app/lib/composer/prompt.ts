@@ -1,6 +1,7 @@
 import { PROGRAM_DERS_ADI } from "@/data/mufredat/programlar";
 import type { ResolvedInput } from "@/lib/composer/input";
 import type { Recipe } from "@/lib/composer/recipe";
+import { PROFILLER, yasProfiliOf } from "@/lib/yasProfili";
 import type { DurakCiktisi, Iskelet } from "@/lib/composer/modelOutput";
 
 export const SYSTEM_PROMPT = `Dersera için eğitim oyunu tasarlarsın. Tüm metinler Türkçe.
@@ -49,9 +50,12 @@ ${hedefler}`;
       ? `\nKullanılabilir QR durakları (yalnızca bunları kullan, her durağa farklı bir QR ver):\n${izinliQrIdleri.join(", ")}`
       : "";
 
+  const profil = PROFILLER[yasProfiliOf(input.sinif)];
   return `Aşağıdaki seçimlerle bir Dersera oyunu tasarla.
 
 Sınıf: ${input.sinif}
+Öğrenci profili: ${profil.ad} (${profil.yas} yaş). Tüm metinleri bu yaşa göre yaz:
+${profil.istem.map((k) => `- ${k}`).join("\n")}
 ogrenme_hedefi ve ogrenme_hedefleri alanlarında YALNIZCA aşağıdaki öğrenme çıktısı kodlarını birebir kullan; kodun yanına açıklama yazma.
 
 ${dersBloklari}
