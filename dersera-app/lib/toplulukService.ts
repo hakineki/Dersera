@@ -93,20 +93,6 @@ export async function topluluguEkleGuvenli(
   }
 }
 
-export async function oynanmaKaydet(store: ToplulukStore, kod: string): Promise<void> {
-  const id = await store.kodunOyunu(kod);
-  if (id) await store.oynanmaArtir(id);
-}
-
-// Katılımın yan etkisi: depo alınamasa ya da yazılamasa bile katılım bozulmaz.
-export async function oynanmaKaydetGuvenli(kod: string): Promise<void> {
-  try {
-    await oynanmaKaydet(getToplulukStore(), kod);
-  } catch (err) {
-    console.error("[topluluk] oynanma sayılamadı", err instanceof Error ? err.message : err);
-  }
-}
-
 const SIRA_TARAMA = 50;
 export const EN_COK_TARAMA = 500;
 

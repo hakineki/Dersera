@@ -19,12 +19,45 @@ import {
   type LeaderboardEntry,
   type SceneState,
 } from "@/lib/gameState";
-import { buildLeaderboardEntry, sendPlayerResult } from "@/lib/playerResult";
+import { buildLeaderboardEntry, sendPlayerRating, sendPlayerResult } from "@/lib/playerResult";
 import TaskView from "./TaskView";
 
 const shell = "min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 px-4 py-6";
 const kart = "bg-white/10 border border-white/20 rounded-2xl p-5";
 const devam = "w-full bg-white text-indigo-900 font-bold py-3 rounded-xl";
+
+const PUAN_ETIKETI = ["Hiç beğenmedim", "Beğenmedim", "Fena değil", "Beğendim", "Çok beğendim"];
+
+// Anonim oyun puanı: yalnız toplam ve ortalama saklanır; öğretmen tek tek puanları görmez.
+function OyunPuani({ gameCode, nickname }: { gameCode: string; nickname: string }) {
+  const [durum, setDurum] = useState<"secim" | "gonderiliyor" | "tamam" | "hata">("secim");
+  async function ver(puan: number) {
+    setDurum("gonderiliyor");
+    const r = await sendPlayerRating(gameCode, nickname, puan);
+    setDurum(r === "hata" ? "hata" : "tamam");
+  }
+  return (
+    <div className={kart}>
+      {durum === "tamam" ? (
+        <p role="status" className="text-green-200 text-sm font-semibold">
+          Teşekkürler! Puanın öğretmenine isimsiz olarak iletildi.
+        </p>
+      ) : (
+        <fieldset disabled={durum === "gonderiliyor"}>
+          <legend className="text-white font-semibold text-sm mb-2">Oyunu nasıl buldun?</legend>
+          <div className="flex justify-center gap-1">
+            {PUAN_ETIKETI.map((etiket, i) => (
+              <button key={etiket} type="button" onClick={() => ver(i + 1)} aria-label={`${i + 1} yıldız: ${etiket}`} className="text-3xl px-1 hover:scale-110 transition-transform disabled:opacity-50">
+                <span aria-hidden="true">⭐</span>
+              </button>
+            ))}
+          </div>
+          {durum === "hata" && <p role="alert" className="text-red-200 text-xs mt-2">Puan gönderilemedi. Tekrar dene.</p>}
+        </fieldset>
+      )}
+    </div>
+  );
+}
 
 export default function ComposerPlayer({
   def,
@@ -250,6 +283,7 @@ export default function ComposerPlayer({
               <p className="text-indigo-200 text-xs mt-3">Sonuç kodun</p>
               <p className="font-mono font-bold text-2xl text-white tracking-widest">{buildResultCode(nickname, entry.netSeconds + entry.penaltySeconds)}</p>
             </div>
+            {gonderim === "gonderildi" && <OyunPuani gameCode={gameCode} nickname={nickname} />}
           </div>
         )}
       </div>

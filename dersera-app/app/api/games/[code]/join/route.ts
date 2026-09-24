@@ -3,7 +3,7 @@ import { normalizeGameCode } from "@/lib/games";
 import { getGamesStore } from "@/lib/gamesStore";
 import { joinGame } from "@/lib/gamesService";
 import { NICKNAME_PATTERN } from "@/lib/results";
-import { oynanmaKaydetGuvenli } from "@/lib/toplulukService";
+import { katilimSay } from "@/lib/istatistikService";
 
 export async function POST(req: Request, { params }: { params: Promise<{ code: string }> }) {
   const code = normalizeGameCode((await params).code);
@@ -23,7 +23,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     const result = await joinGame(getGamesStore(), code, nickname.trim());
     switch (result.status) {
       case "joined":
-        await oynanmaKaydetGuvenli(code);
+        await katilimSay(code);
         return NextResponse.json({ playerToken: result.playerToken }, { status: 201 });
       case "taken":
         return NextResponse.json({ error: "Bu takma ad bu oyunda kullanımda" }, { status: 409 });

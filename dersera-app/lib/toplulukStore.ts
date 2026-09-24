@@ -25,11 +25,17 @@ export interface ToplulukStore {
   kodBagla(kod: string, id: string, ttlMs: number): Promise<void>;
   kodunOyunu(kod: string): Promise<string | null>;
   oynanmaArtir(id: string): Promise<void>;
+  // Öğrenci puanı: toplam ve sayı; özette puan_ortalama/puan_sayisi olarak görünür.
+  puanEkle(id: string, puan: number): Promise<void>;
 }
 
 const ozetKey = (id: string) => `dersera:topluluk:ozet:${id}`;
 const kayitKey = (id: string) => `dersera:topluluk:oyun:${id}`;
 const oynanmaKey = (id: string) => `dersera:topluluk:oynanma:${id}`;
+const puanToplamKey = (id: string) => `dersera:topluluk:puan-toplam:${id}`;
+const puanSayisiKey = (id: string) => `dersera:topluluk:puan-sayisi:${id}`;
+
+const ortalamaOf = (toplam: number, sayi: number) => (sayi > 0 ? Math.round((toplam / sayi) * 10) / 10 : null);
 const icerikKey = (h: string) => `dersera:topluluk:icerik:${h}`;
 const kaynakKey = (k: string) => `dersera:topluluk:kaynak:${k}`;
 const kodKey = (kod: string) => `dersera:topluluk:kod:${kod}`;
@@ -64,6 +70,7 @@ export function createMemoryToplulukStore(): ToplulukStore {
   const kaynaklar = new Map<string, string>();
   const kodlar = new Map<string, string>();
   const oynanma = new Map<string, number>();
+  const puanlar = new Map<string, { toplam: number; sayi: number }>();
   return {
     persistent: false,
     async ekle(k, h) {
@@ -86,7 +93,10 @@ export function createMemoryToplulukStore(): ToplulukStore {
         .filter((x) => imlec === null || x.skor < imlec)
         .sort((a, b) => b.skor - a.skor)
         .slice(0, adet)
-        .map((x) => ({ skor: x.skor, ozet: ozetOf(x.k, oynanma.get(x.k.oyun_id) ?? 0) }));
+        .map((x) => {
+          const p = puanlar.get(x.k.oyun_id) ?? { toplam: 0, sayi: 0 };
+          return { skor: x.skor, ozet: { ...ozetOf(x.k, oynanma.get(x.k.oyun_id) ?? 0), puan_ortalama: ortalamaOf(p.toplam, p.sayi), puan_sayisi: p.sayi } };
+        });
     },
     async kaynakGuncelle(kaynak, id) {
       const onceki = kaynaklar.get(kaynak) ?? null;
@@ -109,6 +119,10 @@ export function createMemoryToplulukStore(): ToplulukStore {
     },
     async oynanmaArtir(id) {
       oynanma.set(id, (oynanma.get(id) ?? 0) + 1);
+    },
+    async puanEkle(id, puan) {
+      const p = puanlar.get(id) ?? { toplam: 0, sayi: 0 };
+      puanlar.set(id, { toplam: p.toplam + puan, sayi: p.sayi + 1 });
     },
   };
 }
@@ -156,11 +170,21 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
       }
       if (idler.length === 0) return [];
       const ozetler = ((await command(["MGET", ...idler.map(ozetKey)])) as (string | null)[] | null) ?? [];
-      const sayilar = ((await command(["MGET", ...idler.map(oynanmaKey)])) as (string | null)[] | null) ?? [];
-      return idler.map((_, i) => ({
-        skor: skorlar[i],
-        ozet: ozetler[i] ? { ...(JSON.parse(ozetler[i]!) as ToplulukOzeti), oynanma_sayisi: Number(sayilar[i] ?? 0) } : null,
-      }));
+      const sayilar = ((await command(["MGET", ...idler.flatMap((id) => [oynanmaKey(id), puanToplamKey(id), puanSayisiKey(id)])])) as (string | null)[] | null) ?? [];
+      return idler.map((_, i) => {
+        const sayi = Number(sayilar[i * 3 + 2] ?? 0);
+        return {
+          skor: skorlar[i],
+          ozet: ozetler[i]
+            ? {
+                ...(JSON.parse(ozetler[i]!) as ToplulukOzeti),
+                oynanma_sayisi: Number(sayilar[i * 3] ?? 0),
+                puan_ortalama: ortalamaOf(Number(sayilar[i * 3 + 1] ?? 0), sayi),
+                puan_sayisi: sayi,
+              }
+            : null,
+        };
+      });
     },
     async kaynakGuncelle(kaynak, id) {
       // SET ... GET: yeni değeri yazar, eskisini döndürür (tek komut).
@@ -182,6 +206,10 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
     },
     async oynanmaArtir(id) {
       await command(["INCR", oynanmaKey(id)]);
+    },
+    async puanEkle(id, puan) {
+      await command(["INCRBY", puanToplamKey(id), puan]);
+      await command(["INCR", puanSayisiKey(id)]);
     },
   };
 }

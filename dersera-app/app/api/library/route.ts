@@ -3,6 +3,7 @@ import { ozetOf } from "@/lib/library";
 import { getLibraryStore } from "@/lib/libraryStore";
 import { kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { istekSahibi, kutuphaneyeEkle } from "@/lib/libraryService";
+import { kutuphaneIstatistikleri } from "@/lib/istatistikService";
 
 export async function GET(req: Request) {
   const sahip = await istekSahibi(req);
@@ -10,7 +11,9 @@ export async function GET(req: Request) {
   try {
     const store = getLibraryStore();
     const kayitlar = await store.list(sahip);
-    const oyunlar = kayitlar.map(ozetOf).sort((a, b) => b.createdAt - a.createdAt);
+    const sirali = kayitlar.map(ozetOf).sort((a, b) => b.createdAt - a.createdAt);
+    const ist = await kutuphaneIstatistikleri(sirali.map((o) => `${sahip}:${o.id}`));
+    const oyunlar = sirali.map((o, i) => ({ ...o, ...ist[i] }));
     return NextResponse.json({ oyunlar, persistent: store.persistent });
   } catch (err) {
     console.error("[kutuphane] listeleme hatası", err);

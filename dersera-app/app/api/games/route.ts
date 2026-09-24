@@ -7,6 +7,7 @@ import { istekSahibi } from "@/lib/libraryService";
 import { isKutuphaneId } from "@/lib/library";
 import { getLibraryStore } from "@/lib/libraryStore";
 import { topluluguEkleGuvenli } from "@/lib/toplulukService";
+import { kodKaynagaBagla } from "@/lib/istatistikService";
 import type { DersKonu } from "@/lib/composer/input";
 
 export async function POST(req: Request) {
@@ -41,7 +42,9 @@ export async function POST(req: Request) {
     }
     if (request.definition && dersler) {
       const sahip = await istekSahibi(req);
-      await topluluguEkleGuvenli(request.definition, dersler, sahip, published.game.code, published.game.expiresAt, { kaynak: await kutuphaneKaynagi(body, sahip) });
+      const kaynak = await kutuphaneKaynagi(body, sahip);
+      await kodKaynagaBagla(published.game.code, kaynak, published.game.expiresAt);
+      await topluluguEkleGuvenli(request.definition, dersler, sahip, published.game.code, published.game.expiresAt, { kaynak });
     }
     return NextResponse.json({ ...published, persistent: store.persistent }, { status: 201 });
   } catch (err) {

@@ -24,6 +24,8 @@ export async function buildApi() {
     topluluk: typeof import("@/app/api/topluluk/route");
     toplulukOyun: typeof import("@/app/api/topluluk/[id]/route");
     toplulukStore: typeof import("@/lib/toplulukStore");
+    puan: typeof import("@/app/api/games/[code]/puan/route");
+    istatistikStore: typeof import("@/lib/istatistikStore");
   };
   await jest.isolateModulesAsync(async () => {
     mods = {
@@ -48,6 +50,8 @@ export async function buildApi() {
       topluluk: await import("@/app/api/topluluk/route"),
       toplulukOyun: await import("@/app/api/topluluk/[id]/route"),
       toplulukStore: await import("@/lib/toplulukStore"),
+      puan: await import("@/app/api/games/[code]/puan/route"),
+      istatistikStore: await import("@/lib/istatistikStore"),
     };
   });
   return {
