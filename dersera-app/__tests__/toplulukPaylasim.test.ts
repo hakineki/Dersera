@@ -6,6 +6,7 @@ import type { GameDefinition } from "@/lib/composer/definition";
 import { TOPLULUK_KURALLARI as K } from "@/lib/topluluk";
 import { paylasimUygunlugu } from "@/lib/toplulukPaylasim";
 import type { Hesap } from "@/lib/authStore";
+import { metinli } from "./helpers/metinliOyun";
 
 const fizik = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const dersler = [{ ders: "fizik", konuId: getUniteler(10, "fizik")[0].id }];
@@ -292,6 +293,69 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     const res = await paylas(id);
     expect(res.status).toBe(422);
     expect((await res.json()).yonetisim.karar).toBe("BLOCK");
+  });
+
+  describe("benzerlik / kopya kapısı", () => {
+    const metinOyun = (baslik: string, tohum: string) => metinli(oyun(baslik), tohum);
+    // Her durakta bir kelime ve başlık değişmiş kopya.
+    const hafifKopya = (baslik: string, tohum: string) => {
+      const d = metinOyun(baslik, tohum);
+      for (const x of d.duraklar) x.hikaye_metni = x.hikaye_metni.replace(/w3\b/, "degisti");
+      return d;
+    };
+    type Kapi = { kapi: string; karar: string; bulgular: { kod: string; mesaj: string }[] };
+    const benzerlikKapisi = (json: { yonetisim: { kapilar: Kapi[] } }) => json.yonetisim.kapilar.find((k) => k.kapi === "benzerlik")!;
+    const gonder = async (d: GameDefinition, c = sahip) => {
+      const id = await kaydet(d, c);
+      await esikGec(id, c);
+      return paylas(id, c);
+    };
+
+    it("başka öğretmenin yayındaki oyununun hafif değiştirilmiş kopyası gönderilemez; yapay zekâ denetimi yapılmaz", async () => {
+      await toplulugaKoy(api, metinOyun("Kuvvet Avı", "a"), dersler, { olusturan: "hesap:baskasi" });
+      const yz = jest.spyOn(api.yzDenetim, "yzDenetle");
+      const res = await gonder(hafifKopya("Benim Oyunum", "a"));
+      expect(res.status).toBe(422);
+      const json = await res.json();
+      expect(json.yonetisim.karar).toBe("BLOCK");
+      expect(benzerlikKapisi(json)).toMatchObject({ karar: "BLOCK", bulgular: [{ kod: "kopya", mesaj: expect.stringContaining('"Kuvvet Avı"') }] });
+      expect(yz).not.toHaveBeenCalled();
+    });
+
+    it("incelemedeki oyunun kopyası da yakalanır; başlığı gösterilmez", async () => {
+      const ikinci = await eskiHesap("ikinci1");
+      expect((await gonder(metinOyun("Gizli Başlık", "a"), ikinci)).status).toBe(201);
+      const res = await gonder(hafifKopya("Benim Oyunum", "a"));
+      expect(res.status).toBe(422);
+      const json = await res.json();
+      expect(benzerlikKapisi(json).bulgular[0].mesaj).toMatch(/^İncelemedeki başka bir oyunla/);
+      expect(JSON.stringify(json)).not.toContain("Gizli Başlık");
+    });
+
+    it("kendi önceki oyunu, başka sınıf, geri çekilmiş oyun karşılaştırılmaz", async () => {
+      await toplulugaKoy(api, metinOyun("Kendi", "a"), dersler, { olusturan: await sahipOf(sahip) });
+      const baskaSinif = metinOyun("Başka sınıf", "a");
+      baskaSinif.meta.sinif = 11;
+      await toplulugaKoy(api, baskaSinif, dersler, { olusturan: "hesap:baskasi" });
+      const cekilen = await toplulugaKoy(api, metinOyun("Çekilen", "a"), dersler, { olusturan: "hesap:ucuncu" });
+      expect(await api.toplulukStore.getToplulukStore().durumGecis(cekilen, ["yayinda"], "geri-cekildi", "yayinda")).toBe(true);
+      const res = await gonder(hafifKopya("Yeni sürümüm", "a"));
+      expect(res.status).toBe(201);
+    });
+
+    it("türetilmiş oyun gönderilebilir; inceleyen benzerliği görür", async () => {
+      await toplulugaKoy(api, metinOyun("Kuvvet Avı", "a"), dersler, { olusturan: "hesap:baskasi" });
+      const turetilmis = metinOyun("Türetilmiş", "a");
+      const baska = metinOyun("x", "b");
+      turetilmis.duraklar.slice(0, 4).forEach((d, i) => {
+        d.hikaye_metni = baska.duraklar[i].hikaye_metni;
+        d.gorev.soru = baska.duraklar[i].gorev.soru;
+      });
+      expect((await gonder(turetilmis)).status).toBe(201);
+      const i1 = await eskiHesap("inceleyen1");
+      const detayJson = await (await detay(await bekleyenId(i1), i1)).json();
+      expect(benzerlikKapisi(detayJson)).toMatchObject({ karar: "REVIEW", bulgular: [{ kod: "benzer", mesaj: expect.stringContaining('"Kuvvet Avı"') }] });
+    });
   });
 
   it("başka öğretmenin topluluktaki oyununun aynısı gönderilemez", async () => {

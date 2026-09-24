@@ -3,6 +3,7 @@ import { cocukGuvenligiTara, KATEGORI_ADI, metinleriTara, type GuvenlikEslesmesi
 import type { GameDefinition } from "@/lib/composer/definition";
 import type { ValidationResult } from "@/lib/composer/validator";
 import { YZ_KATEGORI_ADI, yzDurumMetni, type YzDenetim } from "@/lib/composer/yzDenetim";
+import { BENZERLIK, type BenzerOyun } from "@/lib/benzerlik";
 
 // İçerik yönetişimi: her Composer çıktısı, düzenleme ve yayın aynı 8 kapıdan geçer (docs/URUN-BAGLAMI.md §9).
 // Sonuç PASS / REVIEW / BLOCK. BLOCK yayını durdurur; REVIEW öğretmene gösterilir ve oyunu topluluğa otomatik
@@ -156,6 +157,20 @@ function yzDenetimi(def: GameDefinition, yz: YzDenetim, ekle: (b: Bulgu) => void
   }
 }
 
+// Topluluk gönderiminde başka öğretmenlerin oyunlarıyla metin örtüşmesi (lib/benzerlik.ts).
+function benzerlikBulgulari(benzer: BenzerOyun[], ekle: (b: Bulgu) => void, not: (m: string) => void) {
+  if (benzer.length === 0) return not("Topluluktaki oyunlarla belirgin metin örtüşmesi yok.");
+  for (const b of benzer) {
+    const oyun = b.baslik ? `Topluluktaki "${b.baslik}" oyunuyla` : "İncelemedeki başka bir oyunla";
+    const yuzde = `%${Math.round(b.oran * 100)}`;
+    ekle(
+      b.oran >= BENZERLIK.kopyaEsigi
+        ? { kod: "kopya", karar: "BLOCK", mesaj: `${oyun} metin örtüşmesi ${yuzde}; başka öğretmenin oyunu kendi oyunun olarak gönderilemez.` }
+        : { kod: "benzer", karar: "REVIEW", mesaj: `${oyun} metin örtüşmesi ${yuzde}; türetilmiş bir oyun olabilir, inceleyenler değerlendirir.` }
+    );
+  }
+}
+
 // Composer öncesi (klasik) oyunun öğretmence yazılabilen durak adı ve hikâyesi: yalnız engelleyen ifadeler aranır.
 export function klasikDurakEngelleri(stops: { qr: number; name: string; hikaye: string }[]): Bulgu[] {
   const metinler = stops.flatMap((s) => [
@@ -171,8 +186,9 @@ export function ozetEngelli(o: { baslik: string; konu: string }): boolean {
 }
 
 // Tanım şemadan geçmiş olmalıdır (şemadan geçmeyen tanım bu noktaya gelmeden 422 ile reddedilir).
-// yz verilmezse (ör. denetimin hiç istenmediği okuma) yapay zekâ katmanı hesaba katılmaz.
-export function yonetisimDegerlendir(def: GameDefinition, validation: ValidationResult, yz?: YzDenetim): YonetisimSonucu {
+// yz verilmezse (ör. denetimin hiç istenmediği okuma) yapay zekâ katmanı hesaba katılmaz. benzer yalnız topluluk
+// gönderimi ve incelemesinde verilir; sınıf yayınında benzerlik kapısı uygulanmaz.
+export function yonetisimDegerlendir(def: GameDefinition, validation: ValidationResult, yz?: YzDenetim, benzer?: BenzerOyun[]): YonetisimSonucu {
   const t = Object.fromEntries(KAPILAR.map((k) => [k.id, { bulgular: [], notlar: [] }])) as unknown as Toplayici;
   const ekle = (kapi: KapiId) => (b: Bulgu) => t[kapi].bulgular.push(b);
 
@@ -187,7 +203,8 @@ export function yonetisimDegerlendir(def: GameDefinition, validation: Validation
   if (yz) yzDenetimi(def, yz, ekle("cocuk-guvenligi"), (m) => t["cocuk-guvenligi"].notlar.push(m));
 
   if (t.sema.bulgular.length === 0) t.sema.notlar.push("Oyun tanımı şemaya ve boyut sınırlarına uygun.");
-  t.benzerlik.notlar.push("Sınıf yayınında uygulanmaz.");
+  if (benzer) benzerlikBulgulari(benzer, ekle("benzerlik"), (m) => t.benzerlik.notlar.push(m));
+  else t.benzerlik.notlar.push("Sınıf yayınında uygulanmaz.");
   t.ekonomi.notlar.push("Oluşturma sınırları üretim sırasında denetlenir.");
 
   const kapilar = KAPILAR.map(({ id }) => ({ kapi: id, karar: enAgir(t[id].bulgular.map((b) => b.karar)), ...t[id] }));

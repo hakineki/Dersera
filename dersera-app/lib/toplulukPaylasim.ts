@@ -1,4 +1,6 @@
 import { kutuphaneSahibi } from "@/lib/auth";
+import { BENZERLIK, benzerlikOrani, dersleriOrtak, metinParcalari, type BenzerOyun } from "@/lib/benzerlik";
+import type { GameDefinition } from "@/lib/composer/definition";
 import type { Hesap } from "@/lib/authStore";
 import { parseComposerDefinition } from "@/lib/composer/adapter";
 import { checkLimit } from "@/lib/composer/rateLimit";
@@ -97,6 +99,35 @@ export async function toplulukDurumlari(store: ToplulukStore, kaynaklar: string[
   }
 }
 
+// Başka öğretmenlerin topluluktaki (yayında ya da incelemede) aynı sınıf ve dersteki oyunlarından inceleme eşiğini
+// aşan örtüşmeler, en benzer önce. Birebir aynı içerik burada sayılmaz: gönderimde ayrı (409) ele alınır.
+// haric: incelenen kaydın kendisi. Bilinen sınır: en yeni taramaSiniri kayıt taranır; topluluk büyüyünce imza dizini gerekir.
+export async function benzerOyunlar(store: ToplulukStore, def: GameDefinition, sahip: string, haric?: string): Promise<BenzerOyun[]> {
+  const adaylar = new Set<string>();
+  let imlec: number | null = null;
+  for (let taranan = 0; taranan < BENZERLIK.taramaSiniri; ) {
+    const sayfa = await store.sirali(imlec, Math.min(BENZERLIK.sayfa, BENZERLIK.taramaSiniri - taranan));
+    for (const o of sayfa) if (o.ozet && o.ozet.sinif === def.meta.sinif && dersleriOrtak(o.ozet.ders, def.meta.ders)) adaylar.add(o.ozet.oyun_id);
+    if (sayfa.length < BENZERLIK.sayfa) break;
+    taranan += sayfa.length;
+    imlec = sayfa[sayfa.length - 1].skor;
+  }
+  for (const id of await store.kuyruk(BENZERLIK.taramaSiniri)) adaylar.add(id);
+  if (haric) adaylar.delete(haric);
+
+  const benim = metinParcalari(def);
+  const icerik = icerikOzetiOf(def);
+  const sonuc: BenzerOyun[] = [];
+  for (const k of await store.getMany([...adaylar])) {
+    if (!k || k.olusturan === sahip || k.sinif !== def.meta.sinif || !dersleriOrtak(k.ders, def.meta.ders)) continue;
+    const durum = durumOf(k);
+    if ((durum !== "yayinda" && durum !== "inceleme") || icerikOzetiOf(k.definition) === icerik) continue;
+    const oran = benzerlikOrani(benim, metinParcalari(k.definition));
+    if (oran !== null && oran >= BENZERLIK.incelemeEsigi) sonuc.push({ id: k.oyun_id, baslik: durum === "yayinda" ? k.baslik : null, oran });
+  }
+  return sonuc.sort((a, b) => b.oran - a.oran).slice(0, BENZERLIK.enCokGosterim);
+}
+
 // Öğretmen kütüphanesindeki oyunu topluluğa gönderir: eşikler, içerik denetimi, tekrar ve günlük sınır denetlenir.
 export async function topluluktaPaylas(
   store: ToplulukStore,
@@ -117,8 +148,13 @@ export async function topluluktaPaylas(
 
   const r = parseComposerDefinition(kutuphaneKaydi.definition, kutuphaneKaydi.dersler);
   if (!r.ok) return { ok: false, status: r.status, error: r.error };
-  const yonetisim = yonetisimDegerlendir(r.definition, r.validation, r.validation.gecerli ? await yzDenetle(r.definition, { sinirAnahtari: `hesap:${sahip}` }) : undefined);
-  if (yonetisim.karar === "BLOCK") return { ok: false, status: 422, error: "Oyun içerik denetiminden geçmedi; topluluğa gönderilemez.", yonetisim };
+  const ENGEL = "Oyun içerik denetiminden geçmedi; topluluğa gönderilemez.";
+  const benzer = await benzerOyunlar(store, r.definition, sahip);
+  // Kopya ya da geçersiz oyun için ücretli yapay zekâ denetimi yapılmaz.
+  const onDenetim = yonetisimDegerlendir(r.definition, r.validation, undefined, benzer);
+  if (onDenetim.karar === "BLOCK") return { ok: false, status: 422, error: ENGEL, yonetisim: onDenetim };
+  const yonetisim = yonetisimDegerlendir(r.definition, r.validation, await yzDenetle(r.definition, { sinirAnahtari: `hesap:${sahip}` }), benzer);
+  if (yonetisim.karar === "BLOCK") return { ok: false, status: 422, error: ENGEL, yonetisim };
 
   const [ist] = await kutuphaneIstatistikleri([kaynak]);
   const uygunluk = paylasimUygunlugu(hesap, ist, now);
@@ -235,8 +271,10 @@ export async function incelemeDetayi(store: ToplulukStore, hesap: Hesap, id: str
   if (!r.ok) return r;
   const detay = kullanimDetayi(r.kayit);
   // İnceleme ekranı model çağırmaz: gönderimde yapılan denetim önbellekten okunur.
-  const yz = detay.validation ? await yzOnbellektenOku(r.kayit.definition) : undefined;
-  return { ok: true as const, ...detay, yonetisim: detay.validation ? yonetisimDegerlendir(r.kayit.definition, detay.validation, yz) : null, ...say(r.incelemeler) };
+  // İnceleyen, oyunun başka öğretmenlerin topluluktaki oyunlarına benzerliğini de görür.
+  if (!detay.validation) return { ok: true as const, ...detay, yonetisim: null, ...say(r.incelemeler) };
+  const [yz, benzer] = await Promise.all([yzOnbellektenOku(r.kayit.definition), benzerOyunlar(store, r.kayit.definition, r.kayit.olusturan, r.kayit.oyun_id)]);
+  return { ok: true as const, ...detay, yonetisim: yonetisimDegerlendir(r.kayit.definition, detay.validation, yz, benzer), ...say(r.incelemeler) };
 }
 
 // Hesap başına tek oy. Gerekli kabul sayısına ulaşınca yayına girer (önceki sürüm listeden çıkar); ret eşiğinde reddedilir.
