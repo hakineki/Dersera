@@ -71,7 +71,7 @@ describe("POST /api/compose", () => {
     expect(secenek.timeoutMs).toBeGreaterThanOrEqual(8_000);
     expect(secenek.timeoutMs).toBeLessThanOrEqual(25_000);
     // Oturumlu uç nokta: oran sınırı oluşturma sınırıyla zaten uygulanır.
-    expect(secenek.ip).toBeUndefined();
+    expect(secenek.sinirAnahtari).toBeUndefined();
   });
 
   it("geçersiz oyunda denetim yapılmaz (yayınlanamaz; çağrı boşa gider)", async () => {
