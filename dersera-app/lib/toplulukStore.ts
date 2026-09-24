@@ -19,6 +19,8 @@ export interface ToplulukStore {
   get(id: string): Promise<ToplulukKaydi | null>;
   // Toplu okuma (kütüphane listesi ve inceleme kuyruğu): sırası korunur, olmayan kayıt null.
   getMany(ids: string[]): Promise<(ToplulukKaydi | null)[]>;
+  // Yalnız özetler (tam kayıt okumadan ön süzme için): sırası korunur, olmayan null.
+  ozetleriOku(ids: string[]): Promise<(ToplulukOzeti | null)[]>;
   // yayin_tarihi azalan; imleç: bir önceki sayfanın son skoru (hariç).
   sirali(imlec: number | null, adet: number): Promise<SiraliOge[]>;
   // Kaynağın (ör. hesap + kütüphane kaydı) güncel topluluk kaydını yazar; öncekini döner.
@@ -166,6 +168,12 @@ export function createMemoryToplulukStore(): ToplulukStore {
     async getMany(ids) {
       return ids.map((id) => kayitlar.get(id) ?? null);
     },
+    async ozetleriOku(ids) {
+      return ids.map((id) => {
+        const k = kayitlar.get(id);
+        return k ? ozetOf(k, oynanma.get(id) ?? 0) : null;
+      });
+    },
     async sirali(imlec, adet) {
       return [...kayitlar.values()]
         .filter((k) => k.aktif)
@@ -303,6 +311,11 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
       if (ids.length === 0) return [];
       const ham = ((await command(["MGET", ...ids.map(kayitKey)])) as (string | null)[] | null) ?? [];
       return ids.map((_, i) => (ham[i] ? (JSON.parse(ham[i]!) as ToplulukKaydi) : null));
+    },
+    async ozetleriOku(ids) {
+      if (ids.length === 0) return [];
+      const ham = ((await command(["MGET", ...ids.map(ozetKey)])) as (string | null)[] | null) ?? [];
+      return ids.map((_, i) => (ham[i] ? (JSON.parse(ham[i]!) as ToplulukOzeti) : null));
     },
     async sirali(imlec, adet) {
       const ust = imlec === null ? "+inf" : `(${imlec}`;

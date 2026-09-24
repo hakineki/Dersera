@@ -343,6 +343,19 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
       expect(res.status).toBe(201);
     });
 
+    it("inceleme kuyruğundaki başka sınıf/ders oyunlarının tam kaydı okunmaz (özetten süzülür)", async () => {
+      const baskaSinif = metinOyun("On birler", "a");
+      baskaSinif.meta.sinif = 11;
+      const store = api.toplulukStore.getToplulukStore();
+      const kuyruktaki = await toplulugaKoy(api, baskaSinif, dersler, { olusturan: "hesap:baskasi" });
+      expect(await store.durumGecis(kuyruktaki, ["yayinda"], "inceleme", "yayinda")).toBe(true);
+      await store.kuyrugaEkle(kuyruktaki, Date.now());
+      expect(await store.kuyruk(10)).toContain(kuyruktaki);
+      const getMany = jest.spyOn(store, "getMany");
+      expect((await gonder(hafifKopya("Benim", "a"))).status).toBe(201);
+      expect(getMany.mock.calls.flatMap((c) => c[0])).not.toContain(kuyruktaki);
+    });
+
     it("türetilmiş oyun gönderilebilir; inceleyen benzerliği görür", async () => {
       await toplulugaKoy(api, metinOyun("Kuvvet Avı", "a"), dersler, { olusturan: "hesap:baskasi" });
       const turetilmis = metinOyun("Türetilmiş", "a");

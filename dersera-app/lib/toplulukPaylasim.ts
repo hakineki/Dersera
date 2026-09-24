@@ -105,14 +105,19 @@ export async function toplulukDurumlari(store: ToplulukStore, kaynaklar: string[
 export async function benzerOyunlar(store: ToplulukStore, def: GameDefinition, sahip: string, haric?: string): Promise<BenzerOyun[]> {
   const adaylar = new Set<string>();
   let imlec: number | null = null;
+  const uygun = (o: { sinif: number; ders: string } | null) => !!o && o.sinif === def.meta.sinif && dersleriOrtak(o.ders, def.meta.ders);
   for (let taranan = 0; taranan < BENZERLIK.taramaSiniri; ) {
-    const sayfa = await store.sirali(imlec, Math.min(BENZERLIK.sayfa, BENZERLIK.taramaSiniri - taranan));
-    for (const o of sayfa) if (o.ozet && o.ozet.sinif === def.meta.sinif && dersleriOrtak(o.ozet.ders, def.meta.ders)) adaylar.add(o.ozet.oyun_id);
-    if (sayfa.length < BENZERLIK.sayfa) break;
+    const adet = Math.min(BENZERLIK.sayfa, BENZERLIK.taramaSiniri - taranan);
+    const sayfa = await store.sirali(imlec, adet);
+    for (const o of sayfa) if (uygun(o.ozet)) adaylar.add(o.ozet!.oyun_id);
+    if (sayfa.length < adet) break;
     taranan += sayfa.length;
     imlec = sayfa[sayfa.length - 1].skor;
   }
-  for (const id of await store.kuyruk(BENZERLIK.taramaSiniri)) adaylar.add(id);
+  // İnceleme kuyruğu özetten süzülür: tam kayıt yalnız aynı sınıf ve dersteki adaylar için okunur.
+  const kuyruk = await store.kuyruk(BENZERLIK.taramaSiniri);
+  const ozetler = await store.ozetleriOku(kuyruk);
+  kuyruk.forEach((id, i) => uygun(ozetler[i]) && adaylar.add(id));
   if (haric) adaylar.delete(haric);
 
   const benim = metinParcalari(def);

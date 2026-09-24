@@ -4,7 +4,7 @@ import { validationContext } from "@/lib/composer/service";
 import { validateGame } from "@/lib/composer/validator";
 import { yonetisimDegerlendir } from "@/lib/composer/yonetisim";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
-import { metinli } from "./helpers/metinliOyun";
+import { gercekciOyun, metinli } from "./helpers/metinliOyun";
 
 const girdi = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const oyun = (tohum: string) => metinli(makeDefinition(girdi, 8), tohum);
@@ -77,5 +77,52 @@ describe("benzerlik kapısı", () => {
       expect.objectContaining({ kod: "benzer", karar: "REVIEW", mesaj: expect.stringMatching(/^İncelemedeki başka bir oyunla metin örtüşmesi %40/) }),
     ]);
     expect(yonetisimDegerlendir(d, v, undefined, [{ id: "2", baslik: null, oran: 0.5 }]).karar).toBe("REVIEW");
+  });
+});
+
+describe("benzerlik: gerçekçi metin ve atlatma", () => {
+  const gercekci = (o: "a" | "b") => gercekciOyun(makeDefinition(girdi, 8), o);
+
+  it("aynı konuda bağımsız yazılmış iki oyun (ortak müfredat ifadeleri, aynı sayısal şıklar) inceleme eşiğinin altında", () => {
+    const o = oran(gercekci("a"), gercekci("b"));
+    expect(o).not.toBeNull();
+    expect(o!).toBeLessThan(BENZERLIK.incelemeEsigi / 2);
+  });
+
+  it("gerçekçi metnin hafif düzenlenmiş kopyası kopya eşiğini geçer", () => {
+    const kopya = gercekci("a");
+    for (const d of kopya.duraklar) d.hikaye_metni = d.hikaye_metni.replace(/\bbir\b/, "tek");
+    expect(oran(gercekci("a"), kopya)!).toBeGreaterThanOrEqual(BENZERLIK.kopyaEsigi);
+  });
+
+  it("görünmez karakter ve Kiril eş harflerle gizlenmiş kopya yakalanır", () => {
+    const kopya = gercekci("a");
+    for (const d of kopya.duraklar) d.hikaye_metni = d.hikaye_metni.replace(/a/g, "а").replace(/o/g, "о").replace(/ /g, "​ ").replace(/(\p{L})(\p{L})/u, "$1​$2");
+    expect(oran(gercekci("a"), kopya)).toBe(1);
+  });
+
+  it("salt sayılar ve seçenek satırları karşılaştırmaya girmez", () => {
+    const d = gercekci("a");
+    d.duraklar[0].gorev.secenekler = ["kırmızı mavi yeşil sarı", "mor turuncu"];
+    d.duraklar[0].gorev.destek_gorevi.secenekler = ["elma armut kiraz"];
+    d.duraklar[0].gorev.soru = "Kütle 5 kg ve kuvvet 20 newton ise";
+    const p = metinParcalari(d);
+    expect([...p].some((x) => /kırmızı|armut/.test(x))).toBe(false);
+    expect(p.has("kütle kg ve")).toBe(true);
+    expect([...p].some((x) => x.split(" ").some((k) => /^d+$/.test(k)))).toBe(false);
+  });
+});
+
+describe("topluluk deposu: özet okuma", () => {
+  it("Redis: tek MGET, sıra korunur, olmayan null", async () => {
+    const { createRedisToplulukStore } = await import("@/lib/toplulukStore");
+    const { recordingCommand } = await import("./helpers/fakeRedis");
+    const ozet = { oyun_id: "1", sinif: 10, ders: "Fizik" };
+    const { command, calls } = recordingCommand((args) => (args[0] === "MGET" ? [JSON.stringify(ozet), null] : "OK"));
+    const store = createRedisToplulukStore(command);
+    expect(await store.ozetleriOku(["1", "2"])).toEqual([ozet, null]);
+    expect(calls).toEqual([["MGET", "dersera:topluluk:ozet:1", "dersera:topluluk:ozet:2"]]);
+    expect(await store.ozetleriOku([])).toEqual([]);
+    expect(calls).toHaveLength(1);
   });
 });

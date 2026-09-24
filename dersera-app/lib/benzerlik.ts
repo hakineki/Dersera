@@ -11,7 +11,7 @@ export const BENZERLIK = {
   kopyaEsigi: 0.7,
   incelemeEsigi: 0.4,
   // Daha az kelime üçlüsü olan oyun karşılaştırılmaz (oran anlamsızlaşır).
-  enAzParca: 20,
+  enAzParca: 40,
   // Taranan en çok topluluk kaydı (yayındakiler en yeniden eskiye + inceleme kuyruğu). Aşılırsa eskiler taranmaz.
   taramaSiniri: 500,
   sayfa: 100,
@@ -26,20 +26,30 @@ export interface BenzerOyun {
   oran: number;
 }
 
+// Öğrenciye aynı görünen ama farklı kodlanan metin kopyayı gizlemesin: uyumluluk biçimi (NFKC), görünmez biçim
+// karakterleri (sıfır genişlikli boşluk vb.) ve Latin harfe benzeyen Kiril harfleri eşitlenir.
+const KIRIL: Record<string, string> = { а: "a", е: "e", о: "o", р: "p", с: "c", у: "y", х: "x", і: "i", ј: "j", ѕ: "s", к: "k", м: "m", т: "t", н: "h", в: "b", ԛ: "q", ԝ: "w" };
 const kelimeler = (s: string) =>
   s
-    .normalize("NFC")
+    .normalize("NFKC")
+    .replace(/\p{Cf}/gu, "")
     .toLocaleLowerCase("tr-TR")
+    .replace(/[аеорсухіјѕкмтнвԛԝ]/g, (c) => KIRIL[c])
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .split(" ")
-    .filter(Boolean);
+    // Salt sayılar atılır: aynı problemin aynı sayısal verileri bağımsız oyunlarda da ortaktır.
+    .filter((k) => k && !/^\p{N}+$/u.test(k));
 
-// Satırlar "Etiket: değer" biçimindedir; etiket (ör. "Soru") her oyunda aynı olduğundan atılır. Üçlüler satır aşmaz.
+// Satırlar "Etiket: değer" biçimindedir; etiket (ör. "Soru") her oyunda aynı olduğundan atılır (çok satırlı alanın
+// devam satırında etiket yoktur). Seçenek satırları kısa ve kalıplı cevaplardır, bağımsız oyunlarda da örtüşür;
+// sayılmaz. Üçlüler satır aşmaz.
 export function metinParcalari(def: GameDefinition): Set<string> {
   const parcalar = new Set<string>();
   for (const b of metinBolumleri(def)) {
     for (const satir of b.metin.split("\n")) {
-      const k = kelimeler(satir.slice(satir.indexOf(": ") + 2));
+      const ayrac = satir.indexOf(": ");
+      if (ayrac >= 0 && /seçenek/i.test(satir.slice(0, ayrac))) continue;
+      const k = kelimeler(ayrac >= 0 ? satir.slice(ayrac + 2) : satir);
       for (let i = 0; i + 2 < k.length; i++) parcalar.add(`${k[i]} ${k[i + 1]} ${k[i + 2]}`);
     }
   }
