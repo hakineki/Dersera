@@ -118,9 +118,11 @@ export function parseJsonText<S extends z.ZodType>(text: string, schema: S): { o
 
 const orNull = (s: string) => (s.trim() ? s.trim() : null);
 // Model kodun yanına açıklamayı da yazabiliyor ("FEL.10.1.1: Felsefenin ..."); yalnız kod tutulur.
-// Önekler: "FİZ.9.1.1", "TDE1.1", ortaokulda "FB.5.2.1" ve Türkçenin beceri önekli "T.D.5.3" biçimi.
-const KOD = /([A-ZÇĞİÖŞÜ]{1,5}(?:\.[A-ZÇĞİÖŞÜ]{1,5})*\.?)?\d+(\.\d+)+/u;
-export const hedefKodu = (s: string) => s.match(KOD)?.[0] ?? s.trim();
+// Önekler: "FİZ.9.1.1", "TDE1.1", ortaokulda "FB.5.2.1" ve Türkçenin beceri önekli "T.D.5.3" biçimi. Kaynakta olduğu
+// gibi önekten sonra boşluk yazılabilir ("MAT. 1.3.3"); boşluk yalnız önekin noktasından sonra kabul edilir (böylece
+// "Cevap A 5.2" önekle birleşmez) ve kod boşluksuz resmî biçime getirilir.
+const KOD = /([A-ZÇĞİÖŞÜ]{1,5}(?:\.[A-ZÇĞİÖŞÜ]{1,5})*(?:\.\s?)?)?\d+(\.\d+)+/u;
+export const hedefKodu = (s: string) => s.match(KOD)?.[0].replace(/\s+/g, "") ?? s.trim();
 
 // Düz çıktı → GameDefinition. meta modelden değil doğrulanmış girdiden gelir; mekân türü oyun alanından çıkar.
 export function toDefinition(out: ModelOutput, input: ResolvedInput): { ok: true; definition: GameDefinition } | { ok: false; error: string } {
