@@ -1,5 +1,5 @@
 import { clearRedisEnv } from "./helpers/fakeRedis";
-import { buildApi, hesapAc, jsonRequest, samplePublish } from "./helpers/api";
+import { buildApi, hesapAc, jsonRequest, samplePublish, toplulugaKoy } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 import { validationContext } from "@/lib/composer/context";
@@ -217,15 +217,14 @@ describe("yayın yönetişimi atlayamaz", () => {
     expect((await res.json()).yonetisim.kapilar.find((k: { kapi: string }) => k.kapi === "ogrenme-kalitesi").karar).toBe("BLOCK");
   });
 
-  it("REVIEW: sınıfa yayınlanır ama topluluğa otomatik eklenmez; PASS eklenir", async () => {
+  it("REVIEW ve PASS sınıfa yayınlanır, yanıtta yönetişim sonucu döner; yayın topluluğa ekleme yapmaz", async () => {
     const inceleme = await yayinla(oyun((d) => ((d.meta.baslik = "Şans Oyunu"), (d.duraklar[1].hikaye_metni = "Rulet masasına yaklaş."))));
     expect(inceleme.status).toBe(201);
     expect((await inceleme.json()).yonetisim.karar).toBe("REVIEW");
-    expect(await topluluk()).toEqual([]);
     const temiz = await yayinla(oyun((d) => (d.meta.baslik = "Temiz Oyun")));
     expect(temiz.status).toBe(201);
     expect((await temiz.json()).yonetisim.karar).toBe("PASS");
-    expect((await topluluk()).map((o) => o.baslik)).toEqual(["Temiz Oyun"]);
+    expect(await topluluk()).toEqual([]);
   });
 
   it("kütüphaneden yayında da aynı kural: BLOCK 422, REVIEW 201 + yonetisim ve topluluğa gitmez", async () => {
@@ -253,8 +252,7 @@ describe("yayın yönetişimi atlayamaz", () => {
   });
 
   it("yönetişimden önce topluluğa girmiş engelli kayıt: listede görünmez, detayı 404 ve pasife alınır", async () => {
-    const eski = oyun((d) => (d.meta.baslik = "Eski Oyun"));
-    await yayinla(eski);
+    await toplulugaKoy(api, oyun((d) => (d.meta.baslik = "Eski Oyun")), dersler);
     const [kayit] = await topluluk();
     const store = api.toplulukStore.getToplulukStore();
     // Kaydın yönetişimden önce eklendiğini taklit et: içerik sonradan engelli hâle gelir.

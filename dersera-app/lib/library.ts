@@ -1,5 +1,6 @@
 import type { GameDefinition } from "@/lib/composer/definition";
 import type { DersKonu } from "@/lib/composer/input";
+import type { PaylasimUygunlugu, ToplulukDurumOzeti } from "@/lib/toplulukPaylasim";
 
 // Öğretmen oyun kütüphanesi: composer'dan yayınlanan oyunlar kalıcı saklanır, API çağrısı olmadan yeniden yayınlanır.
 // Sahiplik tarayıcıda üretilen gizli bir anahtarla kurulur; sunucu yalnız anahtarın özetini tutar.
@@ -29,11 +30,13 @@ export interface KutuphaneOzeti {
   sonYayin: number | null;
 }
 
-// Liste yanıtında her oyunun saha istatistiği de gelir.
+// Liste yanıtında her oyunun saha istatistiği, topluluk durumu ve topluluğa gönderilebilirliği de gelir.
 export interface KutuphaneListeOgesi extends KutuphaneOzeti {
   ogrenci_sayisi: number;
   puan_ortalama: number | null;
   puan_sayisi: number;
+  topluluk: ToplulukDurumOzeti | null;
+  paylasim: PaylasimUygunlugu;
 }
 
 export interface KutuphaneKaydi extends KutuphaneOzeti {

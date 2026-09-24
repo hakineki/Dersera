@@ -23,12 +23,45 @@ export interface ToplulukOzeti {
   aktif: boolean;
 }
 
-// Depodaki tam kayıt. oluşturan: öğretmen hesabının kütüphane sahibi kimliği ya da "anonim"; herkese açık yanıtlara girmez.
+// Topluluğa giriş (docs/URUN-BAGLAMI.md §8): kütüphanedeki oyun kalite eşiğini geçince öğretmen gönderir, iki bağımsız
+// öğretmen incelemesiyle yayına girer. Kurallar tek yerde; ödül politikası kredi ekonomisiyle eklenecek.
+export const TOPLULUK_KURALLARI = {
+  enAzOgrenci: 10,
+  enAzPuan: 3.5,
+  hesapYasiGun: 3,
+  gunlukGonderim: 1,
+  gerekliKabul: 2,
+  redEsigi: 2,
+  notEnAz: 10,
+  notEnCok: 300,
+} as const;
+
+// "inceleme": kuyrukta; "yayinda": listede; "reddedildi": iki ret; "geri-cekildi": sahibi kaldırdı.
+export type ToplulukDurumu = "inceleme" | "yayinda" | "reddedildi" | "geri-cekildi";
+
+export interface Inceleme {
+  // İnceleyen hesabın kütüphane sahibi kimliği; hiçbir yanıtta dışarı verilmez.
+  inceleyen: string;
+  karar: "kabul" | "ret";
+  not: string;
+  tarih: number;
+}
+
+// Depodaki tam kayıt. Gizli alanlar (olusturan, kaynak, onceki_id) herkese açık yanıtlara girmez.
 export interface ToplulukKaydi extends Omit<ToplulukOzeti, "oynanma_sayisi"> {
   olusturan: string;
   definition: GameDefinition;
   dersler: DersKonu[];
+  // Bu alanlardan önce açılmış kayıtlarda yoktur: durumu olmayan kayıt yayındadır.
+  durum?: ToplulukDurumu;
+  // Gönderen kütüphane kaydı ("sahip:kutuphaneId") ve onaylanınca yerini alacağı, o an yayındaki önceki sürüm.
+  kaynak?: string;
+  onceki_id?: string | null;
+  gonderim_tarihi?: number;
 }
+
+// Durumu olmayan eski kayıt: aktifse yayında, değilse (eski sürüm olarak pasife alınmış) geri çekilmiş sayılır.
+export const durumOf = (k: Pick<ToplulukKaydi, "durum" | "aktif">): ToplulukDurumu => k.durum ?? (k.aktif ? "yayinda" : "geri-cekildi");
 
 export interface ToplulukFiltresi {
   ders?: string; // ders adı, ör. "Fizik"

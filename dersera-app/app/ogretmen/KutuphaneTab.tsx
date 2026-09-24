@@ -6,6 +6,8 @@ import { DURATION_PRESETS_MIN, publishWindowMinutes } from "@/lib/games";
 import { PUAN_KOVASI } from "@/lib/istatistik";
 import type { KutuphaneKaydi, KutuphaneListeOgesi } from "@/lib/library";
 import { kutuphanedenSil, kutuphanedenYayinla, kutuphaneListesi, kutuphaneOyunu } from "@/lib/libraryClient";
+import { TOPLULUK_KURALLARI } from "@/lib/topluluk";
+import { toplulugaGonder, topluluktanGeriCekIstegi } from "@/lib/toplulukClient";
 import type { TeacherGame } from "@/lib/teacherGame";
 import { DENEYIM_SECENEKLERI, GOREV_TUR_ADI } from "@/app/composer/labels";
 
@@ -35,14 +37,100 @@ function Onizleme({ oyun }: { oyun: KutuphaneKaydi }) {
   );
 }
 
+// Topluluk paylaşımı: durum, eşik gerekçeleri, paylaş / geri çek.
+export function ToplulukBolumu({ oyun, onYenile }: { oyun: KutuphaneListeOgesi; onYenile: () => void }) {
+  const [calisiyor, setCalisiyor] = useState(false);
+  const [hata, setHata] = useState("");
+  const t = oyun.topluluk;
+  const toplulukta = !!t && (t.durum === "inceleme" || t.durum === "yayinda" || t.oncekiYayinda);
+
+  async function paylas() {
+    setCalisiyor(true);
+    setHata("");
+    const r = await toplulugaGonder(oyun.id);
+    setCalisiyor(false);
+    if ("error" in r) return setHata(r.error);
+    onYenile();
+  }
+
+  async function geriCek() {
+    if (!window.confirm(`"${oyun.baslik}" topluluktan kaldırılsın mı? Diğer öğretmenler artık göremez.`)) return;
+    setCalisiyor(true);
+    setHata("");
+    const r = await topluluktanGeriCekIstegi(oyun.id);
+    setCalisiyor(false);
+    if (r !== true) return setHata(r.error);
+    onYenile();
+  }
+
+  const paylasEtiketi = t?.durum === "yayinda" ? "Güncel sürümü gönder" : t?.durum === "reddedildi" ? "Düzeltip yeniden gönder" : "🌐 Toplulukta paylaş";
+  return (
+    <div className="mt-3 border-t border-gray-100 pt-3 text-sm space-y-2">
+      {t?.durum === "inceleme" && (
+        <p className="text-amber-800">
+          <span aria-hidden="true">🕒 </span>Toplulukta incelemede: {t.kabul}/{TOPLULUK_KURALLARI.gerekliKabul} öğretmen kabul etti.
+          {t.oncekiYayinda && " Önceki sürüm toplulukta kalıyor."}
+        </p>
+      )}
+      {t?.durum === "yayinda" && (
+        <p className="text-green-700">
+          <span aria-hidden="true">🌐 </span>Toplulukta yayında.
+        </p>
+      )}
+      {t?.durum === "reddedildi" && (
+        <div className="text-red-700">
+          <p>
+            Topluluk incelemesinden geçmedi.{t.oncekiYayinda && " Önceki sürüm toplulukta kalıyor."} Öğretmenlerin notları:
+          </p>
+          <ul className="list-disc list-inside text-red-600">
+            {t.retNotlari.map((n, i) => (
+              <li key={i}>{n}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        {t?.durum !== "inceleme" && (
+          <button
+            onClick={paylas}
+            disabled={calisiyor || !oyun.paylasim.uygun}
+            className="border border-green-600 text-green-700 font-semibold px-3 py-1.5 rounded-lg disabled:opacity-40 disabled:border-gray-300 disabled:text-gray-500"
+          >
+            {calisiyor ? "Gönderiliyor…" : paylasEtiketi}
+          </button>
+        )}
+        {toplulukta && (
+          <button onClick={geriCek} disabled={calisiyor} className="text-gray-600 font-semibold px-3 py-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-50">
+            Topluluktan geri çek
+          </button>
+        )}
+      </div>
+      {!oyun.paylasim.uygun && t?.durum !== "inceleme" && (
+        <ul className="text-xs text-gray-500 list-disc list-inside" aria-label="Topluluğa göndermek için">
+          {oyun.paylasim.nedenler.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      )}
+      {hata && (
+        <p role="alert" className="text-red-600">
+          {hata}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function OyunKarti({
   oyun,
   onYayinlandi,
   onSilindi,
+  onYenile,
 }: {
   oyun: KutuphaneListeOgesi;
   onYayinlandi: (tg: TeacherGame) => void;
   onSilindi: (id: string) => void;
+  onYenile: () => void;
 }) {
   const [onizleme, setOnizleme] = useState<KutuphaneKaydi | null>(null);
   const [yukleniyor, setYukleniyor] = useState<"onizle" | "yayinla" | "sil" | null>(null);
@@ -138,6 +226,7 @@ function OyunKarti({
           {hata}
         </p>
       )}
+      <ToplulukBolumu oyun={oyun} onYenile={onYenile} />
       {onizleme && <Onizleme oyun={onizleme} />}
     </li>
   );
@@ -188,7 +277,7 @@ export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: Teac
       {oyunlar && oyunlar.length > 0 && (
         <ul className="space-y-3">
           {oyunlar.map((o) => (
-            <OyunKarti key={o.id} oyun={o} onYayinlandi={onYayinlandi} onSilindi={(id) => setOyunlar((l) => l?.filter((x) => x.id !== id) ?? null)} />
+            <OyunKarti key={o.id} oyun={o} onYayinlandi={onYayinlandi} onSilindi={(id) => setOyunlar((l) => l?.filter((x) => x.id !== id) ?? null)} onYenile={yukle} />
           ))}
         </ul>
       )}
