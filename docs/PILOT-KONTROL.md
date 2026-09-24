@@ -10,6 +10,7 @@ Her satırın yanına sonucu (✓ / ✗ + not) yazın. ✗ olan satır pilotu du
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` (ya da `UPSTASH_REDIS_REST_URL/TOKEN`) | Evet | Yoksa üretimde oran sınırı çalışmaz, oyun oluşturma 503 döner; veriler bellekte kalır ve kaybolur. |
 | `OPENAI_API_KEY` ya da `ANTHROPIC_API_KEY` | Evet | OpenAI varsa o, yoksa Anthropic kullanılır. Oluşturma, güncelleme ve çocuk güvenliği denetimi aynı sağlayıcıdan gider. |
 | `AI_MODEL` / `ANTHROPIC_MODEL` | Hayır | Varsayılan modeli değiştirmek için. |
+| `DERSERA_YONETICILER` | Moderasyon için | Virgülle ayrılmış kullanıcı adları (ör. `hakan`). Ad ilk girişte hesaba bağlanır; adı ÖNCE kendiniz alın, sonra ekleyin. Yönetici `/moderasyon` sayfasını görür. |
 | `KAYIT_DAVET_KODU` | Pilotta önerilir | Tanımlıysa yalnız kodu bilen öğretmen hesap açar. |
 | `DERSERA_EN_AZ_OYUN_SN` | Hayır | Öğretmen puanında sayılan en kısa oynama süresini değiştirir (varsayılan: max(120 sn, sürenin %25'i)). |
 
@@ -26,7 +27,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
    DERSERA_REDIS_DUMAN=1 KV_REST_API_URL="<duman-db-url>" KV_REST_API_TOKEN="<duman-db-token>" npx jest __tests__/depoSozlesmesi.test.ts
    ```
 
-3. Beklenen: `bellek depoları` ve `redis depoları` altında 6'şar test geçer. Test bitince yazdığı anahtarları siler.
+3. Beklenen: `bellek depoları` ve `redis depoları` altında 7'şer test geçer. Test bitince yazdığı anahtarları siler.
 
 ## 3. Uçtan uca akış (gizli sekmede, canlı adreste)
 
@@ -52,6 +53,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 16 | B: A'nın oyununu hafifçe değiştirip topluluğa gönderir | "metin örtüşmesi %…; başka öğretmenin oyunu…" ile engellenir. |
 | 17 | A: topluluktan geri çeker | Listeden çıkar; aynı içerik yeniden paylaşılınca incelemesiz geri gelir. |
 | 18 | Kredi bitince oluşturma | 402: "bakiyen yetmiyor"; model çağrılmaz. |
+| 19 | Yönetici: içerik uyarısı alan bir oyunu yayınla, `/moderasyon`u aç | Kayıt "Sınıf yayını" olarak görünür; "Oyunu bitir" öğrencilerin oyununu sonlandırır. |
 
 ## 4. Dağıtım doğrulaması
 

@@ -6,6 +6,7 @@ import { parseComposerDefinition } from "@/lib/composer/adapter";
 import { checkLimit } from "@/lib/composer/rateLimit";
 import { yonetisimDegerlendir, type YonetisimSonucu } from "@/lib/composer/yonetisim";
 import { yzDenetle, yzOnbellektenOku } from "@/lib/composer/yzDenetimService";
+import { moderasyonaEkle } from "@/lib/moderasyonService";
 import { kutuphaneIstatistikleri } from "@/lib/istatistikService";
 import { toplulukOdulu } from "@/lib/krediService";
 import type { LibraryStore } from "@/lib/libraryStore";
@@ -157,9 +158,15 @@ export async function topluluktaPaylas(
   const benzer = await benzerOyunlar(store, r.definition, sahip);
   // Kopya ya da geçersiz oyun için ücretli yapay zekâ denetimi yapılmaz.
   const onDenetim = yonetisimDegerlendir(r.definition, r.validation, undefined, benzer);
-  if (onDenetim.karar === "BLOCK") return { ok: false, status: 422, error: ENGEL, yonetisim: onDenetim };
+  if (onDenetim.karar === "BLOCK") {
+    await moderasyonaEkle({ tur: "engellenen", yonetisim: onDenetim, definition: r.definition, sahip, now });
+    return { ok: false, status: 422, error: ENGEL, yonetisim: onDenetim };
+  }
   const yonetisim = yonetisimDegerlendir(r.definition, r.validation, await yzDenetle(r.definition, { sinirAnahtari: `hesap:${sahip}` }), benzer);
-  if (yonetisim.karar === "BLOCK") return { ok: false, status: 422, error: ENGEL, yonetisim };
+  if (yonetisim.karar === "BLOCK") {
+    await moderasyonaEkle({ tur: "engellenen", yonetisim, definition: r.definition, sahip, now });
+    return { ok: false, status: 422, error: ENGEL, yonetisim };
+  }
 
   const [ist] = await kutuphaneIstatistikleri([kaynak]);
   const uygunluk = paylasimUygunlugu(hesap, ist, now);
@@ -197,6 +204,7 @@ export async function topluluktaPaylas(
   if (id !== kayit.oyun_id) return { ok: false, status: 409, error: "Bu oyunun aynısı toplulukta zaten var." };
   await store.kuyrugaEkle(id, now);
   await store.kaynakGuncelle(kaynak, id);
+  await moderasyonaEkle({ tur: "topluluk", yonetisim, definition: r.definition, toplulukId: id, sahip, now });
   return { ok: true, id, durum: "inceleme" };
 }
 

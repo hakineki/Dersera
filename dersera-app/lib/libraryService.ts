@@ -14,6 +14,7 @@ import type { ValidationResult } from "@/lib/composer/validator";
 import type { YonetisimSonucu } from "@/lib/composer/yonetisim";
 import { IZ_SURUMU, parmakizi, surumKarari, type Parmakizi } from "@/lib/surum";
 import { yzDenetle } from "@/lib/composer/yzDenetimService";
+import { moderasyonaEkle } from "@/lib/moderasyonService";
 
 // Eski (hesap öncesi) kütüphaneler tarayıcı anahtarının özetine bağlıydı; yalnız hesaba taşımada kullanılır.
 export const eskiSahipOf = (anahtar: string) => hashToken(anahtar);
@@ -147,7 +148,10 @@ export async function yenidenYayinla(
   const kayit = await library.get(sahip, id);
   if (!kayit) return { ok: false, status: 404, error: "Oyun kütüphanede bulunamadı" };
   const composed = await parseComposerPublish({ composer: { definition: kayit.definition, dersler: kayit.dersler } }, (def) => yzDenetle(def, { sinirAnahtari: `hesap:${sahip}` }));
-  if (!composed.ok) return composed;
+  if (!composed.ok) {
+    if (composed.yonetisim && composed.definition) await moderasyonaEkle({ tur: "engellenen", yonetisim: composed.yonetisim, definition: composed.definition, sahip, now });
+    return composed;
+  }
   const published = await publishGame(games, { ...composed.request, durationMinutes: sure ?? composed.request.durationMinutes }, now);
   if (!published) return { ok: false, status: 503, error: "Benzersiz oyun kodu üretilemedi" };
   // Yayın sırasında gelen bir düzenleme ezilmesin: kaydın en güncel hâli okunup yalnız son kod/tarih yazılır.
@@ -155,6 +159,7 @@ export async function yenidenYayinla(
   await library.replace(sahip, { ...guncel, sonKod: published.game.code, sonYayin: now });
   await kodKaynagaBagla(published.game.code, `${sahip}:${id}`, published.game.expiresAt, now);
   await toplulukKodunuBagla(composed.request.definition!, published.game.code, published.game.expiresAt, now, sahip);
+  await moderasyonaEkle({ tur: "sinif-yayini", yonetisim: composed.yonetisim, definition: composed.request.definition!, kod: published.game.code, sahip, now });
   return { ok: true, ...published, yonetisim: composed.yonetisim };
 }
 
