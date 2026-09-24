@@ -6,7 +6,7 @@ import { publishGame } from "@/lib/gamesService";
 import { istekSahibi } from "@/lib/libraryService";
 import { isKutuphaneId } from "@/lib/library";
 import { getLibraryStore } from "@/lib/libraryStore";
-import { topluluguEkleGuvenli } from "@/lib/toplulukService";
+import { toplulukKodunuBagla } from "@/lib/toplulukService";
 import { kodKaynagaBagla } from "@/lib/istatistikService";
 import type { DersKonu } from "@/lib/composer/input";
 import { klasikDurakEngelleri, type YonetisimSonucu } from "@/lib/composer/yonetisim";
@@ -52,8 +52,7 @@ export async function POST(req: Request) {
       const sahip = await istekSahibi(req);
       const kaynak = await kutuphaneKaynagi(body, sahip);
       await kodKaynagaBagla(published.game.code, kaynak, published.game.expiresAt);
-      // Gözden geçirme gerektiren (REVIEW) oyun topluluğa otomatik gitmez.
-      if (yonetisim?.karar === "PASS") await topluluguEkleGuvenli(request.definition, dersler, sahip, published.game.code, published.game.expiresAt, { kaynak });
+      await toplulukKodunuBagla(request.definition, published.game.code, published.game.expiresAt);
     }
     return NextResponse.json({ ...published, persistent: store.persistent, ...(yonetisim && { yonetisim }) }, { status: 201 });
   } catch (err) {

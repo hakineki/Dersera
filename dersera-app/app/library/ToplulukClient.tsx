@@ -150,7 +150,13 @@ export default function ToplulukClient({ dersler, siniflar }: { dersler: { key: 
 
       <main className="max-w-6xl mx-auto px-4 py-6">
         <h1 className="text-xl font-bold text-gray-900">Topluluk Kütüphanesi</h1>
-        <p className="text-sm text-gray-500 mb-5">Öğretmenlerin yayınladığı oyunlar. Bir oyunu kendi sınıfın için kopyalayıp düzenleyebilirsin.</p>
+        <p className="text-sm text-gray-500">Öğretmenlerin paylaştığı ve iki öğretmenin incelediği oyunlar. Bir oyunu kendi sınıfın için kopyalayıp düzenleyebilirsin.</p>
+        <p className="text-sm mb-5 mt-1">
+          <Link href="/library/inceleme" className="text-indigo-700 font-semibold underline">
+            İnceleme bekleyen oyunlar
+          </Link>{" "}
+          <span className="text-gray-500">— meslektaşlarının gönderdiği oyunları inceleyerek topluluğa katkı ver.</span>
+        </p>
 
         <div className="flex flex-col md:flex-row gap-6">
           <aside aria-label="Filtreler" className="md:w-60 shrink-0 space-y-3 bg-white border border-gray-200 rounded-2xl p-4 h-fit">

@@ -1,5 +1,5 @@
 import { redisFromEnv, type RedisCommand } from "@/lib/redis";
-import type { ToplulukKaydi, ToplulukOzeti } from "@/lib/topluluk";
+import type { Inceleme, ToplulukDurumu, ToplulukKaydi, ToplulukOzeti } from "@/lib/topluluk";
 import { BOS_PUAN_SAYACI, gosterilecekOrtalama, kovaliPuanEkle, kovaliPuanLua, PUAN_KOVASI, type PuanSayaci } from "@/lib/istatistik";
 
 // Anahtarlar: özet (liste), tam kayıt (Oyunu Kullan), yayın zamanına göre sıralı küme, içerik özeti → id
@@ -13,7 +13,7 @@ export interface SiraliOge {
 
 export interface ToplulukStore {
   persistent: boolean;
-  // İçerik özeti daha önce görüldüyse mevcut id döner, kayıt yazılmaz.
+  // İçerik özeti daha önce görüldüyse mevcut id döner, kayıt yazılmaz. Aktif olmayan kayıt listeye girmez.
   ekle(kayit: ToplulukKaydi, icerikOzeti: string): Promise<string>;
   icerikId(icerikOzeti: string): Promise<string | null>;
   get(id: string): Promise<ToplulukKaydi | null>;
@@ -21,8 +21,16 @@ export interface ToplulukStore {
   sirali(imlec: number | null, adet: number): Promise<SiraliOge[]>;
   // Kaynağın (ör. hesap + kütüphane kaydı) güncel topluluk kaydını yazar; öncekini döner.
   kaynakGuncelle(kaynak: string, id: string): Promise<string | null>;
-  pasiflestir(id: string): Promise<void>;
-  etkinlestir(id: string): Promise<void>;
+  kaynakOku(kaynak: string): Promise<string | null>;
+  // "yayinda" kaydı listeye alır (yayinTarihi verilirse sıradaki yeri de güncellenir); diğer durumlar listeden çıkarır.
+  durumYaz(id: string, durum: ToplulukDurumu, yayinTarihi?: number): Promise<void>;
+  // İnceleme kuyruğu: gönderim sırasına göre (eskiden yeniye).
+  kuyrugaEkle(id: string, skor: number): Promise<void>;
+  kuyruktanCikar(id: string): Promise<void>;
+  kuyruk(adet: number): Promise<string[]>;
+  // Hesap başına tek inceleme; ikinci kez yazılamaz (false döner).
+  incelemeEkle(id: string, inceleme: Inceleme): Promise<boolean>;
+  incelemeler(id: string): Promise<Inceleme[]>;
   kodBagla(kod: string, id: string, ttlMs: number): Promise<void>;
   kodunOyunu(kod: string): Promise<string | null>;
   oynanmaArtir(id: string): Promise<void>;
@@ -46,7 +54,15 @@ return 1`;
 const icerikKey = (h: string) => `dersera:topluluk:icerik:${h}`;
 const kaynakKey = (k: string) => `dersera:topluluk:kaynak:${k}`;
 const kodKey = (kod: string) => `dersera:topluluk:kod:${kod}`;
+const incelemeKey = (id: string) => `dersera:topluluk:inceleme:${id}`;
 const SIRA = "dersera:topluluk:sira";
+const KUYRUK = "dersera:topluluk:inceleme-kuyrugu";
+
+// Durum değişince kayıt ve özetin ortak alanları (özete gizli alan yazılmaz).
+function durumlu<T extends { aktif: boolean; yayin_tarihi: number; durum?: ToplulukDurumu }>(k: T, durum: ToplulukDurumu, yayinTarihi?: number, ozet = false): T {
+  const ortak = { ...k, aktif: durum === "yayinda", yayin_tarihi: yayinTarihi ?? k.yayin_tarihi };
+  return ozet ? ortak : { ...ortak, durum };
+}
 
 const ozetOf = (k: ToplulukKaydi, oynanma: number): ToplulukOzeti => ({
   oyun_id: k.oyun_id,
@@ -78,6 +94,8 @@ export function createMemoryToplulukStore(): ToplulukStore {
   const kodlar = new Map<string, string>();
   const oynanma = new Map<string, number>();
   const puanlar = new Map<string, PuanSayaci>();
+  const kuyrukSkor = new Map<string, number>();
+  const incelemeler = new Map<string, Map<string, Inceleme>>();
   return {
     persistent: false,
     async ekle(k, h) {
@@ -111,13 +129,30 @@ export function createMemoryToplulukStore(): ToplulukStore {
       kaynaklar.set(kaynak, id);
       return onceki;
     },
-    async pasiflestir(id) {
-      const k = kayitlar.get(id);
-      if (k) kayitlar.set(id, { ...k, aktif: false });
+    async kaynakOku(kaynak) {
+      return kaynaklar.get(kaynak) ?? null;
     },
-    async etkinlestir(id) {
+    async durumYaz(id, durum, yayinTarihi) {
       const k = kayitlar.get(id);
-      if (k) kayitlar.set(id, { ...k, aktif: true });
+      if (k) kayitlar.set(id, durumlu(k, durum, yayinTarihi));
+    },
+    async kuyrugaEkle(id, skor) {
+      kuyrukSkor.set(id, skor);
+    },
+    async kuyruktanCikar(id) {
+      kuyrukSkor.delete(id);
+    },
+    async kuyruk(adet) {
+      return [...kuyrukSkor.entries()].sort((a, b) => a[1] - b[1]).slice(0, adet).map(([id]) => id);
+    },
+    async incelemeEkle(id, inc) {
+      const m = incelemeler.get(id) ?? incelemeler.set(id, new Map()).get(id)!;
+      if (m.has(inc.inceleyen)) return false;
+      m.set(inc.inceleyen, inc);
+      return true;
+    },
+    async incelemeler(id) {
+      return [...(incelemeler.get(id)?.values() ?? [])];
     },
     async kodBagla(kod, id) {
       kodlar.set(kod, id);
@@ -142,12 +177,12 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
     const raw = (await command(["GET", kayitKey(id)])) as string | null;
     return raw ? (JSON.parse(raw) as ToplulukKaydi) : null;
   };
-  const aktifYaz = async (id: string, aktif: boolean): Promise<ToplulukKaydi | null> => {
+  const durumuYaz = async (id: string, durum: ToplulukDurumu, yayinTarihi?: number): Promise<ToplulukKaydi | null> => {
     let kayit: ToplulukKaydi | null = null;
     for (const key of [kayitKey(id), ozetKey(id)]) {
       const raw = (await command(["GET", key])) as string | null;
       if (!raw) continue;
-      const guncel = { ...JSON.parse(raw), aktif };
+      const guncel = durumlu(JSON.parse(raw), durum, yayinTarihi, key === ozetKey(id));
       if (key === kayitKey(id)) kayit = guncel;
       await command(["SET", key, JSON.stringify(guncel)]);
     }
@@ -161,7 +196,7 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
       await command(["SET", kayitKey(k.oyun_id), JSON.stringify(k)]);
       await command(["SET", ozetKey(k.oyun_id), JSON.stringify(ozetOf(k, 0))]);
       await command(["SET", olusturanKey(k.oyun_id), k.olusturan]);
-      await command(["ZADD", SIRA, siraSkoru(k.yayin_tarihi, k.oyun_id), k.oyun_id]);
+      if (k.aktif) await command(["ZADD", SIRA, siraSkoru(k.yayin_tarihi, k.oyun_id), k.oyun_id]);
       if ((await command(["SET", icerikKey(h), k.oyun_id, "NX"])) === "OK") return k.oyun_id;
       await command(["ZREM", SIRA, k.oyun_id]);
       await command(["DEL", kayitKey(k.oyun_id), ozetKey(k.oyun_id), olusturanKey(k.oyun_id)]);
@@ -202,13 +237,30 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
       // SET ... GET: yeni değeri yazar, eskisini döndürür (tek komut).
       return ((await command(["SET", kaynakKey(kaynak), id, "GET"])) as string | null) ?? null;
     },
-    async pasiflestir(id) {
-      await command(["ZREM", SIRA, id]);
-      await aktifYaz(id, false);
+    async kaynakOku(kaynak) {
+      return ((await command(["GET", kaynakKey(kaynak)])) as string | null) ?? null;
     },
-    async etkinlestir(id) {
-      const k = await aktifYaz(id, true);
-      if (k) await command(["ZADD", SIRA, siraSkoru(k.yayin_tarihi, id), id]);
+    async durumYaz(id, durum, yayinTarihi) {
+      // Listeden çıkarma önce: yazım yarıda kalırsa kayıt listede kalmaz.
+      if (durum !== "yayinda") await command(["ZREM", SIRA, id]);
+      const k = await durumuYaz(id, durum, yayinTarihi);
+      if (k && durum === "yayinda") await command(["ZADD", SIRA, siraSkoru(k.yayin_tarihi, id), id]);
+    },
+    async kuyrugaEkle(id, skor) {
+      await command(["ZADD", KUYRUK, skor, id]);
+    },
+    async kuyruktanCikar(id) {
+      await command(["ZREM", KUYRUK, id]);
+    },
+    async kuyruk(adet) {
+      return ((await command(["ZRANGE", KUYRUK, 0, adet - 1])) as string[] | null) ?? [];
+    },
+    async incelemeEkle(id, inc) {
+      return Number(await command(["HSETNX", incelemeKey(id), inc.inceleyen, JSON.stringify(inc)])) === 1;
+    },
+    async incelemeler(id) {
+      const degerler = ((await command(["HVALS", incelemeKey(id)])) as string[] | null) ?? [];
+      return degerler.map((d) => JSON.parse(d) as Inceleme);
     },
     async kodBagla(kod, id, ttlMs) {
       await command(["SET", kodKey(kod), id, "PX", Math.max(1000, ttlMs)]);

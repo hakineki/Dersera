@@ -1,5 +1,5 @@
 import { clearRedisEnv, recordingCommand } from "./helpers/fakeRedis";
-import { buildApi, hesapAc, jsonRequest, katilVeBitir } from "./helpers/api";
+import { buildApi, hesapAc, jsonRequest, katilVeBitir, toplulugaKoy } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 import { createRedisIstatistikStore } from "@/lib/istatistikStore";
@@ -26,7 +26,13 @@ describe("öğrenci puanı ve kütüphane istatistikleri", () => {
   });
 
   const cerezli = (req: Request, c: string) => (req.headers.set("cookie", c), req);
-  const kaydet = async (baslik: string, c = ogretmen) => (await (await api.library.POST(cerezli(jsonRequest("/api/library", { definition: oyun(baslik), dersler }), c))).json()).id as string;
+  // Kütüphaneye kaydeder ve aynı içeriği topluluğa (sahibi adına, yayında) koyar: yayın kodları içerik özetiyle o kayda bağlanır.
+  const kaydet = async (baslik: string, c = ogretmen) => {
+    const id = (await (await api.library.POST(cerezli(jsonRequest("/api/library", { definition: oyun(baslik), dersler }), c))).json()).id as string;
+    const sahip = await api.libraryService.istekSahibi(cerezli(new Request("http://localhost/"), c));
+    await toplulugaKoy(api, oyun(baslik), dersler, { olusturan: sahip! });
+    return id;
+  };
   const kutuphanedenYayinla = async (id: string, c = ogretmen) => {
     const res = await api.libraryPublish.POST(cerezli(jsonRequest(`/api/library/${id}/publish`, {}), c), api.idParams(id));
     expect(res.status).toBe(201);

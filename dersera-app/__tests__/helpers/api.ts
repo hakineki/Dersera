@@ -1,4 +1,7 @@
 import { defaultGameStop } from "@/lib/games";
+import type { GameDefinition } from "@/lib/composer/definition";
+import type { DersKonu } from "@/lib/composer/input";
+import { icerikOzetiOf, yeniToplulukKaydi } from "@/lib/toplulukService";
 
 // Route modülleri ve depo tekilleri aynı izole kayıtta yüklenir; her test temiz bellek deposuyla başlar.
 export async function buildApi() {
@@ -25,6 +28,9 @@ export async function buildApi() {
     toplulukOyun: typeof import("@/app/api/topluluk/[id]/route");
     toplulukStore: typeof import("@/lib/toplulukStore");
     puan: typeof import("@/app/api/games/[code]/puan/route");
+    libraryTopluluk: typeof import("@/app/api/library/[id]/topluluk/route");
+    inceleme: typeof import("@/app/api/topluluk/inceleme/route");
+    incelemeOyun: typeof import("@/app/api/topluluk/inceleme/[id]/route");
     istatistikStore: typeof import("@/lib/istatistikStore");
   };
   await jest.isolateModulesAsync(async () => {
@@ -51,6 +57,9 @@ export async function buildApi() {
       toplulukOyun: await import("@/app/api/topluluk/[id]/route"),
       toplulukStore: await import("@/lib/toplulukStore"),
       puan: await import("@/app/api/games/[code]/puan/route"),
+      libraryTopluluk: await import("@/app/api/library/[id]/topluluk/route"),
+      inceleme: await import("@/app/api/topluluk/inceleme/route"),
+      incelemeOyun: await import("@/app/api/topluluk/inceleme/[id]/route"),
       istatistikStore: await import("@/lib/istatistikStore"),
     };
   });
@@ -106,4 +115,15 @@ export async function katilVeBitir(api: Awaited<ReturnType<typeof buildApi>>, ko
   const res = await api.results.POST(cerezli(jsonRequest("/api/results", { gameCode: kod, playerToken, result: sonuc }), cerez));
   if (res.status !== 201) throw new Error(`sonuç kaydedilemedi: ${res.status}`);
   return playerToken;
+}
+
+// Topluluğa doğrudan yayında bir kayıt koyar (paylaşım ve inceleme akışını beklemeden liste/filtre testleri için).
+export async function toplulugaKoy(
+  api: Awaited<ReturnType<typeof buildApi>>,
+  definition: GameDefinition,
+  dersler: { ders: string; konuId: string }[],
+  { olusturan = "hesap:ornek", yayinTarihi = Date.now() }: { olusturan?: string; yayinTarihi?: number } = {}
+): Promise<string> {
+  const kayit = yeniToplulukKaydi(definition, dersler as DersKonu[], olusturan, yayinTarihi, { durum: "yayinda", aktif: true });
+  return api.toplulukStore.getToplulukStore().ekle(kayit, icerikOzetiOf(definition));
 }

@@ -3,39 +3,25 @@ import { PROGRAM_DERS_ADI, PROGRAM_DERSLERI } from "@/data/mufredat/programlar";
 import type { GameDefinition } from "@/lib/composer/definition";
 import { duzenlemeBaglami } from "@/lib/composer/duzenleme";
 import { ALANLAR, DENEYIMLER, type DersKonu } from "@/lib/composer/input";
-import { checkLimit } from "@/lib/composer/rateLimit";
 import { GAME_RETENTION_MS } from "@/lib/gamesStore";
 import { filtredenGecer, TOPLULUK_SAYFA, type ToplulukFiltresi, type ToplulukKaydi, type ToplulukOzeti } from "@/lib/topluluk";
 import { getToplulukStore, type ToplulukStore } from "@/lib/toplulukStore";
 import { ozetEngelli } from "@/lib/composer/yonetisim";
 
 const BASLIK_MAX = 120;
-// Bir hesap günde en çok bu kadar yeni topluluk kaydı açabilir (listeyi doldurmaya karşı).
-export const GUNLUK_TOPLULUK_KAYDI = 20;
-const GUN = 24 * 60 * 60 * 1000;
 
-const icerikOzetiOf = (definition: GameDefinition) => createHash("sha256").update(JSON.stringify(definition)).digest("hex");
+export const icerikOzetiOf = (definition: GameDefinition) => createHash("sha256").update(JSON.stringify(definition)).digest("hex");
 
-export interface EklemeSecenekleri {
-  // Aynı kaynaktan (ör. hesap + kütüphane kaydı) gelen yeni sürüm eskisini pasife alır.
-  kaynak?: string;
-  now?: number;
-}
-
-// Yayın anında: oyun topluluk kütüphanesine eklenir (aynı içerik ikinci kez eklenmez) ve oyun kodu kayda bağlanır
-// (öğrenci katıldıkça oynanma sayısı artsın). Yalnız öğretmen hesabıyla yapılan yayınlar eklenir.
-export async function topluluguEkle(
-  store: ToplulukStore,
+// Topluluğa gönderilen oyunun kaydı; özet alanları tanımdan gelir.
+export function yeniToplulukKaydi(
   definition: GameDefinition,
   dersler: DersKonu[],
   olusturan: string,
-  kod: string,
-  expiresAt: number,
-  { kaynak, now = Date.now() }: EklemeSecenekleri = {}
-): Promise<string> {
-  const icerikOzeti = icerikOzetiOf(definition);
+  now: number,
+  ek: Pick<ToplulukKaydi, "durum" | "aktif" | "kaynak" | "onceki_id">
+): ToplulukKaydi {
   const m = definition.meta;
-  const kayit: ToplulukKaydi = {
+  return {
     oyun_id: randomUUID(),
     baslik: m.baslik.slice(0, BASLIK_MAX),
     ders: m.ders,
@@ -46,51 +32,25 @@ export async function topluluguEkle(
     deneyim: m.deneyim,
     olusturan,
     yayin_tarihi: now,
+    gonderim_tarihi: now,
     puan_ortalama: null,
     puan_sayisi: 0,
-    aktif: true,
     definition,
     dersler,
+    ...ek,
   };
-  const id = await store.ekle(kayit, icerikOzeti);
-  await store.kodBagla(kod, id, expiresAt + GAME_RETENTION_MS - now);
-  if (kaynak) await surumuGuncelle(store, kaynak, id, id === kayit.oyun_id ? kayit : await store.get(id), olusturan);
-  return id;
 }
 
-// Aynı kaynaktan (hesap + kütüphane kaydı) gelen yeni sürüm eskisini pasife alır. Yalnız KENDİ kayıtlarına dokunur:
-// içerik başka bir öğretmenin kaydıyla aynıysa (kopya) kaynak bağlanmaz ve onun kaydı pasifleştirilmez.
-async function surumuGuncelle(store: ToplulukStore, kaynak: string, id: string, kayit: ToplulukKaydi | null, olusturan: string) {
-  if (!kayit || kayit.olusturan !== olusturan) return;
-  // Eski bir sürüme geri dönüldüyse o sürüm yeniden listelenir.
-  if (!kayit.aktif) await store.etkinlestir(id);
-  const onceki = await store.kaynakGuncelle(kaynak, id);
-  if (!onceki || onceki === id) return;
-  const eski = await store.get(onceki);
-  if (eski && eski.olusturan === olusturan) await store.pasiflestir(onceki);
-}
-
-// Yayının yan etkisi: hata olursa yayın yine başarılı sayılır, yalnız loglanır. Oturumsuz (anonim) yayın eklenmez.
-export async function topluluguEkleGuvenli(
-  definition: GameDefinition,
-  dersler: DersKonu[],
-  olusturan: string | null,
-  kod: string,
-  expiresAt: number,
-  secenekler: EklemeSecenekleri = {}
-): Promise<void> {
-  if (!olusturan) return;
+// Yayının yan etkisi: oyun toplulukta zaten varsa (aynı içerik) oyun kodu o kayda bağlanır, böylece sınıf yayınları
+// ve "Oyunu Kullan" kopyaları topluluk kaydının oynanma/puan sayısına katkı verir. Topluluğa ekleme yalnız öğretmenin
+// "Toplulukta paylaş" gönderimi ve iki öğretmen incelemesiyle olur. Hata yayını bozmaz.
+export async function toplulukKodunuBagla(definition: GameDefinition, kod: string, expiresAt: number, now = Date.now()): Promise<void> {
   try {
     const store = getToplulukStore();
-    // Sınır yalnız YENİ kayıt açılacaksa sayılır; var olan oyunun yeni sınıf yayını her zaman koda bağlanır.
-    const yeni = (await store.icerikId(icerikOzetiOf(definition))) === null;
-    if (yeni && !(await checkLimit(`dersera:topluluk:hesap:${olusturan}`, GUN, GUNLUK_TOPLULUK_KAYDI))) {
-      console.warn("[topluluk] günlük kayıt sınırı dolu; oyun yayınlandı ama topluluğa eklenmedi");
-      return;
-    }
-    await topluluguEkle(store, definition, dersler, olusturan, kod, expiresAt, secenekler);
+    const id = await store.icerikId(icerikOzetiOf(definition));
+    if (id) await store.kodBagla(kod, id, expiresAt + GAME_RETENTION_MS - now);
   } catch (err) {
-    console.error("[topluluk] kayıt eklenemedi", err instanceof Error ? err.message : err);
+    console.error("[topluluk] kod bağlanamadı", err instanceof Error ? err.message : err);
   }
 }
 
@@ -164,9 +124,8 @@ export async function listele(
 
 // "Oyunu Kullan": düzenleyicinin ihtiyaç duyduğu tam oyun ve bağlam. Oluşturan bilgisi dışarı verilmez.
 export function kullanimDetayi(kayit: ToplulukKaydi) {
-  const { olusturan: _gizli, puan_ortalama: _p, puan_sayisi: _s, definition, dersler, ...ozet } = kayit;
-  void _gizli;
-  void _p;
-  void _s;
+  // Gizli (olusturan, kaynak, onceki_id) ve iç durum alanları dışarı verilmez.
+  const { olusturan: _o, kaynak: _k, onceki_id: _oi, durum: _d, gonderim_tarihi: _g, puan_ortalama: _p, puan_sayisi: _s, definition, dersler, ...ozet } = kayit;
+  void [_o, _k, _oi, _d, _g, _p, _s];
   return { oyun: { ...ozet, definition, dersler }, ...duzenlemeBaglami(kayit.sinif, dersler, definition) };
 }

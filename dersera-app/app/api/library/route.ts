@@ -1,19 +1,26 @@
 import { NextResponse } from "next/server";
 import { ozetOf } from "@/lib/library";
 import { getLibraryStore } from "@/lib/libraryStore";
-import { kokenReddi, oturumGerekli } from "@/lib/authRequest";
+import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
+import { kutuphaneSahibi } from "@/lib/auth";
 import { istekSahibi, kutuphaneyeEkle } from "@/lib/libraryService";
 import { kutuphaneIstatistikleri } from "@/lib/istatistikService";
+import { paylasimUygunlugu, toplulukDurumlari } from "@/lib/toplulukPaylasim";
+import { getToplulukStore } from "@/lib/toplulukStore";
 
 export async function GET(req: Request) {
-  const sahip = await istekSahibi(req);
-  if (!sahip) return oturumGerekli();
+  const hesap = await istekHesabi(req);
+  if (!hesap) return oturumGerekli();
+  const sahip = kutuphaneSahibi(hesap);
   try {
     const store = getLibraryStore();
     const kayitlar = await store.list(sahip);
     const sirali = kayitlar.map(ozetOf).sort((a, b) => b.createdAt - a.createdAt);
-    const ist = await kutuphaneIstatistikleri(sirali.map((o) => `${sahip}:${o.id}`));
-    const oyunlar = sirali.map((o, i) => ({ ...o, ...ist[i] }));
+    const kaynaklar = sirali.map((o) => `${sahip}:${o.id}`);
+    const ist = await kutuphaneIstatistikleri(kaynaklar);
+    const topluluk = await toplulukDurumlari(getToplulukStore(), kaynaklar);
+    const now = Date.now();
+    const oyunlar = sirali.map((o, i) => ({ ...o, ...ist[i], topluluk: topluluk[i], paylasim: paylasimUygunlugu(hesap, ist[i], now) }));
     return NextResponse.json({ oyunlar, persistent: store.persistent });
   } catch (err) {
     console.error("[kutuphane] listeleme hatası", err);
