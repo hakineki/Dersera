@@ -152,6 +152,8 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     expect(await d.library.replaceIfSurum(sahip, { ...kayit, surum: 2, baslik: "Yeni" }, 1)).toBe("ok");
     expect(await d.library.replaceIfSurum(sahip, { ...kayit, surum: 2, baslik: "Eski sekme" }, 1)).toBe("catisma");
     expect((await d.library.get(sahip, kayit.id))?.baslik).toBe("Yeni");
+    expect(await d.library.replace(sahip, { ...kayit, surum: 2, baslik: "Kod güncellendi", sonKod: "ABC-123" })).toBe(true);
+    expect(await d.library.get(sahip, kayit.id)).toMatchObject({ baslik: "Kod güncellendi", sonKod: "ABC-123" });
     expect(await d.library.replaceIfSurum(sahip, { ...kayit, id: `yok${run}` }, 1)).toBe("yok");
     expect(await d.library.remove(sahip, kayit.id)).toBe(true);
     expect(await d.library.replace(sahip, kayit)).toBe(false);
@@ -182,6 +184,12 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     await d.topluluk.ogretmenPuanla(k.oyun_id, "a", 5);
     expect(await d.topluluk.ogretmenPuanOzeti(k.oyun_id)).toEqual({ toplam: 7, sayi: 2 });
     expect(await d.topluluk.ogretmenPuani(k.oyun_id, "a")).toBe(5);
+    // Öğrenci puanı listede PUAN_KOVASI (5) oyda bir görünür.
+    const ozetOf = async () => (await d.topluluk.sirali(null, 1_000)).find((o) => o.ozet?.oyun_id === k.oyun_id)?.ozet;
+    for (const p of [4, 4, 3, 5]) await d.topluluk.puanEkle(k.oyun_id, p);
+    expect(await ozetOf()).toMatchObject({ puan_sayisi: 0, puan_ortalama: null });
+    await d.topluluk.puanEkle(k.oyun_id, 2);
+    expect(await ozetOf()).toMatchObject({ puan_sayisi: 5, puan_ortalama: 3.6 });
     expect(await d.topluluk.incelemeEkle(k.oyun_id, { inceleyen: "i1", karar: "kabul", not: "", tarih: 1 })).toBe(true);
     expect(await d.topluluk.incelemeEkle(k.oyun_id, { inceleyen: "i1", karar: "ret", not: "tekrar", tarih: 2 })).toBe(false);
   });
