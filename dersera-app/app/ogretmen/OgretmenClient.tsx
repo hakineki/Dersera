@@ -125,9 +125,9 @@ function LoginScreen({ onLogin, davetGerekli }: { onLogin: (h: HesapOzeti) => vo
           </button>
         </form>
 
-        <a href="/" className="block text-center text-purple-400 text-sm mt-6 hover:text-purple-200 transition-colors">
+        <Link href="/" className="block text-center text-purple-400 text-sm mt-6 hover:text-purple-200 transition-colors">
           ← Ana sayfaya dön
-        </a>
+        </Link>
       </div>
     </div>
   );
@@ -696,7 +696,8 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
 
   useEffect(() => {
     eskiYerelGirisiTemizle();
-    setTeacherGame(loadTeacherGame());
+    // Kayıtlı oyun tarayıcıdan ilk render'dan sonra okunur (sunucuda localStorage yok).
+    const t = setTimeout(() => setTeacherGame(loadTeacherGame()));
     oturumBilgisi().then((o) => {
       if (o) {
         setHesap(o.hesap);
@@ -704,6 +705,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
       } else setBaglantiHatasi(true);
       setReady(true);
     });
+    return () => clearTimeout(t);
   }, []);
 
   // Hesap öncesinde bu tarayıcıda kaydedilmiş kütüphane varsa öğretmene sorulur (ortak bilgisayarda başkasına ait olabilir).
