@@ -41,7 +41,7 @@ export default function ComposerPreview({
   onNew: () => void;
   publishing: boolean;
   publishError: string;
-  kutuphane: { durum: "kayitsiz" | "degisti" | "kaydedildi" | "kaydediliyor"; hata: string; onSave: () => void };
+  kutuphane: { durum: "kayitsiz" | "degisti" | "kaydedildi" | "kaydediliyor"; hata: string; bilgi?: string; onSave: () => void };
 }) {
   const ozet = summarize(definition);
   const hedefMetni = (kod: string) => hedefler.find((h) => h.kod === kod)?.metin ?? "";
@@ -193,6 +193,11 @@ export default function ComposerPreview({
         </p>
       )}
 
+      {kutuphane.bilgi && (
+        <p role="status" className="text-sm text-green-700">
+          {kutuphane.bilgi}
+        </p>
+      )}
       {kutuphane.hata && (
         <p role="alert" className="text-sm text-red-600">
           {kutuphane.hata}

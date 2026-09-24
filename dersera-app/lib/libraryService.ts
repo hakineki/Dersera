@@ -11,6 +11,7 @@ import { isKutuphaneAnahtari, kayitOlustur, KUTUPHANE_HEADER, KUTUPHANE_LIMIT, t
 import type { LibraryStore } from "@/lib/libraryStore";
 import type { ValidationResult } from "@/lib/composer/validator";
 import type { YonetisimSonucu } from "@/lib/composer/yonetisim";
+import { surumKarari } from "@/lib/surum";
 
 // Eski (hesap öncesi) kütüphaneler tarayıcı anahtarının özetine bağlıydı; yalnız hesaba taşımada kullanılır.
 export const eskiSahipOf = (anahtar: string) => hashToken(anahtar);
@@ -27,8 +28,11 @@ function yeniId(): string {
   return Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("").slice(0, 16);
 }
 
+// Düzenleme kaydının sürüm sonucu: aynı içerik, aynı oyunun yeni sürümü ya da yeni varyant.
+export type SurumBilgisi = { tur: "ayni" | "surum" | "varyant"; surum: number; oran: number; neden?: "oran" | "kimlik" };
+
 export type KayitSonucu =
-  | { ok: true; id: string; validation: ValidationResult }
+  | { ok: true; id: string; validation: ValidationResult; surum?: SurumBilgisi }
   | { ok: false; status: number; error: string };
 
 // Öğretmenin "Kütüphaneye kaydet" isteği. Doğrulamadan geçmeyen oyun da saklanır; yayın ayrıca doğrular.
@@ -45,14 +49,44 @@ export async function kutuphaneyeEkle(store: LibraryStore, sahip: string, body: 
 }
 
 // Düzenlenen tanım aynı kayda yazılır. Ders/konu değiştirilemez (kayıtlı dersler ile eşleşmeli).
-export async function kutuphaneKaydiniGuncelle(store: LibraryStore, sahip: string, id: string, body: unknown): Promise<KayitSonucu> {
+export async function kutuphaneKaydiniGuncelle(store: LibraryStore, sahip: string, id: string, body: unknown, now = Date.now()): Promise<KayitSonucu> {
   const kayit = await store.get(sahip, id);
   if (!kayit) return { ok: false, status: 404, error: "Oyun kütüphanede bulunamadı" };
   const r = parseComposerDefinition((body as { definition?: unknown } | null)?.definition, kayit.dersler);
   if (!r.ok) return r;
-  const guncel: KutuphaneKaydi = { ...kayitOlustur(id, r.definition, kayit.dersler, kayit.sonKod, kayit.createdAt), sonYayin: kayit.sonYayin };
+  const karar = surumKarari(kayit.definition, r.definition);
+  const soy = kayit.soy_id ?? kayit.id;
+  const surum = kayit.surum ?? 1;
+  if (karar.tur === "ayni") {
+    // İçerik değişmedi: kayıt yerinde tutulur (bu arada silindiyse geri getirilmez, 404).
+    if (!(await store.replace(sahip, kayit))) return { ok: false, status: 404, error: "Oyun kütüphanede bulunamadı" };
+    return { ok: true, id, validation: r.validation, surum: { tur: "ayni", surum, oran: 0 } };
+  }
+
+  // Anlamlı içeriğin %30'undan fazlası ya da oyunun kimliği değiştiyse: yeni varyant, özgün oyun yerinde kalır.
+  if (karar.tur === "varyant") {
+    if ((await store.count(sahip)) >= KUTUPHANE_LIMIT) {
+      return { ok: false, status: 409, error: `Bu değişiklik yeni bir varyant oluşturuyor ama kütüphane dolu (en fazla ${KUTUPHANE_LIMIT} oyun). Yer açmak için eski bir oyunu silin.` };
+    }
+    const varyant: KutuphaneKaydi = {
+      ...kayitOlustur(yeniId(), r.definition, kayit.dersler, null, now),
+      soy_id: soy,
+      surum: 1,
+      turetildigi: { id: kayit.id, baslik: kayit.baslik },
+    };
+    await store.put(sahip, varyant);
+    return { ok: true, id: varyant.id, validation: r.validation, surum: { tur: "varyant", surum: 1, oran: karar.oran, neden: karar.neden } };
+  }
+
+  const guncel: KutuphaneKaydi = {
+    ...kayitOlustur(id, r.definition, kayit.dersler, kayit.sonKod, kayit.createdAt),
+    sonYayin: kayit.sonYayin,
+    soy_id: soy,
+    surum: surum + 1,
+    turetildigi: kayit.turetildigi ?? null,
+  };
   if (!(await store.replace(sahip, guncel))) return { ok: false, status: 404, error: "Oyun kütüphanede bulunamadı" };
-  return { ok: true, id, validation: r.validation };
+  return { ok: true, id, validation: r.validation, surum: { tur: "surum", surum: surum + 1, oran: karar.oran } };
 }
 
 // Düzenleyicinin ihtiyaç duyduğu bağlam: öğrenme çıktıları ve güncel doğrulama. Müfredat verisi sunucuda kalır.

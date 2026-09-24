@@ -28,6 +28,11 @@ export interface KutuphaneOzeti {
   createdAt: number;
   sonKod: string | null;
   sonYayin: number | null;
+  // Sürümleme (bu alanlardan önce kaydedilen oyunlarda yoktur: soy = kendi kimliği, sürüm = 1).
+  soy_id?: string;
+  surum?: number;
+  // Varyantın türetildiği oyun.
+  turetildigi?: { id: string; baslik: string } | null;
 }
 
 // Liste yanıtında her oyunun saha istatistiği, topluluk durumu ve topluluğa gönderilebilirliği de gelir.

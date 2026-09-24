@@ -21,7 +21,16 @@ import { olusturmaMaliyeti, type KrediDurumu } from "@/lib/kredi";
 import { krediDurumuGetir, krediMetni } from "@/lib/krediClient";
 
 const CLIENT_TIMEOUT_MS = 285_000; // sunucu en geç maxDuration'da (280 sn) kesilir; istemci ondan sonra vazgeçer
-const MESAJLAR = ["Müfredat hazırlanıyor...", "Hikâye kuruluyor...", "Görevler oluşturuluyor...", "Oyun kontrol ediliyor..."];
+// Yükleme adımları (docs/URUN-BAGLAMI.md §11) ve yaklaşık başlama saniyeleri; üretim 1,5–3 dakika sürer.
+const MESAJLAR = [
+  "Müfredat hazırlanıyor",
+  "Hikâye kurgulanıyor",
+  "Görevler oluşturuluyor",
+  "Oyun akışı kontrol ediliyor",
+  "Yaşa uygunluk ve çocuk güvenliği kontrol ediliyor",
+  "Son kalite kontrolü yapılıyor",
+];
+const ADIM_SANIYE = [0, 10, 30, 90, 130, 160];
 
 type Durum =
   | { tur: "form" }
@@ -85,14 +94,27 @@ function Secim<T extends string | number>({
   );
 }
 
-function Yukleniyor({ ilerleme, mesaj }: { ilerleme: number; mesaj: string }) {
+export function Yukleniyor({ ilerleme, adim }: { ilerleme: number; adim: number }) {
   return (
-    <div className="py-16 text-center" role="status" aria-live="polite">
+    <div className="py-16 text-center">
       <div className="text-5xl mb-4 motion-safe:animate-pulse" aria-hidden="true">
         🧭
       </div>
       <p className="font-bold text-gray-900 text-lg">Dersera oyununuzu oluşturuyor...</p>
-      <p className="text-sm text-gray-500 mt-1 h-5">{mesaj}</p>
+      <p className="sr-only" role="status" aria-live="polite">
+        {MESAJLAR[adim]}
+      </p>
+      <ol className="mt-4 inline-block text-left space-y-1.5 text-sm" aria-label="Oluşturma adımları">
+        {MESAJLAR.map((m, i) => (
+          <li key={m} className={i < adim ? "text-green-700" : i === adim ? "text-indigo-800 font-semibold" : "text-gray-400"}>
+            <span aria-hidden="true" className="inline-block w-5">
+              {i < adim ? "✓" : i === adim ? "›" : "·"}
+            </span>
+            {m}
+            <span className="sr-only">{i < adim ? " (tamamlandı)" : i === adim ? " (sürüyor)" : ""}</span>
+          </li>
+        ))}
+      </ol>
       <div
         className="mt-6 h-2 bg-gray-200 rounded-full overflow-hidden max-w-sm mx-auto"
         role="progressbar"
@@ -136,6 +158,7 @@ export default function ComposerClient({
   const [kutuphaneId, setKutuphaneId] = useState<string | null>(null);
   const [kutuphaneDurumu, setKutuphaneDurumu] = useState<"kayitsiz" | "degisti" | "kaydedildi" | "kaydediliyor">("kayitsiz");
   const [kutuphaneHatasi, setKutuphaneHatasi] = useState("");
+  const [kutuphaneBilgisi, setKutuphaneBilgisi] = useState("");
   const [toplulukKopyasi, setToplulukKopyasi] = useState(false);
   const istek = useRef<AbortController | null>(null);
   const sonTanim = useRef<GameDefinition | null>(null);
@@ -190,7 +213,7 @@ export default function ComposerClient({
     const id = setInterval(() => {
       const t = (Date.now() - basla) / 1000;
       setIlerleme(93 * (1 - Math.exp(-t / 70)));
-      setMesajNo(Math.min(MESAJLAR.length - 1, Math.floor(t / 15)));
+      setMesajNo(Math.max(0, ADIM_SANIYE.findLastIndex((s) => t >= s)));
     }, 250);
     return () => clearInterval(id);
   }, [durum.tur]);
@@ -274,6 +297,7 @@ export default function ComposerClient({
     const gonderilen = sonuc.definition;
     setKutuphaneDurumu("kaydediliyor");
     setKutuphaneHatasi("");
+    setKutuphaneBilgisi("");
     const r = await kutuphaneyeKaydet(gonderilen, sonuc.dersler, kutuphaneId);
     if ("error" in r) {
       setKutuphaneHatasi(r.error);
@@ -282,6 +306,16 @@ export default function ComposerClient({
     }
     setKutuphaneId(r.id);
     window.history.replaceState(null, "", `/composer?kutuphane=${encodeURIComponent(r.id)}`);
+    const s = r.surum;
+    setKutuphaneBilgisi(
+      !s || s.tur === "ayni"
+        ? ""
+        : s.tur === "surum"
+          ? `Sürüm ${s.surum} olarak kaydedildi.`
+          : s.neden === "kimlik"
+            ? "Oyunun sınıfı, dersi, alanı, deneyimi ya da süresi değiştiği için yeni bir varyant olarak kaydedildi; özgün oyun kütüphanende yerinde duruyor."
+            : `Oyunun %${Math.round(s.oran * 100)}'i değiştiği için yeni bir varyant olarak kaydedildi; özgün oyun kütüphanende yerinde duruyor.`
+    );
     const guncel = sonTanim.current === gonderilen;
     setKutuphaneDurumu(guncel ? "kaydedildi" : "degisti");
     if (guncel) setSonuc((s) => (s ? { ...s, validation: r.validation } : s));
@@ -453,7 +487,7 @@ export default function ComposerClient({
           </form>
         )}
 
-        {durum.tur === "yukleniyor" && <Yukleniyor ilerleme={ilerleme} mesaj={MESAJLAR[mesajNo]} />}
+        {durum.tur === "yukleniyor" && <Yukleniyor ilerleme={ilerleme} adim={mesajNo} />}
 
         {durum.tur === "hata" && (
           <div className="py-12 text-center" role="alert">
@@ -490,11 +524,12 @@ export default function ComposerClient({
               setKutuphaneId(null);
               setKutuphaneDurumu("kayitsiz");
               setKutuphaneHatasi("");
+              setKutuphaneBilgisi("");
               setToplulukKopyasi(false);
               window.history.replaceState(null, "", "/composer");
               setDurum({ tur: "form" });
             }}
-            kutuphane={{ durum: kutuphaneDurumu, hata: kutuphaneHatasi, onSave: kutuphaneyeEkle }}
+            kutuphane={{ durum: kutuphaneDurumu, hata: kutuphaneHatasi, bilgi: kutuphaneBilgisi, onSave: kutuphaneyeEkle }}
             publishing={yayinlaniyor}
             publishError={yayinHatasi}
           />
