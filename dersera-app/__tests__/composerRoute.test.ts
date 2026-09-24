@@ -17,17 +17,21 @@ async function loadCompose(): Promise<{ route: ComposeRoute; anthropic: Anthropi
   let anthropic!: AnthropicMod;
   let auth!: typeof import("@/lib/auth");
   let authStore!: typeof import("@/lib/authStore");
+  let krediStore!: typeof import("@/lib/krediStore");
   await jest.isolateModulesAsync(async () => {
     anthropic = await import("@/lib/composer/anthropic");
     route = await import("@/app/api/compose/route");
     auth = await import("@/lib/auth");
     authStore = await import("@/lib/authStore");
+    krediStore = await import("@/lib/krediStore");
   });
   // Hesap depo katmanında açılır: kayıt uç noktasının deneme sınırlayıcısı oran sınırı testlerini etkilemesin.
   const store = authStore.getAuthStore();
   const hesap = await auth.kayitOl(store, "ogretmen1", "gizli-sifre-1", undefined);
   if (!hesap.ok) throw new Error(hesap.error);
   cerez = `${auth.OTURUM_CEREZI}=${await auth.oturumAc(store, hesap.value)}`;
+  // Bu dosya üretim hattını ve oran sınırını dener; kredi ayrı dosyada (kredi.test.ts) denetlenir.
+  await krediStore.getKrediStore().odul(hesap.value.id, 10_000, Date.now(), "test");
   return { route, anthropic };
 }
 

@@ -23,8 +23,17 @@ describe("paylaşım uygunluğu (saf kural)", () => {
     expect(paylasimUygunlugu(hesap(5), { ogrenci_sayisi: 10, puan_ortalama: 3.5 }, Date.now())).toEqual({ uygun: true, nedenler: [] });
     const r = paylasimUygunlugu(hesap(1), { ogrenci_sayisi: 7, puan_ortalama: null }, Date.now());
     expect(r.uygun).toBe(false);
-    expect(r.nedenler).toEqual([expect.stringMatching(/3 günlük/), expect.stringMatching(/10 öğrenci.*şu an 7/), expect.stringMatching(/3,5.*henüz yeterli puan yok/)]);
-    expect(paylasimUygunlugu(hesap(5), { ogrenci_sayisi: 12, puan_ortalama: 3.4 }, Date.now()).nedenler).toEqual([expect.stringMatching(/şu an 3,4/)]);
+    // Hesap yaşı oyunun eksikleri arasında sayılmaz (kütüphanede bir kez gösterilir) ama uygunluğu kapatır.
+    expect(r.nedenler).toEqual(["10 öğrenci bitirmeli (şu an 7)", "öğrenci puanı en az 3,5 (henüz yok)"]);
+    expect(paylasimUygunlugu(hesap(1), { ogrenci_sayisi: 10, puan_ortalama: 4 }, Date.now())).toEqual({ uygun: false, nedenler: [] });
+    expect(paylasimUygunlugu(hesap(5), { ogrenci_sayisi: 12, puan_ortalama: 3.4 }, Date.now()).nedenler).toEqual(["öğrenci puanı en az 3,5 (şu an 3,4)"]);
+  });
+
+  it("hesap hazırlığı: kalan gün yukarı yuvarlanır", () => {
+    const { hesapHazirligi } = jest.requireActual("@/lib/toplulukPaylasim") as typeof import("@/lib/toplulukPaylasim");
+    expect(hesapHazirligi(hesap(0.5), Date.now())).toEqual({ toplulukHazir: false, kalanGun: 3 });
+    expect(hesapHazirligi(hesap(2.2), Date.now())).toEqual({ toplulukHazir: false, kalanGun: 1 });
+    expect(hesapHazirligi(hesap(3), Date.now())).toEqual({ toplulukHazir: true, kalanGun: 0 });
   });
 });
 
@@ -84,6 +93,7 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     const kart = await kartOf(id);
     expect(kart.paylasim.uygun).toBe(false);
     expect(kart.paylasim.nedenler.join(" ")).toMatch(/10 öğrenci/);
+    expect(kart.paylasim.nedenler.join(" ")).not.toMatch(/günlük/);
     expect(kart.topluluk).toBeNull();
     const res = await paylas(id);
     expect(res.status).toBe(422);
@@ -101,6 +111,9 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     await esikGec(id, yeni);
     expect((await paylas(id, yeni)).status).toBe(403);
     expect(await kuyruk(yeni)).toMatchObject({ inceleyebilir: false, neden: expect.stringMatching(/3 günlük/), oyunlar: [] });
+    const liste = await (await api.library.GET(cerezli(new Request("http://localhost/api/library"), yeni))).json();
+    expect(liste.hesap).toEqual({ toplulukHazir: false, kalanGun: 3 });
+    expect(liste.oyunlar[0].paylasim).toEqual({ uygun: false, nedenler: [] });
   });
 
   it("gönderim incelemeye girer, listede görünmez; ikinci kabul ile yayına girer ve kuyruktan çıkar", async () => {
@@ -135,6 +148,10 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     expect((await kuyruk(i1)).oyunlar).toEqual([]);
     expect((await kartOf(id)).topluluk).toMatchObject({ durum: "inceleme", kabul: 1 });
     expect(await (await incele(tid, i2, "kabul")).json()).toEqual({ durum: "yayinda", kabul: 2, ret: 0 });
+    // Topluluk kabulü sahibine kazanılmış kredi verir (bir kez).
+    const kredi = await (await api.kredi.GET(cerezli(new Request("http://localhost/api/kredi"), sahip))).json();
+    expect(kredi).toMatchObject({ kazanilan: 5, toplam: 35 });
+    expect(kredi.hareketler[0]).toMatchObject({ tur: "odul", miktar: 5, aciklama: "Topluluğa kabul: Hareket" });
     expect((await liste()).map((o) => o.baslik)).toEqual(["Hareket"]);
     expect((await kartOf(id)).topluluk).toMatchObject({ durum: "yayinda" });
     const i3 = await eskiHesap("inceleyen3");
@@ -164,6 +181,8 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     expect((await paylas(id)).status).toBe(409);
     await guncelle(id, oyun("Ret (düzeltildi)"));
     expect((await paylas(id)).status).toBe(201);
+    // Ret ödül vermez.
+    expect((await (await api.kredi.GET(cerezli(new Request("http://localhost/api/kredi"), sahip))).json()).kazanilan).toBe(0);
   });
 
   it("eşzamanlı geri çekme ile son onay yarışında geri çekme kazanır (oyun yayına girmez)", async () => {
@@ -185,6 +204,23 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     expect(await res.json()).toMatchObject({ durum: "geri-cekildi", kabul: 2 });
     expect(await liste()).toEqual([]);
     expect((await kartOf(id)).topluluk).toMatchObject({ durum: "geri-cekildi" });
+  });
+
+  it("eşzamanlı iki son kabul oyu tek geçiş yapar; ödül bir kez verilir", async () => {
+    const id = await kaydet(oyun("Çift Oy"));
+    await esikGec(id);
+    await paylas(id);
+    const [i1, i2, i3] = [await eskiHesap("inceleyen1"), await eskiHesap("inceleyen2"), await eskiHesap("inceleyen3")];
+    const tid = await bekleyenId(i1);
+    await incele(tid, i1, "kabul");
+    const yanitlar = await Promise.all([incele(tid, i2, "kabul"), incele(tid, i3, "kabul")]);
+    // Geç kalan oy ya aynı sonucu görür (200) ya da kayıt artık incelemede olmadığı için 404 alır; yayına bir kez girer.
+    const govdeler = await Promise.all(yanitlar.map((r) => r.json()));
+    expect(yanitlar.filter((r, i) => r.status === 200 && govdeler[i].durum === "yayinda").length).toBeGreaterThanOrEqual(1);
+    expect(yanitlar.every((r) => r.status === 200 || r.status === 404)).toBe(true);
+    const kredi = await (await api.kredi.GET(cerezli(new Request("http://localhost/api/kredi"), sahip))).json();
+    expect(kredi.kazanilan).toBe(5);
+    expect(kredi.hareketler.filter((h: { tur: string }) => h.tur === "odul")).toHaveLength(1);
   });
 
   it("aynı anda iki gönderim günlük sınırı delemez", async () => {
@@ -262,6 +298,8 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     // Önceden onaylanmış aynı içerik: yeniden paylaşımda doğrudan yayına döner (günlük sınıra sayılmaz).
     expect(await (await paylas(id)).json()).toEqual({ durum: "yayinda" });
     expect((await liste()).map((o) => o.baslik)).toEqual(["Çekilecek"]);
+    // Yeniden paylaşım incelemesiz döndüğü için ikinci ödül verilmez.
+    expect((await (await api.kredi.GET(cerezli(new Request("http://localhost/api/kredi"), sahip))).json()).kazanilan).toBe(5);
 
     await guncelle(id, oyun("Çekilecek v2"));
     yarin();

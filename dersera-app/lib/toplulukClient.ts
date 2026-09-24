@@ -19,7 +19,7 @@ async function istek(path: string, init: RequestInit = {}): Promise<{ ok: boolea
 
 const hataMetni = (json: Record<string, unknown>, varsayilan: string) => {
   const nedenler = Array.isArray(json.nedenler) ? (json.nedenler as string[]) : [];
-  return [typeof json.error === "string" ? json.error : varsayilan, ...nedenler].join(" ");
+  return [typeof json.error === "string" ? json.error : varsayilan, nedenler.join(" · ")].filter(Boolean).join(" ");
 };
 
 export async function toplulugaGonder(kutuphaneId: string): Promise<{ durum: ToplulukDurumu } | { error: string }> {

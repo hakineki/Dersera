@@ -17,6 +17,8 @@ import DurakEditor, { type Duzenlenen } from "./DurakEditor";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI } from "./labels";
 import { maxDersSayisi } from "@/lib/composer/recipe";
 import { SERBEST_NOT_MAX } from "@/lib/composer/limits";
+import { olusturmaMaliyeti, type KrediDurumu } from "@/lib/kredi";
+import { krediDurumuGetir, krediMetni } from "@/lib/krediClient";
 
 const CLIENT_TIMEOUT_MS = 285_000; // sunucu en geç maxDuration'da (280 sn) kesilir; istemci ondan sonra vazgeçer
 const MESAJLAR = ["Müfredat hazırlanıyor...", "Hikâye kuruluyor...", "Görevler oluşturuluyor...", "Oyun kontrol ediliyor..."];
@@ -141,8 +143,13 @@ export default function ComposerClient({
     sonTanim.current = sonuc?.definition ?? null;
   }, [sonuc]);
 
+  const [kredi, setKredi] = useState<KrediDurumu | null>(null);
   useEffect(() => {
-    const t = setTimeout(async () => setOgretmen(!!(await oturumBilgisi())?.hesap));
+    const t = setTimeout(async () => {
+      const girisli = !!(await oturumBilgisi())?.hesap;
+      setOgretmen(girisli);
+      if (girisli) setKredi(await krediDurumuGetir());
+    });
     return () => clearTimeout(t);
   }, []);
 
@@ -228,6 +235,8 @@ export default function ComposerClient({
         signal: controller.signal,
       });
       const json = await res.json().catch(() => ({}));
+      // Başarıda harcama, başarısızlıkta iade ya da yetersiz bakiye sonrası güncel bakiye.
+      setKredi(json.kredi ?? (await krediDurumuGetir()));
       if (!res.ok) {
         setDurum({ tur: "hata", mesaj: json.error ?? "Oyun şu anda oluşturulamadı. Tekrar deneyin." });
         return;
@@ -428,9 +437,15 @@ export default function ComposerClient({
                 </span>
               </p>
             </div>
+            {kredi && (
+              <p className={`text-sm ${kredi.toplam < olusturmaMaliyeti(sure) ? "text-red-700" : "text-gray-700"}`} role="status">
+                Bu oyun <strong>{olusturmaMaliyeti(sure)} kredi</strong> · Bakiyen: {krediMetni(kredi)}
+                {kredi.toplam < olusturmaMaliyeti(sure) && ". Bakiyen yetmiyor; aylık hakkın ay başında yenilenir."}
+              </p>
+            )}
             <button
               type="submit"
-              disabled={!hazir || ogretmen !== true}
+              disabled={!hazir || ogretmen !== true || (!!kredi && kredi.toplam < olusturmaMaliyeti(sure))}
               className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold py-3.5 rounded-xl text-base"
             >
               Oyunu Oluştur

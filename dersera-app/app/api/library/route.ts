@@ -5,7 +5,7 @@ import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { kutuphaneSahibi } from "@/lib/auth";
 import { istekSahibi, kutuphaneyeEkle } from "@/lib/libraryService";
 import { kutuphaneIstatistikleri } from "@/lib/istatistikService";
-import { paylasimUygunlugu, toplulukDurumlari } from "@/lib/toplulukPaylasim";
+import { hesapHazirligi, paylasimUygunlugu, toplulukDurumlari } from "@/lib/toplulukPaylasim";
 import { getToplulukStore } from "@/lib/toplulukStore";
 
 export async function GET(req: Request) {
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
     const topluluk = await toplulukDurumlari(getToplulukStore(), kaynaklar);
     const now = Date.now();
     const oyunlar = sirali.map((o, i) => ({ ...o, ...ist[i], topluluk: topluluk[i], paylasim: paylasimUygunlugu(hesap, ist[i], now) }));
-    return NextResponse.json({ oyunlar, persistent: store.persistent });
+    return NextResponse.json({ oyunlar, hesap: hesapHazirligi(hesap, now), persistent: store.persistent });
   } catch (err) {
     console.error("[kutuphane] listeleme hatası", err);
     return NextResponse.json({ error: "Kütüphane okunamadı" }, { status: 503 });

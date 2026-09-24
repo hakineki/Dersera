@@ -4,6 +4,7 @@ import { parseComposerDefinition } from "@/lib/composer/adapter";
 import { checkLimit } from "@/lib/composer/rateLimit";
 import { yonetisimDegerlendir, type YonetisimSonucu } from "@/lib/composer/yonetisim";
 import { kutuphaneIstatistikleri } from "@/lib/istatistikService";
+import { toplulukOdulu } from "@/lib/krediService";
 import type { LibraryStore } from "@/lib/libraryStore";
 import { durumOf, TOPLULUK_KURALLARI as K, type Inceleme, type ToplulukDurumu, type ToplulukKaydi } from "@/lib/topluluk";
 import { icerikOzetiOf, kullanimDetayi, yeniToplulukKaydi } from "@/lib/toplulukService";
@@ -20,7 +21,14 @@ const HESAP_GENC = `Hesabın en az ${K.hesapYasiGun} günlük olmalı.`;
 
 export interface PaylasimUygunlugu {
   uygun: boolean;
+  // Oyuna ait eksikler (kısa); hesap yaşı kütüphane sayfasında bir kez gösterilir.
   nedenler: string[];
+}
+
+// Hesap yaşı koşulu oyuna değil hesaba aittir: kütüphane yanıtında bir kez döner.
+export function hesapHazirligi(hesap: Hesap, now: number): { toplulukHazir: boolean; kalanGun: number } {
+  const kalan = K.hesapYasiGun * GUN - (now - hesap.olusturma);
+  return { toplulukHazir: kalan <= 0, kalanGun: Math.max(0, Math.ceil(kalan / GUN)) };
 }
 
 // Kütüphane kartındaki "Toplulukta paylaş" düğmesi bu sonuca göre açılır; gönderimde aynı kural sunucuda yeniden uygulanır.
@@ -30,13 +38,12 @@ export function paylasimUygunlugu(
   now: number
 ): PaylasimUygunlugu {
   const nedenler: string[] = [];
-  if (!hesapYeterliMi(hesap, now)) nedenler.push(HESAP_GENC);
-  if (ist.ogrenci_sayisi < K.enAzOgrenci) nedenler.push(`En az ${K.enAzOgrenci} öğrencinin oyunu bitirmesi gerekir (şu an ${ist.ogrenci_sayisi}).`);
+  if (ist.ogrenci_sayisi < K.enAzOgrenci) nedenler.push(`${K.enAzOgrenci} öğrenci bitirmeli (şu an ${ist.ogrenci_sayisi})`);
   if (ist.puan_ortalama === null || ist.puan_ortalama < K.enAzPuan) {
-    const simdi = ist.puan_ortalama === null ? "henüz yeterli puan yok" : `şu an ${ist.puan_ortalama.toLocaleString("tr-TR")}`;
-    nedenler.push(`Öğrenci puanı en az ${K.enAzPuan.toLocaleString("tr-TR")} olmalı (${simdi}).`);
+    const simdi = ist.puan_ortalama === null ? "henüz yok" : `şu an ${ist.puan_ortalama.toLocaleString("tr-TR")}`;
+    nedenler.push(`öğrenci puanı en az ${K.enAzPuan.toLocaleString("tr-TR")} (${simdi})`);
   }
-  return { uygun: nedenler.length === 0, nedenler };
+  return { uygun: nedenler.length === 0 && hesapYeterliMi(hesap, now), nedenler };
 }
 
 export interface ToplulukDurumOzeti {
@@ -262,6 +269,8 @@ export async function incele(
   if (hedef === "yayinda") {
     const onceki = r.kayit.onceki_id ? await store.get(r.kayit.onceki_id) : null;
     if (onceki && onceki.olusturan === r.kayit.olusturan) await store.durumGecis(onceki.oyun_id, ["yayinda"], "geri-cekildi", durumOf(onceki));
+    // Ödül yalnız bu atomik geçişi yapan oyda verilir: aynı kayıt için bir kez.
+    await toplulukOdulu(r.kayit.olusturan, r.kayit.baslik, now);
   }
   return { ok: true, durum: hedef, ...sayim };
 }
