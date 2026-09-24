@@ -40,7 +40,7 @@ export interface KutuphaneTabani {
   giris: string;
   envanter: string;
   final: string;
-  duraklar: string[];
+  duraklar: { i: string; c: string; h: (string | null)[] }[];
 }
 
 // Liste yanıtında her oyunun saha istatistiği, topluluk durumu ve topluluğa gönderilebilirliği de gelir.

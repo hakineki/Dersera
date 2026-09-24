@@ -36,6 +36,36 @@ describe("sürüm kararı (saf)", () => {
     expect(oran(d, orta)).toBeCloseTo(1 / 11);
   });
 
+  it("araya durak eklemek yalnız yeni durağı ve ona bağlanan durağı değiştirir (konumdan bağımsız)", () => {
+    const d = oyun();
+    for (const konum of [1, 5, 7]) {
+      const y = kopya(d);
+      const onceki = y.duraklar[konum - 1];
+      const yeni = { ...kopya(d).duraklar[konum - 1], id: "ek1", isim: "Ek durak", secimler: [], sahne_turu: "gorev" as const, varsayilan_sonraki_durak_id: onceki.varsayilan_sonraki_durak_id };
+      yeni.gorev = { ...yeni.gorev, soru: "Eklenen soru", odul_id: null };
+      onceki.varsayilan_sonraki_durak_id = "ek1";
+      y.duraklar.splice(konum, 0, yeni);
+      // 9 durak + 3 birim; değişen: eklenen durak + rotası değişen önceki durak.
+      expect(oran(d, y)).toBeCloseTo(2 / 12);
+    }
+  });
+
+  it("kimlik yeniden adlandırma ile içerik düzenlemesi birlikte: yalnız düzenlenen durak sayılır", () => {
+    const d = oyun();
+    const y = kopya(d);
+    const yeniId = (id: string) => `k-${id}`;
+    for (const durak of y.duraklar) {
+      durak.id = yeniId(durak.id);
+      durak.secimler.forEach((c) => (c.hedef_durak_id = yeniId(c.hedef_durak_id)));
+      if (durak.varsayilan_sonraki_durak_id) durak.varsayilan_sonraki_durak_id = yeniId(durak.varsayilan_sonraki_durak_id);
+    }
+    y.duraklar[6].gorev.soru = "Düzenlendi";
+    // Düzenlenen durağın kimliği de değiştiği için eşi bulunamaz: silinen + eklenen değil, en çok 2 birim; öncülü
+    // eşleşme dışında kaldığı için kendi rotası da farklı görünür.
+    expect(oran(d, y)).toBeLessThanOrEqual(3 / 11);
+    expect(oran(d, y)).toBeGreaterThan(0);
+  });
+
   it("rota değişikliği içerik aynı kalsa da değişim sayılır; nesne kimlikleri yeniden adlandırılınca sayılmaz", () => {
     const d = oyun();
     const rota = kopya(d);

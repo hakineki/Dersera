@@ -9,34 +9,34 @@ import type { Durak, GameDefinition } from "@/lib/composer/definition";
 
 export const VARYANT_ESIGI = 0.3;
 
-// Karşılaştırma için sıkıştırılmış içerik izi (kayıtta taban olarak saklanır; tanımı iki kez tutmamak için).
+// Durak izi: kimlik, içerik (rota hedefleri hariç) ve rota hedeflerinin kimlikleri.
+export interface DurakIzi {
+  i: string;
+  c: string;
+  h: (string | null)[];
+}
+
+// Karşılaştırma için sıkıştırılmış iz (kayıtta taban olarak saklanır; tanımı iki kez tutmamak için).
 export interface Parmakizi {
   giris: string;
   envanter: string;
   final: string;
-  // Duraklar kimliksiz içerikleriyle: yeniden numaralanan durak değişmiş sayılmaz.
-  duraklar: string[];
+  duraklar: DurakIzi[];
 }
 
 const iz = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 16);
 
-// Kimliklerden bağımsız iz: durak ve nesne kimlikleri yerine içerik ve sıra kullanılır. Yeniden numaralama değişiklik
-// sayılmaz; rota (hangi seçim hangi durağa gider) hedef durağın sırasıyla, ödül/final nesneleri içerikleriyle izde kalır.
-// Rota hedefi sırayla temsil edilir: bir durağın içeriğini düzenlemek ona giden durakları değişmiş göstermez.
 export function parmakizi(def: GameDefinition): Parmakizi {
+  // Nesneler içerikleriyle: nesne kimliklerini yeniden adlandırmak değişiklik sayılmaz.
   const nesne = new Map(def.envanter.map((e) => [e.id, iz([e.tur, e.isim, e.final_icin_gerekli])]));
   const nesneIzi = (id: string | null) => (id === null ? null : (nesne.get(id) ?? "?"));
-  const sira = new Map(def.duraklar.map((d, i) => [d.id, i]));
-  const hedef = (id: string | null) => (id === null ? null : (sira.get(id) ?? "?"));
   const duraklar = def.duraklar.map((d: Durak) => {
-    const { id: _id, varsayilan_sonraki_durak_id: sonraki, secimler, gorev, ...icerik } = d;
-    void _id;
-    return iz({
-      ...icerik,
-      gorev: { ...gorev, odul_id: nesneIzi(gorev.odul_id) },
-      secimler: secimler.map((s) => [s.metin, hedef(s.hedef_durak_id)]),
-      sonraki: hedef(sonraki),
-    });
+    const { id, varsayilan_sonraki_durak_id: sonraki, secimler, gorev, ...icerik } = d;
+    return {
+      i: id,
+      c: iz({ ...icerik, gorev: { ...gorev, odul_id: nesneIzi(gorev.odul_id) }, secimler: secimler.map((s) => s.metin) }),
+      h: [...secimler.map((s) => s.hedef_durak_id), sonraki],
+    };
   });
   return {
     giris: iz([def.meta.baslik, def.hikaye_giris, def.oyun_amaci, def.ogrenme_hedefleri]),
@@ -46,22 +46,46 @@ export function parmakizi(def: GameDefinition): Parmakizi {
   };
 }
 
-// Değişen birimlerin oranı (0–1). Birimler: giriş, envanter, final ve her durak. Duraklar içerikçe eşleştirilir;
-// eklenen, silinen ya da içeriği değişen her durak bir birimdir.
+// Değişen birimlerin oranı (0–1). Birimler: giriş, envanter, final ve her durak.
+// Duraklar önce içerikçe, kalanlar kimlikçe eşleştirilir (yeniden numaralanan durak ve içeriği düzenlenen durak
+// eşini bulur). Değişen durak: eşi olmayan (eklenen/silinen), içeriği değişen ya da rotası (eşleştirmeye göre
+// hedefleri) değişen durak. Araya bir durak eklemek yalnız o durağı ve ona bağlanan durağı değiştirir.
 export function degisimOrani(a: Parmakizi, b: Parmakizi): number {
-  const kalan = new Map<string, number>();
-  for (const d of a.duraklar) kalan.set(d, (kalan.get(d) ?? 0) + 1);
-  let eslesen = 0;
-  for (const d of b.duraklar) {
-    const n = kalan.get(d) ?? 0;
-    if (n > 0) {
-      eslesen++;
-      kalan.set(d, n - 1);
+  const eslesme = new Map<number, number>(); // b indeksi → a indeksi
+  const aBos = new Set(a.duraklar.map((_, i) => i));
+  // 1. içerik (aynı içerik birden çok duraktaysa önce aynı kimlik tercih edilir)
+  b.duraklar.forEach((bd, bi) => {
+    const adaylar = [...aBos].filter((ai) => a.duraklar[ai].c === bd.c);
+    const ai = adaylar.find((x) => a.duraklar[x].i === bd.i) ?? adaylar[0];
+    if (ai !== undefined) {
+      eslesme.set(bi, ai);
+      aBos.delete(ai);
     }
-  }
+  });
+  // 2. kimlik (içeriği düzenlenmiş durak)
+  b.duraklar.forEach((bd, bi) => {
+    if (eslesme.has(bi)) return;
+    const ai = [...aBos].find((x) => a.duraklar[x].i === bd.i);
+    if (ai !== undefined) {
+      eslesme.set(bi, ai);
+      aBos.delete(ai);
+    }
+  });
+  // Rota karşılaştırması için b kimliği → a kimliği.
+  const aKimlikOf = new Map([...eslesme].map(([bi, ai]) => [b.duraklar[bi].i, a.duraklar[ai].i]));
+  const hedefA = (id: string | null) => (id === null ? null : (aKimlikOf.get(id) ?? `yeni:${id}`));
+
+  let degisenDurak = a.duraklar.length - eslesme.size; // silinenler
+  b.duraklar.forEach((bd, bi) => {
+    const ai = eslesme.get(bi);
+    if (ai === undefined) return void degisenDurak++; // eklenen
+    const ad = a.duraklar[ai];
+    const rota = bd.h.map(hedefA);
+    if (ad.c !== bd.c || rota.length !== ad.h.length || rota.some((h, k) => h !== ad.h[k])) degisenDurak++;
+  });
   const durak = Math.max(a.duraklar.length, b.duraklar.length);
-  const degisen = durak - eslesen + Number(a.giris !== b.giris) + Number(a.envanter !== b.envanter) + Number(a.final !== b.final);
-  return degisen / (durak + 3);
+  const degisen = degisenDurak + Number(a.giris !== b.giris) + Number(a.envanter !== b.envanter) + Number(a.final !== b.final);
+  return Math.min(1, degisen / (durak + 3));
 }
 
 const KIMLIK_ALANLARI = ["sinif", "ders", "konu", "alan", "deneyim", "sure_dk"] as const;
@@ -74,9 +98,8 @@ export type SurumKarari = { tur: "ayni" } | { tur: "surum"; oran: number } | { t
 
 // onceki: son kaydedilen tanım (değişiklik var mı); taban: bu oyunun ilk sürümünün izi (ne kadar uzaklaştı).
 export function surumKarari(onceki: GameDefinition, yeni: GameDefinition, taban: Parmakizi): SurumKarari {
-  const yeniIz = parmakizi(yeni);
-  const oran = degisimOrani(taban, yeniIz);
+  const oran = degisimOrani(taban, parmakizi(yeni));
   if (kimlikDegisti(onceki, yeni)) return { tur: "varyant", oran, neden: "kimlik" };
-  if (degisimOrani(parmakizi(onceki), yeniIz) === 0 && JSON.stringify(onceki) === JSON.stringify(yeni)) return { tur: "ayni" };
+  if (JSON.stringify(onceki) === JSON.stringify(yeni)) return { tur: "ayni" };
   return oran > VARYANT_ESIGI ? { tur: "varyant", oran, neden: "oran" } : { tur: "surum", oran };
 }
