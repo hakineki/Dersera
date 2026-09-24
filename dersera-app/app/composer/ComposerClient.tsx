@@ -16,7 +16,7 @@ import ComposerPreview from "./ComposerPreview";
 import DurakEditor, { type Duzenlenen } from "./DurakEditor";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI } from "./labels";
 import { maxDersSayisi } from "@/lib/composer/recipe";
-import { SERBEST_NOT_MAX } from "@/lib/composer/input";
+import { SERBEST_NOT_MAX } from "@/lib/composer/limits";
 
 const CLIENT_TIMEOUT_MS = 285_000; // sunucu en geç maxDuration'da (280 sn) kesilir; istemci ondan sonra vazgeçer
 const MESAJLAR = ["Müfredat hazırlanıyor...", "Hikâye kuruluyor...", "Görevler oluşturuluyor...", "Oyun kontrol ediliyor..."];
@@ -412,9 +412,10 @@ export default function ComposerClient({
                 placeholder="Örn: Okul laboratuvarında bir kaza olsun, öğrenciler QR ile kanıt toplasın..."
                 className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
-              <p id="on-not-aciklama" className="text-xs text-gray-500 mt-1 flex justify-between gap-3">
-                <span>Kafandaki mekân, sahne, karakter ya da kurgu fikrini yaz; oyun bu çerçevede kurulur.</span>
-                <span aria-live="polite" className="shrink-0">
+              <p className="text-xs text-gray-500 mt-1 flex justify-between gap-3">
+                <span id="on-not-aciklama">Kafandaki mekân, sahne, karakter ya da kurgu fikrini yaz; oyun bu çerçevede kurulur.</span>
+                {/* Sayaç ekran okuyucuya yalnız sınıra yaklaşınca okunur; her tuşta okunması gürültü olur. */}
+                <span aria-live={onNot.length >= SERBEST_NOT_MAX - 50 ? "polite" : "off"} className="shrink-0">
                   {onNot.length}/{SERBEST_NOT_MAX}
                 </span>
               </p>

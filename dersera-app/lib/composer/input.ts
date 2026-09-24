@@ -22,7 +22,9 @@ export const DersKonuSchema = z.object({
 });
 export type DersKonu = z.infer<typeof DersKonuSchema>;
 
-export const SERBEST_NOT_MAX = 500;
+import { SERBEST_NOT_MAX } from "@/lib/composer/limits";
+
+export { SERBEST_NOT_MAX };
 
 // Öğretmenin seçimleri: sınıf, bir ya da daha çok ders (her birine bir konu), süre, deneyim, alan
 // ve isteğe bağlı ön not (senaryo fikri). Not kontrol karakterlerinden arındırılır; boşsa yok sayılır.
@@ -36,7 +38,8 @@ export const ComposeInputSchema = z
     serbest_not: z
       .string()
       .max(SERBEST_NOT_MAX)
-      .transform((s) => s.replace(/[\u0000-\u0009\u000B-\u001F\u007F]/g, "").trim())
+      // Sekme boşluğa döner; kontrol, yön değiştirici ve sıfır genişlikli karakterler atılır (satır sonu kalır).
+      .transform((s) => s.replace(/\t/g, " ").replace(/[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "").trim())
       .optional(),
   })
   .strict();

@@ -45,8 +45,9 @@ describe("parseComposeInput", () => {
   });
 
   it("ön not isteğe bağlıdır; kırpılır, kontrol karakterleri atılır, boşsa yok sayılır", () => {
-    const r = parseComposeInput({ ...valid, serbest_not: "  Laboratuvarda\u0007 bir kaza olsun  " });
-    expect(r.ok && r.input.serbest_not).toBe("Laboratuvarda bir kaza olsun");
+    const r = parseComposeInput({ ...valid, serbest_not: "  Laboratuvarda\u0007 bir\u200B\u202Ekaza\tolsun\nsonra  " });
+    expect(r.ok && r.input.serbest_not).toBe("Laboratuvarda birkaza olsun\nsonra");
+    expect(parseComposeInput({ ...valid, serbest_not: null }).ok).toBe(false);
     const bos = parseComposeInput({ ...valid, serbest_not: "   " });
     expect(bos.ok && "serbest_not" in bos.input).toBe(false);
     const yok = parseComposeInput(valid);
