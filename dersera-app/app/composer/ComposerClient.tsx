@@ -270,6 +270,7 @@ export default function ComposerClient({
       return false;
     }
     setKutuphaneId(r.id);
+    window.history.replaceState(null, "", `/composer?kutuphane=${encodeURIComponent(r.id)}`);
     const guncel = sonTanim.current === gonderilen;
     setKutuphaneDurumu(guncel ? "kaydedildi" : "degisti");
     if (guncel) setSonuc((s) => (s ? { ...s, validation: r.validation } : s));

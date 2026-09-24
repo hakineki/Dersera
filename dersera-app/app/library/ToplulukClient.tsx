@@ -35,30 +35,41 @@ function Kart({ oyun }: { oyun: ToplulukOzeti }) {
       <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-gray-600">
         <div>
           <dt className="sr-only">Sınıf</dt>
-          <dd>🎓 {oyun.sinif}. sınıf</dd>
+          <dd>
+            <span aria-hidden="true">🎓 </span>
+            {oyun.sinif}. sınıf
+          </dd>
         </div>
         <div>
           <dt className="sr-only">Süre</dt>
-          <dd>⏱ {oyun.sure_dk} dk</dd>
+          <dd>
+            <span aria-hidden="true">⏱ </span>
+            {oyun.sure_dk} dk
+          </dd>
         </div>
         <div>
           <dt className="sr-only">Deneyim</dt>
           <dd>
-            {deneyim?.ikon} {deneyim?.ad}
+            <span aria-hidden="true">{deneyim?.ikon} </span>
+            {deneyim?.ad}
           </dd>
         </div>
         <div>
           <dt className="sr-only">Oyun alanı</dt>
           <dd>
-            {alan?.ikon} {alan?.ad}
+            <span aria-hidden="true">{alan?.ikon} </span>
+            {alan?.ad}
           </dd>
         </div>
         <div className="col-span-2">
           <dt className="sr-only">Oynanma</dt>
-          <dd>👥 {oyun.oynanma_sayisi} kez oynandı</dd>
+          <dd>
+            <span aria-hidden="true">👥 </span>
+            {oyun.oynanma_sayisi} kez oynandı
+          </dd>
         </div>
       </dl>
-      <Link href={`/composer?topluluk=${oyun.oyun_id}`} className="mt-4 text-center text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3 py-2 rounded-lg">
+      <Link href={`/composer?topluluk=${oyun.oyun_id}`} aria-label={`${oyun.baslik} oyununu kullan`} className="mt-4 text-center text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3 py-2 rounded-lg">
         Oyunu Kullan
       </Link>
     </li>
@@ -90,9 +101,11 @@ export default function ToplulukClient({ dersler, siniflar }: { dersler: { key: 
   const [sonraki, setSonraki] = useState<string | null>(null);
   const [durum, setDurum] = useState<"yukleniyor" | "hazir" | "hata">("yukleniyor");
   const istekNo = useRef(0);
+  const sonIstek = useRef<string | null>(null);
 
   const yukle = useCallback(async (f: Filtre, cursor: string | null) => {
     const no = ++istekNo.current;
+    sonIstek.current = cursor;
     setDurum("yukleniyor");
     try {
       const res = await fetch(`/api/topluluk?${sorgu(f, cursor)}`, { cache: "no-store" });
@@ -176,16 +189,19 @@ export default function ToplulukClient({ dersler, siniflar }: { dersler: { key: 
             {durum === "hata" && (
               <div role="alert" className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm">
                 Kütüphane yüklenemedi.{" "}
-                <button onClick={() => yukle(filtre, null)} className="underline font-semibold">
+                <button onClick={() => yukle(filtre, sonIstek.current)} className="underline font-semibold">
                   Tekrar dene
                 </button>
               </div>
             )}
-            {durum !== "hata" && oyunlar.length === 0 && durum === "hazir" && (
+            {oyunlar.length === 0 && durum === "hazir" && !sonraki && (
               <p className="bg-white border border-dashed border-gray-300 rounded-2xl p-6 text-center text-sm text-gray-500">
                 {filtreVar ? "Bu filtrelere uyan oyun yok." : "Henüz yayınlanmış oyun yok."}
               </p>
             )}
+            <p aria-live="polite" className="sr-only">
+              {durum === "hazir" ? `${oyunlar.length} oyun listeleniyor` : ""}
+            </p>
             <ul className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {oyunlar.map((o) => (
                 <Kart key={o.oyun_id} oyun={o} />

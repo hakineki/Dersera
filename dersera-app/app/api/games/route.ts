@@ -3,7 +3,8 @@ import { parseComposerPublish } from "@/lib/composer/adapter";
 import { parsePublishRequest, type PublishRequest } from "@/lib/games";
 import { getGamesStore } from "@/lib/gamesStore";
 import { publishGame } from "@/lib/gamesService";
-import { istekSahibi, topluluguEkleGuvenli } from "@/lib/libraryService";
+import { istekSahibi } from "@/lib/libraryService";
+import { topluluguEkleGuvenli } from "@/lib/toplulukService";
 import type { DersKonu } from "@/lib/composer/input";
 
 export async function POST(req: Request) {
