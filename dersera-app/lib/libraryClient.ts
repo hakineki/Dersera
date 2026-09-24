@@ -2,7 +2,7 @@ import type { PublishResponse } from "@/lib/gamesClient";
 import type { OgrenmeCiktisi } from "@/data/mufredat/programlar";
 import type { GameDefinition } from "@/lib/composer/definition";
 import type { ValidationResult } from "@/lib/composer/validator";
-import { KUTUPHANE_ANAHTARI_KEY, KUTUPHANE_HEADER, isKutuphaneAnahtari, type KutuphaneKaydi, type KutuphaneOzeti } from "@/lib/library";
+import { KUTUPHANE_ANAHTARI_KEY, KUTUPHANE_HEADER, isKutuphaneAnahtari, type KutuphaneKaydi, type KutuphaneListeOgesi } from "@/lib/library";
 
 async function istek(path: string, init: RequestInit = {}): Promise<Response | null> {
   try {
@@ -46,9 +46,9 @@ export async function eskiKutuphaneyiTasi(): Promise<{ tasinan: number; kalan: n
   return sonuc;
 }
 
-export async function kutuphaneListesi(): Promise<KutuphaneOzeti[] | null> {
+export async function kutuphaneListesi(): Promise<KutuphaneListeOgesi[] | null> {
   const res = await istek("/api/library");
-  return res?.ok ? ((await res.json()) as { oyunlar: KutuphaneOzeti[] }).oyunlar : null;
+  return res?.ok ? ((await res.json()) as { oyunlar: KutuphaneListeOgesi[] }).oyunlar : null;
 }
 
 export interface KutuphaneDetayi {

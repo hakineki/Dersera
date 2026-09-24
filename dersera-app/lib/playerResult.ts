@@ -37,3 +37,21 @@ export function buildLeaderboardEntry(
     ),
   };
 }
+
+export type PuanYaniti = "kaydedildi" | "zaten" | "bitirmedi" | "hata";
+
+// Oyun sonunda anonim puan (1–5). Oyuncu anahtarı yoksa (katılım hiç kaydedilmediyse) puan gönderilemez.
+export async function sendPlayerRating(gameCode: string, nickname: string, puan: number): Promise<PuanYaniti> {
+  const token = loadPlayerToken();
+  if (!token) return "hata";
+  try {
+    const res = await fetch(`/api/games/${encodeURIComponent(gameCode)}/puan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nickname, playerToken: token, puan }),
+    });
+    return res.status === 201 ? "kaydedildi" : res.status === 409 ? "zaten" : res.status === 403 ? "bitirmedi" : "hata";
+  } catch {
+    return "hata";
+  }
+}

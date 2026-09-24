@@ -29,6 +29,13 @@ export interface KutuphaneOzeti {
   sonYayin: number | null;
 }
 
+// Liste yanıtında her oyunun saha istatistiği de gelir.
+export interface KutuphaneListeOgesi extends KutuphaneOzeti {
+  ogrenci_sayisi: number;
+  puan_ortalama: number | null;
+  puan_sayisi: number;
+}
+
 export interface KutuphaneKaydi extends KutuphaneOzeti {
   definition: GameDefinition;
   dersler: DersKonu[];

@@ -4,6 +4,8 @@ import { getGamesStore } from "@/lib/gamesStore";
 import { verifyPlayer } from "@/lib/gamesService";
 import { parseLeaderboardEntry } from "@/lib/results";
 import { getResultsStore } from "@/lib/resultsStore";
+import { bitirisSay } from "@/lib/istatistikService";
+import { istekSahibi } from "@/lib/libraryService";
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -30,13 +32,15 @@ export async function POST(req: Request) {
   try {
     // Süresi dolmuş oyunun sonucu da kabul edilir: çevrimdışı bitiren öğrenci sonradan gönderebilir.
     const games = getGamesStore();
-    if (!(await games.get(code))) {
+    const game = await games.get(code);
+    if (!game) {
       return NextResponse.json({ error: "Oyun bulunamadı" }, { status: 404 });
     }
     if (!(await verifyPlayer(games, code, entry.nickname, playerToken))) {
       return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
     }
     await getResultsStore().save(code, entry);
+    await bitirisSay(code, entry.nickname, await istekSahibi(req), game.expiresAt);
   } catch (err) {
     console.error("[results] kayıt hatası", err);
     return NextResponse.json({ error: "Sonuç kaydedilemedi" }, { status: 503 });

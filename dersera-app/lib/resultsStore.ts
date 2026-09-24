@@ -14,6 +14,8 @@ export interface ResultsStore {
   persistent: boolean;
   save(gameCode: string, entry: LeaderboardEntry): Promise<void>;
   list(gameCode: string): Promise<LeaderboardEntry[]>;
+  // Bu takma adın sonucu kayıtlı mı (tüm tabloyu okumadan).
+  has(gameCode: string, nickname: string): Promise<boolean>;
 }
 
 export function createMemoryStore(): ResultsStore {
@@ -25,6 +27,10 @@ export function createMemoryStore(): ResultsStore {
     },
     async list(gameCode) {
       return [...(byGame.get(gameCode) ?? [])];
+    },
+    async has(gameCode, nickname) {
+      const anahtar = nicknameKey(nickname);
+      return (byGame.get(gameCode) ?? []).some((e) => nicknameKey(e.nickname) === anahtar);
     },
   };
 }
@@ -40,6 +46,9 @@ export function createRedisStore(command: RedisCommand): ResultsStore {
     async list(gameCode) {
       const raw = (await command(["HVALS", resultsKey(gameCode)])) as string[];
       return sortLeaderboard(raw.map((r) => JSON.parse(r) as LeaderboardEntry));
+    },
+    async has(gameCode, nickname) {
+      return Number(await command(["HEXISTS", resultsKey(gameCode), nicknameKey(nickname)])) === 1;
     },
   };
 }

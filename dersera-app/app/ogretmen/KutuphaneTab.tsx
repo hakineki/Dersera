@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { DURATION_PRESETS_MIN, publishWindowMinutes } from "@/lib/games";
-import type { KutuphaneKaydi, KutuphaneOzeti } from "@/lib/library";
+import { PUAN_KOVASI } from "@/lib/istatistik";
+import type { KutuphaneKaydi, KutuphaneListeOgesi } from "@/lib/library";
 import { kutuphanedenSil, kutuphanedenYayinla, kutuphaneListesi, kutuphaneOyunu } from "@/lib/libraryClient";
 import type { TeacherGame } from "@/lib/teacherGame";
 import { DENEYIM_SECENEKLERI, GOREV_TUR_ADI } from "@/app/composer/labels";
@@ -39,7 +40,7 @@ function OyunKarti({
   onYayinlandi,
   onSilindi,
 }: {
-  oyun: KutuphaneOzeti;
+  oyun: KutuphaneListeOgesi;
   onYayinlandi: (tg: TeacherGame) => void;
   onSilindi: (id: string) => void;
 }) {
@@ -91,6 +92,14 @@ function OyunKarti({
             {tarih(oyun.createdAt)} · {oyun.durakSayisi} durak · {oyun.sure_dk} dk ·{" "}
             {DENEYIM_SECENEKLERI.find((d) => d.key === oyun.deneyim)?.ad}
           </p>
+          <p className="text-xs text-gray-600 mt-1">
+            <span aria-hidden="true">👥 </span>
+            {oyun.ogrenci_sayisi} öğrenci ·{" "}
+            <span aria-hidden="true">⭐ </span>
+            {oyun.puan_ortalama === null
+              ? `puan ${PUAN_KOVASI} oydan sonra görünür`
+              : `${oyun.puan_ortalama.toLocaleString("tr-TR")} / 5 (${oyun.puan_sayisi}+ oy)`}
+          </p>
         </div>
         {oyun.sonKod && (
           <div className="text-right shrink-0">
@@ -135,7 +144,7 @@ function OyunKarti({
 }
 
 export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: TeacherGame) => void }) {
-  const [oyunlar, setOyunlar] = useState<KutuphaneOzeti[] | null>(null);
+  const [oyunlar, setOyunlar] = useState<KutuphaneListeOgesi[] | null>(null);
   const [hata, setHata] = useState(false);
 
   const yukle = useCallback(async () => {

@@ -1,5 +1,6 @@
 import { parseComposerDefinition, parseComposerPublish } from "@/lib/composer/adapter";
 import { topluluguEkleGuvenli } from "@/lib/toplulukService";
+import { kodKaynagaBagla } from "@/lib/istatistikService";
 import { duzenlemeBaglami } from "@/lib/composer/duzenleme";
 import { MAX_DURATION_MIN, MIN_DURATION_MIN, type PublicGame } from "@/lib/games";
 import { hashToken, publishGame } from "@/lib/gamesService";
@@ -86,6 +87,7 @@ export async function yenidenYayinla(
   const guncel = (await library.get(sahip, id)) ?? kayit;
   await library.replace(sahip, { ...guncel, sonKod: published.game.code, sonYayin: now });
   // Topluluğa oynatılan (doğrulanmış) sürüm gider; aynı kütüphane kaydının eski topluluk sürümü pasife alınır.
+  await kodKaynagaBagla(published.game.code, `${sahip}:${id}`, published.game.expiresAt, now);
   await topluluguEkleGuvenli(composed.request.definition!, composed.dersler, sahip, published.game.code, published.game.expiresAt, { kaynak: `${sahip}:${id}` });
   return { ok: true, ...published };
 }
