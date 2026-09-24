@@ -53,6 +53,8 @@ export interface KutuphaneListeOgesi extends KutuphaneOzeti {
   puan_sayisi: number;
   topluluk: ToplulukDurumOzeti | null;
   paylasim: PaylasimUygunlugu;
+  // Öğretmen bir okulun üyesiyse bu kaydın okuldaki paylaşım kimliği (paylaşılmamışsa null).
+  okulPaylasimi?: string | null;
 }
 
 export interface KutuphaneKaydi extends KutuphaneOzeti {

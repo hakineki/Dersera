@@ -14,6 +14,7 @@ import { loadTeacherGame, saveTeacherGame, type TeacherGame } from "@/lib/teache
 import AySecici from "./AySecici";
 import OyunTab from "./OyunTab";
 import KutuphaneTab from "./KutuphaneTab";
+import OkulTab from "./OkulTab";
 import { cikisYap, eskiYerelGirisiTemizle, girisYap, kayitOl, kullaniciAdiDegistir, oturumBilgisi, sifreDegistir, type HesapOzeti } from "@/lib/authClient";
 import { eskiKutuphaneSayisi, eskiKutuphaneyiTasi } from "@/lib/libraryClient";
 import {
@@ -26,7 +27,7 @@ const SIFRE_MIN_ISTEMCI = 8;
 // "Benim değil" seçimi bu tarayıcı oturumu boyunca hatırlanır.
 const ESKI_KUTUPHANE_RED = "dersera:eski-kutuphane-red";
 
-export type Tab = "oyun" | "kutuphane" | "sorular" | "siralama" | "ayarlar";
+export type Tab = "oyun" | "kutuphane" | "okul" | "sorular" | "siralama" | "ayarlar";
 
 // ── Giriş / kayıt ekranı ─────────────────────────────────────────────────────
 function LoginScreen({ onLogin, davetGerekli }: { onLogin: (h: HesapOzeti) => void; davetGerekli: boolean }) {
@@ -820,6 +821,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: "oyun", label: "Oyun", icon: "🎮" },
     { id: "kutuphane", label: "Kütüphane", icon: "📚" },
+    { id: "okul", label: "Okulum", icon: "🏫" },
     { id: "sorular", label: "Sorular", icon: "📝" },
     { id: "siralama", label: "Sınıf", icon: "🏆" },
     { id: "ayarlar", label: "Ayarlar", icon: "⚙️" },
@@ -925,6 +927,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
             }}
           />
         )}
+        {activeTab === "okul" && <OkulTab />}
         {activeTab === "sorular" && <SorularTab selectedAylar={selectedAylar} toggleAy={toggleAy} />}
         {activeTab === "siralama" &&
           (teacherGame ? (

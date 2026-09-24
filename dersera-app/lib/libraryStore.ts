@@ -14,6 +14,10 @@ export interface LibraryStore {
   replaceIfSurum(owner: string, kayit: KutuphaneKaydi, beklenen: number): Promise<"ok" | "yok" | "catisma">;
   remove(owner: string, id: string): Promise<boolean>;
   count(owner: string): Promise<number>;
+  // Yalnız kayıt kimlikleri (tanımları okumadan; ör. okul panosu).
+  idler(owner: string): Promise<string[]>;
+  // Birden çok sahibin kayıt kimlikleri tek çağrıda (sıra korunur).
+  idlerToplu(owners: string[]): Promise<string[][]>;
 }
 
 const libKey = (owner: string) => `dersera:kutuphane:${owner}`;
@@ -49,6 +53,12 @@ export function createMemoryLibraryStore(): LibraryStore {
     },
     async count(owner) {
       return of(owner).size;
+    },
+    async idler(owner) {
+      return [...of(owner).keys()];
+    },
+    async idlerToplu(owners) {
+      return owners.map((o) => [...of(o).keys()]);
     },
   };
 }
@@ -103,6 +113,19 @@ return 1`,
     },
     async count(owner) {
       return Number(await command(["HLEN", libKey(owner)]));
+    },
+    async idler(owner) {
+      return ((await command(["HKEYS", libKey(owner)])) as string[] | null) ?? [];
+    },
+    async idlerToplu(owners) {
+      if (owners.length === 0) return [];
+      const r = (await command([
+        "EVAL",
+        "local r = {} for i, k in ipairs(KEYS) do r[i] = redis.call('HKEYS', k) end return r",
+        owners.length,
+        ...owners.map(libKey),
+      ])) as string[][] | null;
+      return owners.map((_, i) => r?.[i] ?? []);
     },
   };
 }

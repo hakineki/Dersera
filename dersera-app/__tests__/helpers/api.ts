@@ -40,6 +40,15 @@ export async function buildApi() {
     moderasyon: typeof import("@/app/api/moderasyon/route");
     moderasyonOge: typeof import("@/app/api/moderasyon/[id]/route");
     moderasyonStore: typeof import("@/lib/moderasyonStore");
+    okul: typeof import("@/app/api/okul/route");
+    okulKatil: typeof import("@/app/api/okul/katil/route");
+    okulAyril: typeof import("@/app/api/okul/ayril/route");
+    okulDavet: typeof import("@/app/api/okul/davet/route");
+    okulPano: typeof import("@/app/api/okul/pano/route");
+    okulUye: typeof import("@/app/api/okul/uyeler/[hesapId]/route");
+    okulPaylasim: typeof import("@/app/api/okul/paylasim/route");
+    okulPaylasimOge: typeof import("@/app/api/okul/paylasim/[id]/route");
+    okulStore: typeof import("@/lib/okulStore");
   };
   await jest.isolateModulesAsync(async () => {
     mods = {
@@ -77,6 +86,15 @@ export async function buildApi() {
       moderasyon: await import("@/app/api/moderasyon/route"),
       moderasyonOge: await import("@/app/api/moderasyon/[id]/route"),
       moderasyonStore: await import("@/lib/moderasyonStore"),
+      okul: await import("@/app/api/okul/route"),
+      okulKatil: await import("@/app/api/okul/katil/route"),
+      okulAyril: await import("@/app/api/okul/ayril/route"),
+      okulDavet: await import("@/app/api/okul/davet/route"),
+      okulPano: await import("@/app/api/okul/pano/route"),
+      okulUye: await import("@/app/api/okul/uyeler/[hesapId]/route"),
+      okulPaylasim: await import("@/app/api/okul/paylasim/route"),
+      okulPaylasimOge: await import("@/app/api/okul/paylasim/[id]/route"),
+      okulStore: await import("@/lib/okulStore"),
     };
   });
   return {

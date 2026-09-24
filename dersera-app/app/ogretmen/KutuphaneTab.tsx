@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { okullaPaylas } from "@/lib/okulClient";
 import Link from "next/link";
 import { DURATION_PRESETS_MIN, publishWindowMinutes } from "@/lib/games";
 import { PUAN_KOVASI } from "@/lib/istatistik";
@@ -104,6 +105,33 @@ export function OgretmenPuaniGorunumu({ d, onVer, gonderiliyor, hata }: { d: Ogr
 }
 
 // Topluluk paylaşımı: durum, eşik gerekçeleri, paylaş / geri çek.
+// Okul içi paylaşım: topluluk incelemesi yok; aynı oyun yeniden paylaşılınca okuldaki kopya güncellenir.
+function OkulPaylasimBolumu({ oyun, okulAdi, onYenile }: { oyun: KutuphaneListeOgesi; okulAdi: string; onYenile: () => void }) {
+  const [durum, setDurum] = useState<{ tur: "bos" | "calisiyor" | "tamam" | "hata"; mesaj?: string }>({ tur: "bos" });
+  const paylasildi = !!oyun.okulPaylasimi;
+  async function paylas() {
+    setDurum({ tur: "calisiyor" });
+    const r = await okullaPaylas(oyun.id);
+    if ("error" in r) return setDurum({ tur: "hata", mesaj: r.error });
+    setDurum({ tur: "tamam", mesaj: paylasildi ? `${okulAdi} kütüphanesindeki kopya güncellendi.` : `${okulAdi} ile paylaşıldı.` });
+    onYenile();
+  }
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+      <button onClick={paylas} disabled={durum.tur === "calisiyor"} className="border border-indigo-200 text-indigo-700 font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50">
+        <span aria-hidden="true">🏫 </span>
+        {durum.tur === "calisiyor" ? "Paylaşılıyor…" : paylasildi ? "Okulda güncelle" : "Okulla paylaş"}
+      </button>
+      {paylasildi && durum.tur === "bos" && <span className="text-xs text-gray-500">Okul kütüphanesinde</span>}
+      {durum.mesaj && (
+        <span role={durum.tur === "hata" ? "alert" : "status"} className={`text-xs ${durum.tur === "hata" ? "text-red-600" : "text-green-700"}`}>
+          {durum.mesaj}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function ToplulukBolumu({ oyun, onYenile }: { oyun: KutuphaneListeOgesi; onYenile: () => void }) {
   const [calisiyor, setCalisiyor] = useState(false);
   const [hata, setHata] = useState("");
@@ -189,11 +217,13 @@ export function ToplulukBolumu({ oyun, onYenile }: { oyun: KutuphaneListeOgesi; 
 
 function OyunKarti({
   oyun,
+  okulAdi,
   onYayinlandi,
   onSilindi,
   onYenile,
 }: {
   oyun: KutuphaneListeOgesi;
+  okulAdi: string | null;
   onYayinlandi: (tg: TeacherGame) => void;
   onSilindi: (id: string) => void;
   onYenile: () => void;
@@ -295,6 +325,7 @@ function OyunKarti({
         </p>
       )}
       <ToplulukBolumu oyun={oyun} onYenile={onYenile} />
+      {okulAdi && <OkulPaylasimBolumu oyun={oyun} okulAdi={okulAdi} onYenile={onYenile} />}
       {onizleme && <Onizleme oyun={onizleme} />}
     </li>
   );
@@ -303,6 +334,7 @@ function OyunKarti({
 export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: TeacherGame) => void }) {
   const [oyunlar, setOyunlar] = useState<KutuphaneListeOgesi[] | null>(null);
   const [hesap, setHesap] = useState<{ toplulukHazir: boolean; kalanGun: number } | null>(null);
+  const [okulAdi, setOkulAdi] = useState<string | null>(null);
   const [kredi, setKredi] = useState<KrediDurumu | null>(null);
   const [hata, setHata] = useState(false);
 
@@ -313,6 +345,7 @@ export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: Teac
     if (liste) {
       setOyunlar(liste.oyunlar);
       setHesap(liste.hesap);
+      setOkulAdi(liste.okul?.ad ?? null);
     } else setHata(true);
   }, []);
 
@@ -360,7 +393,7 @@ export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: Teac
       {oyunlar && oyunlar.length > 0 && (
         <ul className="space-y-3">
           {oyunlar.map((o) => (
-            <OyunKarti key={o.id} oyun={o} onYayinlandi={onYayinlandi} onSilindi={(id) => setOyunlar((l) => l?.filter((x) => x.id !== id) ?? null)} onYenile={yukle} />
+            <OyunKarti key={o.id} oyun={o} okulAdi={okulAdi} onYayinlandi={onYayinlandi} onSilindi={(id) => setOyunlar((l) => l?.filter((x) => x.id !== id) ?? null)} onYenile={yukle} />
           ))}
         </ul>
       )}
