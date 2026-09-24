@@ -39,7 +39,7 @@ export async function PUT(req: Request, ctx: Ctx) {
   try {
     const r = await kutuphaneKaydiniGuncelle(getLibraryStore(), sahip, id, body);
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
-    return NextResponse.json({ id: r.id, validation: r.validation });
+    return NextResponse.json({ id: r.id, validation: r.validation, surum: r.surum });
   } catch (err) {
     console.error("[kutuphane] güncelleme hatası", err);
     return NextResponse.json({ error: "Oyun güncellenemedi" }, { status: 503 });

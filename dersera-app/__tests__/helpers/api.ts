@@ -15,6 +15,7 @@ export async function buildApi() {
     libraryItem: typeof import("@/app/api/library/[id]/route");
     libraryPublish: typeof import("@/app/api/library/[id]/publish/route");
     libraryStore: typeof import("@/lib/libraryStore");
+    gamesStore: typeof import("@/lib/gamesStore");
     libraryService: typeof import("@/lib/libraryService");
     libraryTasi: typeof import("@/app/api/library/tasi/route");
     kayit: typeof import("@/app/api/auth/kayit/route");
@@ -46,6 +47,7 @@ export async function buildApi() {
       libraryItem: await import("@/app/api/library/[id]/route"),
       libraryPublish: await import("@/app/api/library/[id]/publish/route"),
       libraryStore: await import("@/lib/libraryStore"),
+      gamesStore: await import("@/lib/gamesStore"),
       libraryService: await import("@/lib/libraryService"),
       libraryTasi: await import("@/app/api/library/tasi/route"),
       kayit: await import("@/app/api/auth/kayit/route"),

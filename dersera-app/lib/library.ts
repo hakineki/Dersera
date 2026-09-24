@@ -28,6 +28,20 @@ export interface KutuphaneOzeti {
   createdAt: number;
   sonKod: string | null;
   sonYayin: number | null;
+  // Sürümleme (bu alanlardan önce kaydedilen oyunlarda yoktur: soy = kendi kimliği, sürüm = 1).
+  soy_id?: string;
+  surum?: number;
+  // Varyantın türetildiği oyun.
+  turetildigi?: { id: string; baslik: string } | null;
+}
+
+// Sürüm tabanı: oyunun ilk sürümünün içerik izi (lib/surum.ts). Liste yanıtına girmez.
+export interface KutuphaneTabani {
+  v?: number;
+  giris: string;
+  envanter: string;
+  final: string;
+  duraklar: { i: string; c: string; h: (string | null)[] }[];
 }
 
 // Liste yanıtında her oyunun saha istatistiği, topluluk durumu ve topluluğa gönderilebilirliği de gelir.
@@ -42,6 +56,7 @@ export interface KutuphaneListeOgesi extends KutuphaneOzeti {
 export interface KutuphaneKaydi extends KutuphaneOzeti {
   definition: GameDefinition;
   dersler: DersKonu[];
+  taban?: KutuphaneTabani;
 }
 
 export function kayitOlustur(id: string, definition: GameDefinition, dersler: DersKonu[], kod: string | null, now: number): KutuphaneKaydi {
@@ -66,6 +81,6 @@ export function kayitOlustur(id: string, definition: GameDefinition, dersler: De
 
 export function ozetOf(k: KutuphaneKaydi): KutuphaneOzeti {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { definition, dersler, ...ozet } = k;
+  const { definition, dersler, taban, ...ozet } = k;
   return ozet;
 }

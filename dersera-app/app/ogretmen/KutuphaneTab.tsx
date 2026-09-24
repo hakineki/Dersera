@@ -180,8 +180,9 @@ function OyunKarti({
           </p>
           <p className="text-xs text-gray-500 mt-1">
             {tarih(oyun.createdAt)} · {oyun.durakSayisi} durak · {oyun.sure_dk} dk ·{" "}
-            {DENEYIM_SECENEKLERI.find((d) => d.key === oyun.deneyim)?.ad}
+            {DENEYIM_SECENEKLERI.find((d) => d.key === oyun.deneyim)?.ad} · Sürüm {oyun.surum ?? 1}
           </p>
+          {oyun.turetildigi && <p className="text-xs text-indigo-700 mt-0.5">“{oyun.turetildigi.baslik}” oyunundan türetilmiş varyant</p>}
           <p className="text-xs text-gray-600 mt-1">
             <span aria-hidden="true">👥 </span>
             {oyun.ogrenci_sayisi} öğrenci ·{" "}
