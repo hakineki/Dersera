@@ -206,6 +206,23 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     expect((await kartOf(id)).topluluk).toMatchObject({ durum: "geri-cekildi" });
   });
 
+  it("eşzamanlı iki son kabul oyu tek geçiş yapar; ödül bir kez verilir", async () => {
+    const id = await kaydet(oyun("Çift Oy"));
+    await esikGec(id);
+    await paylas(id);
+    const [i1, i2, i3] = [await eskiHesap("inceleyen1"), await eskiHesap("inceleyen2"), await eskiHesap("inceleyen3")];
+    const tid = await bekleyenId(i1);
+    await incele(tid, i1, "kabul");
+    const yanitlar = await Promise.all([incele(tid, i2, "kabul"), incele(tid, i3, "kabul")]);
+    // Geç kalan oy ya aynı sonucu görür (200) ya da kayıt artık incelemede olmadığı için 404 alır; yayına bir kez girer.
+    const govdeler = await Promise.all(yanitlar.map((r) => r.json()));
+    expect(yanitlar.filter((r, i) => r.status === 200 && govdeler[i].durum === "yayinda").length).toBeGreaterThanOrEqual(1);
+    expect(yanitlar.every((r) => r.status === 200 || r.status === 404)).toBe(true);
+    const kredi = await (await api.kredi.GET(cerezli(new Request("http://localhost/api/kredi"), sahip))).json();
+    expect(kredi.kazanilan).toBe(5);
+    expect(kredi.hareketler.filter((h: { tur: string }) => h.tur === "odul")).toHaveLength(1);
+  });
+
   it("aynı anda iki gönderim günlük sınırı delemez", async () => {
     const a = await kaydet(oyun("Eş A"));
     const b = await kaydet(oyun("Eş B"));
@@ -281,6 +298,8 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     // Önceden onaylanmış aynı içerik: yeniden paylaşımda doğrudan yayına döner (günlük sınıra sayılmaz).
     expect(await (await paylas(id)).json()).toEqual({ durum: "yayinda" });
     expect((await liste()).map((o) => o.baslik)).toEqual(["Çekilecek"]);
+    // Yeniden paylaşım incelemesiz döndüğü için ikinci ödül verilmez.
+    expect((await (await api.kredi.GET(cerezli(new Request("http://localhost/api/kredi"), sahip))).json()).kazanilan).toBe(5);
 
     await guncelle(id, oyun("Çekilecek v2"));
     yarin();

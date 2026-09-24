@@ -5,7 +5,7 @@ import { checkComposeLimit, clientIp, LimiterUnavailableError } from "@/lib/comp
 import { composeAndValidate } from "@/lib/composer/service";
 import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { olusturmaMaliyeti } from "@/lib/kredi";
-import { krediDurumu, krediHarca, krediIade, type Harcama } from "@/lib/krediService";
+import { krediDurumu, krediHarca, krediIade, krediTamamla, type Harcama } from "@/lib/krediService";
 
 // Üretim (iskelet + paralel görevler) 190 sn, düzeltmeyle birlikte en çok ~245 sn; platform sınırı bunun üstünde kalmalı.
 export const maxDuration = 280; // Vercel Fluid (Hobby) üst sınırı 300 sn
@@ -57,6 +57,7 @@ export async function POST(req: Request) {
 
   try {
     const { definition, validation } = await composeAndValidate(parsed.input);
+    await krediTamamla(hesap.id, harcama);
     return NextResponse.json({
       kredi: await krediDurumu(hesap.id).catch(() => null),
       definition,
@@ -66,22 +67,21 @@ export async function POST(req: Request) {
       hedefDersleri: parsed.input.hedefDersleri,
     });
   } catch (err) {
-    try {
-      await krediIade(hesap.id, harcama, "Oyun oluşturulamadı: kredi iadesi");
-    } catch (iadeHatasi) {
-      console.error("[compose] kredi iade edilemedi", iadeHatasi instanceof Error ? iadeHatasi.message : iadeHatasi);
-    }
+    // İade yazılamazsa harcama askıda kalır ve birkaç dakika içinde kendiliğinden iade edilir; öğretmene söylenir.
+    const iadeEdildi = await krediIade(hesap.id, harcama, "Oyun oluşturulamadı: kredi iadesi");
+    const ek = iadeEdildi ? {} : { krediNotu: "Kredin birkaç dakika içinde otomatik olarak iade edilecek." };
+    const hata = (mesaj: string) => (iadeEdildi ? mesaj : `${mesaj} ${ek.krediNotu}`);
     if (err instanceof ComposeError) {
       console.error(`[compose] ${err.reason}: ${err.message}`);
       if (err.reason === "config") {
-        return NextResponse.json({ error: "Oyun oluşturucu yapılandırılmamış. Yöneticinize bildirin." }, { status: 503 });
+        return NextResponse.json({ error: hata("Oyun oluşturucu yapılandırılmamış. Yöneticinize bildirin."), ...ek }, { status: 503 });
       }
       if (err.reason === "timeout") {
-        return NextResponse.json({ error: GENEL_HATA, timeout: true }, { status: 504 });
+        return NextResponse.json({ error: hata(GENEL_HATA), timeout: true, ...ek }, { status: 504 });
       }
     } else {
       console.error("[compose] beklenmeyen hata", err instanceof Error ? err.message : err);
     }
-    return NextResponse.json({ error: GENEL_HATA }, { status: 502 });
+    return NextResponse.json({ error: hata(GENEL_HATA), ...ek }, { status: 502 });
   }
 }
