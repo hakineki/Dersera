@@ -6,6 +6,8 @@ import { createMemoryIstatistikStore, createRedisIstatistikStore, type Istatisti
 import { createMemoryKrediStore, createRedisKrediStore, type KrediStore } from "@/lib/krediStore";
 import { kayitOlustur } from "@/lib/library";
 import { createMemoryLibraryStore, createRedisLibraryStore, type LibraryStore } from "@/lib/libraryStore";
+import { createMemoryModerasyonStore, createRedisModerasyonStore, type ModerasyonStore } from "@/lib/moderasyonStore";
+import { createMemoryYoneticiStore, createRedisYoneticiStore, type YoneticiStore } from "@/lib/yonetici";
 import { createRedisCommand, type RedisCommand } from "@/lib/redis";
 import { icerikOzetiOf, yeniToplulukKaydi } from "@/lib/toplulukService";
 import { createMemoryToplulukStore, createRedisToplulukStore, type ToplulukStore } from "@/lib/toplulukStore";
@@ -32,6 +34,8 @@ interface Depolar {
   istatistik: IstatistikStore;
   limiter: Limiter;
   yz: YzDenetimStore;
+  moderasyon: ModerasyonStore;
+  yonetici: YoneticiStore;
 }
 
 // Yazılan her "dersera:" anahtarını kaydeden komut: temizlik yalnız bunları siler.
@@ -54,6 +58,8 @@ const uygulamalar: [string, () => Depolar][] = [
       istatistik: createMemoryIstatistikStore(),
       limiter: createMemoryLimiter(),
       yz: createMemoryYzDenetimStore(),
+      moderasyon: createMemoryModerasyonStore(),
+      yonetici: createMemoryYoneticiStore(),
     }),
   ],
 ];
@@ -72,6 +78,8 @@ if (REDIS_ISTENDI) {
       istatistik: createRedisIstatistikStore(c),
       limiter: createRedisLimiter(c),
       yz: createRedisYzDenetimStore(c),
+      moderasyon: createRedisModerasyonStore(c),
+      yonetici: createRedisYoneticiStore(c),
     }),
   ]);
 }
@@ -218,6 +226,27 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     await d.istatistik.katilimKaydet(kod, "o1", 100, SAAT);
     await d.istatistik.katilimKaydet(kod, "o1", 200, SAAT);
     expect(await d.istatistik.katilimZamani(kod, "o1")).toBe(100);
+  });
+
+  it("moderasyon: tekil ekleme, liste sırası, tek karar; yönetici adı ilk kimliğe bağlanır", async () => {
+    const kayit = (id: string, tarih: number) => ({ id, tur: "engellenen" as const, tarih, karar: "BLOCK" as const, baslik: `B ${id}`, sinif: 10, ders: "Fizik", sahip: null, bulgular: [], durum: "bekliyor" as const });
+    const a = `00000000-0000-0000-0000-${run}0001`;
+    const b = `00000000-0000-0000-0000-${run}0002`;
+    expect(await d.moderasyon.ekle(kayit(a, 1_000), `t-${run}-a`)).toBe(true);
+    expect(await d.moderasyon.ekle(kayit(`x-${run}`, 1_500), `t-${run}-a`)).toBe(false);
+    expect(await d.moderasyon.ekle(kayit(b, 2_000), `t-${run}-b`)).toBe(true);
+    const bekleyen = (await d.moderasyon.liste("bekliyor", 1_000)).filter((k) => k.id === a || k.id === b).map((k) => k.id);
+    expect(bekleyen).toEqual([b, a]);
+    const sonuc = { karar: "temiz" as const, not: "", yonetici: "y", tarih: 3_000 };
+    expect(await d.moderasyon.kapat(a, sonuc)).toMatchObject({ id: a, durum: "kapatildi", sonuc });
+    expect(await d.moderasyon.kapat(a, { ...sonuc, karar: "kaldir" })).toBeNull();
+    expect(await d.moderasyon.kapat(`yok-${run}`, sonuc)).toBeNull();
+    expect((await d.moderasyon.get(a))?.sonuc?.karar).toBe("temiz");
+    expect((await d.moderasyon.liste("bekliyor", 1_000)).map((k) => k.id)).not.toContain(a);
+    expect((await d.moderasyon.liste("kapatildi", 1_000)).map((k) => k.id)).toContain(a);
+
+    expect(await d.yonetici.bagla(`ad${run}`, "h1")).toBe("h1");
+    expect(await d.yonetici.bagla(`ad${run}`, "h2")).toBe("h1");
   });
 
   it("oran sınırı sayacı ve yapay zekâ denetim önbelleği", async () => {

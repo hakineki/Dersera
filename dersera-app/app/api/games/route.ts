@@ -12,6 +12,7 @@ import type { DersKonu } from "@/lib/composer/input";
 import { klasikDurakEngelleri, type YonetisimSonucu } from "@/lib/composer/yonetisim";
 import { clientIp } from "@/lib/composer/rateLimit";
 import { yzDenetle } from "@/lib/composer/yzDenetimService";
+import { moderasyonaEkle } from "@/lib/moderasyonService";
 
 // Önbellekte olmayan içerik için yapay zekâ denetimi (en çok ~25 sn) yayından önce yapılır.
 export const maxDuration = 60;
@@ -31,6 +32,10 @@ export async function POST(req: Request) {
     // Uç nokta oturumsuzdur: önbellekte olmayan içeriğin ücretli denetimi IP ve günlük sınırla korunur.
     const composed = await parseComposerPublish(body, (def) => yzDenetle(def, { sinirAnahtari: `ip:${clientIp(req)}` }));
     if (!composed.ok) {
+      // İçerik kapısı engeli yöneticinin kuyruğuna (bilgi); doğrulama hatası (bozuk oyun) girmez.
+      if (composed.yonetisim && composed.definition) {
+        await moderasyonaEkle({ tur: "engellenen", yonetisim: composed.yonetisim, definition: composed.definition, sahip: await istekSahibi(req).catch(() => null), ip: clientIp(req) });
+      }
       return NextResponse.json(
         { error: composed.error, validation: composed.validation, yonetisim: composed.yonetisim, ...(composed.guvenlik && { guvenlik: composed.guvenlik }) },
         { status: composed.status }
@@ -48,7 +53,10 @@ export async function POST(req: Request) {
   // Klasik oyunda da öğrenciye gösterilen serbest metinler yönetişimi atlayamaz.
   if (!request.definition) {
     const engeller = klasikDurakEngelleri(request.stops);
-    if (engeller.length) return NextResponse.json({ error: "Oyun içerik denetiminden geçmedi; yayınlanamaz", bulgular: engeller }, { status: 422 });
+    if (engeller.length) {
+      await moderasyonaEkle({ tur: "engellenen", klasik: { stops: request.stops, bulgular: engeller }, sahip: null, ip: clientIp(req) });
+      return NextResponse.json({ error: "Oyun içerik denetiminden geçmedi; yayınlanamaz", bulgular: engeller }, { status: 422 });
+    }
   }
 
   try {
@@ -62,6 +70,7 @@ export async function POST(req: Request) {
       const kaynak = await kutuphaneKaynagi(body, sahip);
       await kodKaynagaBagla(published.game.code, kaynak, published.game.expiresAt);
       await toplulukKodunuBagla(request.definition, published.game.code, published.game.expiresAt, Date.now(), sahip);
+      if (yonetisim) await moderasyonaEkle({ tur: "sinif-yayini", yonetisim, definition: request.definition, kod: published.game.code, sahip, ip: clientIp(req) });
     }
     return NextResponse.json({ ...published, persistent: store.persistent, ...(yonetisim && { yonetisim }) }, { status: 201 });
   } catch (err) {

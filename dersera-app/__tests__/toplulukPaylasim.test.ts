@@ -287,6 +287,29 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     });
   });
 
+  it("içerik uyarısıyla gönderilen oyun moderasyon kuyruğuna girer; yönetici reddedince incelemeden çıkar", async () => {
+    process.env.DERSERA_YONETICILER = "yonetici1";
+    try {
+      const yonetici = await eskiHesap("yonetici1");
+      const id = await kaydet(oyun("Kumarhane", (d) => (d.duraklar[2].hikaye_metni = "Kumar masasına otur.")));
+      await esikGec(id);
+      expect((await paylas(id)).status).toBe(201);
+      const liste = await (await api.moderasyon.GET(cerezli(new Request("http://localhost/api/moderasyon"), yonetici))).json();
+      expect(liste.kayitlar).toHaveLength(1);
+      const k = liste.kayitlar[0];
+      expect(k).toMatchObject({ tur: "topluluk", sahip: await sahipOf(sahip) });
+      const r = await api.moderasyonOge.POST(cerezli(jsonRequest(`/api/moderasyon/${k.id}`, { karar: "kaldir" }), yonetici), api.idParams(k.id));
+      expect(r.status).toBe(200);
+      const t = await api.toplulukStore.getToplulukStore().get(k.toplulukId);
+      expect(t?.durum).toBe("reddedildi");
+      const i1 = await eskiHesap("inceleyen1");
+      expect((await kuyruk(i1)).oyunlar).toEqual([]);
+      expect((await kartOf(id)).topluluk).toMatchObject({ durum: "reddedildi" });
+    } finally {
+      delete process.env.DERSERA_YONETICILER;
+    }
+  });
+
   it("içerik denetiminden geçmeyen oyun gönderilemez", async () => {
     const id = await kaydet(oyun("Kaba", (d) => (d.duraklar[2].hikaye_metni = "Siktir git.")));
     await esikGec(id);

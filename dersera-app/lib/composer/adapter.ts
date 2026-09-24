@@ -31,7 +31,7 @@ export function definitionToStops(def: GameDefinition): GameStop[] {
 
 export type ComposerPublishResult =
   | { ok: true; request: PublishRequest; dersler: DersKonu[]; yonetisim: YonetisimSonucu; guvenlik: YzDenetim }
-  | { ok: false; status: number; error: string; validation?: ValidationResult; yonetisim?: YonetisimSonucu; guvenlik?: YzDenetim };
+  | { ok: false; status: number; error: string; validation?: ValidationResult; yonetisim?: YonetisimSonucu; guvenlik?: YzDenetim; definition?: GameDefinition };
 
 export const MAX_DEFINITION_BYTES = 64 * 1024;
 
@@ -67,7 +67,7 @@ export async function parseComposerPublish(body: unknown, denetle: (def: GameDef
   const guvenlik = await denetle(definition);
   const yonetisim = yonetisimDegerlendir(definition, validation, guvenlik);
   if (yonetisim.karar === "BLOCK") {
-    return { ok: false, status: 422, error: "Oyun içerik denetiminden geçmedi; yayınlanamaz", validation, yonetisim, guvenlik };
+    return { ok: false, status: 422, error: "Oyun içerik denetiminden geçmedi; yayınlanamaz", validation, yonetisim, guvenlik, definition };
   }
   return {
     ok: true,

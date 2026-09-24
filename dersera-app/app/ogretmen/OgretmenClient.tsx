@@ -683,6 +683,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   const [hesap, setHesap] = useState<HesapOzeti | null>(null);
   const loggedIn = hesap !== null;
   const [davetGerekli, setDavetGerekli] = useState(false);
+  const [yonetici, setYonetici] = useState(false);
   const [baglantiHatasi, setBaglantiHatasi] = useState(false);
   const [bekleyenOyun, setBekleyenOyun] = useState(0);
   const [tasinanOyun, setTasinanOyun] = useState(0);
@@ -702,6 +703,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
       if (o) {
         setHesap(o.hesap);
         setDavetGerekli(o.davetGerekli);
+        setYonetici(o.yonetici);
       } else setBaglantiHatasi(true);
       setReady(true);
     });
@@ -803,7 +805,16 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   }
 
   if (!hesap) {
-    return <LoginScreen onLogin={setHesap} davetGerekli={davetGerekli} />;
+    return (
+      <LoginScreen
+        onLogin={(h) => {
+          setHesap(h);
+          // Yönetici bilgisi giriş yanıtında yok; oturumdan okunur.
+          oturumBilgisi().then((o) => setYonetici(!!o?.yonetici));
+        }}
+        davetGerekli={davetGerekli}
+      />
+    );
   }
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
@@ -826,6 +837,11 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
             </div>
           </div>
           <div className="flex items-center gap-4">
+            {yonetici && loggedIn && (
+              <Link href="/moderasyon" className="text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+                🛡 Moderasyon
+              </Link>
+            )}
             <Link href="/library" className="text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
               📚 Topluluk
             </Link>
