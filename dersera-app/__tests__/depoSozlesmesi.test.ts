@@ -238,9 +238,16 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     const bekleyen = (await d.moderasyon.liste("bekliyor", 1_000)).filter((k) => k.id === a || k.id === b).map((k) => k.id);
     expect(bekleyen).toEqual([b, a]);
     const sonuc = { karar: "temiz" as const, not: "", yonetici: "y", tarih: 3_000 };
-    expect(await d.moderasyon.kapat(a, sonuc)).toMatchObject({ id: a, durum: "kapatildi", sonuc });
-    expect(await d.moderasyon.kapat(a, { ...sonuc, karar: "kaldir" })).toBeNull();
-    expect(await d.moderasyon.kapat(`yok-${run}`, sonuc)).toBeNull();
+    expect(await d.moderasyon.kilitle(a, sonuc)).toBe(true);
+    expect(await d.moderasyon.kilitle(a, { ...sonuc, karar: "kaldir" })).toBe(false);
+    // Kilit alındı ama tamamlanmadı: kayıt yine kapatılmış (kilitteki sonuçla) okunur.
+    expect(await d.moderasyon.get(a)).toMatchObject({ durum: "kapatildi", sonuc });
+    expect(await d.moderasyon.tamamla(a)).toMatchObject({ id: a, durum: "kapatildi", sonuc });
+    // Bırakılan kilit kaydı yeniden karar bekler hâle getirir.
+    expect(await d.moderasyon.kilitle(b, sonuc)).toBe(true);
+    await d.moderasyon.kilidiBirak(b);
+    expect((await d.moderasyon.get(b))?.durum).toBe("bekliyor");
+    expect(await d.moderasyon.tamamla(b)).toBeNull();
     expect((await d.moderasyon.get(a))?.sonuc?.karar).toBe("temiz");
     expect((await d.moderasyon.liste("bekliyor", 1_000)).map((k) => k.id)).not.toContain(a);
     expect((await d.moderasyon.liste("kapatildi", 1_000)).map((k) => k.id)).toContain(a);

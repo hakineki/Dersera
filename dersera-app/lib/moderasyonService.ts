@@ -45,7 +45,9 @@ export async function moderasyonaEkle(g: ModerasyonGirdisi, store: ModerasyonSto
       kayit = { karar: "BLOCK", baslik: g.klasik.stops[0]?.name ?? "Klasik oyun", sinif: null, ders: "Klasik oyun", bulgular: klasikBulgulari(g.klasik.bulgular) };
     }
     const tekil = g.tur === "sinif-yayini" ? `kod:${g.kod}` : g.tur === "topluluk" ? `topluluk:${g.toplulukId}` : `icerik:${ozet}`;
-    if (g.ip && !(await checkLimit(`moderasyon:ip:${g.ip}`, 60 * 60 * 1000, MODERASYON.ipSaatlik))) return false;
+    // IP sınırı yalnız engellenen denemelere: aynı okul IP'sinden gelen engel denemeleri, gerçekten yayınlanmış
+    // uyarılı oyunun kuyruğa girmesini engelleyemez.
+    if (g.tur === "engellenen" && g.ip && !(await checkLimit(`moderasyon:ip:${g.ip}`, 60 * 60 * 1000, MODERASYON.ipSaatlik))) return false;
     return await store.ekle(
       { id: randomUUID(), tur: g.tur, tarih: now, sahip: g.sahip, durum: "bekliyor", ...(g.kod && { kod: g.kod }), ...(g.toplulukId && { toplulukId: g.toplulukId }), ...kayit },
       `${g.tur}:${tekil}`
@@ -58,8 +60,9 @@ export async function moderasyonaEkle(g: ModerasyonGirdisi, store: ModerasyonSto
 
 type KararSonucu = { ok: true; kayit: ModerasyonKaydi } | { ok: false; status: number; error: string };
 
-// Önce eylem (tekrarlanabilir: oyunu bitirme, topluluktan reddetme), sonra kayıt atomik olarak kapatılır.
-// İki yönetici aynı anda karar verirse eylem yine bir kez etkili olur, ikinci karar 409 alır.
+// Önce karar kilidi (ilk karar kazanır), sonra yalnız kilidi alan eylemi yapar (oyunu bitirme, topluluktan reddetme),
+// en son kayıt kapatılır. Eylem başarısızsa kilit bırakılır ve kayıt yeniden karar bekler. Çelişen eşzamanlı kararlarda
+// (biri kaldır, biri temiz) kayıttaki sonuç ile yapılan eylem her zaman aynıdır.
 export async function moderasyonKarari(
   id: string,
   karar: ModerasyonKarari,
@@ -72,22 +75,30 @@ export async function moderasyonKarari(
   const kayit = await store.get(id);
   if (!kayit) return { ok: false, status: 404, error: "Kayıt bulunamadı." };
   if (kayit.durum !== "bekliyor") return { ok: false, status: 409, error: "Bu kayıt için zaten karar verilmiş." };
-  if (karar === "kaldir") {
-    if (kayit.tur === "engellenen") return { ok: false, status: 422, error: "Engellenen içerik zaten yayında değil." };
-    if (kayit.tur === "sinif-yayini" && kayit.kod) {
-      const oyun = await deps.games.get(kayit.kod);
-      if (oyun && oyun.endedAt === null) await deps.games.put({ ...oyun, endedAt: now }, now);
-    }
-    if (kayit.tur === "topluluk" && kayit.toplulukId) {
-      const t = await deps.topluluk.get(kayit.toplulukId);
-      if (t) {
-        const d = durumOf(t);
-        if (d === "inceleme" || d === "yayinda") await deps.topluluk.durumGecis(t.oyun_id, ["inceleme", "yayinda"], "reddedildi", d);
-        await deps.topluluk.kuyruktanCikar(t.oyun_id);
-      }
+  if (karar === "kaldir" && kayit.tur === "engellenen") return { ok: false, status: 422, error: "Engellenen içerik zaten yayında değil." };
+  const sonuc = { karar, not: not.trim().slice(0, MODERASYON.notEnCok), yonetici, tarih: now };
+  if (!(await store.kilitle(id, sonuc))) return { ok: false, status: 409, error: "Bu kayıt için zaten karar verilmiş." };
+  try {
+    if (karar === "kaldir") await kaldir(kayit, deps, now);
+  } catch (err) {
+    await store.kilidiBirak(id).catch(() => undefined);
+    throw err;
+  }
+  return { ok: true, kayit: (await store.tamamla(id)) ?? { ...kayit, durum: "kapatildi", sonuc } };
+}
+
+// Tekrarlanabilir: bitmiş oyun yeniden bitirilmez, reddedilmiş kayıt yeniden reddedilmez.
+async function kaldir(kayit: ModerasyonKaydi, deps: { games: GamesStore; topluluk: ToplulukStore }, now: number) {
+  if (kayit.tur === "sinif-yayini" && kayit.kod) {
+    const oyun = await deps.games.get(kayit.kod);
+    if (oyun && oyun.endedAt === null) await deps.games.put({ ...oyun, endedAt: now }, now);
+  }
+  if (kayit.tur === "topluluk" && kayit.toplulukId) {
+    const t = await deps.topluluk.get(kayit.toplulukId);
+    if (t) {
+      const d = durumOf(t);
+      if (d === "inceleme" || d === "yayinda") await deps.topluluk.durumGecis(t.oyun_id, ["inceleme", "yayinda"], "reddedildi", d);
+      await deps.topluluk.kuyruktanCikar(t.oyun_id);
     }
   }
-  const kapali = await store.kapat(id, { karar, not: not.trim().slice(0, MODERASYON.notEnCok), yonetici, tarih: now });
-  if (!kapali) return { ok: false, status: 409, error: "Bu kayıt için zaten karar verilmiş." };
-  return { ok: true, kayit: kapali };
 }

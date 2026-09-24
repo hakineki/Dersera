@@ -165,3 +165,94 @@ describe("yayın kancaları ve yönetici uç noktaları", () => {
     expect(k).toMatchObject({ tur: "sinif-yayini", kod: (await res.json()).game.code });
   });
 });
+
+describe("karar tutarlılığı ve kuyruk sınırı (inceleme bulguları)", () => {
+  const girdiOf = (i: number) => {
+    const d = oyun((z) => (z.duraklar[2].hikaye_metni = `Kumar masasına otur ${i}.`));
+    return { tur: "sinif-yayini" as const, yonetisim: degerlendir(d), definition: d, kod: `K${i}`, sahip: null };
+  };
+  const oyunlar = () => {
+    const bitenler: string[] = [];
+    const games = {
+      get: async (kod: string) => ({ code: kod, endedAt: null }),
+      put: async (g: { code: string }) => void bitenler.push(g.code),
+    } as never;
+    return { games, bitenler, topluluk: {} as never };
+  };
+
+  it("çelişen eşzamanlı kararlar (kaldır + temiz): yalnız biri kazanır, kayıttaki sonuç ile yapılan eylem aynı", async () => {
+    const { moderasyonKarari } = await import("@/lib/moderasyonService");
+    for (let tur = 0; tur < 20; tur++) {
+      const store = createMemoryModerasyonStore();
+      await moderasyonaEkle(girdiOf(tur), store);
+      const [k] = await store.liste("bekliyor", 10);
+      const { games, bitenler, topluluk } = oyunlar();
+      const sonuclar = await Promise.all(
+        (tur % 2 ? (["kaldir", "temiz"] as const) : (["temiz", "kaldir"] as const)).map((karar) => moderasyonKarari(k.id, karar, "", "y", { store, games, topluluk }))
+      );
+      expect(sonuclar.filter((r) => r.ok)).toHaveLength(1);
+      const son = await store.get(k.id);
+      expect(son?.durum).toBe("kapatildi");
+      expect(bitenler.length).toBe(son?.sonuc?.karar === "kaldir" ? 1 : 0);
+    }
+  });
+
+  it("eylem başarısızsa kilit bırakılır; kayıt yeniden karar bekler ve tekrar denenebilir", async () => {
+    const { moderasyonKarari } = await import("@/lib/moderasyonService");
+    const store = createMemoryModerasyonStore();
+    await moderasyonaEkle(girdiOf(1), store);
+    const [k] = await store.liste("bekliyor", 10);
+    const bozuk = { get: async () => ({ code: "K1", endedAt: null }), put: async () => Promise.reject(new Error("redis")) } as never;
+    await expect(moderasyonKarari(k.id, "kaldir", "", "y", { store, games: bozuk, topluluk: {} as never })).rejects.toThrow("redis");
+    expect((await store.get(k.id))?.durum).toBe("bekliyor");
+    const { games, bitenler } = oyunlar();
+    expect((await moderasyonKarari(k.id, "kaldir", "", "y", { store, games, topluluk: {} as never })).ok).toBe(true);
+    expect(bitenler).toEqual(["K1"]);
+  });
+
+  it("sınırdan düşen kaydın tekilliği bırakılır: aynı oyun yeniden kuyruğa girebilir", async () => {
+    const { MODERASYON } = await import("@/lib/moderasyon");
+    const store = createMemoryModerasyonStore();
+    for (let i = 0; i <= MODERASYON.enCokKayit; i++) await moderasyonaEkle({ ...girdiOf(i), now: i + 1 }, store);
+    expect((await store.liste("bekliyor", 1_000)).length).toBe(MODERASYON.enCokKayit);
+    // En eski (K0) düştü; aynı kod yeniden gelirse kuyruğa girer.
+    expect(await moderasyonaEkle({ ...girdiOf(0), now: 10_000 }, store)).toBe(true);
+  });
+
+  it("IP sınırı yalnız engellenen kayıtlara: aynı IP'den uyarılı yayınlar sınırsız kuyruğa girer", async () => {
+    const store = createMemoryModerasyonStore();
+    let yazilan = 0;
+    for (let i = 0; i < 25; i++) if (await moderasyonaEkle({ ...girdiOf(i), ip: "7.7.7.7" }, store)) yazilan++;
+    expect(yazilan).toBe(25);
+  });
+});
+
+describe("Redis moderasyon deposu: yarım yazımlar", () => {
+  it("kilit varsa kayıt kapatılmış okunur; tekillik alınamazsa kayıt geri alınır; düşen kaydın tekilliği silinir", async () => {
+    const { createRedisModerasyonStore } = await import("@/lib/moderasyonStore");
+    const { recordingCommand } = await import("./helpers/fakeRedis");
+    const kayit = { id: "i1", tur: "engellenen", tarih: 1, karar: "BLOCK", baslik: "B", sinif: 10, ders: "Fizik", sahip: null, bulgular: [], durum: "bekliyor", tekil: "engellenen:x" };
+    const sonuc = { karar: "temiz", not: "", yonetici: "y", tarih: 2 };
+    let tekilVar = false;
+    const { command, calls } = recordingCommand((a) => {
+      if (a[0] === "MGET") return a[1].includes(":karar:") ? [JSON.stringify(sonuc)] : [JSON.stringify(kayit)];
+      if (a[0] === "SET" && a[1].includes(":tekil:")) return tekilVar ? null : "OK";
+      if (a[0] === "ZRANGE") return ["eski1"];
+      return "OK";
+    });
+    const store = createRedisModerasyonStore(command);
+    const okunan = await store.get("i1");
+    expect(okunan).toMatchObject({ durum: "kapatildi", sonuc });
+    expect(okunan && "tekil" in okunan).toBe(false);
+
+    tekilVar = true;
+    expect(await store.ekle({ ...kayit, id: "i2" } as never, "engellenen:x")).toBe(false);
+    expect(calls.at(-1)).toEqual(["DEL", "dersera:moderasyon:kayit:i2"]);
+
+    tekilVar = false;
+    calls.length = 0;
+    expect(await store.ekle({ ...kayit, id: "i3" } as never, "engellenen:y")).toBe(true);
+    expect(calls).toContainEqual(["ZREM", "dersera:moderasyon:bekleyen", "eski1"]);
+    expect(calls).toContainEqual(["DEL", "dersera:moderasyon:kayit:eski1", "dersera:moderasyon:tekil:engellenen:x"]);
+  });
+});
