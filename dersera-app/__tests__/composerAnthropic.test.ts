@@ -3,9 +3,9 @@ import { buildRecipe } from "@/lib/composer/recipe";
 import { composeAndValidate, IZINLI_QR_IDLERI, validationContext } from "@/lib/composer/service";
 import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
 import { validateGame } from "@/lib/composer/validator";
-import { fakeClient, makeDefinition, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
+import { fakeClient, makeDefinition, promptOf, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { hedefKodu, ModelOutputSchema, toDefinition } from "@/lib/composer/modelOutput";
+import { DuzeltmeSchema, GorevDoldurmaSchema, hedefKodu, IskeletSchema, ModelOutputSchema, toDefinition } from "@/lib/composer/modelOutput";
 
 const input = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const recipe = buildRecipe(40, "dengeli", "sinif");
@@ -47,10 +47,11 @@ describe("composeGame", () => {
     expect(calls[0].body.model).toBe("claude-opus-5");
   });
 
-  it("240 sn sınırını, yeniden denemesiz ve iptal sinyaliyle uygular", async () => {
+  it("iskelete 100 sn, görevlere kalan süreyi; yeniden denemesiz ve iptal sinyaliyle uygular", async () => {
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(input)));
     await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
-    expect(calls[0].options).toMatchObject({ timeout: 240_000, maxRetries: 0 });
+    expect(calls[0].options).toMatchObject({ timeout: 100_000, maxRetries: 0 });
+    expect(calls.slice(1).every((c) => (c.options.timeout as number) <= 190_000 && c.options.maxRetries === 0)).toBe(true);
     expect(calls[0].options.signal).toBeInstanceOf(AbortSignal);
   });
 
@@ -66,6 +67,14 @@ describe("composeGame", () => {
     expect(aborted).toBe(true);
   });
 
+  it("önbellek kullanılmaz; her aşamada ortak kısım aynıdır ve aşama metni ondan sonra gelir", async () => {
+    const { client, calls } = fakeClient(toModelOutput(makeDefinition(input)));
+    await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
+    expect(JSON.stringify(calls.map((c) => c.body))).not.toContain("cache_control");
+    const ortaklar = calls.map((c) => promptOf(c.body).split(/\n\n(?=İSKELET AŞAMASI|GÖREV DOLDURMA AŞAMASI)/)[0]);
+    expect(new Set(ortaklar).size).toBe(1);
+  });
+
   it("API anahtarı yoksa yapılandırma hatası verir", async () => {
     delete process.env.ANTHROPIC_API_KEY;
     await expect(composeGame(input, recipe, IZINLI_QR_IDLERI)).rejects.toBeInstanceOf(ComposeError);
@@ -75,15 +84,15 @@ describe("composeGame", () => {
   it("prompt yalnız müfredat ve seçimleri içerir; kişisel veri alanı yok", async () => {
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(input)));
     await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
-    const user = (calls[0].body.messages as { content: string }[])[0].content;
+    const user = promptOf(calls[0].body);
     expect(calls[0].body.system).toBe(SYSTEM_PROMPT);
     for (const o of input.ogrenmeCiktilari) expect(user).toContain(o.kod);
     expect(user).toContain(input.dersler[0].unite.ad);
     expect(user).not.toMatch(/takma ad|e-?posta|telefon|nickname/i);
     expect(user).not.toContain("qr-1");
     expect(user).toMatch(/Metinleri kısa tut/);
-    // 40 dk = 8 durak: 6000 + 8 × 3200
-    expect(calls[0].body.max_tokens).toBe(31600);
+    // İskelet: 3000 + 8 durak × 900
+    expect(calls[0].body.max_tokens).toBe(10_200);
     expect(calls[0].body).not.toHaveProperty("thinking");
   });
 
@@ -91,7 +100,7 @@ describe("composeGame", () => {
     const okul = resolvedInput({ sinif: 11, ders: "matematik", sure: 60, deneyim: "macera", alan: "okul" });
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(okul)));
     await composeGame(okul, buildRecipe(60, "macera", "okul"), IZINLI_QR_IDLERI, client);
-    const user = (calls[0].body.messages as { content: string }[])[0].content;
+    const user = promptOf(calls[0].body);
     expect(user).toContain("qr-1, qr-2");
     expect(user).toContain("qr-20");
     expect(user).not.toContain("qr-21");
@@ -100,8 +109,14 @@ describe("composeGame", () => {
 
 // Anthropic yapılandırılmış çıktı şemasını dilbilgisine derler; iç içe nesne, anyOf ve enum dilbilgisini büyütür.
 // Canlıda "The compiled grammar is too large" hatası alındıktan sonra şema düzleştirildi; bu test yeniden büyümesini engeller.
-describe("model çıktı şeması karmaşıklığı", () => {
-  const schema = (zodOutputFormat(ModelOutputSchema) as unknown as { schema: Record<string, unknown> }).schema;
+// API'ye giden her şema (iskelet, görev doldurma, düzeltme) için geçerlidir.
+describe.each([
+  ["iskelet", IskeletSchema],
+  ["görev doldurma", GorevDoldurmaSchema],
+  ["düzeltme", DuzeltmeSchema],
+  ["tam oyun", ModelOutputSchema],
+])("model çıktı şeması karmaşıklığı: %s", (_ad, zs) => {
+  const schema = (zodOutputFormat(zs) as unknown as { schema: Record<string, unknown> }).schema;
   const nodes: Record<string, unknown>[] = [];
   const walk = (n: unknown) => {
     if (n && typeof n === "object") {
@@ -168,7 +183,7 @@ describe("çok dersli oyun prompt'u", () => {
     const coklu = resolvedInput({ sinif: 10, ders: ["fizik", "matematik"], sure: 40, deneyim: "dengeli", alan: "sinif" });
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(coklu)));
     await composeGame(coklu, recipe, IZINLI_QR_IDLERI, client);
-    const user = (calls[0].body.messages as { content: string }[])[0].content;
+    const user = promptOf(calls[0].body);
     expect(user).toContain("Ders: Fizik");
     expect(user).toContain("Ders: Matematik");
     for (const k of coklu.dersler) expect(user).toContain(k.unite.ad);
@@ -179,7 +194,7 @@ describe("çok dersli oyun prompt'u", () => {
   it("tek derste disiplinler arası kuralı eklemez", async () => {
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(input)));
     await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
-    expect((calls[0].body.messages as { content: string }[])[0].content).not.toMatch(/disiplinler arası/);
+    expect(promptOf(calls[0].body)).not.toMatch(/disiplinler arası/);
   });
 });
 

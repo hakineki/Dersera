@@ -55,6 +55,50 @@ export const ModelOutputSchema = z.object({
 export type ModelOutput = z.infer<typeof ModelOutputSchema>;
 export type DurakCiktisi = z.infer<typeof DurakCiktisiSchema>;
 
+// Parçalı üretim — iskelet: görev içeriği yok, yerine tek cümlelik görev özeti var.
+export const IskeletDurakSchema = z.object({
+  id: z.string(),
+  isim: z.string(),
+  sahne_turu: z.string(),
+  hikaye_metni: z.string(),
+  qr_durak_id: z.string(),
+  sonraki_durak_tarifi: z.string(),
+  gorev_turu: z.string(),
+  ogrenme_hedefi: z.string(),
+  gorev_ozeti: z.string(),
+  odul_id: z.string(),
+  secimler: z.array(secim),
+  varsayilan_sonraki_durak_id: z.string(),
+});
+
+export const IskeletSchema = z.object({
+  baslik: z.string(),
+  hikaye_giris: z.string(),
+  oyun_amaci: z.string(),
+  ogrenme_hedefleri: z.array(z.string()),
+  envanter: ModelOutputSchema.shape.envanter,
+  final: ModelOutputSchema.shape.final,
+  duraklar: z.array(IskeletDurakSchema),
+});
+export type Iskelet = z.infer<typeof IskeletSchema>;
+
+// Parçalı üretim — görev doldurma: bir grup durağın görev içeriği.
+export const GorevIcerigiSchema = z.object({
+  id: z.string(),
+  gorev_turu: z.string(),
+  soru: z.string(),
+  secenekler: z.array(z.string()),
+  dogru_cevap: z.string(),
+  ipucu_1: z.string(),
+  ipucu_2: z.string(),
+  destek_soru: z.string(),
+  destek_secenekler: z.array(z.string()),
+  destek_dogru_cevap: z.string(),
+  destek_aciklama: z.string(),
+});
+export type GorevIcerigi = z.infer<typeof GorevIcerigiSchema>;
+export const GorevDoldurmaSchema = z.object({ duraklar: z.array(GorevIcerigiSchema) });
+
 // Hatalı durakların yeniden yazımı için ikinci, küçük çağrının yanıtı.
 export const DuzeltmeSchema = z.object({ duraklar: z.array(DurakCiktisiSchema) });
 export type Duzeltme = z.infer<typeof DuzeltmeSchema>;
@@ -71,7 +115,6 @@ export function parseJsonText<S extends z.ZodType>(text: string, schema: S): { o
   return parsed.success ? { ok: true, output: parsed.data } : { ok: false, error: "Çıktı şemaya uymadı" };
 }
 
-export const parseModelText = (text: string) => parseJsonText(text, ModelOutputSchema);
 
 const orNull = (s: string) => (s.trim() ? s.trim() : null);
 // Model kodun yanına açıklamayı da yazabiliyor ("FEL.10.1.1: Felsefenin ..."); yalnız kod tutulur.

@@ -1,25 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
-import { ModelOutputSchema, parseJsonText, type ModelOutput } from "@/lib/composer/modelOutput";
+import { ComposeError } from "@/lib/composer/errors";
+import { parseJsonText, type ModelOutput } from "@/lib/composer/modelOutput";
+import { parcaliUret } from "@/lib/composer/parcali";
 import type { ResolvedInput } from "@/lib/composer/input";
-import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
-import { oyunTokenSiniri, type Recipe } from "@/lib/composer/recipe";
+import { SYSTEM_PROMPT, type PromptParcalari } from "@/lib/composer/prompt";
+import type { Recipe } from "@/lib/composer/recipe";
 
 export const DEFAULT_MODEL = "claude-sonnet-4-6";
-export const COMPOSE_TIMEOUT_MS = 240_000; // ilk üretim çağrısının üst sınırı; düzeltme çağrısı toplam bütçeden kalanla yapılır (service.ts)
-// Tam oyun 1,5–3 dakikada üretilir; çıktı kısa tutulur ve maliyet üst sınırı konur.
+// Parçalı üretimin (iskelet + paralel görevler) toplam üst sınırı; düzeltme çağrısı kalan süreyle yapılır (service.ts).
+export const COMPOSE_TIMEOUT_MS = 190_000;
 
-export type ComposeFailure = "config" | "timeout" | "upstream" | "invalid-output";
-
-export class ComposeError extends Error {
-  constructor(
-    public readonly reason: ComposeFailure,
-    message: string
-  ) {
-    super(message);
-  }
-}
+export { ComposeError, type ComposeFailure } from "@/lib/composer/errors";
 
 // Sadece test için enjekte edilebilir; üretimde env'den kurulur.
 export interface ComposeClient {
@@ -42,16 +35,16 @@ export async function composeGame(
   input: ResolvedInput,
   recipe: Recipe,
   izinliQrIdleri: string[],
-  client: ComposeClient = clientFromEnv(),
+  client?: ComposeClient,
   timeoutMs = COMPOSE_TIMEOUT_MS
 ): Promise<ModelOutput> {
-  return yapilandirilmisIstek(ModelOutputSchema, buildUserPrompt(input, recipe, izinliQrIdleri), oyunTokenSiniri(recipe), client, timeoutMs);
+  return parcaliUret(input, recipe, izinliQrIdleri, (schema, _ad, prompt, maxTokens, t) => yapilandirilmisIstek(schema, prompt, maxTokens, client, t), timeoutMs);
 }
 
-// Sistem prompt'u + tek kullanıcı mesajı → şemaya uyan JSON. Oyun üretimi ve durak düzeltmesi bunu kullanır.
+// Sistem prompt'u + tek kullanıcı mesajı → şemaya uyan JSON. İskelet, görev doldurma ve durak düzeltmesi bunu kullanır.
 export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>(
   schema: S,
-  user: string,
+  prompt: PromptParcalari,
   maxTokens: number,
   client: ComposeClient = clientFromEnv(),
   timeoutMs = COMPOSE_TIMEOUT_MS
@@ -65,14 +58,15 @@ export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>
         model: modelFromEnv(),
         max_tokens: maxTokens,
         system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: user }],
+        // Prompt önbelleği kullanılmaz: çıktı şeması aşamaya göre değiştiği için ön ek eşleşmez, yazma ücreti boşa gider.
+        messages: [{ role: "user", content: `${prompt.ortak}\n\n${prompt.asama}` }],
         output_config: { format: zodOutputFormat(schema) },
       },
       { signal: controller.signal, timeout: timeoutMs, maxRetries: 0 }
     );
     console.info(`[compose] model=${response.model} stop=${response.stop_reason} output_tokens=${response.usage?.output_tokens}`);
     if (response.stop_reason === "refusal") throw new ComposeError("invalid-output", "Model isteği reddetti");
-    if (response.stop_reason === "max_tokens") throw new ComposeError("invalid-output", `Çıktı max_tokens (${maxTokens}) sınırında kesildi`);
+    if (response.stop_reason === "max_tokens") throw new ComposeError("invalid-output", `Çıktı max_tokens (${maxTokens}) sınırında kesildi`, true);
     const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
     const parsed = parseJsonText(text, schema);
     if (!parsed.ok) throw new ComposeError("invalid-output", `${parsed.error} (stop=${response.stop_reason})`);
@@ -80,7 +74,7 @@ export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>
   } catch (err) {
     if (err instanceof ComposeError) throw err;
     if (controller.signal.aborted || err instanceof Anthropic.APIConnectionTimeoutError || err instanceof Anthropic.APIUserAbortError) {
-      throw new ComposeError("timeout", `Oyun oluşturma ${timeoutMs / 1000} saniyede tamamlanmadı`);
+      throw new ComposeError("timeout", `Oyun oluşturma ${Math.round(timeoutMs / 1000)} saniyede tamamlanmadı`);
     }
     if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
       throw new ComposeError("config", `Anthropic kimlik doğrulaması başarısız (${err.status})`);

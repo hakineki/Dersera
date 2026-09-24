@@ -1,7 +1,7 @@
 import { PROGRAM_DERS_ADI } from "@/data/mufredat/programlar";
 import type { ResolvedInput } from "@/lib/composer/input";
 import type { Recipe } from "@/lib/composer/recipe";
-import type { DurakCiktisi } from "@/lib/composer/modelOutput";
+import type { DurakCiktisi, Iskelet } from "@/lib/composer/modelOutput";
 
 export const SYSTEM_PROMPT = `Dersera için eğitim oyunu tasarlarsın. Tüm metinler Türkçe.
 - Verilen sınıf, ders, konu ve öğrenme çıktılarının dışına çıkma; yalnız gönderilen müfredat verisini kullan, kod uydurma.
@@ -76,11 +76,16 @@ Metinleri kısa tut (oyun hızlı üretilmeli): hikaye_metni en fazla 2 cümle; 
 Görev türlerini konuya uygun biçimde çeşitlendir. Durak id'leri d1, d2, ...; nesne id'leri n1, n2, ... biçiminde olsun. İlk durak başlangıçtır.`;
 }
 
-// Doğrulamadan geçmeyen durakları, aynı bağlamla ve hata listesiyle yeniden yazdırır (küçük ikinci çağrı).
-export function buildDuzeltmePrompt(anaPrompt: string, duraklar: DurakCiktisi[], hatalar: string[]): string {
-  return `${anaPrompt}
+// Parçalı çağrılarda prompt iki parçadır: tüm aşamalarda aynı olan ortak kısım (müfredat, seçimler, kurallar)
+// ve aşamaya özgü kısım. Sağlayıcıya birleştirilerek gönderilir.
+export interface PromptParcalari {
+  ortak: string;
+  asama: string;
+}
 
-Bu oyun üretildi ama aşağıdaki duraklar doğrulamadan geçmedi:
+// Doğrulamadan geçmeyen durakları, aynı bağlamla ve hata listesiyle yeniden yazdırır (küçük ikinci çağrı).
+export function buildDuzeltmePrompt(duraklar: DurakCiktisi[], hatalar: string[]): string {
+  return `Bu oyun üretildi ama aşağıdaki duraklar doğrulamadan geçmedi:
 ${hatalar.map((h) => `- ${h}`).join("\n")}
 
 Yalnız bu durakları hataları gidererek yeniden yaz ve duraklar dizisinde döndür. Yukarıdaki alan kurallarına birebir uy.
@@ -88,4 +93,24 @@ Tüm oyunu DEĞİL, yalnız bu durakları yaz. id, sahne_turu, secimler, varsayi
 
 Düzeltilecek duraklar (JSON):
 ${JSON.stringify(duraklar)}`;
+}
+
+// Parçalı üretim, 1. adım: oyunun iskeleti. Görev içerikleri sonraki adımda paralel yazılır.
+export const ISKELET_ISARETI = "İSKELET AŞAMASI";
+export function buildIskeletPrompt(): string {
+  return `${ISKELET_ISARETI}: Bu adımda oyunun yalnız iskeletini yaz: başlık, giriş, amaç, öğrenme hedefleri, envanter, final ve durakların rotası.
+Her durak için sahne_turu, hikaye_metni, gorev_turu, ogrenme_hedefi, odul_id, secimler, varsayilan_sonraki_durak_id ve (okulda) qr_durak_id alanlarını doldur.
+Durakların soru, seçenek, cevap, ipucu ve destek içeriğini bu adımda YAZMA; onun yerine gorev_ozeti alanına görevin öğrenciye ne yaptıracağını tek cümleyle yaz.
+Görev türünü içeriğe göre seç: eşleştirme ancak en az 3 anlamlı çift çıkıyorsa.`;
+}
+
+// Parçalı üretim, 2. adım: iskeletteki bir grup durağın görev içeriği.
+export const GOREV_ISARETI = "GÖREV DOLDURMA AŞAMASI";
+export function buildGorevPrompt(iskelet: Iskelet, idler: string[]): string {
+  return `${GOREV_ISARETI}: Oyunun iskeleti hazır (JSON):
+${JSON.stringify(iskelet)}
+
+Yalnız şu durakların görev içeriğini yaz ve duraklar dizisinde döndür: ${idler.join(", ")}
+Her durağın hikâyesine, gorev_ozeti'ne, gorev_turu'na ve ogrenme_hedefi'ne uy. gorev_turu'nu yalnız içerik o türe uymuyorsa değiştir (ör. 3 çift çıkmıyorsa eşleştirme yerine coktan_secmeli).
+Yukarıdaki alan kurallarına (seçenek, öğe, çift sayıları; iki farklı ipucu; destek görevi) birebir uy. Final bu adımda yazılmaz.`;
 }

@@ -1,13 +1,15 @@
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { COMPOSE_TIMEOUT_MS, ComposeError } from "@/lib/composer/anthropic";
+import { COMPOSE_TIMEOUT_MS } from "@/lib/composer/anthropic";
+import { ComposeError } from "@/lib/composer/errors";
+import { parcaliUret } from "@/lib/composer/parcali";
 import type { z } from "zod";
-import { ModelOutputSchema, parseJsonText, type ModelOutput } from "@/lib/composer/modelOutput";
+import { parseJsonText, type ModelOutput } from "@/lib/composer/modelOutput";
 import type { ResolvedInput } from "@/lib/composer/input";
-import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
-import { oyunTokenSiniri, type Recipe } from "@/lib/composer/recipe";
+import { SYSTEM_PROMPT, type PromptParcalari } from "@/lib/composer/prompt";
+import type { Recipe } from "@/lib/composer/recipe";
 
-// OpenAI uyumlu sağlayıcı. Aynı düz ModelOutputSchema kullanılır; GameDefinition'a dönüşüm değişmez.
+// OpenAI uyumlu sağlayıcı. Parçalı üretim ve düzeltme Anthropic ile aynı şemaları kullanır; GameDefinition'a dönüşüm değişmez.
 export const DEFAULT_OPENAI_MODEL = "gpt-6-luna";
 
 // Sadece test için enjekte edilebilir; üretimde env'den kurulur.
@@ -30,16 +32,16 @@ export async function composeGameOpenAI(
   input: ResolvedInput,
   recipe: Recipe,
   izinliQrIdleri: string[],
-  client: OpenAIComposeClient = clientFromEnv(),
+  client?: OpenAIComposeClient,
   timeoutMs = COMPOSE_TIMEOUT_MS
 ): Promise<ModelOutput> {
-  return yapilandirilmisIstekOpenAI(ModelOutputSchema, "dersera_oyun", buildUserPrompt(input, recipe, izinliQrIdleri), oyunTokenSiniri(recipe), client, timeoutMs);
+  return parcaliUret(input, recipe, izinliQrIdleri, (schema, ad, prompt, maxTokens, t) => yapilandirilmisIstekOpenAI(schema, ad, prompt, maxTokens, client, t), timeoutMs);
 }
 
 export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawShape>>(
   schema: S,
   semaAdi: string,
-  user: string,
+  prompt: PromptParcalari,
   maxTokens: number,
   client: OpenAIComposeClient = clientFromEnv(),
   timeoutMs = COMPOSE_TIMEOUT_MS
@@ -54,7 +56,7 @@ export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawS
         max_completion_tokens: maxTokens,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: user },
+          { role: "user", content: `${prompt.ortak}\n\n${prompt.asama}` },
         ],
         response_format: zodResponseFormat(schema, semaAdi),
       },
@@ -63,7 +65,7 @@ export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawS
     const choice = completion.choices[0];
     console.info(`[compose] model=${completion.model} stop=${choice?.finish_reason} output_tokens=${completion.usage?.completion_tokens}`);
     if (choice?.message.refusal) throw new ComposeError("invalid-output", "Model isteği reddetti");
-    if (choice?.finish_reason === "length") throw new ComposeError("invalid-output", `Çıktı max_tokens (${maxTokens}) sınırında kesildi`);
+    if (choice?.finish_reason === "length") throw new ComposeError("invalid-output", `Çıktı max_tokens (${maxTokens}) sınırında kesildi`, true);
     if (choice?.finish_reason === "content_filter") throw new ComposeError("invalid-output", "Çıktı içerik filtresine takıldı");
     const parsed = parseJsonText(choice?.message.content ?? "", schema);
     if (!parsed.ok) throw new ComposeError("invalid-output", `${parsed.error} (stop=${choice?.finish_reason})`);
@@ -71,7 +73,7 @@ export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawS
   } catch (err) {
     if (err instanceof ComposeError) throw err;
     if (controller.signal.aborted || err instanceof OpenAI.APIConnectionTimeoutError || err instanceof OpenAI.APIUserAbortError) {
-      throw new ComposeError("timeout", `Oyun oluşturma ${timeoutMs / 1000} saniyede tamamlanmadı`);
+      throw new ComposeError("timeout", `Oyun oluşturma ${Math.round(timeoutMs / 1000)} saniyede tamamlanmadı`);
     }
     if (err instanceof OpenAI.AuthenticationError || err instanceof OpenAI.PermissionDeniedError) {
       throw new ComposeError("config", `OpenAI kimlik doğrulaması başarısız (${err.status})`);
