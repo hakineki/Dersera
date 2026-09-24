@@ -44,6 +44,16 @@ describe("parseComposeInput", () => {
     if (r.ok) expect(r.input.ogrenmeCiktilari).toEqual(konu.ogrenmeCiktilari);
   });
 
+  it("ön not isteğe bağlıdır; kırpılır, kontrol karakterleri atılır, boşsa yok sayılır", () => {
+    const r = parseComposeInput({ ...valid, serbest_not: "  Laboratuvarda\u0007 bir kaza olsun  " });
+    expect(r.ok && r.input.serbest_not).toBe("Laboratuvarda bir kaza olsun");
+    const bos = parseComposeInput({ ...valid, serbest_not: "   " });
+    expect(bos.ok && "serbest_not" in bos.input).toBe(false);
+    const yok = parseComposeInput(valid);
+    expect(yok.ok && "serbest_not" in yok.input).toBe(false);
+    expect(parseComposeInput({ ...valid, serbest_not: "a".repeat(500) }).ok).toBe(true);
+  });
+
   it("birden çok dersi çözer; hedefler birleşir, ders adları ve konular meta için birleştirilir", () => {
     const mat = getUniteler(10, "matematik")[0];
     const r = parseComposeInput({ ...valid, dersler: [{ ders: "fizik", konuId: konu.id }, { ders: "matematik", konuId: mat.id }] });
@@ -88,6 +98,8 @@ describe("parseComposeInput", () => {
     ["izinsiz süre", { ...valid, sure: 30 }],
     ["izinsiz deneyim", { ...valid, deneyim: "zor" }],
     ["fazladan alan (soru sayısı)", { ...valid, soruSayisi: 12 }],
+    ["500 karakteri aşan ön not", { ...valid, serbest_not: "a".repeat(501) }],
+    ["metin olmayan ön not", { ...valid, serbest_not: 42 }],
     ["programda olmayan sınıf-ders (Felsefe 9)", { ...valid, sinif: 9, dersler: [{ ders: "felsefe", konuId: konu.id }] }],
   ])("reddeder: %s", (_l, body) => {
     expect(parseComposeInput(body).ok).toBe(false);

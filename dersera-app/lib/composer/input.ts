@@ -22,7 +22,10 @@ export const DersKonuSchema = z.object({
 });
 export type DersKonu = z.infer<typeof DersKonuSchema>;
 
-// Öğretmenin seçimleri: sınıf, bir ya da daha çok ders (her birine bir konu), süre, deneyim, alan.
+export const SERBEST_NOT_MAX = 500;
+
+// Öğretmenin seçimleri: sınıf, bir ya da daha çok ders (her birine bir konu), süre, deneyim, alan
+// ve isteğe bağlı ön not (senaryo fikri). Not kontrol karakterlerinden arındırılır; boşsa yok sayılır.
 export const ComposeInputSchema = z
   .object({
     sinif: z.union([z.literal(9), z.literal(10), z.literal(11), z.literal(12)]),
@@ -30,6 +33,11 @@ export const ComposeInputSchema = z
     sure: z.union([z.literal(20), z.literal(40), z.literal(60)]),
     deneyim: z.enum(DENEYIMLER),
     alan: z.enum(ALANLAR),
+    serbest_not: z
+      .string()
+      .max(SERBEST_NOT_MAX)
+      .transform((s) => s.replace(/[\u0000-\u0009\u000B-\u001F\u007F]/g, "").trim())
+      .optional(),
   })
   .strict();
 
@@ -84,5 +92,6 @@ export function parseComposeInput(body: unknown): InputResult {
   }
   const r = resolveKonular(parsed.data.sinif, parsed.data.dersler);
   if (!r.ok) return r;
-  return { ok: true, input: { ...parsed.data, dersler: r.konular, ...describeKonular(r.konular) } };
+  const { serbest_not, ...secimler } = parsed.data;
+  return { ok: true, input: { ...secimler, ...(serbest_not ? { serbest_not } : {}), dersler: r.konular, ...describeKonular(r.konular) } };
 }
