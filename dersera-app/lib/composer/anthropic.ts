@@ -1,14 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { ModelOutputSchema, parseModelText, type ModelOutput } from "@/lib/composer/modelOutput";
+import type { z } from "zod";
+import { ModelOutputSchema, parseJsonText, type ModelOutput } from "@/lib/composer/modelOutput";
 import type { ResolvedInput } from "@/lib/composer/input";
 import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
-import type { Recipe } from "@/lib/composer/recipe";
+import { oyunTokenSiniri, type Recipe } from "@/lib/composer/recipe";
 
 export const DEFAULT_MODEL = "claude-sonnet-4-6";
-export const COMPOSE_TIMEOUT_MS = 240_000; // tam oyun 8–16k token; model bunu 1,5–3 dakikada yazar
+export const COMPOSE_TIMEOUT_MS = 240_000; // ilk üretim çağrısının üst sınırı; düzeltme çağrısı toplam bütçeden kalanla yapılır (service.ts)
 // Tam oyun 1,5–3 dakikada üretilir; çıktı kısa tutulur ve maliyet üst sınırı konur.
-const MAX_TOKENS = 16_000; // 8k Sonnet 5 çıktısını kesiyordu
 
 export type ComposeFailure = "config" | "timeout" | "upstream" | "invalid-output";
 
@@ -45,6 +45,17 @@ export async function composeGame(
   client: ComposeClient = clientFromEnv(),
   timeoutMs = COMPOSE_TIMEOUT_MS
 ): Promise<ModelOutput> {
+  return yapilandirilmisIstek(ModelOutputSchema, buildUserPrompt(input, recipe, izinliQrIdleri), oyunTokenSiniri(recipe), client, timeoutMs);
+}
+
+// Sistem prompt'u + tek kullanıcı mesajı → şemaya uyan JSON. Oyun üretimi ve durak düzeltmesi bunu kullanır.
+export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>(
+  schema: S,
+  user: string,
+  maxTokens: number,
+  client: ComposeClient = clientFromEnv(),
+  timeoutMs = COMPOSE_TIMEOUT_MS
+): Promise<z.infer<S>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -52,18 +63,18 @@ export async function composeGame(
     const response = await client.messages.create(
       {
         model: modelFromEnv(),
-        max_tokens: MAX_TOKENS,
+        max_tokens: maxTokens,
         system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: buildUserPrompt(input, recipe, izinliQrIdleri) }],
-        output_config: { format: zodOutputFormat(ModelOutputSchema) },
+        messages: [{ role: "user", content: user }],
+        output_config: { format: zodOutputFormat(schema) },
       },
       { signal: controller.signal, timeout: timeoutMs, maxRetries: 0 }
     );
     console.info(`[compose] model=${response.model} stop=${response.stop_reason} output_tokens=${response.usage?.output_tokens}`);
     if (response.stop_reason === "refusal") throw new ComposeError("invalid-output", "Model isteği reddetti");
-    if (response.stop_reason === "max_tokens") throw new ComposeError("invalid-output", `Çıktı max_tokens (${MAX_TOKENS}) sınırında kesildi`);
+    if (response.stop_reason === "max_tokens") throw new ComposeError("invalid-output", `Çıktı max_tokens (${maxTokens}) sınırında kesildi`);
     const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
-    const parsed = parseModelText(text);
+    const parsed = parseJsonText(text, schema);
     if (!parsed.ok) throw new ComposeError("invalid-output", `${parsed.error} (stop=${response.stop_reason})`);
     return parsed.output;
   } catch (err) {

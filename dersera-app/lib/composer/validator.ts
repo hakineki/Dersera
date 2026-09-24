@@ -24,8 +24,8 @@ export interface ValidationResult {
 }
 
 const ID = /^[a-z0-9-]{1,40}$/;
-// Tarifin en büyük hedefi (10 durak) üstünde pay bırakılır; yayın deposunu şişirecek tanımlar reddedilir.
-export const LIMITLER = { durak: 12, nesne: 8, secenek: 6, metin: 1000 } as const;
+// Tarifin en büyük hedefi (12 durak) üstünde pay bırakılır; yayın deposunu şişirecek tanımlar reddedilir.
+export const LIMITLER = { durak: 14, nesne: 8, secenek: 6, metin: 1000 } as const;
 export const FINAL = "__final__";
 
 // Başlangıçtan finale giden bütün yolları kapsayan yönlü grafik. Kenarsız durak finale bağlanır.

@@ -1,14 +1,14 @@
 import OpenAI from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { COMPOSE_TIMEOUT_MS, ComposeError } from "@/lib/composer/anthropic";
-import { ModelOutputSchema, parseModelText, type ModelOutput } from "@/lib/composer/modelOutput";
+import type { z } from "zod";
+import { ModelOutputSchema, parseJsonText, type ModelOutput } from "@/lib/composer/modelOutput";
 import type { ResolvedInput } from "@/lib/composer/input";
 import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
-import type { Recipe } from "@/lib/composer/recipe";
+import { oyunTokenSiniri, type Recipe } from "@/lib/composer/recipe";
 
 // OpenAI uyumlu sağlayıcı. Aynı düz ModelOutputSchema kullanılır; GameDefinition'a dönüşüm değişmez.
 export const DEFAULT_OPENAI_MODEL = "gpt-6-luna";
-const MAX_TOKENS = 16_000; // 8000'de gpt-6-luna çıktısı kesiliyordu (4 duraklı oyun 7753 token)
 
 // Sadece test için enjekte edilebilir; üretimde env'den kurulur.
 export interface OpenAIComposeClient {
@@ -33,6 +33,17 @@ export async function composeGameOpenAI(
   client: OpenAIComposeClient = clientFromEnv(),
   timeoutMs = COMPOSE_TIMEOUT_MS
 ): Promise<ModelOutput> {
+  return yapilandirilmisIstekOpenAI(ModelOutputSchema, "dersera_oyun", buildUserPrompt(input, recipe, izinliQrIdleri), oyunTokenSiniri(recipe), client, timeoutMs);
+}
+
+export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawShape>>(
+  schema: S,
+  semaAdi: string,
+  user: string,
+  maxTokens: number,
+  client: OpenAIComposeClient = clientFromEnv(),
+  timeoutMs = COMPOSE_TIMEOUT_MS
+): Promise<z.infer<S>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -40,21 +51,21 @@ export async function composeGameOpenAI(
     const completion = await client.chat.completions.create(
       {
         model: openAIModelFromEnv(),
-        max_completion_tokens: MAX_TOKENS,
+        max_completion_tokens: maxTokens,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: buildUserPrompt(input, recipe, izinliQrIdleri) },
+          { role: "user", content: user },
         ],
-        response_format: zodResponseFormat(ModelOutputSchema, "dersera_oyun"),
+        response_format: zodResponseFormat(schema, semaAdi),
       },
       { signal: controller.signal, timeout: timeoutMs, maxRetries: 0 }
     );
     const choice = completion.choices[0];
     console.info(`[compose] model=${completion.model} stop=${choice?.finish_reason} output_tokens=${completion.usage?.completion_tokens}`);
     if (choice?.message.refusal) throw new ComposeError("invalid-output", "Model isteği reddetti");
-    if (choice?.finish_reason === "length") throw new ComposeError("invalid-output", `Çıktı max_tokens (${MAX_TOKENS}) sınırında kesildi`);
+    if (choice?.finish_reason === "length") throw new ComposeError("invalid-output", `Çıktı max_tokens (${maxTokens}) sınırında kesildi`);
     if (choice?.finish_reason === "content_filter") throw new ComposeError("invalid-output", "Çıktı içerik filtresine takıldı");
-    const parsed = parseModelText(choice?.message.content ?? "");
+    const parsed = parseJsonText(choice?.message.content ?? "", schema);
     if (!parsed.ok) throw new ComposeError("invalid-output", `${parsed.error} (stop=${choice?.finish_reason})`);
     return parsed.output;
   } catch (err) {

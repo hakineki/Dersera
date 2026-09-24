@@ -1,4 +1,5 @@
 import type { Durak, GameDefinition } from "@/lib/composer/definition";
+import { joinAnswer, normalize, splitAnswer } from "@/lib/composer/answers";
 import { edgesOf, FINAL, reachableFrom } from "@/lib/composer/validator";
 
 // Modelin dallanan rotalarda sık yaptığı yapı hatalarını yeni bir API çağrısı olmadan onarır.
@@ -79,6 +80,48 @@ function finaldenCikar(def: GameDefinition, id: string, notlar: string[]) {
   notlar.push(`Final için gereken "${id}" hiçbir görevde kazanılmıyordu ve verilecek uygun durak yoktu; finalin gereksinimlerinden çıkarıldı. Final metnini gözden geçirin.`);
 }
 
+// Fazla seçenek/öğe/çift, cevap tutarlılığı korunarak üst sınıra kırpılır. Eksik olan uydurulmaz.
+const UST_SINIR: Record<string, number> = { coktan_secmeli: 5, gorsel_secim: 5, siralama: 6, surukle_birak: 6, eslestirme: 5 };
+
+function kirp(tur: string, secenekler: string[], dogru: string): { secenekler: string[]; dogru: string } | null {
+  const ust = UST_SINIR[tur];
+  if (!ust || secenekler.length <= ust) return null;
+  if (tur === "coktan_secmeli" || tur === "gorsel_secim") {
+    const dogruSecenek = secenekler.find((s) => normalize(s) === normalize(dogru));
+    if (!dogruSecenek) return null;
+    const digerleri = secenekler.filter((s) => s !== dogruSecenek).slice(0, ust - 1);
+    const i = Math.min(secenekler.indexOf(dogruSecenek), digerleri.length);
+    return { secenekler: [...digerleri.slice(0, i), dogruSecenek, ...digerleri.slice(i)], dogru };
+  }
+  if (tur === "eslestirme") {
+    const kalan = secenekler.slice(0, ust);
+    return { secenekler: kalan, dogru: joinAnswer(kalan) };
+  }
+  // Sıralama: yalnız doğru sıra öğelerin tamamını içeriyorsa kırpılır (tutarsızlık gizlenmesin).
+  const tumSira = splitAnswer(dogru);
+  const ayniKume = tumSira.length === secenekler.length && tumSira.every((s) => secenekler.some((o) => normalize(o) === normalize(s)));
+  if (!ayniKume) return null;
+  const sira = tumSira.slice(0, ust);
+  const tut = new Set(sira.map(normalize));
+  return { secenekler: secenekler.filter((s) => tut.has(normalize(s))), dogru: joinAnswer(sira) };
+}
+
+function fazlalariKirp(def: GameDefinition, notlar: string[]) {
+  for (const d of def.duraklar) {
+    const r = kirp(d.gorev.tur, d.gorev.secenekler, d.gorev.dogru_cevap);
+    if (!r) continue;
+    notlar.push(`"${d.isim}" görevindeki fazla seçenekler ${r.secenekler.length} taneye indirildi.`);
+    d.gorev.secenekler = r.secenekler;
+    d.gorev.dogru_cevap = r.dogru;
+  }
+  const f = kirp(def.final.gorev_turu, def.final.secenekler, def.final.dogru_cevap);
+  if (f) {
+    notlar.push(`Final görevindeki fazla seçenekler ${f.secenekler.length} taneye indirildi.`);
+    def.final.secenekler = f.secenekler;
+    def.final.dogru_cevap = f.dogru;
+  }
+}
+
 export function onar(input: GameDefinition): { definition: GameDefinition; notlar: string[] } {
   const def: GameDefinition = structuredClone(input);
   const notlar: string[] = [];
@@ -86,5 +129,6 @@ export function onar(input: GameDefinition): { definition: GameDefinition; notla
   secimDuraginiBirlestir(def, notlar);
   kopuklariBagla(def, notlar);
   nesneleriOrtakDuragaTasi(def, notlar);
+  fazlalariKirp(def, notlar);
   return { definition: def, notlar };
 }

@@ -186,8 +186,9 @@ describe("tarif uyarıları", () => {
 });
 
 describe("boyut sınırları", () => {
-  it("12'den fazla durağı reddeder", () => {
-    expect(codes(makeDefinition(sinifInput, 13))).toContain("durak-fazla");
+  it("14'ten fazla durağı reddeder", () => {
+    expect(codes(makeDefinition(sinifInput, 14))).not.toContain("durak-fazla");
+    expect(codes(makeDefinition(sinifInput, 15))).toContain("durak-fazla");
   });
 
   it("çok uzun metni ve çok fazla seçeneği reddeder", () => {

@@ -9,7 +9,7 @@ import type { ResolvedInput } from "@/lib/composer/input";
 
 const secim = z.object({ metin: z.string(), hedef_durak_id: z.string() });
 
-const durak = z.object({
+export const DurakCiktisiSchema = z.object({
   id: z.string(),
   isim: z.string(),
   sahne_turu: z.string(),
@@ -49,22 +49,29 @@ export const ModelOutputSchema = z.object({
     dogru_cevap: z.string(),
     basari_metni: z.string(),
   }),
-  duraklar: z.array(durak),
+  duraklar: z.array(DurakCiktisiSchema),
 });
 
 export type ModelOutput = z.infer<typeof ModelOutputSchema>;
+export type DurakCiktisi = z.infer<typeof DurakCiktisiSchema>;
 
-// Modelin ham JSON metni → ModelOutput. Kesik ya da şemaya uymayan metin hata döner.
-export function parseModelText(text: string): { ok: true; output: ModelOutput } | { ok: false; error: string } {
+// Hatalı durakların yeniden yazımı için ikinci, küçük çağrının yanıtı.
+export const DuzeltmeSchema = z.object({ duraklar: z.array(DurakCiktisiSchema) });
+export type Duzeltme = z.infer<typeof DuzeltmeSchema>;
+
+// Modelin ham JSON metni → şemadaki tip. Kesik ya da şemaya uymayan metin hata döner.
+export function parseJsonText<S extends z.ZodType>(text: string, schema: S): { ok: true; output: z.output<S> } | { ok: false; error: string } {
   let json: unknown;
   try {
     json = JSON.parse(text);
   } catch (err) {
     return { ok: false, error: `Çıktı JSON olarak çözümlenemedi (${text.length} karakter): ${err instanceof Error ? err.message : err}` };
   }
-  const parsed = ModelOutputSchema.safeParse(json);
+  const parsed = schema.safeParse(json);
   return parsed.success ? { ok: true, output: parsed.data } : { ok: false, error: "Çıktı şemaya uymadı" };
 }
+
+export const parseModelText = (text: string) => parseJsonText(text, ModelOutputSchema);
 
 const orNull = (s: string) => (s.trim() ? s.trim() : null);
 // Model kodun yanına açıklamayı da yazabiliyor ("FEL.10.1.1: Felsefenin ..."); yalnız kod tutulur.
