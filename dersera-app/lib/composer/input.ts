@@ -24,11 +24,13 @@ export const DersKonuSchema = z.object({
 export type DersKonu = z.infer<typeof DersKonuSchema>;
 
 import { SERBEST_NOT_MAX } from "@/lib/composer/limits";
+import { KAYNAK, kaynakNormal } from "@/lib/composer/kaynak";
 
 export { SERBEST_NOT_MAX };
 
 // Öğretmenin seçimleri: sınıf, bir ya da daha çok ders (her birine bir konu), süre, deneyim, alan
 // ve isteğe bağlı ön not (senaryo fikri). Not kontrol karakterlerinden arındırılır; boşsa yok sayılır.
+// İsteğe bağlı kaynak: öğretmenin ders notu ya da PDF metni (lib/composer/kaynak.ts); yalnız istemde kullanılır, saklanmaz.
 export const ComposeInputSchema = z
   .object({
     sinif: z.number().int().refine((s) => (SINIFLAR as readonly number[]).includes(s)),
@@ -42,6 +44,7 @@ export const ComposeInputSchema = z
       // Sekme boşluğa döner; kontrol, yön değiştirici ve sıfır genişlikli karakterler atılır (satır sonu kalır).
       .transform((s) => s.replace(/\t/g, " ").replace(/[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "").trim())
       .optional(),
+    kaynak: z.string().max(KAYNAK.enCok).transform(kaynakNormal).optional(),
   })
   .strict();
 
@@ -89,13 +92,19 @@ export function describeKonular(konular: SeciliKonu[]) {
 
 export function parseComposeInput(body: unknown): InputResult {
   const parsed = ComposeInputSchema.safeParse(body);
-  if (!parsed.success) return { ok: false, error: "Geçersiz seçim." };
+  if (!parsed.success) {
+    const kaynakUzun = parsed.error.issues.some((i) => i.path[0] === "kaynak" && i.code === "too_big");
+    return { ok: false, error: kaynakUzun ? `Kaynak metni en çok ${KAYNAK.enCok.toLocaleString("tr-TR")} karakter olabilir.` : "Geçersiz seçim." };
+  }
+  if (parsed.data.kaynak !== undefined && parsed.data.kaynak.length > 0 && parsed.data.kaynak.length < KAYNAK.enAz) {
+    return { ok: false, error: `Kaynak metni en az ${KAYNAK.enAz} karakter olmalı.` };
+  }
   const enFazla = maxDersSayisi(parsed.data.sure);
   if (parsed.data.dersler.length > enFazla) {
     return { ok: false, error: `${parsed.data.sure} dakikalık oyunda en fazla ${enFazla} ders seçilebilir.` };
   }
   const r = resolveKonular(parsed.data.sinif, parsed.data.dersler);
   if (!r.ok) return r;
-  const { serbest_not, ...secimler } = parsed.data;
-  return { ok: true, input: { ...secimler, ...(serbest_not ? { serbest_not } : {}), dersler: r.konular, ...describeKonular(r.konular) } };
+  const { serbest_not, kaynak, ...secimler } = parsed.data;
+  return { ok: true, input: { ...secimler, ...(serbest_not ? { serbest_not } : {}), ...(kaynak ? { kaynak } : {}), dersler: r.konular, ...describeKonular(r.konular) } };
 }

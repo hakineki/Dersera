@@ -48,10 +48,12 @@ export async function POST(req: Request) {
   }
 
   // Kredi oran sınırından sonra, yapay zekâ çağrısından önce atomik olarak düşer; oluşturma başarısızsa iade edilir.
-  const maliyet = olusturmaMaliyeti(parsed.input.sure);
+  // Kaynaktan oluşturma +1 kredi. Kaynak metni hiçbir yerde saklanmaz ya da loglanmaz; yalnız isteme girer.
+  const kaynakli = !!parsed.input.kaynak;
+  const maliyet = olusturmaMaliyeti(parsed.input.sure, kaynakli);
   let harcama: Harcama | null;
   try {
-    harcama = await krediHarca(hesap.id, maliyet, `Oyun oluşturma (${parsed.input.sure} dk)`);
+    harcama = await krediHarca(hesap.id, maliyet, `Oyun oluşturma (${parsed.input.sure} dk${kaynakli ? ", kaynaktan" : ""})`);
   } catch (err) {
     console.error("[compose] kredi okunamadı", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: GENEL_HATA }, { status: 503 });

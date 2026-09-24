@@ -9,6 +9,8 @@ export const KREDI_KURALLARI = {
   guncelleme: 1,
   // Topluluk incelemesinden geçen oyunun sahibine verilen kredi.
   toplulukKabulOdulu: 5,
+  // Öğretmenin kaynağından (PDF ya da yapıştırılan metin) oluşturma: süre maliyetine eklenir.
+  kaynakEki: 1,
 } as const;
 
 // Okul kredi havuzu: platform yöneticisi okula aylık havuz atar; okul yöneticisi öğretmen başına aylık sınır koyabilir.
@@ -19,7 +21,7 @@ export const OKUL_HAVUZU = {
 } as const;
 
 export type OyunSuresi = keyof typeof KREDI_KURALLARI.olusturma;
-export const olusturmaMaliyeti = (sure: OyunSuresi): number => KREDI_KURALLARI.olusturma[sure];
+export const olusturmaMaliyeti = (sure: OyunSuresi, kaynakli = false): number => KREDI_KURALLARI.olusturma[sure] + (kaynakli ? KREDI_KURALLARI.kaynakEki : 0);
 
 export type HareketTuru = "harcama" | "iade" | "odul";
 
