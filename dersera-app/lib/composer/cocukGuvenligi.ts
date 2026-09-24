@@ -24,7 +24,9 @@ interface Kural {
   kategori: GuvenlikKategorisi;
   // true: yayını engeller (BLOCK); false: gözden geçirme ister (REVIEW).
   engel: boolean;
-  // tam: kelimenin kendisi; kok: kelime bu kökle başlar (Türkçe ekler için); ifade: art arda kelimeler (sonuncusu kök).
+  // tam: kelimenin kendisi; kok: kelime bu kökle başlar (Türkçe ekler için);
+  // ifade: art arda kelimeler, "|" ile seçenekli. Son kelime kök olarak, öncekiler yalın ya da isim ekiyle
+  // (belirtme/çoğul: "şarabı", "sigarayı", "alkolü") eşleşir.
   tam?: string[];
   kok?: string[];
   ifade?: string[];
@@ -48,13 +50,18 @@ const HAM_KURALLAR: Kural[] = [
   { kategori: "cinsel", engel: true, kok: ["porno", "erotik"] },
   { kategori: "cinsel", engel: false, tam: ["seks", "seksi"] },
   { kategori: "kumar", engel: false, kok: ["kumar", "iddaa", "rulet"], ifade: ["bahis oyna", "bahis sitesi", "bahis kupon"] },
-  // Sigara/alkol sağlık derslerinde geçer: yalnız kullanım eylemi ("sigara iç", "içki iç") işaretlenir, öğretmen bağlamı değerlendirir.
+  // Sigara/alkol sağlık derslerinde geçer: yalnız kullanım eylemi ("sigarayı yaktı", "şarabı içti") işaretlenir, öğretmen
+  // bağlamı değerlendirir. Fiil çekimleri açıkça sayılır: "alkol içeren", "biraz içeri", "alkol için" eşleşmesin.
   {
     kategori: "madde",
     engel: false,
     tam: ["votka", "viski", "rakı"],
     kok: ["eroin", "kokain", "esrarkeş", "bonzai", "ekstazi", "sarhoş"],
-    ifade: ["sigara iç", "sigara yak", "sigara tüttür", "içki iç", "alkol iç", "şarap iç", "bira iç"],
+    ifade: [
+      "sigara|içki|alkol|şarap|şarab|bira|rakı içti|içtik|içtim|içmek|içme|içiyor|içelim|içerek|içip|içen|içmiş|içsin|içebil|içecek",
+      "sigara yaktı|yakmak|yakıyor|yakalım|yakıp|yakan|yaksın",
+      "sigara tüttür",
+    ],
   },
   { kategori: "siddet", engel: false, kok: ["boğazladı", "boğazlama", "boğazlay", "bıçakladı", "bıçaklama", "bıçaklay"], ifade: ["kafasını kes", "kan gölü", "işkence et", "işkence yap", "katliam yap", "vahşice öldür"] },
   { kategori: "kendine-zarar", engel: false, kok: ["intihar"], ifade: ["kendini öldür", "kendine zarar", "kendini kes"] },
@@ -80,6 +87,20 @@ export interface TaranacakMetin {
 }
 
 const AYIRICI = /[^\p{L}\p{M}\p{N}]+/u;
+// İfadenin ilk kelimelerine gelebilecek isim ekleri (katlanmış): belirtme, yönelme, çoğul.
+const ISIM_EKLERI = new Set(["", "i", "u", "ü", "yi", "yu", "yü", "ni", "nu", "nü", "a", "e", "ya", "ye", "lar", "ler", "lari", "leri"]);
+const ekliMi = (kelime: string, kok: string) => kelime.startsWith(kok) && ISIM_EKLERI.has(kelime.slice(kok.length));
+
+function ifadeBul(ks: string[], ifade: string): number {
+  const parcalar = ifade.split(" ").map((p) => p.split("|"));
+  const son = parcalar.length - 1;
+  return ks.findIndex((_, j) =>
+    parcalar.every((secenekler, n) => {
+      const w = ks[j + n];
+      return w !== undefined && secenekler.some((s) => (n === son ? w.startsWith(s) : ekliMi(w, s)));
+    })
+  );
+}
 
 function metinTara({ metin, yer, durakId }: TaranacakMetin, out: GuvenlikEslesmesi[]) {
   if (!metin.trim()) return;
@@ -91,10 +112,9 @@ function metinTara({ metin, yer, durakId }: TaranacakMetin, out: GuvenlikEslesme
     let uzunluk = 1;
     if (i < 0 && k.ifade) {
       for (const ifade of k.ifade) {
-        const p = ifade.split(" ");
-        i = ks.findIndex((_, j) => p.every((parca, n) => (n === p.length - 1 ? ks[j + n]?.startsWith(parca) : ks[j + n] === parca)));
+        i = ifadeBul(ks, ifade);
         if (i >= 0) {
-          uzunluk = p.length;
+          uzunluk = ifade.split(" ").length;
           break;
         }
       }

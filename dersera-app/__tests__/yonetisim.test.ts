@@ -119,6 +119,11 @@ describe("çocuk güvenliği taraması", () => {
     expect(tek("Bu iksir eroindir.")[0]).toMatchObject({ kategori: "madde", engel: false });
     expect(tek("Sigara içmek harika hissettiriyor, hep içmelisin!")[0]).toMatchObject({ kategori: "madde", engel: false, terim: "sigara içmek" });
     expect(tek("Hadi içki içelim")[0]).toMatchObject({ kategori: "madde" });
+    // Çekimli nesne (belirtme eki, ünsüz yumuşaması) ve fiil çekimi.
+    expect(tek("Kahraman şarabı içti.")[0]).toMatchObject({ kategori: "madde", terim: "şarabı içti" });
+    expect(tek("Birayı içtik.")[0]).toMatchObject({ kategori: "madde", terim: "birayı içtik" });
+    expect(tek("Sigarayı yaktı ve nefes aldı.")[0]).toMatchObject({ kategori: "madde", terim: "sigarayı yaktı" });
+    expect(tek("Alkolü içti.")[0]).toMatchObject({ kategori: "madde", terim: "alkolü içti" });
     expect(tek("Köylüleri vahşice öldürdüler")[0]).toMatchObject({ kategori: "siddet" });
     expect(tek("Telefon numaranı buraya yaz.")[0]).toMatchObject({ kategori: "kisisel-veri" });
     expect(tek("Kendine zarar verme oyunu.")[0]).toMatchObject({ kategori: "kendine-zarar" });
@@ -153,6 +158,11 @@ describe("çocuk güvenliği taraması", () => {
     "İbn-i Sina ve amino asitler",
     "Rakım 1200 metre.",
     "Sigaranın zararlarını öğren.",
+    "Alkol içeren çözeltiler yanıcıdır.",
+    "Biraz içeri gir ve bekle.",
+    "Alkol için bir deney tasarla.",
+    "Sigaraya yakın durma.",
+    "Rakım arttıkça basınç azalır; biraz içtik su.",
   ])("müfredat ve macera dili yanlış alarm vermez: %s", (metin) => {
     expect(tek(metin)).toEqual([]);
   });
