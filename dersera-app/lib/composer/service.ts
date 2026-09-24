@@ -5,7 +5,8 @@ import { buildDuzeltmePrompt, buildUserPrompt, type PromptParcalari } from "@/li
 import { composeGameOpenAI, yapilandirilmisIstekOpenAI } from "@/lib/composer/openai";
 import type { Recipe } from "@/lib/composer/recipe";
 import { onar } from "@/lib/composer/repair";
-import type { GameDefinition } from "@/lib/composer/definition";
+import { GameDefinitionSchema, type GameDefinition } from "@/lib/composer/definition";
+import { buildGuncellemePrompt, guncellemeUygula } from "@/lib/composer/guncelleme";
 import { describeKonular, resolveKonular, type DersKonu, type ResolvedInput } from "@/lib/composer/input";
 import { IZINLI_QR_IDLERI, validationContext } from "@/lib/composer/context";
 import { buildRecipe } from "@/lib/composer/recipe";
@@ -133,6 +134,31 @@ export async function composeAndValidate(input: ResolvedInput, client?: ComposeC
     console.warn("[compose] durak düzeltmesi yapılamadı", err instanceof Error ? err.message : err);
     return sonuc;
   }
+}
+
+// Yapay zekâyla güncelleme: seçili durakların içeriği öğretmen talimatıyla yeniden yazılır, oyun yeniden doğrulanır.
+// Model hiç durak döndürmezse ya da çıktı şemaya uymazsa hata (kredi iade edilir); doğrulama hatası olan sonuç döner,
+// öğretmen önizlemede görür ve düzenler.
+export const GUNCELLEME_SURE_MS = 100_000;
+export async function yapayZekaylaGuncelle(
+  def: GameDefinition,
+  input: ResolvedInput,
+  idler: string[],
+  talimat: string,
+  client?: ComposeClient,
+  timeoutMs = GUNCELLEME_SURE_MS
+): Promise<ComposeResult & { guncellenen: string[] }> {
+  const recipe = buildRecipe(input.sure, input.deneyim, input.alan);
+  const prompt = { ortak: buildUserPrompt(input, recipe, IZINLI_QR_IDLERI), asama: buildGuncellemePrompt(def, idler, talimat) };
+  const cikti = await ureticiSec(client).duzelt(prompt, duzeltmeToken(idler.length), timeoutMs);
+  const { definition, guncellenen } = guncellemeUygula(def, cikti, idler);
+  if (guncellenen.length === 0) throw new ComposeError("invalid-output", "Güncellenecek duraklar yanıtta yok");
+  const parsed = GameDefinitionSchema.safeParse(definition);
+  if (!parsed.success) throw new ComposeError("invalid-output", `Güncelleme oyun şemasına uymadı: ${parsed.error.issues[0]?.path.join(".")}`);
+  const { definition: onarilmis, notlar } = onar(parsed.data);
+  const validation = validateGame(onarilmis, validationContext(input));
+  validation.uyarilar.unshift(...notlar.map((mesaj) => ({ kod: "otomatik-duzeltme", mesaj })));
+  return { definition: onarilmis, validation, guncellenen };
 }
 
 // Yayın ve düzenleme sonrası: tanımı müfredata göre yeniden doğrular (istemciye güvenmez).

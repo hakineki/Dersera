@@ -8,6 +8,7 @@ import type { KonuSecenegi, OgrenmeCiktisi } from "@/data/mufredat/programlar";
 import { validationContext } from "@/lib/composer/context";
 import type { GameDefinition } from "@/lib/composer/definition";
 import type { YzDenetim } from "@/lib/composer/yzDenetim";
+import { guncellemeyiBirlestir } from "@/lib/composer/guncellemeBirlestir";
 import { validateGame, type ValidationResult } from "@/lib/composer/validator";
 import { oturumBilgisi } from "@/lib/authClient";
 import { saveTeacherGame } from "@/lib/teacherGame";
@@ -287,22 +288,48 @@ export default function ComposerClient({
     }
   }
 
+  // Elle düzenlenen tanım istemcide yeniden doğrulanır (sunucu yayında yine doğrular).
+  const dogrula = (s: ComposeResponse, def: GameDefinition) =>
+    validateGame(def, validationContext({ alan: def.meta.alan, deneyim: def.meta.deneyim, sure: def.meta.sure_dk, ogrenmeCiktilari: s.hedefler, hedefDersleri: s.hedefDersleri }));
+
   function kaydet(v: Duzenlenen) {
     if (!sonuc) return;
     const def: GameDefinition =
       v.tur === "durak"
         ? { ...sonuc.definition, duraklar: sonuc.definition.duraklar.map((d) => (d.id === v.durak.id ? v.durak : d)) }
         : { ...sonuc.definition, final: v.final };
-    const ctx = validationContext({
-      alan: def.meta.alan,
-      deneyim: def.meta.deneyim,
-      sure: def.meta.sure_dk,
-      ogrenmeCiktilari: sonuc.hedefler,
-      hedefDersleri: sonuc.hedefDersleri,
-    });
-    setSonuc({ ...sonuc, definition: def, validation: validateGame(def, ctx) });
+    setSonuc({ ...sonuc, definition: def, validation: dogrula(sonuc, def) });
     setDuzenlenen(null);
     if (kutuphaneId) setKutuphaneDurumu("degisti");
+  }
+
+  // Yapay zekâyla güncelleme (1 kredi). Güncelleme sürerken oyun elle düzenlendiyse düzenleme ezilmez: yalnız
+  // güncellenen duraklar mevcut tanıma yerleştirilir (denetim yayında yenilenir).
+  async function yzGuncelle(idler: string[], talimat: string): Promise<string | null> {
+    if (!sonuc) return "Güncellenecek oyun yok.";
+    const gonderilen = sonuc.definition;
+    try {
+      const res = await fetch("/api/compose/guncelle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ definition: gonderilen, dersler: sonuc.dersler, duraklar: idler, talimat }),
+      });
+      const json = await res.json().catch(() => ({}));
+      setKredi(json.kredi ?? (await krediDurumuGetir()));
+      if (!res.ok) return json.error ?? "Oyun şu anda güncellenemedi. Tekrar deneyin.";
+      const yeniTanim = json.definition as GameDefinition;
+      setSonuc((s) => {
+        if (!s) return s;
+        if (s.definition === gonderilen) return { ...s, definition: yeniTanim, validation: json.validation, guvenlik: json.guvenlik, guvenlikTanimi: yeniTanim };
+        const def = guncellemeyiBirlestir(s.definition, yeniTanim, json.guncellenen as string[]);
+        return { ...s, definition: def, validation: dogrula(s, def) };
+      });
+      if (kutuphaneId) setKutuphaneDurumu("degisti");
+      return null;
+    } catch {
+      setKredi(await krediDurumuGetir());
+      return "Oyun güncellenemedi. Bağlantınızı kontrol edin.";
+    }
   }
 
   async function kutuphaneyeEkle() {
@@ -584,6 +611,7 @@ export default function ComposerClient({
               setDurum({ tur: "form" });
             }}
             kutuphane={{ durum: kutuphaneDurumu, hata: kutuphaneHatasi, bilgi: kutuphaneBilgisi, onSave: kutuphaneyeEkle }}
+            guncelleme={ogretmen ? { kredi, onGuncelle: yzGuncelle } : undefined}
             publishing={yayinlaniyor}
             publishError={yayinHatasi}
           />

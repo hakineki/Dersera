@@ -5,7 +5,7 @@
 export const KREDI_KURALLARI = {
   aylikHak: 30,
   olusturma: { 20: 2, 40: 3, 60: 4 },
-  // Gerçek (yapay zekâ ile) oyun güncellemesi; güncelleme özelliği sürümlemeyle gelecek.
+  // Gerçek (yapay zekâ ile) oyun güncellemesi (lib/composer/guncelleme.ts); elle düzenleme ücretsizdir.
   guncelleme: 1,
   // Topluluk incelemesinden geçen oyunun sahibine verilen kredi.
   toplulukKabulOdulu: 5,
