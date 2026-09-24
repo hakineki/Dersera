@@ -1,5 +1,6 @@
 import { parseComposerDefinition, parseComposerPublish } from "@/lib/composer/adapter";
-import { describeKonular, resolveKonular } from "@/lib/composer/input";
+import { topluluguEkleGuvenli } from "@/lib/toplulukService";
+import { duzenlemeBaglami } from "@/lib/composer/duzenleme";
 import { MAX_DURATION_MIN, MIN_DURATION_MIN, type PublicGame } from "@/lib/games";
 import { hashToken, publishGame } from "@/lib/gamesService";
 import { kutuphaneSahibi } from "@/lib/auth";
@@ -32,7 +33,7 @@ export type KayitSonucu =
 export async function kutuphaneyeEkle(store: LibraryStore, sahip: string, body: unknown, now = Date.now()): Promise<KayitSonucu> {
   const b = body as { definition?: unknown; dersler?: unknown } | null;
   const r = parseComposerDefinition(b?.definition, b?.dersler);
-  if (!r.ok) return r;
+  if (!r.ok) return r;
   if ((await store.count(sahip)) >= KUTUPHANE_LIMIT) {
     return { ok: false, status: 409, error: `Kütüphane dolu (en fazla ${KUTUPHANE_LIMIT} oyun). Yer açmak için eski bir oyunu silin.` };
   }
@@ -54,15 +55,7 @@ export async function kutuphaneKaydiniGuncelle(store: LibraryStore, sahip: strin
 
 // Düzenleyicinin ihtiyaç duyduğu bağlam: öğrenme çıktıları ve güncel doğrulama. Müfredat verisi sunucuda kalır.
 export function kayitDetayi(kayit: KutuphaneKaydi) {
-  const r = resolveKonular(kayit.sinif, kayit.dersler);
-  const d = r.ok ? describeKonular(r.konular) : null;
-  const dogrulama = parseComposerDefinition(kayit.definition, kayit.dersler);
-  return {
-    oyun: kayit,
-    hedefler: d?.ogrenmeCiktilari ?? [],
-    hedefDersleri: d?.hedefDersleri ?? {},
-    validation: dogrulama.ok ? dogrulama.validation : null,
-  };
+  return { oyun: kayit, ...duzenlemeBaglami(kayit.sinif, kayit.dersler, kayit.definition) };
 }
 
 export type YenidenYayinSonucu =
@@ -82,7 +75,7 @@ export async function yenidenYayinla(
   id: string,
   sure: number | undefined,
   now = Date.now()
-): Promise<YenidenYayinSonucu> {
+): Promise<YenidenYayinSonucu> {
   const kayit = await library.get(sahip, id);
   if (!kayit) return { ok: false, status: 404, error: "Oyun kütüphanede bulunamadı" };
   const composed = parseComposerPublish({ composer: { definition: kayit.definition, dersler: kayit.dersler } });
@@ -92,6 +85,8 @@ export async function yenidenYayinla(
   // Yayın sırasında gelen bir düzenleme ezilmesin: kaydın en güncel hâli okunup yalnız son kod/tarih yazılır.
   const guncel = (await library.get(sahip, id)) ?? kayit;
   await library.replace(sahip, { ...guncel, sonKod: published.game.code, sonYayin: now });
+  // Topluluğa oynatılan (doğrulanmış) sürüm gider; aynı kütüphane kaydının eski topluluk sürümü pasife alınır.
+  await topluluguEkleGuvenli(composed.request.definition!, composed.dersler, sahip, published.game.code, published.game.expiresAt, { kaynak: `${sahip}:${id}` });
   return { ok: true, ...published };
 }
 

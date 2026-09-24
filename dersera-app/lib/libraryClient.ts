@@ -86,3 +86,9 @@ export async function kutuphanedenYayinla(id: string, durationMinutes: number): 
   const json = await res.json().catch(() => ({}));
   return res.ok ? (json as PublishResponse) : { error: json.error ?? "Oyun yayınlanamadı." };
 }
+
+// Topluluk kütüphanesindeki oyun ("Oyunu Kullan"): kütüphane detayıyla aynı biçimde gelir.
+export async function toplulukOyunu(id: string): Promise<KutuphaneDetayi | null> {
+  const res = await istek(`/api/topluluk/${encodeURIComponent(id)}`);
+  return res?.ok ? ((await res.json()) as KutuphaneDetayi) : null;
+}
