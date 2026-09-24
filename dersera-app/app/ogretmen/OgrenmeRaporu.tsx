@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { GameDefinition } from "@/lib/composer/definition";
 import type { LeaderboardEntry } from "@/lib/gameState";
 import { fetchGame } from "@/lib/gamesClient";
@@ -35,6 +35,11 @@ export function OgrenmeRaporuGorunumu({ rapor }: { rapor: OgrenmeRaporu }) {
           Sınıfın toplu sonuçları: hangi öğrenme çıktısında zorlanıldığı. İlk denemede doğru cevap oranına göre sıralanır; {RAPOR_KURALLARI.enAzOgrenci} öğrenciden
           az veri olan satırlar yorumlanmaz.
         </p>
+        <p className="text-xs text-gray-500 mt-1">
+          Oranlar oyunu bitiren öğrencilerin cevaplarından hesaplanır; yarıda bırakanların cevapları görünmez, bu yüzden gerçek zorluk biraz daha yüksek olabilir.
+          Final görevi bu rapora dahil değildir.
+        </p>
+        {rapor.katilimTutarsiz && <p className="text-xs text-amber-700 mt-1">Katılım sayısı eksik okundu; katılan en az bitiren kadar gösteriliyor.</p>}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -71,7 +76,9 @@ export function OgrenmeRaporuGorunumu({ rapor }: { rapor: OgrenmeRaporu }) {
                 <tr key={h.kod} className="border-b border-gray-50 align-top">
                   <th scope="row" className="py-2 pr-2 font-normal">
                     <span className="font-mono text-xs text-gray-900">{h.kod}</span>
-                    <span className="block text-xs text-gray-500">{h.duraklar.join(", ")}</span>
+                    <span className="block text-xs text-gray-500">
+                      {h.duraklar.join(", ")} · {h.ogrenci} öğrenci
+                    </span>
                   </th>
                   <td className="py-2 pr-2">
                     <span className="font-semibold">{yuzde(h.ilkDenemeOrani)}</span>
@@ -110,10 +117,16 @@ export function OgrenmeRaporuGorunumu({ rapor }: { rapor: OgrenmeRaporu }) {
   );
 }
 
-// Katılan sayısı oyundan okunur; sonuçlar yenilendikçe (yeni bitiren) tekrar sorulur.
+// Katılan sayısı oyundan okunur; yeni sonuç geldikçe en çok dakikada bir tekrar sorulur.
+const KATILIM_YENILEME_MS = 60_000;
+
 export default function OgrenmeRaporuKarti({ definition, leaderboard, gameCode }: { definition: GameDefinition; leaderboard: LeaderboardEntry[]; gameCode: string }) {
   const [katilan, setKatilan] = useState<number | null>(null);
+  const sonOkuma = useRef<{ kod: string; zaman: number } | null>(null);
   useEffect(() => {
+    const son = sonOkuma.current;
+    if (son && son.kod === gameCode && Date.now() - son.zaman < KATILIM_YENILEME_MS) return;
+    sonOkuma.current = { kod: gameCode, zaman: Date.now() };
     let iptal = false;
     fetchGame(gameCode).then((r) => {
       if (!iptal && r.status === "ok" && typeof r.players === "number") setKatilan(r.players);

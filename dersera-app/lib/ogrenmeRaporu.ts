@@ -30,6 +30,9 @@ export interface DurakRaporu {
 export interface HedefRaporu {
   kod: string;
   duraklar: string[];
+  // Bu çıktıyı çalıştıran duraklardan en az birine ulaşan tekil öğrenci sayısı (yorum eşiği buna göre).
+  ogrenci: number;
+  // Toplam durak denemesi (bir öğrenci aynı çıktının birden çok durağını geçebilir); oranlar denemeye göre.
   ulasan: number;
   ilkDenemeOrani: number | null;
   destekOrani: number | null;
@@ -38,6 +41,8 @@ export interface HedefRaporu {
 
 export interface OgrenmeRaporu {
   katilan: number | null;
+  // Oyunun bildirdiği katılım sayısı bitirenden azdı (eski ya da eksik sayaç); katılan en az bitiren kadar gösterilir.
+  katilimTutarsiz: boolean;
   bitiren: number;
   // Oyuna katılıp bitirmeyen (sonucu gelmeyen) öğrenci; katılan bilinmiyorsa null.
   bitirmeyen: number | null;
@@ -81,11 +86,12 @@ export function ogrenmeRaporu(def: GameDefinition, sonuclar: LeaderboardEntry[],
     };
   });
 
-  // Hedef bazında: o hedefi çalıştıran tüm durak denemeleri birlikte sayılır.
-  const hedefMap = new Map<string, { duraklar: string[]; deneme: number; ilk: number; destek: number }>();
+  // Hedef bazında: o hedefi çalıştıran tüm durak denemeleri birlikte sayılır; yorum eşiği tekil öğrenciye göredir.
+  const hedefMap = new Map<string, { duraklar: string[]; durakIdleri: string[]; deneme: number; ilk: number; destek: number }>();
   for (const d of duraklar) {
-    const h = hedefMap.get(d.hedef) ?? { duraklar: [], deneme: 0, ilk: 0, destek: 0 };
+    const h = hedefMap.get(d.hedef) ?? { duraklar: [], durakIdleri: [], deneme: 0, ilk: 0, destek: 0 };
     h.duraklar.push(d.isim);
+    h.durakIdleri.push(d.id);
     h.deneme += d.ulasan;
     h.ilk += (d.ilkDenemeOrani ?? 0) * d.ulasan;
     h.destek += (d.destekOrani ?? 0) * d.ulasan;
@@ -93,16 +99,27 @@ export function ogrenmeRaporu(def: GameDefinition, sonuclar: LeaderboardEntry[],
   }
   const hedefler: HedefRaporu[] = [...hedefMap.entries()]
     .map(([kod, h]) => {
+      const ogrenci = sonuclar.filter((s) => h.durakIdleri.some((id) => typeof s.stopDetails?.[id]?.hintsUsed === "number")).length;
       const ilk = oran(Math.round(h.ilk), h.deneme);
-      return { kod, duraklar: h.duraklar, ulasan: h.deneme, ilkDenemeOrani: ilk, destekOrani: oran(Math.round(h.destek), h.deneme), zorluk: zorlukOf(h.deneme, ilk) };
+      return {
+        kod,
+        duraklar: h.duraklar,
+        ogrenci,
+        ulasan: h.deneme,
+        ilkDenemeOrani: ilk,
+        destekOrani: oran(Math.round(h.destek), h.deneme),
+        zorluk: zorlukOf(ogrenci, ilk),
+      };
     })
     .sort((a, b) => SIRA[a.zorluk] - SIRA[b.zorluk] || (a.ilkDenemeOrani ?? 1) - (b.ilkDenemeOrani ?? 1));
 
   const bitiren = sonuclar.length;
   const katilanGecerli = katilan === null ? null : Math.max(katilan, bitiren);
+  const katilimTutarsiz = katilan !== null && katilan < bitiren;
   const sure = medyan(sonuclar.map((s) => s.netSeconds));
   return {
     katilan: katilanGecerli,
+    katilimTutarsiz,
     bitiren,
     bitirmeyen: katilanGecerli === null ? null : katilanGecerli - bitiren,
     bitirmeOrani: katilanGecerli === null ? null : oran(bitiren, katilanGecerli),

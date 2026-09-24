@@ -912,13 +912,13 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
           (teacherGame ? (
             <>
               {teacherGame.game.definition && <OgrenmeRaporuKarti definition={teacherGame.game.definition} leaderboard={leaderboard} gameCode={teacherGame.game.code} />}
-            <SiralamaTabs
-              leaderboard={leaderboard}
-              stops={teacherGame.game.definition ? definitionPanelStops(teacherGame.game.definition) : toStops(teacherGame.game.stops)}
-              gameCode={teacherGame.game.code}
-              sync={sync}
-              onRefresh={refreshLeaderboard}
-            />
+              <SiralamaTabs
+                leaderboard={leaderboard}
+                stops={teacherGame.game.definition ? definitionPanelStops(teacherGame.game.definition) : toStops(teacherGame.game.stops)}
+                gameCode={teacherGame.game.code}
+                sync={sync}
+                onRefresh={refreshLeaderboard}
+              />
             </>
           ) : (
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-500">

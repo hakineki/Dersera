@@ -46,6 +46,30 @@ describe("öğrenme raporu", () => {
     expect(r.hedefler.map((h) => h.zorluk)).toEqual([...r.hedefler.map((h) => h.zorluk)].sort((a, b) => ["zor", "orta", "iyi", "az-veri"].indexOf(a) - ["zor", "orta", "iyi", "az-veri"].indexOf(b)));
   });
 
+  it("çıktı bazında yorum eşiği deneme değil tekil öğrenci: aynı çıktının iki durağını geçen 2 öğrenci az veridir", () => {
+    const d = makeDefinition(girdi, 6);
+    // İki durağa aynı çıktı.
+    d.duraklar[4].gorev.ogrenme_hedefi = d.duraklar[0].gorev.ogrenme_hedefi;
+    const kod = d.duraklar[0].gorev.ogrenme_hedefi;
+    const r = ogrenmeRaporu(d, [sonuc("a", { d1: 0, d5: 3 }), sonuc("b", { d1: 0, d5: 3 })], null);
+    const h = r.hedefler.find((x) => x.kod === kod)!;
+    expect(h).toMatchObject({ ogrenci: 2, ulasan: 4, zorluk: "az-veri" });
+    const r3 = ogrenmeRaporu(d, [sonuc("a", { d1: 0, d5: 3 }), sonuc("b", { d1: 0, d5: 3 }), sonuc("c", { d1: 0 })], null);
+    expect(r3.hedefler.find((x) => x.kod === kod)).toMatchObject({ ogrenci: 3, ulasan: 5, ilkDenemeOrani: 0.6, destekOrani: 0.4, zorluk: "orta" });
+  });
+
+  it("eşik sınırları: %70 iyi, %40 orta, altı zor", () => {
+    const n = (ilk: number, toplam: number) => Array.from({ length: toplam }, (_, i) => sonuc(`o${i}`, { d1: i < ilk ? 0 : 1 }));
+    expect(ogrenmeRaporu(def, n(7, 10), null).duraklar[0].zorluk).toBe("iyi");
+    expect(ogrenmeRaporu(def, n(4, 10), null).duraklar[0].zorluk).toBe("orta");
+    expect(ogrenmeRaporu(def, n(3, 10), null).duraklar[0].zorluk).toBe("zor");
+  });
+
+  it("oyunun bildirdiği katılım bitirenden azsa tutarsızlık işaretlenir", () => {
+    expect(ogrenmeRaporu(def, [sonuc("a", {}), sonuc("b", {})], 1)).toMatchObject({ katilan: 2, katilimTutarsiz: true });
+    expect(ogrenmeRaporu(def, [sonuc("a", {})], 3)).toMatchObject({ katilimTutarsiz: false });
+  });
+
   it(`en az 3 öğrenci yoksa yorumlanmaz (az veri)`, () => {
     const r = ogrenmeRaporu(def, [sonuc("a", { d1: 3 }), sonuc("b", { d1: 3 })], null);
     expect(r.duraklar[0].zorluk).toBe("az-veri");
