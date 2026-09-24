@@ -13,6 +13,8 @@ export interface OkulStore {
   // Açan hesap başka okulda değilse okulu ve yönetici üyeliğini birlikte yazar.
   olustur(okul: Okul, yonetici: OkulUyesi): Promise<boolean>;
   get(okulId: string): Promise<Okul | null>;
+  // Birden çok okul tek okumada (sıra korunur; olmayan null).
+  okullar(okulIdler: string[]): Promise<(Okul | null)[]>;
   okulOf(hesapId: string): Promise<string | null>;
   davettenOkul(kod: string): Promise<string | null>;
   katil(okulId: string, uye: OkulUyesi): Promise<KatilmaSonucu>;
@@ -48,6 +50,9 @@ export function createMemoryOkulStore(): OkulStore {
     },
     async get(okulId) {
       return okullar.get(okulId) ?? null;
+    },
+    async okullar(okulIdler) {
+      return okulIdler.map((id) => okullar.get(id) ?? null);
     },
     async okulOf(hesapId) {
       return uyeOkulu.get(hesapId) ?? null;
@@ -169,6 +174,11 @@ export function createRedisOkulStore(command: RedisCommand): OkulStore {
     async get(okulId) {
       const ham = (await command(["GET", okulKey(okulId)])) as string | null;
       return ham ? (JSON.parse(ham) as Okul) : null;
+    },
+    async okullar(okulIdler) {
+      if (okulIdler.length === 0) return [];
+      const ham = ((await command(["MGET", ...okulIdler.map(okulKey)])) as (string | null)[] | null) ?? [];
+      return okulIdler.map((_, i) => (ham[i] ? (JSON.parse(ham[i]!) as Okul) : null));
     },
     async okulOf(hesapId) {
       return ((await command(["GET", uyeOkuluKey(hesapId)])) as string | null) ?? null;

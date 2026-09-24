@@ -11,4 +11,4 @@ export async function krediDurumuGetir(): Promise<KrediDurumu | null> {
 }
 
 export const krediMetni = (k: KrediDurumu) =>
-  `${k.toplam} kredi (bu ay ${k.aylikKalan}/${k.aylikHak}${k.kazanilan > 0 ? ` + ${k.kazanilan} kazanılmış` : ""})`;
+  `${k.toplam} kredi (bu ay ${k.aylikKalan}/${k.aylikHak}${k.okul ? ` + okul havuzundan ${k.okul.kalan}` : ""}${k.kazanilan > 0 ? ` + ${k.kazanilan} kazanılmış` : ""})`;

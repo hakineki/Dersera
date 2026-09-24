@@ -7,6 +7,8 @@ import { yonetisimDegerlendir, type YonetisimSonucu } from "@/lib/composer/yonet
 import { yzDenetle } from "@/lib/composer/yzDenetimService";
 import { limitAsildi, limitKaydet } from "@/lib/composer/rateLimit";
 import type { IstatistikStore } from "@/lib/istatistikStore";
+import { ayOf, OKUL_HAVUZU } from "@/lib/kredi";
+import type { KrediStore } from "@/lib/krediStore";
 import type { LibraryStore } from "@/lib/libraryStore";
 import { DAVET_ALFABE, DAVET_UZUNLUK, davetKoduNormal, OKUL, okulAdiNormal, type Okul, type OkulRolu, type PaylasimOzeti } from "@/lib/okul";
 import type { OkulStore } from "@/lib/okulStore";
@@ -28,6 +30,7 @@ export interface OkulDeps {
   auth: AuthStore;
   library: LibraryStore;
   istatistik: IstatistikStore;
+  kredi: KrediStore;
 }
 
 const UYE_DEGIL: Sonuc<never> = { ok: false, status: 404, error: "Bir okula üye değilsin." };
@@ -219,13 +222,31 @@ export interface PanoOgretmeni {
   paylasim: number;
   ogrenci: number;
   puanOrtalama: number | null;
+  // Bu ay okul kredi havuzundan kullandığı.
+  havuzdan: number;
 }
 
-export async function okulPanosu(d: OkulDeps, hesap: Hesap): Promise<Sonuc<{ ogretmenler: PanoOgretmeni[]; toplam: { ogretmen: number; kutuphaneOyun: number; paylasim: number; ogrenci: number } }>> {
+// Okulun bu ayki kredi havuzu (havuz atanmamışsa null). sinir: öğretmen başına aylık sınır (yoksa null).
+export interface PanoHavuzu {
+  ay: string;
+  hak: number;
+  kullanilan: number;
+  kalan: number;
+  sinir: number | null;
+}
+
+export interface OkulPanosu {
+  ogretmenler: PanoOgretmeni[];
+  toplam: { ogretmen: number; kutuphaneOyun: number; paylasim: number; ogrenci: number };
+  havuz: PanoHavuzu | null;
+}
+
+export async function okulPanosu(d: OkulDeps, hesap: Hesap, now = Date.now()): Promise<Sonuc<OkulPanosu>> {
   const u = await uyelik(d, hesap);
   if (!u) return UYE_DEGIL;
   if (u.rol !== "yonetici") return YONETICI_DEGIL;
-  const [uyeler, paylasimlar] = await Promise.all([d.okul.uyeler(u.okul.id), d.okul.paylasimlar(u.okul.id)]);
+  const ay = ayOf(now);
+  const [uyeler, paylasimlar, havuz] = await Promise.all([d.okul.uyeler(u.okul.id), d.okul.paylasimlar(u.okul.id), d.kredi.okulHavuzu(u.okul.id, ay)]);
   // Üye sayısından bağımsız sabit sayıda okuma: adlar, tüm kütüphane kimlikleri ve tüm istatistikler birer toplu çağrı.
   const sahipler = uyeler.map((x) => `hesap:${x.hesapId}`);
   const [ad, idListeleri] = await Promise.all([adlar(d, uyeler.map((x) => x.hesapId)), d.library.idlerToplu(sahipler)]);
@@ -248,6 +269,7 @@ export async function okulPanosu(d: OkulDeps, hesap: Hesap): Promise<Sonuc<{ ogr
       paylasim: paylasimlar.filter((p) => p.paylasan === x.hesapId).length,
       ogrenci,
       puanOrtalama: puanSayisi ? Math.round((puanToplam / puanSayisi) * 10) / 10 : null,
+      havuzdan: havuz.ogretmenler[x.hesapId] ?? 0,
     };
   });
   ogretmenler.sort((a, b) => (a.rol === b.rol ? a.katilma - b.katilma : a.rol === "yonetici" ? -1 : 1));
@@ -260,5 +282,76 @@ export async function okulPanosu(d: OkulDeps, hesap: Hesap): Promise<Sonuc<{ ogr
       paylasim: paylasimlar.length,
       ogrenci: ogretmenler.reduce((a, o) => a + o.ogrenci, 0),
     },
+    havuz:
+      havuz.hak > 0
+        ? { ay, hak: havuz.hak, kullanilan: havuz.kullanilan, kalan: Math.max(0, havuz.hak - havuz.kullanilan), sinir: havuz.sinir > 0 ? havuz.sinir : null }
+        : null,
   };
+}
+
+// Tam sayı ve [0, enCok] aralığında değilse null.
+const tamSayi = (v: unknown, enCok: number): number | null => (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= enCok ? v : null);
+
+// Okul yöneticisi: öğretmen başına aylık havuz sınırı (0: sınır yok). Havuz atanmamış okulda da ayarlanabilir.
+export async function okulKrediSiniri(d: OkulDeps, hesap: Hesap, sinirGirdi: unknown): Promise<Sonuc<{ sinir: number | null }>> {
+  const u = await uyelik(d, hesap);
+  if (!u) return UYE_DEGIL;
+  if (u.rol !== "yonetici") return YONETICI_DEGIL;
+  const sinir = tamSayi(sinirGirdi, OKUL_HAVUZU.sinirEnCok);
+  if (sinir === null) return { ok: false, status: 422, error: `Sınır 0–${OKUL_HAVUZU.sinirEnCok} arasında bir tam sayı olmalı (0: sınır yok).` };
+  await d.kredi.okulSinirYaz(u.okul.id, sinir);
+  return { ok: true, sinir: sinir > 0 ? sinir : null };
+}
+
+// ── Okul kredi havuzu (platform yöneticisi; yetki route'ta denetlenir) ──────────
+
+export interface HavuzluOkul {
+  okulId: string;
+  ad: string;
+  uyeSayisi?: number;
+  hak: number;
+  kullanilan: number;
+}
+
+const OKUL_ID = /^[0-9a-f-]{36}$/;
+
+export async function havuzListesi(d: Pick<OkulDeps, "okul" | "kredi">, now = Date.now()): Promise<{ ay: string; okullar: HavuzluOkul[] }> {
+  const ay = ayOf(now);
+  const havuzlar = await d.kredi.okulHavuzlari(ay);
+  const okullar = await d.okul.okullar(havuzlar.map((h) => h.okulId));
+  return {
+    ay,
+    okullar: havuzlar
+      .map((h, i) => ({ okulId: h.okulId, ad: okullar[i]?.ad ?? "(silinmiş okul)", hak: h.hak, kullanilan: h.kullanilan }))
+      .sort((a, b) => a.ad.localeCompare(b.ad, "tr")),
+  };
+}
+
+// Okul yöneticisinin verdiği davet koduyla okulu bulur.
+export async function havuzOkulBul(d: Pick<OkulDeps, "okul" | "kredi">, kodGirdi: unknown, now = Date.now()): Promise<Sonuc<{ okul: HavuzluOkul }>> {
+  const kod = davetKoduNormal(kodGirdi);
+  const okulId = kod ? await d.okul.davettenOkul(kod) : null;
+  const okul = okulId ? await d.okul.get(okulId) : null;
+  if (!okul) return { ok: false, status: 404, error: "Bu davet koduyla okul bulunamadı." };
+  const [uyeler, havuz] = await Promise.all([d.okul.uyeler(okul.id), d.kredi.okulHavuzu(okul.id, ayOf(now))]);
+  return { ok: true, okul: { okulId: okul.id, ad: okul.ad, uyeSayisi: uyeler.length, hak: havuz.hak, kullanilan: havuz.kullanilan } };
+}
+
+// Aylık havuz hakkını yazar (0: havuzu kaldırır). Her ayın kullanımı ayrı sayılır; hak değişikliği o aydan geçerlidir.
+export async function havuzAta(
+  d: Pick<OkulDeps, "okul" | "kredi">,
+  yoneticiAdi: string,
+  okulIdGirdi: unknown,
+  hakGirdi: unknown,
+  now = Date.now()
+): Promise<Sonuc<{ okul: HavuzluOkul }>> {
+  const hak = tamSayi(hakGirdi, OKUL_HAVUZU.hakEnCok);
+  if (hak === null) return { ok: false, status: 422, error: `Aylık havuz 0–${OKUL_HAVUZU.hakEnCok} arasında bir tam sayı olmalı (0: havuzu kaldır).` };
+  const okul = typeof okulIdGirdi === "string" && OKUL_ID.test(okulIdGirdi) ? await d.okul.get(okulIdGirdi) : null;
+  if (!okul) return { ok: false, status: 404, error: "Okul bulunamadı." };
+  await d.kredi.okulHakYaz(okul.id, hak);
+  // Denetim izi: kim, hangi okula, ne kadar.
+  console.info(`[kredi] okul havuzu ayarlandı okul=${okul.id} hak=${hak} yonetici=${yoneticiAdi}`);
+  const havuz = await d.kredi.okulHavuzu(okul.id, ayOf(now));
+  return { ok: true, okul: { okulId: okul.id, ad: okul.ad, hak: havuz.hak, kullanilan: havuz.kullanilan } };
 }

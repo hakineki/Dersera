@@ -23,9 +23,9 @@ describe("bellek kredi deposu", () => {
   it("önce aylık haktan, sonra kazanılandan düşer ve askıya yazar; yetmezse hiçbir şey yazılmaz", async () => {
     const s = createMemoryKrediStore();
     await s.odul("h", 5, 1, "ödül");
-    expect(await s.harca("h", "2026-09", 30, 28, 2, "a", 1000, "x1")).toEqual({ ok: true, aylik: 28, kazanilan: 0 });
-    expect(await s.harca("h", "2026-09", 30, 4, 3, "b", 1000, "x2")).toEqual({ ok: true, aylik: 2, kazanilan: 2 });
-    expect(await s.harca("h", "2026-09", 30, 4, 4, "c", 1000, "x3")).toEqual({ ok: false, aylikKalan: 0, kazanilan: 3 });
+    expect(await s.harca("h", "2026-09", 30, 28, 2, "a", 1000, "x1")).toEqual({ ok: true, aylik: 28, okul: 0, kazanilan: 0 });
+    expect(await s.harca("h", "2026-09", 30, 4, 3, "b", 1000, "x2")).toEqual({ ok: true, aylik: 2, okul: 0, kazanilan: 2 });
+    expect(await s.harca("h", "2026-09", 30, 4, 4, "c", 1000, "x3")).toEqual({ ok: false, aylikKalan: 0, okulKalan: 0, kazanilan: 3 });
     const k = await s.oku("h", "2026-09", 10);
     expect(k).toMatchObject({ kullanilan: 30, kazanilan: 3 });
     expect(k.hareketler.map((h) => [h.tur, h.miktar, h.aylik, h.kazanilan])).toEqual([
@@ -42,7 +42,7 @@ describe("bellek kredi deposu", () => {
     const s = createMemoryKrediStore();
     await s.odul("h", 3, 1, "ödül");
     await s.harca("h", "2026-09", 30, 29, 2, "a", 1000, "x1");
-    expect(await s.harca("h", "2026-09", 30, 3, 3, "b", 1000, "x2")).toEqual({ ok: true, aylik: 1, kazanilan: 2 });
+    expect(await s.harca("h", "2026-09", 30, 3, 3, "b", 1000, "x2")).toEqual({ ok: true, aylik: 1, okul: 0, kazanilan: 2 });
     const [x1, x2] = await s.askidakiler("h");
     expect(await s.tamamla("h", "x1")).toBe(true);
     expect(await s.iade("h", x1, 4, "iade", 1000)).toBe(false);
@@ -50,6 +50,38 @@ describe("bellek kredi deposu", () => {
     expect(await s.iade("h", x2, 5, "iade", 1000)).toBe(false);
     expect(await s.oku("h", "2026-09", 1)).toMatchObject({ kullanilan: 29, kazanilan: 3, hareketler: [{ tur: "iade", miktar: 3, aylik: 1, kazanilan: 2 }] });
     expect(await s.askidakiler("h")).toEqual([]);
+  });
+
+  it("okul havuzu: kişisel aylık → okul → kazanılan; öğretmen sınırı; okulsuz harcama havuzu görmez; iade ödeyen okula", async () => {
+    const s = createMemoryKrediStore();
+    const okul = "0b5e4d1c-8f7a-4c2e-9d3b-6a1f2e3d4c5b";
+    await s.okulHakYaz(okul, 10);
+    await s.okulSinirYaz(okul, 6);
+    await s.odul("h", 4, 1, "ödül");
+    expect(await s.harca("h", "2026-09", 30, 41, 2, "fazla", 1000, "x0", okul)).toEqual({ ok: false, aylikKalan: 30, okulKalan: 6, kazanilan: 4 });
+    expect(await s.harca("h", "2026-09", 30, 33, 2, "a", 1000, "x1", okul)).toEqual({ ok: true, aylik: 30, okul: 3, kazanilan: 0 });
+    expect(await s.harca("h", "2026-09", 30, 5, 3, "b", 1000, "x2", okul)).toEqual({ ok: true, aylik: 0, okul: 3, kazanilan: 2 });
+    // Sınır (6) doldu: yalnız kazanılan (2) kaldı.
+    expect(await s.harca("h", "2026-09", 30, 3, 4, "c", 1000, "x3", okul)).toEqual({ ok: false, aylikKalan: 0, okulKalan: 0, kazanilan: 2 });
+    // Başka öğretmen: havuzda 4 kaldı.
+    await s.harca("g", "2026-09", 30, 30, 5, "d", 1000, "y1", okul);
+    expect(await s.harca("g", "2026-09", 30, 5, 6, "e", 1000, "y2", okul)).toEqual({ ok: false, aylikKalan: 0, okulKalan: 4, kazanilan: 0 });
+    expect(await s.harca("g", "2026-09", 30, 4, 6, "e", 1000, "y3", okul)).toEqual({ ok: true, aylik: 0, okul: 4, kazanilan: 0 });
+    expect(await s.harca("g", "2026-09", 30, 1, 7, "f", 1000, "y4")).toEqual({ ok: false, aylikKalan: 0, okulKalan: 0, kazanilan: 0 });
+    expect(await s.okulHavuzu(okul, "2026-09")).toEqual({ hak: 10, sinir: 6, kullanilan: 10, ogretmenler: { h: 6, g: 4 } });
+    // Yeni ay: havuz yenilenir.
+    expect(await s.okulHavuzu(okul, "2026-10")).toEqual({ hak: 10, sinir: 6, kullanilan: 0, ogretmenler: {} });
+
+    const x2 = (await s.askidakiler("h")).find((a) => a.id === "x2")!;
+    expect(x2).toEqual({ id: "x2", ay: "2026-09", aylik: 0, okul: 3, kazanilan: 2, tarih: 3, okulId: okul, ham: askiDegeri("2026-09", 0, 2, 3, 3, okul) });
+    expect(await s.iade("h", x2, 8, "iade", 1000)).toBe(true);
+    expect(await s.okulHavuzu(okul, "2026-09")).toMatchObject({ kullanilan: 7, ogretmenler: { h: 3, g: 4 } });
+    expect(await s.oku("h", "2026-09", 1)).toMatchObject({ kazanilan: 4, hareketler: [{ tur: "iade", miktar: 5, aylik: 0, okul: 3, kazanilan: 2 }] });
+
+    expect(await s.okulHavuzlari("2026-09")).toEqual([{ okulId: okul, hak: 10, kullanilan: 7 }]);
+    await s.okulHakYaz(okul, 0);
+    expect(await s.okulHavuzlari("2026-09")).toEqual([]);
+    expect(await s.harca("g", "2026-09", 30, 1, 9, "g", 1000, "y5", okul)).toEqual({ ok: false, aylikKalan: 0, okulKalan: 0, kazanilan: 0 });
   });
 
   it(`hareket kaydı en çok ${HAREKET_SAKLAMA} satır tutar`, async () => {
@@ -63,26 +95,55 @@ describe("bellek kredi deposu", () => {
 
 describe("Redis kredi deposu", () => {
   it("harcama, iade, tamamlama ve ödül çağrı biçimleri; açıklama JSON olarak kaçırılır; askı değeri ayrıştırılır", async () => {
-    let yanit: unknown = [1, 3, 0];
+    const okul = "0b5e4d1c-8f7a-4c2e-9d3b-6a1f2e3d4c5b";
+    let yanit: unknown = [1, 3, 0, 0];
     const { command, calls } = recordingCommand((a) =>
-      a[0] === "EVAL" ? yanit : a[0] === "MGET" ? ["7", "2"] : a[0] === "HGETALL" ? ["x1", "2026-09|3|0|99", "bozuk", "??"] : a[0] === "HDEL" ? 1 : a[0] === "LRANGE" ? ['{"tur":"odul","miktar":2,"aylik":0,"kazanilan":2,"tarih":1,"aciklama":"x"}'] : "OK"
+      a[0] === "EVAL"
+        ? yanit
+        : a[0] === "MGET"
+          ? ["7", "2"]
+          : a[0] === "HGETALL"
+            ? ["x1", "2026-09|3|0|99", "x2", `2026-09|1|1|98|2|${okul}`, "bozuk", "??", "okulsuz", "2026-09|1|0|98|2|"]
+            : a[0] === "HDEL"
+              ? 1
+              : a[0] === "LRANGE"
+                ? ['{"tur":"odul","miktar":2,"aylik":0,"kazanilan":2,"tarih":1,"aciklama":"x"}']
+                : "OK"
     );
     const s = createRedisKrediStore(command);
-    expect(await s.harca("h1", "2026-09", 30, 3, 99, 'Oyun "40" dk', 5000, "x1")).toEqual({ ok: true, aylik: 3, kazanilan: 0 });
+    expect(await s.harca("h1", "2026-09", 30, 3, 99, 'Oyun "40" dk', 5000, "x1")).toEqual({ ok: true, aylik: 3, okul: 0, kazanilan: 0 });
     expect(calls[0][1]).toContain("HSET', KEYS[4]");
+    // Okulsuz harcamada okul anahtarları yer tutucudur ve okul kimliği boştur (betik okul dalına girmez).
     expect(calls[0].slice(2)).toEqual([
-      "4", "dersera:kredi:h1:aylik:2026-09", "dersera:kredi:h1:kazanilan", "dersera:kredi:h1:hareketler", "dersera:kredi:h1:aski",
-      "30", "3", "5000", "99", '"Oyun \\"40\\" dk"', "x1", "2026-09",
+      "8", "dersera:kredi:h1:aylik:2026-09", "dersera:kredi:h1:kazanilan", "dersera:kredi:h1:hareketler", "dersera:kredi:h1:aski", "-", "-", "-", "-",
+      "30", "3", "5000", "99", '"Oyun \\"40\\" dk"', "x1", "2026-09", "h1", "",
     ]);
-    yanit = [0, 1, 0];
-    expect(await s.harca("h1", "2026-09", 30, 3, 99, "x", 5000, "x9")).toEqual({ ok: false, aylikKalan: 1, kazanilan: 0 });
+    yanit = [1, 0, 2, 1];
+    expect(await s.harca("h1", "2026-09", 30, 3, 99, "x", 5000, "x2", okul)).toEqual({ ok: true, aylik: 0, okul: 2, kazanilan: 1 });
+    expect(calls.at(-1)!.slice(2)).toEqual([
+      "8", "dersera:kredi:h1:aylik:2026-09", "dersera:kredi:h1:kazanilan", "dersera:kredi:h1:hareketler", "dersera:kredi:h1:aski",
+      `dersera:kredi:okul:${okul}:hak`, `dersera:kredi:okul:${okul}:sinir`, `dersera:kredi:okul:${okul}:aylik:2026-09`, `dersera:kredi:okul:${okul}:ogretmen:2026-09`,
+      "30", "3", "5000", "99", '"x"', "x2", "2026-09", "h1", okul,
+    ]);
+    yanit = [0, 1, 0, 0];
+    expect(await s.harca("h1", "2026-09", 30, 3, 99, "x", 5000, "x9")).toEqual({ ok: false, aylikKalan: 1, okulKalan: 0, kazanilan: 0 });
+    // Eski biçim (okul havuzundan önce) okul payı 0 okunur; okul payı olup okulu olmayan kayıt bozuktur.
     const aski = await s.askidakiler("h1");
-    expect(aski).toEqual([{ id: "x1", ay: "2026-09", aylik: 3, kazanilan: 0, tarih: 99, ham: "2026-09|3|0|99" }]);
+    expect(aski).toEqual([
+      { id: "x1", ay: "2026-09", aylik: 3, okul: 0, kazanilan: 0, tarih: 99, okulId: null, ham: "2026-09|3|0|99" },
+      { id: "x2", ay: "2026-09", aylik: 1, okul: 2, kazanilan: 1, tarih: 98, okulId: okul, ham: `2026-09|1|1|98|2|${okul}` },
+    ]);
     yanit = 1;
     expect(await s.iade("h1", aski[0], 100, "iade", 5000)).toBe(true);
     expect(calls.at(-1)!.slice(2)).toEqual([
-      "4", "dersera:kredi:h1:aylik:2026-09", "dersera:kredi:h1:kazanilan", "dersera:kredi:h1:hareketler", "dersera:kredi:h1:aski",
-      "x1", "2026-09|3|0|99", "3", "0", "100", '"iade"', "5000",
+      "6", "dersera:kredi:h1:aylik:2026-09", "dersera:kredi:h1:kazanilan", "dersera:kredi:h1:hareketler", "dersera:kredi:h1:aski", "-", "-",
+      "x1", "2026-09|3|0|99", "3", "0", "100", '"iade"', "5000", "0", "h1",
+    ]);
+    expect(await s.iade("h1", aski[1], 100, "iade", 5000)).toBe(true);
+    expect(calls.at(-1)!.slice(2)).toEqual([
+      "6", "dersera:kredi:h1:aylik:2026-09", "dersera:kredi:h1:kazanilan", "dersera:kredi:h1:hareketler", "dersera:kredi:h1:aski",
+      `dersera:kredi:okul:${okul}:aylik:2026-09`, `dersera:kredi:okul:${okul}:ogretmen:2026-09`,
+      "x2", `2026-09|1|1|98|2|${okul}`, "1", "1", "100", '"iade"', "5000", "2", "h1",
     ]);
     expect(await s.tamamla("h1", "x1")).toBe(true);
     expect(calls.at(-1)).toEqual(["HDEL", "dersera:kredi:h1:aski", "x1"]);

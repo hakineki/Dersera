@@ -11,6 +11,13 @@ export const KREDI_KURALLARI = {
   toplulukKabulOdulu: 5,
 } as const;
 
+// Okul kredi havuzu: platform yöneticisi okula aylık havuz atar; okul yöneticisi öğretmen başına aylık sınır koyabilir.
+// Harcama sırası: kişisel aylık hak → okul havuzu → kazanılan kredi.
+export const OKUL_HAVUZU = {
+  hakEnCok: 10_000,
+  sinirEnCok: 1_000,
+} as const;
+
 export type OyunSuresi = keyof typeof KREDI_KURALLARI.olusturma;
 export const olusturmaMaliyeti = (sure: OyunSuresi): number => KREDI_KURALLARI.olusturma[sure];
 
@@ -20,11 +27,43 @@ export interface KrediHareketi {
   tur: HareketTuru;
   // Bakiyeye etkisi: harcamada eksi, iade ve ödülde artı.
   miktar: number;
-  // Harcama/iadenin aylık haktan ve kazanılandan payı.
+  // Harcama/iadenin aylık haktan, okul havuzundan ve kazanılandan payı (okul payı, havuzdan önceki kayıtlarda yok).
   aylik: number;
+  okul?: number;
   kazanilan: number;
   tarih: number;
   aciklama: string;
+}
+
+// Okulun bu ayki havuz durumu. sinir 0: öğretmen başına sınır yok.
+export interface OkulHavuzu {
+  hak: number;
+  sinir: number;
+  kullanilan: number;
+  // Öğretmenin bu ay havuzdan kullandığı (hesap kimliği → kredi).
+  ogretmenler: Record<string, number>;
+}
+
+export interface OkulKredisi {
+  havuzHak: number;
+  havuzKalan: number;
+  sinir: number | null;
+  kullandigin: number;
+  // Öğretmenin bu ay havuzdan daha kullanabileceği: havuz kalanı ile kendi sınırından kalanın küçüğü.
+  kalan: number;
+}
+
+// Harcama betiği (lib/krediStore.ts) aynı hesabı yapar.
+export function okulKredisiOf(h: OkulHavuzu, hesapId: string): OkulKredisi {
+  const havuzKalan = Math.max(0, h.hak - h.kullanilan);
+  const kullandigin = h.ogretmenler[hesapId] ?? 0;
+  return {
+    havuzHak: h.hak,
+    havuzKalan,
+    sinir: h.sinir > 0 ? h.sinir : null,
+    kullandigin,
+    kalan: h.sinir > 0 ? Math.min(havuzKalan, Math.max(0, h.sinir - kullandigin)) : havuzKalan,
+  };
 }
 
 export interface KrediDurumu {
@@ -32,6 +71,8 @@ export interface KrediDurumu {
   aylikHak: number;
   aylikKalan: number;
   kazanilan: number;
+  // Öğretmen bir okulun üyesiyse ve okula havuz atanmışsa.
+  okul: OkulKredisi | null;
   toplam: number;
   hareketler: KrediHareketi[];
 }

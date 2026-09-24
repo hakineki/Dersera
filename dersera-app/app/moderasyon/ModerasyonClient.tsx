@@ -181,9 +181,14 @@ export default function ModerasyonClient() {
             <DerseraLogo />
             <p className="text-xs font-semibold text-indigo-200 border-l border-indigo-700 pl-3">Moderasyon</p>
           </div>
-          <Link href="/ogretmen" className="text-indigo-300 hover:text-white text-sm whitespace-nowrap">
-            ← Öğretmen paneli
-          </Link>
+          <nav className="flex gap-4 text-sm whitespace-nowrap">
+            <Link href="/yonetim/okul-havuzu" className="text-indigo-300 hover:text-white">
+              Okul havuzları
+            </Link>
+            <Link href="/ogretmen" className="text-indigo-300 hover:text-white">
+              ← Öğretmen paneli
+            </Link>
+          </nav>
         </div>
       </header>
 

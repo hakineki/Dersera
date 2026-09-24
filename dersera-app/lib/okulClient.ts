@@ -1,5 +1,5 @@
 import type { KutuphaneDetayi } from "@/lib/libraryClient";
-import type { OkulumYaniti, PanoOgretmeni, PaylasimListesiOgesi } from "@/lib/okulService";
+import type { HavuzluOkul, OkulPanosu, OkulumYaniti, PaylasimListesiOgesi } from "@/lib/okulService";
 
 type Hata = { error: string; status?: number };
 
@@ -20,8 +20,8 @@ export const okulOlustur = (ad: string) => gonder<OkulumYaniti>("/api/okul", { a
 export const okulaKatil = (kod: string) => gonder<OkulumYaniti>("/api/okul/katil", { kod });
 export const okuldanAyril = () => gonder<object>("/api/okul/ayril");
 export const davetYenile = () => gonder<{ davetKodu: string }>("/api/okul/davet");
-export const okulPanosu = () =>
-  iste<{ ogretmenler: PanoOgretmeni[]; toplam: { ogretmen: number; kutuphaneOyun: number; paylasim: number; ogrenci: number } }>("/api/okul/pano");
+export const okulPanosu = () => iste<OkulPanosu>("/api/okul/pano");
+export const okulKrediSiniri = (sinir: number) => gonder<{ sinir: number | null }>("/api/okul/kredi", { sinir });
 export const uyeCikar = (hesapId: string) => iste<object>(`/api/okul/uyeler/${encodeURIComponent(hesapId)}`, { method: "DELETE" });
 export const okulPaylasimlari = () => iste<{ oyunlar: PaylasimListesiOgesi[] }>("/api/okul/paylasim");
 export const okullaPaylas = (kutuphaneId: string) => gonder<{ id: string }>("/api/okul/paylasim", { kutuphaneId });
@@ -32,3 +32,8 @@ export async function okulOyunu(id: string): Promise<KutuphaneDetayi | null> {
   const r = await iste<KutuphaneDetayi>(`/api/okul/paylasim/${encodeURIComponent(id)}`);
   return "error" in r ? null : r;
 }
+
+// Platform yöneticisi: okul kredi havuzları (app/yonetim/okul-havuzu).
+export const havuzListesiGetir = () => iste<{ ay: string; okullar: HavuzluOkul[] }>("/api/yonetim/okul-havuzu");
+export const havuzOkulBul = (kod: string) => gonder<{ okul: HavuzluOkul }>("/api/yonetim/okul-havuzu", { kod });
+export const havuzAta = (okulId: string, hak: number) => iste<{ okul: HavuzluOkul }>("/api/yonetim/okul-havuzu", { method: "PUT", body: JSON.stringify({ okulId, hak }) });
