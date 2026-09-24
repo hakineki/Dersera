@@ -6,6 +6,8 @@ import { summarize, type ValidationResult } from "@/lib/composer/validator";
 import { ekBulgular, rozetler, yonetisimDegerlendir, type Karar } from "@/lib/composer/yonetisim";
 import { yzDurumMetni, type YzDenetim } from "@/lib/composer/yzDenetim";
 import type { Duzenlenen } from "./DurakEditor";
+import GuncellemePaneli from "./GuncellemePaneli";
+import type { KrediDurumu } from "@/lib/kredi";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI, GOREV_TUR_ADI } from "./labels";
 
 const ROZET_GORUNUMU: Record<Karar, { simge: string; metin: string; sinif: string }> = {
@@ -34,6 +36,7 @@ export default function ComposerPreview({
   publishing,
   publishError,
   kutuphane,
+  guncelleme,
 }: {
   definition: GameDefinition;
   validation: ValidationResult;
@@ -46,6 +49,8 @@ export default function ComposerPreview({
   publishing: boolean;
   publishError: string;
   kutuphane: { durum: "kayitsiz" | "degisti" | "kaydedildi" | "kaydediliyor"; hata: string; bilgi?: string; onSave: () => void };
+  // Yalnız giriş yapmış öğretmene (ücretli).
+  guncelleme?: { kredi: KrediDurumu | null; onGuncelle: (idler: string[], talimat: string) => Promise<string | null> };
 }) {
   const ozet = summarize(definition);
   const hedefMetni = (kod: string) => hedefler.find((h) => h.kod === kod)?.metin ?? "";
@@ -191,6 +196,8 @@ export default function ComposerPreview({
           )}
         </button>
       </section>
+
+      {guncelleme && <GuncellemePaneli definition={definition} kredi={guncelleme.kredi} onGuncelle={guncelleme.onGuncelle} />}
 
       {publishError && (
         <p role="alert" className="text-sm text-red-600">
