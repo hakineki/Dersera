@@ -1,3 +1,4 @@
+import { GOREV_ISARETI, ISKELET_ISARETI } from "@/lib/composer/prompt";
 import { getUniteler } from "@/data/mufredat/programlar";
 import type { Durak, GameDefinition, Gorev } from "@/lib/composer/definition";
 import { parseComposeInput, type ResolvedInput } from "@/lib/composer/input";
@@ -84,6 +85,39 @@ export function makeDefinition(input: ResolvedInput, durakSayisi = 6): GameDefin
   };
 }
 
+// Parçalı üretimde her aşamanın yanıtı tam bir örnek oyundan türetilir: iskelet, istenen durakların görevleri ya da (düzeltmede) boş.
+export function modelYaniti(out: ModelOutput | null, prompt: string): unknown {
+  if (!out) return { yanlis: true };
+  if (prompt.includes("Düzeltilecek duraklar")) return { duraklar: [] };
+  if (prompt.includes(GOREV_ISARETI)) {
+    const m = prompt.match(/Yalnız şu durakların görev içeriğini yaz ve duraklar dizisinde döndür: ([^\n]+)/);
+    const ids = new Set(m ? m[1].split(",").map((s) => s.trim()) : []);
+    return {
+      duraklar: out.duraklar
+        .filter((d) => ids.has(d.id))
+        .map((d) => ({
+          id: d.id, gorev_turu: d.gorev_turu, soru: d.soru, secenekler: d.secenekler, dogru_cevap: d.dogru_cevap, ipucu_1: d.ipucu_1,
+          ipucu_2: d.ipucu_2, destek_soru: d.destek_soru, destek_secenekler: d.destek_secenekler, destek_dogru_cevap: d.destek_dogru_cevap,
+          destek_aciklama: d.destek_aciklama,
+        })),
+    };
+  }
+  if (prompt.includes(ISKELET_ISARETI)) {
+    return {
+      baslik: out.baslik, hikaye_giris: out.hikaye_giris, oyun_amaci: out.oyun_amaci, ogrenme_hedefleri: out.ogrenme_hedefleri,
+      envanter: out.envanter, final: out.final,
+      duraklar: out.duraklar.map((d) => ({
+        id: d.id, isim: d.isim, sahne_turu: d.sahne_turu, hikaye_metni: d.hikaye_metni, qr_durak_id: d.qr_durak_id,
+        sonraki_durak_tarifi: d.sonraki_durak_tarifi, gorev_turu: d.gorev_turu, ogrenme_hedefi: d.ogrenme_hedefi, gorev_ozeti: d.soru,
+        odul_id: d.odul_id, secimler: d.secimler, varsayilan_sonraki_durak_id: d.varsayilan_sonraki_durak_id,
+      })),
+    };
+  }
+  return out;
+}
+
+export const promptOf = (body: Record<string, unknown>) => (body.messages as { content: string }[]).map((m) => m.content).join("\n");
+
 export function fakeClient(output: ModelOutput | null, stop_reason = "end_turn") {
   const calls: { body: Record<string, unknown>; options: Record<string, unknown> }[] = [];
   return {
@@ -93,7 +127,7 @@ export function fakeClient(output: ModelOutput | null, stop_reason = "end_turn")
         create: (async (body: Record<string, unknown>, options: Record<string, unknown>) => {
           calls.push({ body, options });
           // output null: şemaya uymayan JSON.
-          return { model: "test", usage: { output_tokens: 1 }, stop_reason, content: [{ type: "text", text: JSON.stringify(output ?? { yanlis: true }) }] };
+          return { model: "test", usage: { output_tokens: 1 }, stop_reason, content: [{ type: "text", text: JSON.stringify(modelYaniti(output, promptOf(body))) }] };
         }) as never,
       },
     },

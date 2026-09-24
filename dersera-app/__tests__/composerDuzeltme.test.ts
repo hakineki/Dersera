@@ -1,24 +1,22 @@
-import { buildRecipe, oyunTokenSiniri } from "@/lib/composer/recipe";
+import { buildRecipe } from "@/lib/composer/recipe";
 import { onar } from "@/lib/composer/repair";
 import { composeAndValidate, validationContext } from "@/lib/composer/service";
 import { validateGame } from "@/lib/composer/validator";
 import type { GameDefinition } from "@/lib/composer/definition";
 import type { ModelOutput } from "@/lib/composer/modelOutput";
-import { makeDefinition, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
+import { makeDefinition, modelYaniti, promptOf, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 
 const input = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 const codes = (def: GameDefinition) => validateGame(def, validationContext(input)).hatalar.map((h) => h.kod);
 
-describe("durak sayıları ve token sınırı", () => {
+describe("durak sayıları", () => {
   it.each([
-    [20, 5, 22_000],
-    [40, 8, 31_600],
-    [60, 12, 40_000],
-  ])("%i dk → %i durak, %i token", (sure, durak, token) => {
-    const r = buildRecipe(sure, "dengeli", "sinif");
-    expect(r.anaGorev).toEqual({ min: durak, max: durak });
-    expect(oyunTokenSiniri(r)).toBe(token);
+    [20, 5],
+    [40, 8],
+    [60, 12],
+  ])("%i dk → %i durak", (sure, durak) => {
+    expect(buildRecipe(sure, "dengeli", "sinif").anaGorev).toEqual({ min: durak, max: durak });
   });
 });
 
@@ -80,20 +78,30 @@ describe("hedefli durak düzeltmesi", () => {
     return out;
   };
   // Sırayla yanıt veren sahte Anthropic istemcisi.
+  // İlk öğe tam oyundur (iskelet ve görev aşamaları ondan türetilir); sonraki öğeler sırayla düzeltme çağrılarının yanıtıdır.
   function sahte(yanitlar: (unknown | Error)[]) {
-    const calls: { body: { max_tokens: number; messages: { content: string }[] }; options: { timeout: number } }[] = [];
-    let i = 0;
+    const [oyun, ...duzeltmeler] = yanitlar;
+    const tum: { body: { max_tokens: number; messages: { content: string }[] }; options: { timeout: number } }[] = [];
+    const calls: typeof tum = [];
+    let j = 0;
     const client = {
       messages: {
         create: async (body: never, options: never) => {
-          calls.push({ body, options });
-          const y = yanitlar[i++];
+          const kayit = { body, options } as (typeof tum)[number];
+          tum.push(kayit);
+          const prompt = promptOf(body);
+          if (!prompt.includes("Düzeltilecek duraklar")) {
+            return { model: "test", stop_reason: "end_turn", usage: { output_tokens: 1 }, content: [{ type: "text", text: JSON.stringify(modelYaniti(oyun as ModelOutput, prompt)) }] };
+          }
+          calls.push(kayit);
+          const y = duzeltmeler[j++];
           if (y instanceof Error) throw y;
           return { model: "test", stop_reason: "end_turn", usage: { output_tokens: 1 }, content: [{ type: "text", text: JSON.stringify(y) }] };
         },
       },
     };
-    return { client: client as never, calls };
+    // calls: yalnız düzeltme çağrıları (0 = hiç düzeltme yapılmadı).
+    return { client: client as never, calls, tum };
   }
   beforeEach(() => {
     jest.spyOn(console, "info").mockImplementation(() => {});
@@ -107,11 +115,11 @@ describe("hedefli durak düzeltmesi", () => {
     const duzelmis = { ...d2, gorev_turu: "coktan_secmeli", secenekler: ["Bilgi", "Şükür", "Sabır"], dogru_cevap: "Bilgi", soru: "Yeni soru?", secimler: [], varsayilan_sonraki_durak_id: "d8", odul_id: "n9" };
     const { client, calls } = sahte([out, { duraklar: [duzelmis] }]);
     const { definition, validation } = await composeAndValidate(input, client);
-    expect(calls).toHaveLength(2);
-    expect(calls[1].body.max_tokens).toBe(1_500 + 3_500);
-    expect(calls[1].options.timeout).toBe(90_000);
-    expect(calls[1].body.messages[0].content).toContain("3-5 çift olmalı");
-    expect(calls[1].body.messages[0].content).toContain('"id":"d2"');
+    expect(calls).toHaveLength(1);
+    expect(calls[0].body.max_tokens).toBe(1_500 + 3_500);
+    expect(calls[0].options.timeout).toBe(90_000);
+    expect(calls[0].body.messages[0].content).toContain("3-5 çift olmalı");
+    expect(calls[0].body.messages[0].content).toContain('"id":"d2"');
     expect(validation.gecerli).toBe(true);
     const yeni = definition.duraklar[1];
     expect(yeni.gorev.soru).toBe("Yeni soru?");
@@ -154,15 +162,15 @@ describe("hedefli durak düzeltmesi", () => {
     for (const i of [0, 2, 3, 4, 5]) out.duraklar[i].ipucu_2 = out.duraklar[i].ipucu_1;
     const { client, calls } = sahte([out, { duraklar: [] }]);
     await composeAndValidate(input, client);
-    const gonderilen = calls[1].body.messages[0].content.split("Düzeltilecek duraklar (JSON):")[1];
+    const gonderilen = calls[0].body.messages[0].content.split("Düzeltilecek duraklar (JSON):")[1];
     expect(JSON.parse(gonderilen)).toHaveLength(3);
-    expect(calls[1].body.max_tokens).toBe(1_500 + 3 * 3_500);
+    expect(calls[0].body.max_tokens).toBe(1_500 + 3 * 3_500);
   });
 
   it("hata yoksa ikinci çağrı yapılmaz", async () => {
     const { client, calls } = sahte([toModelOutput(makeDefinition(input, 8))]);
     await composeAndValidate(input, client);
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(0);
   });
 
   it("düzeltme çağrısı başarısız olursa ilk sonuç (hatalarıyla) döner", async () => {
@@ -185,7 +193,7 @@ describe("hedefli durak düzeltmesi", () => {
     let t = 0;
     const now = () => (t += 210_000);
     await composeAndValidate(input, client, now);
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(0);
   });
 
   it("yapısal (rota) hatası düzeltme çağrısı tetiklemez", async () => {
@@ -193,6 +201,6 @@ describe("hedefli durak düzeltmesi", () => {
     out.duraklar[5].varsayilan_sonraki_durak_id = "yok";
     const { client, calls } = sahte([out]);
     await composeAndValidate(input, client);
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(0);
   });
 });

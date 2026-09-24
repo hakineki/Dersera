@@ -1,4 +1,5 @@
-import { ComposeError, composeGame, yapilandirilmisIstek, type ComposeClient } from "@/lib/composer/anthropic";
+import { composeGame, yapilandirilmisIstek, type ComposeClient } from "@/lib/composer/anthropic";
+import { ComposeError } from "@/lib/composer/errors";
 import { DuzeltmeSchema, toDefinition, type Duzeltme, type ModelOutput } from "@/lib/composer/modelOutput";
 import { buildDuzeltmePrompt, buildUserPrompt } from "@/lib/composer/prompt";
 import { composeGameOpenAI, yapilandirilmisIstekOpenAI } from "@/lib/composer/openai";

@@ -1,25 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
-import { ModelOutputSchema, parseJsonText, type ModelOutput } from "@/lib/composer/modelOutput";
+import { ComposeError } from "@/lib/composer/errors";
+import { parseJsonText, type ModelOutput } from "@/lib/composer/modelOutput";
+import { parcaliUret } from "@/lib/composer/parcali";
 import type { ResolvedInput } from "@/lib/composer/input";
-import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
-import { oyunTokenSiniri, type Recipe } from "@/lib/composer/recipe";
+import { SYSTEM_PROMPT } from "@/lib/composer/prompt";
+import type { Recipe } from "@/lib/composer/recipe";
 
 export const DEFAULT_MODEL = "claude-sonnet-4-6";
-export const COMPOSE_TIMEOUT_MS = 240_000; // ilk üretim çağrısının üst sınırı; düzeltme çağrısı toplam bütçeden kalanla yapılır (service.ts)
-// Tam oyun 1,5–3 dakikada üretilir; çıktı kısa tutulur ve maliyet üst sınırı konur.
+// Parçalı üretimin (iskelet + paralel görevler) toplam üst sınırı; düzeltme çağrısı kalan süreyle yapılır (service.ts).
+export const COMPOSE_TIMEOUT_MS = 190_000;
 
-export type ComposeFailure = "config" | "timeout" | "upstream" | "invalid-output";
-
-export class ComposeError extends Error {
-  constructor(
-    public readonly reason: ComposeFailure,
-    message: string
-  ) {
-    super(message);
-  }
-}
+export { ComposeError, type ComposeFailure } from "@/lib/composer/errors";
 
 // Sadece test için enjekte edilebilir; üretimde env'den kurulur.
 export interface ComposeClient {
@@ -42,13 +35,13 @@ export async function composeGame(
   input: ResolvedInput,
   recipe: Recipe,
   izinliQrIdleri: string[],
-  client: ComposeClient = clientFromEnv(),
+  client?: ComposeClient,
   timeoutMs = COMPOSE_TIMEOUT_MS
 ): Promise<ModelOutput> {
-  return yapilandirilmisIstek(ModelOutputSchema, buildUserPrompt(input, recipe, izinliQrIdleri), oyunTokenSiniri(recipe), client, timeoutMs);
+  return parcaliUret(input, recipe, izinliQrIdleri, (schema, _ad, prompt, maxTokens, t) => yapilandirilmisIstek(schema, prompt, maxTokens, client, t), timeoutMs);
 }
 
-// Sistem prompt'u + tek kullanıcı mesajı → şemaya uyan JSON. Oyun üretimi ve durak düzeltmesi bunu kullanır.
+// Sistem prompt'u + tek kullanıcı mesajı → şemaya uyan JSON. İskelet, görev doldurma ve durak düzeltmesi bunu kullanır.
 export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>(
   schema: S,
   user: string,

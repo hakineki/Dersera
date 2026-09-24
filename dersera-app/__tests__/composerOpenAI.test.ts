@@ -1,10 +1,10 @@
 import OpenAI from "openai";
 import { composeGameOpenAI, DEFAULT_OPENAI_MODEL, openAIModelFromEnv, type OpenAIComposeClient } from "@/lib/composer/openai";
-import { ModelOutputSchema, type ModelOutput } from "@/lib/composer/modelOutput";
+import { IskeletSchema, type ModelOutput } from "@/lib/composer/modelOutput";
 import { buildRecipe } from "@/lib/composer/recipe";
 import { SYSTEM_PROMPT } from "@/lib/composer/prompt";
 import { composeAndValidate, IZINLI_QR_IDLERI, saglayiciFromEnv } from "@/lib/composer/service";
-import { makeDefinition, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
+import { makeDefinition, modelYaniti, promptOf, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 
 const input = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const recipe = buildRecipe(40, "dengeli", "sinif");
@@ -20,7 +20,7 @@ function fakeOpenAI(parsed: ModelOutput | null, extra: { refusal?: string; throw
           return {
             model: "test",
             usage: { completion_tokens: 10 },
-            choices: [{ finish_reason: extra.finish ?? "stop", message: { content: extra.content ?? (parsed ? JSON.stringify(parsed) : ""), refusal: extra.refusal ?? null } }],
+            choices: [{ finish_reason: extra.finish ?? "stop", message: { content: extra.content ?? (parsed ? JSON.stringify(modelYaniti(parsed, promptOf(body))) : ""), refusal: extra.refusal ?? null } }],
           };
         },
       },
@@ -42,17 +42,17 @@ describe("OpenAI sağlayıcısı", () => {
     delete process.env.AI_MODEL;
   });
 
-  it("aynı şemayı strict JSON schema olarak, durak sayısına göre token sınırı ve sistem prompt'uyla gönderir", async () => {
+  it("iskeleti strict JSON schema, durak sayısına göre token sınırı ve sistem prompt'uyla ister; birleşik çıktı tam oyundur", async () => {
     const out = toModelOutput(makeDefinition(input));
     const { client, calls } = fakeOpenAI(out);
     expect(await composeGameOpenAI(input, recipe, IZINLI_QR_IDLERI, client)).toEqual(out);
     const body = calls[0].body as { max_completion_tokens: number; messages: { role: string; content: string }[]; response_format: { type: string; json_schema: { strict: boolean; schema: { required: string[] } } } };
-    expect(body.max_completion_tokens).toBe(31600);
+    expect(body.max_completion_tokens).toBe(10_200);
     expect(body.messages[0]).toEqual({ role: "system", content: SYSTEM_PROMPT });
     expect(body.response_format.type).toBe("json_schema");
     expect(body.response_format.json_schema.strict).toBe(true);
-    expect(body.response_format.json_schema.schema.required).toEqual(Object.keys(ModelOutputSchema.shape));
-    expect(calls[0].options).toMatchObject({ timeout: 240_000, maxRetries: 0 });
+    expect(body.response_format.json_schema.schema.required).toEqual(Object.keys(IskeletSchema.shape));
+    expect(calls[0].options).toMatchObject({ timeout: 100_000, maxRetries: 0 });
   });
 
   it.each([
@@ -93,13 +93,14 @@ describe("sağlayıcı seçimi", () => {
   it("OPENAI_API_KEY varken composeAndValidate OpenAI'ye gider ve geçerli oyun üretir", async () => {
     process.env.OPENAI_API_KEY = "sk-test";
     const out = toModelOutput(makeDefinition(input, 6));
-    const spy = jest.spyOn(OpenAI.Chat.Completions.prototype, "create").mockResolvedValue({
+    const spy = jest.spyOn(OpenAI.Chat.Completions.prototype, "create").mockImplementation((async (body: Record<string, unknown>) => ({
       model: "test",
       usage: { completion_tokens: 1 },
-      choices: [{ finish_reason: "stop", message: { content: JSON.stringify(out), refusal: null } }],
-    } as never);
+      choices: [{ finish_reason: "stop", message: { content: JSON.stringify(modelYaniti(out, promptOf(body))), refusal: null } }],
+    })) as never);
     const { validation, definition } = await composeAndValidate(input);
-    expect(spy).toHaveBeenCalledTimes(1);
+    // 6 durak: iskelet + 2 görev grubu
+    expect(spy).toHaveBeenCalledTimes(3);
     expect(validation.gecerli).toBe(true);
     expect(definition.meta.ders).toBe("Fizik");
     delete process.env.OPENAI_API_KEY;
