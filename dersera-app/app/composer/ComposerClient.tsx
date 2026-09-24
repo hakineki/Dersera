@@ -16,6 +16,7 @@ import ComposerPreview from "./ComposerPreview";
 import DurakEditor, { type Duzenlenen } from "./DurakEditor";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI } from "./labels";
 import { maxDersSayisi } from "@/lib/composer/recipe";
+import { SERBEST_NOT_MAX } from "@/lib/composer/limits";
 
 const CLIENT_TIMEOUT_MS = 285_000; // sunucu en geç maxDuration'da (280 sn) kesilir; istemci ondan sonra vazgeçer
 const MESAJLAR = ["Müfredat hazırlanıyor...", "Hikâye kuruluyor...", "Görevler oluşturuluyor...", "Oyun kontrol ediliyor..."];
@@ -120,6 +121,7 @@ export default function ComposerClient({
   const [sure, setSure] = useState<20 | 40 | 60>(40);
   const [deneyim, setDeneyim] = useState<"macera" | "dengeli" | "ders">("dengeli");
   const [alan, setAlan] = useState<"sinif" | "okul">("sinif");
+  const [onNot, setOnNot] = useState("");
 
   const [durum, setDurum] = useState<Durum>({ tur: "form" });
   const [ilerleme, setIlerleme] = useState(0);
@@ -215,7 +217,7 @@ export default function ComposerClient({
       const res = await fetch("/api/compose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sinif, dersler: secili, sure, deneyim, alan }),
+        body: JSON.stringify({ sinif, dersler: secili, sure, deneyim, alan, ...(onNot.trim() ? { serbest_not: onNot.trim() } : {}) }),
         signal: controller.signal,
       });
       const json = await res.json().catch(() => ({}));
@@ -396,6 +398,28 @@ export default function ComposerClient({
             )}
             <Secim etiket="5. Deneyim biçimi" secenekler={[...DENEYIM_SECENEKLERI]} deger={deneyim} onChange={setDeneyim} />
             <Secim etiket="6. Oyun alanı" secenekler={[...ALAN_SECENEKLERI]} deger={alan} onChange={setAlan} />
+            <div>
+              <label htmlFor="on-not" className="text-sm font-semibold text-gray-700 mb-2 block">
+                7. Ön Not <span className="font-normal text-gray-500">(isteğe bağlı)</span>
+              </label>
+              <textarea
+                id="on-not"
+                value={onNot}
+                onChange={(e) => setOnNot(e.target.value.slice(0, SERBEST_NOT_MAX))}
+                maxLength={SERBEST_NOT_MAX}
+                rows={3}
+                aria-describedby="on-not-aciklama"
+                placeholder="Örn: Okul laboratuvarında bir kaza olsun, öğrenciler QR ile kanıt toplasın..."
+                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <p className="text-xs text-gray-500 mt-1 flex justify-between gap-3">
+                <span id="on-not-aciklama">Kafandaki mekân, sahne, karakter ya da kurgu fikrini yaz; oyun bu çerçevede kurulur.</span>
+                {/* Sayaç ekran okuyucuya yalnız sınıra yaklaşınca okunur; her tuşta okunması gürültü olur. */}
+                <span aria-live={onNot.length >= SERBEST_NOT_MAX - 50 ? "polite" : "off"} className="shrink-0">
+                  {onNot.length}/{SERBEST_NOT_MAX}
+                </span>
+              </p>
+            </div>
             <button
               type="submit"
               disabled={!hazir || ogretmen !== true}

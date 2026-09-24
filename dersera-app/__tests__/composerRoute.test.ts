@@ -151,6 +151,14 @@ describe("POST /api/compose", () => {
     expect(res.status).toBe(400);
   });
 
+  it("ön not route'tan üretim girdisine taşınır", async () => {
+    const konuId = getUniteler(10, "fizik").find((u) => u.ogrenmeCiktilari.length)!.id;
+    const req = jsonRequest("/api/compose", { sinif: 10, dersler: [{ ders: "fizik", konuId }], sure: 40, deneyim: "dengeli", alan: "sinif", serbest_not: "Kütüphanede gizemli bir not bulunsun" });
+    req.headers.set("cookie", cerez!);
+    expect((await route.POST(req)).status).toBe(200);
+    expect(spy.mock.calls[0][0].serbest_not).toBe("Kütüphanede gizemli bir not bulunsun");
+  });
+
   it("oturum yoksa ya da geçersizse 401 döner ve Anthropic çağrılmaz", async () => {
     const { req } = body(10, "fizik", 40, "dengeli", "sinif");
     req.headers.delete("cookie");
