@@ -77,7 +77,7 @@ Görev türlerini konuya uygun biçimde çeşitlendir. Durak id'leri d1, d2, ...
 }
 
 // Parçalı çağrılarda prompt iki parçadır: tüm aşamalarda aynı olan ortak kısım (müfredat, seçimler, kurallar)
-// ve aşamaya özgü kısım. Ortak kısım sağlayıcının prompt önbelleğine alınabilir.
+// ve aşamaya özgü kısım. Sağlayıcıya birleştirilerek gönderilir.
 export interface PromptParcalari {
   ortak: string;
   asama: string;

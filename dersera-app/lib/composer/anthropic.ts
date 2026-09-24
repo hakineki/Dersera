@@ -58,16 +58,8 @@ export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>
         model: modelFromEnv(),
         max_tokens: maxTokens,
         system: SYSTEM_PROMPT,
-        // Ortak kısım (sistem + müfredat + kurallar) önbelleğe yazılır; iskeletten sonra başlayan paralel gruplar onu ucuza okur.
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt.ortak, cache_control: { type: "ephemeral" } },
-              { type: "text", text: prompt.asama },
-            ],
-          },
-        ],
+        // Prompt önbelleği kullanılmaz: çıktı şeması aşamaya göre değiştiği için ön ek eşleşmez, yazma ücreti boşa gider.
+        messages: [{ role: "user", content: `${prompt.ortak}\n\n${prompt.asama}` }],
         output_config: { format: zodOutputFormat(schema) },
       },
       { signal: controller.signal, timeout: timeoutMs, maxRetries: 0 }

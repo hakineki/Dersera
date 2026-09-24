@@ -5,7 +5,7 @@ import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
 import { validateGame } from "@/lib/composer/validator";
 import { fakeClient, makeDefinition, promptOf, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { hedefKodu, ModelOutputSchema, toDefinition } from "@/lib/composer/modelOutput";
+import { DuzeltmeSchema, GorevDoldurmaSchema, hedefKodu, IskeletSchema, ModelOutputSchema, toDefinition } from "@/lib/composer/modelOutput";
 
 const input = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const recipe = buildRecipe(40, "dengeli", "sinif");
@@ -67,18 +67,11 @@ describe("composeGame", () => {
     expect(aborted).toBe(true);
   });
 
-  it("ortak prompt önbelleğe alınır (cache_control); aşama metni ayrı bloktadır", async () => {
+  it("önbellek kullanılmaz; her aşamada ortak kısım aynıdır ve aşama metni ondan sonra gelir", async () => {
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(input)));
     await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
-    for (const c of calls) {
-      const [ortak, asama] = (c.body.messages as { content: { text: string; cache_control?: unknown }[] }[])[0].content;
-      expect(ortak.cache_control).toEqual({ type: "ephemeral" });
-      expect(ortak.text).not.toMatch(/İSKELET AŞAMASI|GÖREV DOLDURMA AŞAMASI/);
-      expect(asama.text).toMatch(/İSKELET AŞAMASI|GÖREV DOLDURMA AŞAMASI/);
-      expect(asama.cache_control).toBeUndefined();
-    }
-    // Tüm aşamalarda ortak kısım aynıdır (önbellek isabeti için).
-    const ortaklar = calls.map((c) => (c.body.messages as { content: { text: string }[] }[])[0].content[0].text);
+    expect(JSON.stringify(calls.map((c) => c.body))).not.toContain("cache_control");
+    const ortaklar = calls.map((c) => promptOf(c.body).split(/\n\n(?=İSKELET AŞAMASI|GÖREV DOLDURMA AŞAMASI)/)[0]);
     expect(new Set(ortaklar).size).toBe(1);
   });
 
@@ -116,8 +109,14 @@ describe("composeGame", () => {
 
 // Anthropic yapılandırılmış çıktı şemasını dilbilgisine derler; iç içe nesne, anyOf ve enum dilbilgisini büyütür.
 // Canlıda "The compiled grammar is too large" hatası alındıktan sonra şema düzleştirildi; bu test yeniden büyümesini engeller.
-describe("model çıktı şeması karmaşıklığı", () => {
-  const schema = (zodOutputFormat(ModelOutputSchema) as unknown as { schema: Record<string, unknown> }).schema;
+// API'ye giden her şema (iskelet, görev doldurma, düzeltme) için geçerlidir.
+describe.each([
+  ["iskelet", IskeletSchema],
+  ["görev doldurma", GorevDoldurmaSchema],
+  ["düzeltme", DuzeltmeSchema],
+  ["tam oyun", ModelOutputSchema],
+])("model çıktı şeması karmaşıklığı: %s", (_ad, zs) => {
+  const schema = (zodOutputFormat(zs) as unknown as { schema: Record<string, unknown> }).schema;
   const nodes: Record<string, unknown>[] = [];
   const walk = (n: unknown) => {
     if (n && typeof n === "object") {

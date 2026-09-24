@@ -74,6 +74,33 @@ describe("parçalı üretim", () => {
     expect(grup).toMatch(/döndür: d1, d2, d3\n/);
   });
 
+  it("yapılandırma hatası yeniden denenmez; kesilen çıktı 1,5 kat token sınırıyla yeniden denenir", async () => {
+    const config = sahteIstek(oyun12, { hataGrubu: (ids) => (ids.includes("d4") ? new ComposeError("config", "anahtar yok") : null) });
+    await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, config.istek, 190_000);
+    expect(config.kayit.filter((k) => k.semaAdi === "dersera_gorevler")).toHaveLength(4);
+
+    const kesik = sahteIstek(oyun12, { hataGrubu: (ids, deneme) => (ids.includes("d4") && deneme === 1 ? new ComposeError("invalid-output", "Çıktı max_tokens (8500) sınırında kesildi") : null) });
+    const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, kesik.istek, 190_000);
+    expect(out).toEqual(oyun12);
+    const d4 = kesik.kayit.filter((k) => k.prompt.includes("döndür: d4, d5, d6"));
+    expect(d4.map((k) => k.maxTokens)).toEqual([gorevTokenSiniri(3), Math.round(gorevTokenSiniri(3) * 1.5)]);
+  });
+
+  it("yeniden deneme diğer grupları beklemez (hemen başlar)", async () => {
+    const sira: string[] = [];
+    const s = sahteIstek(oyun12, {
+      gecikme: 5,
+      hataGrubu: (ids, deneme) => {
+        sira.push(`${ids[0]}#${deneme}`);
+        return ids.includes("d1") && deneme === 1 ? new Error("429") : null;
+      },
+    });
+    await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000);
+    // d1'in ikinci denemesi, tüm ilk denemeler bitmeden başlar (paralel akış).
+    expect(sira.indexOf("d1#2")).toBeGreaterThan(-1);
+    expect(s.enCok()).toBeGreaterThanOrEqual(4);
+  });
+
   it("hızlı hatayla düşen grup bir kez yeniden denenir ve doldurulur", async () => {
     const s = sahteIstek(oyun12, { hataGrubu: (ids, deneme) => (ids.includes("d4") && deneme === 1 ? new Error("429") : null) });
     const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000);

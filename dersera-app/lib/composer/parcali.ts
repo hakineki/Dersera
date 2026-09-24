@@ -112,20 +112,24 @@ export async function parcaliUret(
   if (kalan < GOREV_MIN_MS) throw new ComposeError("timeout", `İskelet ${Math.round(iskeletMs / 1000)} saniye sürdü; görevler için süre kalmadı`);
 
   const gruplar = parcalara(iskelet.duraklar.map((d) => d.id));
-  const doldur = (ids: string[], timeoutMs: number) =>
-    istek(GorevDoldurmaSchema, "dersera_gorevler", { ortak, asama: buildGorevPrompt(iskelet, ids) }, gorevTokenSiniri(ids.length), timeoutMs);
-  const sonuclar: PromiseSettledResult<{ duraklar: GorevIcerigi[] }>[] = await Promise.allSettled(gruplar.map((ids) => doldur(ids, kalan)));
-
-  // Düşen gruplar süre yetiyorsa bir kez yeniden denenir; düzeltme adımının üç yeri boş duraklara harcanmasın.
-  const dusenler = sonuclar.flatMap((s, i) => (s.status === "rejected" ? [i] : []));
-  const nedenler = dusenler.map((i) => hataOzeti((sonuclar[i] as PromiseRejectedResult).reason));
-  const ikinciKalan = butceMs - (now() - basla);
-  if (dusenler.length && ikinciKalan >= YENIDEN_DENEME_MIN_MS) {
-    const tekrar = await Promise.allSettled(dusenler.map((i) => doldur(gruplar[i], ikinciKalan)));
-    tekrar.forEach((s, k) => {
-      if (s.status === "fulfilled") sonuclar[dusenler[k]] = s;
-    });
-  }
+  const doldur = (ids: string[], maxTokens: number, timeoutMs: number) =>
+    istek(GorevDoldurmaSchema, "dersera_gorevler", { ortak, asama: buildGorevPrompt(iskelet, ids) }, maxTokens, timeoutMs);
+  // Düşen grup hemen ve kendi başına bir kez yeniden denenir (diğer grupları beklemez); düzeltme adımının üç yeri
+  // boş duraklara harcanmasın. Yapılandırma hatası denenmez; token sınırında kesilen çıktı daha yüksek sınırla denenir.
+  const nedenler: string[] = [];
+  const grupDoldur = async (ids: string[]) => {
+    const sinir = gorevTokenSiniri(ids.length);
+    try {
+      return await doldur(ids, sinir, kalan);
+    } catch (err) {
+      nedenler.push(hataOzeti(err));
+      const yeniKalan = butceMs - (now() - basla);
+      if ((err instanceof ComposeError && err.reason === "config") || yeniKalan < YENIDEN_DENEME_MIN_MS) throw err;
+      const kesildi = err instanceof ComposeError && err.message.includes("max_tokens");
+      return doldur(ids, kesildi ? Math.round(sinir * 1.5) : sinir, yeniKalan);
+    }
+  };
+  const sonuclar = await Promise.allSettled(gruplar.map(grupDoldur));
 
   const gorevler = sonuclar.flatMap((s, i) => (s.status === "fulfilled" ? s.value.duraklar.filter((g) => gruplar[i].includes(g.id)) : []));
   const yazilan = new Set(gorevler.map((g) => g.id));

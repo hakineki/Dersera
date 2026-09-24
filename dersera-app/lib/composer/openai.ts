@@ -56,7 +56,6 @@ export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawS
         max_completion_tokens: maxTokens,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          // Ortak ön ek aynı kaldığı için OpenAI onu otomatik önbellekler.
           { role: "user", content: `${prompt.ortak}\n\n${prompt.asama}` },
         ],
         response_format: zodResponseFormat(schema, semaAdi),
