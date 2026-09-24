@@ -1,5 +1,6 @@
 import { parseComposerDefinition, parseComposerPublish } from "@/lib/composer/adapter";
 import { toplulukKodunuBagla } from "@/lib/toplulukService";
+import { getToplulukStore } from "@/lib/toplulukStore";
 import { kodKaynagaBagla } from "@/lib/istatistikService";
 import { duzenlemeBaglami } from "@/lib/composer/duzenleme";
 import { MAX_DURATION_MIN, MIN_DURATION_MIN, type PublicGame } from "@/lib/games";
@@ -35,6 +36,16 @@ export type KayitSonucu =
   | { ok: true; id: string; validation: ValidationResult; surum?: SurumBilgisi }
   | { ok: false; status: number; error: string };
 
+// "Oyunu Kullan" kopyasının kaynağı yalnız gerçekten var olan topluluk kaydıysa yazılır; okunamazsa kaynak boş kalır.
+async function gecerliToplulukKaynagi(tk: unknown): Promise<string | null> {
+  if (typeof tk !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(tk)) return null;
+  try {
+    return (await getToplulukStore().get(tk)) ? tk : null;
+  } catch {
+    return null;
+  }
+}
+
 // Öğretmenin "Kütüphaneye kaydet" isteği. Doğrulamadan geçmeyen oyun da saklanır; yayın ayrıca doğrular.
 export async function kutuphaneyeEkle(store: LibraryStore, sahip: string, body: unknown, now = Date.now()): Promise<KayitSonucu> {
   const b = body as { definition?: unknown; dersler?: unknown; toplulukId?: unknown } | null;
@@ -43,8 +54,7 @@ export async function kutuphaneyeEkle(store: LibraryStore, sahip: string, body: 
   if ((await store.count(sahip)) >= KUTUPHANE_LIMIT) {
     return { ok: false, status: 409, error: `Kütüphane dolu (en fazla ${KUTUPHANE_LIMIT} oyun). Yer açmak için eski bir oyunu silin.` };
   }
-  const tk = b?.toplulukId;
-  const toplulukKaynagi = typeof tk === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(tk) ? tk : null;
+  const toplulukKaynagi = await gecerliToplulukKaynagi(b?.toplulukId);
   const kayit: KutuphaneKaydi = { ...kayitOlustur(yeniId(), r.definition, r.dersler, null, now), surum: 1, taban: parmakizi(r.definition), topluluk_kaynagi: toplulukKaynagi };
   kayit.soy_id = kayit.id;
   await store.put(sahip, kayit);

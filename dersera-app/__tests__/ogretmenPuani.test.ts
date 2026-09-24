@@ -81,11 +81,48 @@ describe("öğretmen puanı", () => {
     expect(kullanim).toBe(0);
   });
 
-  it("farklı içerikli (düzenlenmiş) oyunun yayını bu kayda sayılmaz", async () => {
+  it("farklı içerikli (düzenlenmiş) oyunun yayını bu kayda sayılmaz; öğretmene nedeni söylenir", async () => {
     const t = await hesapAc(api, "ogretmen1");
     const baska = oyun("Düzenlenmiş kopya");
     await oynat(t, K.ogretmenPuaniEnAzOgrenci, baska);
+    const d = await (await durum(t)).json();
+    expect(d).toMatchObject({ uygun: false });
+    expect(d.neden).toMatch(/değiştirmeden.*Düzenlediğin kopyaların sonuçları bu oyuna sayılmaz/);
+  });
+
+  it("yayınlayanın kendi oturumundan gelen bitirişler onun puan hakkına sayılmaz", async () => {
+    const t = await hesapAc(api, "ogretmen1");
+    const kod = await yayinla(t);
+    for (let i = 0; i < K.ogretmenPuaniEnAzOgrenci; i++) await katilVeBitir(api, kod, `Kendim${i}`, t);
     expect(await (await durum(t)).json()).toMatchObject({ uygun: false });
+  });
+
+  it("sahte bitirişe karşı: katılımdan hemen sonra gelen bitiriş sayılmaz, yeterli süre sonra gelen sayılır", async () => {
+    process.env.DERSERA_EN_AZ_OYUN_SN = "600";
+    try {
+      const t = await hesapAc(api, "ogretmen1");
+      const kod = await yayinla(t);
+      for (let i = 0; i < K.ogretmenPuaniEnAzOgrenci; i++) await katilVeBitir(api, kod, `Hizli${i}`);
+      expect(await (await durum(t)).json()).toMatchObject({ uygun: false });
+      expect((await liste())[0].oynanma_sayisi).toBe(0);
+      // Katılım şimdi, sonuç 11 dakika sonra.
+      const tokenlar: string[] = [];
+      for (let i = 0; i < K.ogretmenPuaniEnAzOgrenci; i++) {
+        const r = await api.join.POST(jsonRequest("/join", { nickname: `Gercek${i}` }), api.params(kod));
+        tokenlar.push((await r.json()).playerToken);
+      }
+      const ileri = Date.now() + 11 * 60 * 1000;
+      const spy = jest.spyOn(Date, "now").mockReturnValue(ileri);
+      for (const [i, playerToken] of tokenlar.entries()) {
+        const sonuc = { nickname: `Gercek${i}`, netSeconds: 600, penaltySeconds: 0, hintsUsed: 0, completedAt: ileri };
+        expect((await api.results.POST(jsonRequest("/api/results", { gameCode: kod, playerToken, result: sonuc }))).status).toBe(201);
+      }
+      spy.mockRestore();
+      expect(await (await durum(t)).json()).toMatchObject({ uygun: true });
+      expect((await liste())[0].oynanma_sayisi).toBe(K.ogretmenPuaniEnAzOgrenci);
+    } finally {
+      process.env.DERSERA_EN_AZ_OYUN_SN = "0";
+    }
   });
 
   it("geçersiz puan 422; toplulukta olmayan kayıt 404; oturumsuz 401", async () => {
@@ -107,9 +144,12 @@ describe("öğretmen puanı", () => {
       (await (await api.library.POST(cerezli(jsonRequest("/api/library", { definition: d, dersler, toplulukId }), t))).json()).id as string;
     const k1 = await kaydet(id);
     const k2 = await kaydet("bozuk");
+    const k3 = await kaydet("00000000-0000-4000-8000-000000000000");
     const liste1 = await (await api.library.GET(cerezli(new Request("http://localhost/api/library"), t))).json();
     expect(liste1.oyunlar.find((o: { id: string }) => o.id === k1).topluluk_kaynagi).toBe(id);
     expect(liste1.oyunlar.find((o: { id: string }) => o.id === k2).topluluk_kaynagi).toBeNull();
+    // Biçimi doğru ama toplulukta olmayan kimlik yazılmaz.
+    expect(liste1.oyunlar.find((o: { id: string }) => o.id === k3).topluluk_kaynagi).toBeNull();
     const y = JSON.parse(JSON.stringify(d)) as GameDefinition;
     y.duraklar[0].gorev.soru = "Değişti";
     const put = new Request(`http://localhost/api/library/${k1}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ definition: y }) });

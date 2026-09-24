@@ -29,6 +29,9 @@ export interface IstatistikStore {
   puanKaydet(kod: string, oyuncu: string, kaynak: string | null, puan: number, sayilsin: boolean, ttlMs: number): Promise<boolean>;
   istatistikler(kaynaklar: string[]): Promise<Istatistik[]>;
   sil(kaynak: string): Promise<void>;
+  // Oyuncunun bu koda ilk katılma zamanı (sunucu saati); en kısa oynama süresi denetimi için.
+  katilimKaydet(kod: string, oyuncu: string, zaman: number, ttlMs: number): Promise<void>;
+  katilimZamani(kod: string, oyuncu: string): Promise<number | null>;
 }
 
 type Alan = "ogrenci" | "puanToplam" | "puanSayisi" | "puanToplamGoster" | "puanSayisiGoster";
@@ -36,6 +39,7 @@ const kodKey = (kod: string) => `dersera:istatistik:kod:${kod}`;
 const sayacKey = (kaynak: string, alan: Alan) => `dersera:istatistik:kutuphane:${kaynak}:${alan}`;
 const bitirenKey = (kod: string) => `dersera:istatistik:bitiren:${kod}`;
 const oyKey = (kod: string) => `dersera:istatistik:oy:${kod}`;
+const katilimKey = (kod: string) => `dersera:istatistik:katilim:${kod}`;
 const PUAN_ALANLARI: Alan[] = ["puanToplam", "puanSayisi", "puanToplamGoster", "puanSayisiGoster"];
 const TUM_ALANLAR: Alan[] = ["ogrenci", ...PUAN_ALANLARI];
 // Liste okuması: öğrenci sayısı ve anlık görüntü (canlı puan sayaçları dışarı çıkmaz).
@@ -49,6 +53,7 @@ export function createMemoryIstatistikStore(): IstatistikStore {
   const puanlar = new Map<string, PuanSayaci>();
   const bitirenler = new Map<string, Map<string, boolean>>();
   const oylar = new Map<string, Set<string>>();
+  const katilimlar = new Map<string, number>();
   return {
     async kodBagla(kod, kaynak) {
       kodlar.set(kod, kaynak);
@@ -85,6 +90,12 @@ export function createMemoryIstatistikStore(): IstatistikStore {
     async sil(kaynak) {
       ogrenci.delete(kaynak);
       puanlar.delete(kaynak);
+    },
+    async katilimKaydet(kod, oyuncu, zaman) {
+      if (!katilimlar.has(`${kod}|${oyuncu}`)) katilimlar.set(`${kod}|${oyuncu}`, zaman);
+    },
+    async katilimZamani(kod, oyuncu) {
+      return katilimlar.get(`${kod}|${oyuncu}`) ?? null;
     },
   };
 }
@@ -153,6 +164,13 @@ export function createRedisIstatistikStore(command: RedisCommand): IstatistikSto
     },
     async sil(kaynak) {
       await command(["DEL", ...TUM_ALANLAR.map((a) => sayacKey(kaynak, a))]);
+    },
+    async katilimKaydet(kod, oyuncu, zaman, ttlMs) {
+      await command(["EVAL", "redis.call('HSETNX', KEYS[1], ARGV[1], ARGV[2]) redis.call('PEXPIRE', KEYS[1], ARGV[3]) return 1", 1, katilimKey(kod), oyuncu, zaman, Math.max(1000, ttlMs)]);
+    },
+    async katilimZamani(kod, oyuncu) {
+      const v = (await command(["HGET", katilimKey(kod), oyuncu])) as string | null;
+      return v === null || v === undefined ? null : Number(v);
     },
   };
 }

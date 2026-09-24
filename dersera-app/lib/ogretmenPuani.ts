@@ -22,7 +22,11 @@ async function uygunluk(store: ToplulukStore, sahip: string, id: string): Promis
   if (kayit.olusturan === sahip) return { uygun: false, neden: "Kendi oyununu puanlayamazsın.", kayitVar: true };
   const kullanim = await store.ogretmenKullanimi(id, sahip);
   if (kullanim < K.ogretmenPuaniEnAzOgrenci) {
-    return { uygun: false, neden: `Puan verebilmek için oyunu sınıfında oynatmalısın: en az ${K.ogretmenPuaniEnAzOgrenci} öğrencinin bitirmesi gerekir (şu an ${kullanim}).`, kayitVar: true };
+    return {
+      uygun: false,
+      neden: `Puan verebilmek için bu oyunu değiştirmeden sınıfında oynatmalısın; en az ${K.ogretmenPuaniEnAzOgrenci} öğrencinin bitirmesi gerekir (şu an ${kullanim}). Düzenlediğin kopyaların sonuçları bu oyuna sayılmaz.`,
+      kayitVar: true,
+    };
   }
   return { uygun: true, kayitVar: true };
 }

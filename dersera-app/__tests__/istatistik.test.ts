@@ -5,7 +5,7 @@ import { getUniteler } from "@/data/mufredat/programlar";
 import { createRedisIstatistikStore } from "@/lib/istatistikStore";
 import { createRedisToplulukStore } from "@/lib/toplulukStore";
 import { BOS_PUAN_SAYACI, kovaliPuanEkle, PUAN_KOVASI } from "@/lib/istatistik";
-import { KOD_BASINA_EN_COK_OGRENCI } from "@/lib/istatistikService";
+import { enAzOyunMs, KOD_BASINA_EN_COK_OGRENCI } from "@/lib/istatistikService";
 
 const fizik = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const dersler = [{ ders: "fizik", konuId: getUniteler(10, "fizik")[0].id }];
@@ -263,6 +263,23 @@ describe("öğrenci puanı ve kütüphane istatistikleri", () => {
     expect((await puanVer(kod, { nickname: "Kartal", playerToken: t, puan: 4 })).status).toBe(409); // oy kaydedilmiş
     spy.mockRestore();
     err.mockRestore();
+  });
+});
+
+describe("en kısa oynama süresi", () => {
+  it("oyun süresinin dörtte biri, en az 2 dakika; ortam değişkeni geçersiz kılar", () => {
+    const eski = process.env.DERSERA_EN_AZ_OYUN_SN;
+    delete process.env.DERSERA_EN_AZ_OYUN_SN;
+    try {
+      expect(enAzOyunMs(40)).toBe(10 * 60 * 1000);
+      expect(enAzOyunMs(20)).toBe(5 * 60 * 1000);
+      expect(enAzOyunMs(null)).toBe(2 * 60 * 1000);
+      expect(enAzOyunMs(4)).toBe(2 * 60 * 1000);
+      process.env.DERSERA_EN_AZ_OYUN_SN = "30";
+      expect(enAzOyunMs(60)).toBe(30 * 1000);
+    } finally {
+      process.env.DERSERA_EN_AZ_OYUN_SN = eski;
+    }
   });
 });
 

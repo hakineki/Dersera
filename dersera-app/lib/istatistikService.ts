@@ -8,6 +8,27 @@ import { getToplulukStore } from "@/lib/toplulukStore";
 
 // Tek bir yayın kodu (bir sınıf oturumu) en çok bu kadar öğrenci sayısı ekleyebilir: tek kodla şişirmeye karşı.
 export const KOD_BASINA_EN_COK_OGRENCI = 60;
+// Sahte bitirişe karşı: bitiriş ancak katılımdan en az bu kadar süre sonra gelirse sayılır (oyun süresinin dörtte biri,
+// en az 2 dakika). Katılım zamanı sunucuda kaydedilir; istemcinin bildirdiği süreye güvenilmez.
+export const EN_AZ_OYUN_ORANI = 0.25;
+export const EN_AZ_OYUN_SN = 120;
+const KATILIM_SAKLAMA_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Testler ortam değişkeniyle süreyi sıfırlayabilir (DERSERA_EN_AZ_OYUN_SN).
+export function enAzOyunMs(sureDk: number | null): number {
+  const ortam = process.env.DERSERA_EN_AZ_OYUN_SN;
+  if (ortam !== undefined && ortam !== "") return Number(ortam) * 1000;
+  return Math.max(EN_AZ_OYUN_SN, (sureDk ?? 0) * 60 * EN_AZ_OYUN_ORANI) * 1000;
+}
+
+// Katılımın yan etkisi: ilk katılma zamanı. Hata katılımı bozmaz.
+export async function katilimKaydet(kod: string, nickname: string, now = Date.now()): Promise<void> {
+  try {
+    await getIstatistikStore().katilimKaydet(kod, oyuncuOf(kod, nickname), now, KATILIM_SAKLAMA_MS);
+  } catch (err) {
+    console.error("[istatistik] katılım zamanı yazılamadı", err instanceof Error ? err.message : err);
+  }
+}
 
 export function istatistikOzeti(i: Istatistik) {
   return { ogrenci_sayisi: i.ogrenci, puan_ortalama: gosterilecekOrtalama(i.puanToplam, i.puanSayisi), puan_sayisi: i.puanSayisi };
@@ -52,11 +73,17 @@ export async function kodKaynagaBagla(kod: string, kutuphaneKaynagi: string | un
 
 // Sonuç kaydedildikten sonra: oyuncu bu kodda ilk kez bitirdiyse kütüphane öğrenci sayısı ve topluluk oynanma sayısı artar.
 // Sahibin kendi oturumu ve kod başına sınırı aşan bitirişler sayılmaz. Hata sonuç kaydını bozmaz.
-export async function bitirisSay(kod: string, nickname: string, istekSahibi: string | null, expiresAt: number, now = Date.now()): Promise<void> {
+// sureDk: oyunun planlanan süresi (en kısa oynama süresi için); bilinmiyorsa null.
+export async function bitirisSay(kod: string, nickname: string, istekSahibi: string | null, expiresAt: number, sureDk: number | null = null, now = Date.now()): Promise<void> {
   try {
     const store = getIstatistikStore();
     const kaynak = await store.kodunKaynagi(kod);
-    const sonuc = await store.bitirenKaydet(kod, oyuncuOf(kod, nickname), kaynak, !sahibinKaynagi(kaynak, istekSahibi), KOD_BASINA_EN_COK_OGRENCI, expiresAt + GAME_RETENTION_MS - now);
+    const oyuncu = oyuncuOf(kod, nickname);
+    // Katılım kaydı yoksa (bu değişiklikten önceki katılım) süre denetlenmez.
+    const katilim = await store.katilimZamani(kod, oyuncu);
+    const yeterliSure = katilim === null || now - katilim >= enAzOyunMs(sureDk);
+    const sayilsin = yeterliSure && !sahibinKaynagi(kaynak, istekSahibi);
+    const sonuc = await store.bitirenKaydet(kod, oyuncu, kaynak, sayilsin, KOD_BASINA_EN_COK_OGRENCI, expiresAt + GAME_RETENTION_MS - now);
     if (sonuc !== "yeni-sayildi") return;
     const topluluk = getToplulukStore();
     const id = await topluluk.kodunOyunu(kod);
@@ -66,7 +93,8 @@ export async function bitirisSay(kod: string, nickname: string, istekSahibi: str
     await topluluk.oynanmaArtir(id);
     // Kodu yayınlayan öğretmenin bu oyunu sınıfında oynattığının kanıtı (öğretmen puanı uygunluğu); sahip sayılmaz.
     const yayinlayan = await topluluk.kodYayinlayani(kod);
-    if (yayinlayan && yayinlayan !== olusturan) await topluluk.ogretmenKullanimArtir(id, yayinlayan);
+    // Yayınlayanın kendi oturumundan gelen bitiriş onun puan hakkına sayılmaz.
+    if (yayinlayan && yayinlayan !== olusturan && yayinlayan !== istekSahibi) await topluluk.ogretmenKullanimArtir(id, yayinlayan);
   } catch (err) {
     console.error("[istatistik] bitiriş sayılamadı", err instanceof Error ? err.message : err);
   }
