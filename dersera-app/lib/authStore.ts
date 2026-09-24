@@ -24,6 +24,8 @@ export interface AuthStore {
   persistent: boolean;
   hesap(id: string): Promise<Hesap | null>;
   idByAd(kullaniciAdi: string): Promise<string | null>;
+  // Birden çok hesabın kullanıcı adı tek okumada (ör. okul listeleri); olmayan null.
+  kullaniciAdlari(ids: string[]): Promise<(string | null)[]>;
   // Kullanıcı adı boştaysa hesabı atomik olarak oluşturur; alınmışsa false.
   olustur(hesap: Hesap): Promise<boolean>;
   // Şifre/sürüm alanlarını yazar; kullanıcı adına dokunmaz.
@@ -56,6 +58,9 @@ export function createMemoryAuthStore(now: () => number = Date.now): AuthStore {
     },
     async idByAd(ad) {
       return adlar.get(ad) ?? null;
+    },
+    async kullaniciAdlari(ids) {
+      return ids.map((id) => hesapAdlari.get(id) ?? null);
     },
     async olustur(h) {
       if (adlar.has(h.kullaniciAdi)) return false;
@@ -110,6 +115,11 @@ export function createRedisAuthStore(command: RedisCommand): AuthStore {
     },
     async idByAd(ad) {
       return ((await command(["GET", adKey(ad)])) as string | null) ?? null;
+    },
+    async kullaniciAdlari(ids) {
+      if (ids.length === 0) return [];
+      const r = ((await command(["MGET", ...ids.map(hesapAdKey)])) as (string | null)[] | null) ?? [];
+      return ids.map((_, i) => r[i] ?? null);
     },
     async olustur(h) {
       const res = await command(["EVAL", OLUSTUR, 3, adKey(h.kullaniciAdi), hesapKey(h.id), hesapAdKey(h.id), h.id, JSON.stringify(kayitOf(h)), h.kullaniciAdi]);

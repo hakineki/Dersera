@@ -6,6 +6,8 @@ import { redisFromEnv, type RedisCommand } from "@/lib/redis";
 // kaynak → paylaşım (aynı oyunun yeniden paylaşımı öncekinin yerine geçer).
 export type KatilmaSonucu = "ok" | "zaten-uye" | "dolu";
 export type PaylasmaSonucu = "ok" | "dolu";
+// "degisti": kod bu arada başka bir istekle yenilendi (öksüz kod bırakılmaz); "cakisma": yeni kod başka okulda.
+export type DavetYenilemeSonucu = "ok" | "degisti" | "cakisma";
 
 export interface OkulStore {
   // Açan hesap başka okulda değilse okulu ve yönetici üyeliğini birlikte yazar.
@@ -17,7 +19,8 @@ export interface OkulStore {
   uyeler(okulId: string): Promise<OkulUyesi[]>;
   // Yalnız hesap hâlâ bu okulun üyesiyse çıkarır.
   uyeCikar(okulId: string, hesapId: string): Promise<boolean>;
-  davetYenile(okul: Okul, yeniKod: string): Promise<boolean>;
+  // Yalnız okulun kodu hâlâ okul.davetKodu ise yeniler.
+  davetYenile(okul: Okul, yeniKod: string): Promise<DavetYenilemeSonucu>;
   paylas(okulId: string, p: OkulPaylasimi): Promise<PaylasmaSonucu>;
   paylasimlar(okulId: string): Promise<PaylasimOzeti[]>;
   paylasim(okulId: string, id: string): Promise<OkulPaylasimi | null>;
@@ -69,12 +72,13 @@ export function createMemoryOkulStore(): OkulStore {
       return true;
     },
     async davetYenile(okul, yeniKod) {
-      if (davetler.has(yeniKod)) return false;
-      const eski = okullar.get(okul.id);
-      if (eski) davetler.delete(eski.davetKodu);
+      const su = okullar.get(okul.id);
+      if (!su || su.davetKodu !== okul.davetKodu) return "degisti";
+      if (davetler.has(yeniKod)) return "cakisma";
+      davetler.delete(su.davetKodu);
       davetler.set(yeniKod, okul.id);
-      okullar.set(okul.id, { ...okul, davetKodu: yeniKod });
-      return true;
+      okullar.set(okul.id, { ...su, davetKodu: yeniKod });
+      return "ok";
     },
     async paylas(okulId, p) {
       const t = paylasimTablosu(okulId);
@@ -108,7 +112,7 @@ const ozetKey = (okulId: string) => `dersera:okul:paylasim-ozet:${okulId}`;
 const kaynakKey = (okulId: string) => `dersera:okul:paylasim-kaynak:${okulId}`;
 const tamKey = (id: string) => `dersera:okul:paylasim:${id}`;
 
-// KEYS: hesap→okul, üye tablosu, okul kaydı, davet. ARGV: okulId, hesapId, üye JSON, okul JSON, davet kodu.
+// KEYS: hesap→okul, üye tablosu, okul kaydı, davet. ARGV: okulId, hesapId, üye JSON, okul JSON.
 const OLUSTUR = `if redis.call('EXISTS', KEYS[1]) == 1 then return 0 end
 if redis.call('SET', KEYS[4], ARGV[1], 'NX') == false then return -1 end
 redis.call('SET', KEYS[3], ARGV[4])
@@ -126,8 +130,11 @@ const CIKAR = `if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
 redis.call('DEL', KEYS[1])
 redis.call('HDEL', KEYS[2], ARGV[2])
 return 1`;
-// KEYS: yeni davet, eski davet, okul kaydı. ARGV: okulId, okul JSON.
-const DAVET_YENILE = `if redis.call('SET', KEYS[1], ARGV[1], 'NX') == false then return 0 end
+// KEYS: yeni davet, eski davet, okul kaydı. ARGV: okulId, yeni okul JSON, beklenen eski kod. Okul kaydındaki kod
+// beklenenden farklıysa (eşzamanlı yenileme) -1: hiçbir şey yazılmaz, öksüz kod kalmaz. Yeni kod doluysa 0.
+const DAVET_YENILE = `local v = redis.call('GET', KEYS[3])
+if not v or not string.find(v, '"davetKodu":"' .. ARGV[3] .. '"', 1, true) then return -1 end
+if redis.call('SET', KEYS[1], ARGV[1], 'NX') == false then return 0 end
 redis.call('DEL', KEYS[2])
 redis.call('SET', KEYS[3], ARGV[2])
 return 1`;
@@ -154,7 +161,7 @@ export function createRedisOkulStore(command: RedisCommand): OkulStore {
   return {
     async olustur(okul, yonetici) {
       const r = Number(
-        await command(["EVAL", OLUSTUR, 4, uyeOkuluKey(yonetici.hesapId), uyelerKey(okul.id), okulKey(okul.id), davetKey(okul.davetKodu), okul.id, yonetici.hesapId, JSON.stringify(yonetici), JSON.stringify(okul), okul.davetKodu])
+        await command(["EVAL", OLUSTUR, 4, uyeOkuluKey(yonetici.hesapId), uyelerKey(okul.id), okulKey(okul.id), davetKey(okul.davetKodu), okul.id, yonetici.hesapId, JSON.stringify(yonetici), JSON.stringify(okul)])
       );
       if (r === -1) throw new Error("Davet kodu çakıştı");
       return r === 1;
@@ -182,7 +189,8 @@ export function createRedisOkulStore(command: RedisCommand): OkulStore {
     },
     async davetYenile(okul, yeniKod) {
       const guncel = { ...okul, davetKodu: yeniKod };
-      return Number(await command(["EVAL", DAVET_YENILE, 3, davetKey(yeniKod), davetKey(okul.davetKodu), okulKey(okul.id), okul.id, JSON.stringify(guncel)])) === 1;
+      const r = Number(await command(["EVAL", DAVET_YENILE, 3, davetKey(yeniKod), davetKey(okul.davetKodu), okulKey(okul.id), okul.id, JSON.stringify(guncel), okul.davetKodu]));
+      return r === 1 ? "ok" : r === 0 ? "cakisma" : "degisti";
     },
     async paylas(okulId, p) {
       for (let deneme = 0; deneme < 3; deneme++) {

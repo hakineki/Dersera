@@ -5,6 +5,7 @@ import { parseComposerDefinition } from "@/lib/composer/adapter";
 import { duzenlemeBaglami } from "@/lib/composer/duzenleme";
 import { yonetisimDegerlendir, type YonetisimSonucu } from "@/lib/composer/yonetisim";
 import { yzDenetle } from "@/lib/composer/yzDenetimService";
+import { limitAsildi, limitKaydet } from "@/lib/composer/rateLimit";
 import type { IstatistikStore } from "@/lib/istatistikStore";
 import type { LibraryStore } from "@/lib/libraryStore";
 import { DAVET_ALFABE, DAVET_UZUNLUK, davetKoduNormal, OKUL, okulAdiNormal, type Okul, type OkulRolu, type PaylasimOzeti } from "@/lib/okul";
@@ -13,6 +14,10 @@ import type { OkulStore } from "@/lib/okulStore";
 // Okul katmanı kuralları (lib/okul.ts). Yetki: okul yöneticisi davet kodunu görür/yeniler, üye çıkarır, panoyu görür,
 // her paylaşımı kaldırabilir; öğretmen yalnız kendi paylaşımını kaldırır ve okuldan ayrılabilir. Yönetici ayrılamaz
 // ve çıkarılamaz (okul yöneticisiz kalmasın). Üye olmayan hiçbir okul verisini göremez.
+
+const SAAT_MS = 60 * 60 * 1000;
+// Davet kodu tahminine karşı: hesap başına saatte en çok bu kadar hatalı kod denemesi.
+export const HATALI_DAVET_SAATLIK = 10;
 
 const davetKoduUret = () => Array.from({ length: DAVET_UZUNLUK }, () => DAVET_ALFABE[randomInt(DAVET_ALFABE.length)]).join("");
 
@@ -67,9 +72,14 @@ export async function okulOlustur(d: OkulDeps, hesap: Hesap, adGirdi: unknown, n
 }
 
 export async function okulaKatil(d: OkulDeps, hesap: Hesap, kodGirdi: unknown, now = Date.now()): Promise<Sonuc<OkulumYaniti>> {
+  const sinir = `okul:katil-hata:${hesap.id}`;
+  if (await limitAsildi(sinir, SAAT_MS, HATALI_DAVET_SAATLIK)) return { ok: false, status: 429, error: "Çok fazla hatalı kod denendi. Bir saat sonra tekrar deneyin." };
   const kod = davetKoduNormal(kodGirdi);
   const okulId = kod ? await d.okul.davettenOkul(kod) : null;
-  if (!okulId) return { ok: false, status: 404, error: "Davet kodu geçersiz." };
+  if (!okulId) {
+    await limitKaydet(sinir, SAAT_MS);
+    return { ok: false, status: 404, error: "Davet kodu geçersiz." };
+  }
   const r = await d.okul.katil(okulId, { hesapId: hesap.id, rol: "ogretmen", katilma: now });
   if (r === "zaten-uye") return { ok: false, status: 409, error: "Zaten bir okula üyesin; önce ondan ayrıl." };
   if (r === "dolu") return { ok: false, status: 422, error: `Okul en çok ${OKUL.enCokUye} öğretmene açık.` };
@@ -101,7 +111,13 @@ export async function davetYenile(d: OkulDeps, hesap: Hesap): Promise<Sonuc<{ da
   if (u.rol !== "yonetici") return YONETICI_DEGIL;
   for (let deneme = 0; deneme < 3; deneme++) {
     const kod = davetKoduUret();
-    if (await d.okul.davetYenile(u.okul, kod)) return { ok: true, davetKodu: kod };
+    const r = await d.okul.davetYenile(u.okul, kod);
+    if (r === "ok") return { ok: true, davetKodu: kod };
+    // Eşzamanlı bir yenileme kazandı: onun kodu geçerlidir, ikinci kod üretilmez.
+    if (r === "degisti") {
+      const guncel = await d.okul.get(u.okul.id);
+      if (guncel) return { ok: true, davetKodu: guncel.davetKodu };
+    }
   }
   throw new Error("Davet kodu yenilenemedi");
 }
@@ -141,10 +157,11 @@ export async function okullaPaylas(d: OkulDeps, hesap: Hesap, kutuphaneId: strin
 
 export type PaylasimListesiOgesi = Omit<PaylasimOzeti, "paylasan"> & { paylasanAd: string; kaldirabilir: boolean };
 
+// Kullanıcı adları tek okumada (üye sayısından bağımsız).
 const adlar = async (d: OkulDeps, idler: string[]) => {
   const tekil = [...new Set(idler)];
-  const hesaplar = await Promise.all(tekil.map((id) => d.auth.hesap(id)));
-  const m = new Map(tekil.map((id, i) => [id, hesaplar[i]?.kullaniciAdi ?? "ayrılmış öğretmen"]));
+  const okunan = await d.auth.kullaniciAdlari(tekil);
+  const m = new Map(tekil.map((id, i) => [id, okunan[i] ?? "ayrılmış öğretmen"]));
   return (id: string) => m.get(id)!;
 };
 
@@ -209,28 +226,30 @@ export async function okulPanosu(d: OkulDeps, hesap: Hesap): Promise<Sonuc<{ ogr
   if (!u) return UYE_DEGIL;
   if (u.rol !== "yonetici") return YONETICI_DEGIL;
   const [uyeler, paylasimlar] = await Promise.all([d.okul.uyeler(u.okul.id), d.okul.paylasimlar(u.okul.id)]);
-  const ad = await adlar(d, uyeler.map((x) => x.hesapId));
-  const ogretmenler = await Promise.all(
-    uyeler.map(async (x) => {
-      const sahip = `hesap:${x.hesapId}`;
-      const idler = await d.library.idler(sahip);
-      // Öğrenci puanı gösterimi kovalıdır (lib/istatistik.ts); pano da gösterilen değerleri toplar.
-      const ist = await d.istatistik.istatistikler(idler.map((id) => `${sahip}:${id}`));
-      const ogrenci = ist.reduce((a, s) => a + s.ogrenci, 0);
-      const puanToplam = ist.reduce((a, s) => a + s.puanToplam, 0);
-      const puanSayisi = ist.reduce((a, s) => a + s.puanSayisi, 0);
-      return {
-        hesapId: x.hesapId,
-        kullaniciAdi: ad(x.hesapId),
-        rol: x.rol,
-        katilma: x.katilma,
-        kutuphaneOyun: idler.length,
-        paylasim: paylasimlar.filter((p) => p.paylasan === x.hesapId).length,
-        ogrenci,
-        puanOrtalama: puanSayisi ? Math.round((puanToplam / puanSayisi) * 10) / 10 : null,
-      };
-    })
-  );
+  // Üye sayısından bağımsız sabit sayıda okuma: adlar, tüm kütüphane kimlikleri ve tüm istatistikler birer toplu çağrı.
+  const sahipler = uyeler.map((x) => `hesap:${x.hesapId}`);
+  const [ad, idListeleri] = await Promise.all([adlar(d, uyeler.map((x) => x.hesapId)), d.library.idlerToplu(sahipler)]);
+  const kaynaklar = idListeleri.flatMap((idler, i) => idler.map((id) => `${sahipler[i]}:${id}`));
+  const tumIst = await d.istatistik.istatistikler(kaynaklar);
+  let bas = 0;
+  const ogretmenler = uyeler.map((x, i) => {
+    const idler = idListeleri[i];
+    // Öğrenci puanı gösterimi kovalıdır (lib/istatistik.ts); pano da gösterilen değerleri toplar.
+    const ist = tumIst.slice(bas, (bas += idler.length));
+    const ogrenci = ist.reduce((a, s) => a + s.ogrenci, 0);
+    const puanToplam = ist.reduce((a, s) => a + s.puanToplam, 0);
+    const puanSayisi = ist.reduce((a, s) => a + s.puanSayisi, 0);
+    return {
+      hesapId: x.hesapId,
+      kullaniciAdi: ad(x.hesapId),
+      rol: x.rol,
+      katilma: x.katilma,
+      kutuphaneOyun: idler.length,
+      paylasim: paylasimlar.filter((p) => p.paylasan === x.hesapId).length,
+      ogrenci,
+      puanOrtalama: puanSayisi ? Math.round((puanToplam / puanSayisi) * 10) / 10 : null,
+    };
+  });
   ogretmenler.sort((a, b) => (a.rol === b.rol ? a.katilma - b.katilma : a.rol === "yonetici" ? -1 : 1));
   return {
     ok: true,

@@ -328,6 +328,16 @@ describe("Redis istatistik deposu", () => {
     ]);
   });
 
+  it("çok sayıda kaynak parçalı MGET ile okunur; sıra korunur", async () => {
+    // Her MGET yanıtı kaynak başına [ogrenci, puanToplam, puanSayisi]; ogrenci = kaynağın sırası.
+    const { command, calls } = recordingCommand((a) => a.slice(1).map((k, i) => (i % 3 === 0 ? /:k(\d+):/.exec(k)![1] : "0")));
+    const s = createRedisIstatistikStore(command);
+    const kaynaklar = Array.from({ length: 1201 }, (_, i) => `hesap:x:k${i}`);
+    const ist = await s.istatistikler(kaynaklar);
+    expect(calls.map((c) => c.length - 1)).toEqual([1500, 1500, 603]);
+    expect(ist.map((x) => x.ogrenci)).toEqual(kaynaklar.map((_, i) => i));
+  });
+
   it("topluluk puanı tek betikte kovalı yazılır; oluşturan küçük anahtardan okunur, yoksa kayıttan bir kez doldurulur", async () => {
     let olusturan: string | null = null;
     const { command, calls } = recordingCommand((a) =>

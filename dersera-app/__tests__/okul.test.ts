@@ -1,6 +1,7 @@
 import { getUniteler } from "@/data/mufredat/programlar";
 import type { GameDefinition } from "@/lib/composer/definition";
 import { davetKoduNormal, OKUL } from "@/lib/okul";
+import { HATALI_DAVET_SAATLIK } from "@/lib/okulService";
 import { createMemoryOkulStore } from "@/lib/okulStore";
 import { buildApi, cerezli, hesapAc, jsonRequest } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
@@ -129,6 +130,26 @@ describe("okul: uç noktalar", () => {
     expect(yeni).not.toBe(eski);
     expect((await katil(eski, yabanci)).status).toBe(404);
     expect((await katil(yeni, yabanci)).status).toBe(200);
+  });
+
+  it("eşzamanlı yenilemeler: yalnız okulun güncel kodu geçerli, öksüz kod kalmaz", async () => {
+    const ilk = await okulKur();
+    const yanitlar = await Promise.all(Array.from({ length: 4 }, () => post(api.okulDavet, "/api/okul/davet", {}, yonetici)));
+    const kodlar = await Promise.all(yanitlar.map(async (r) => (await r.json()).davetKodu as string));
+    const guncel = (await okulum(yonetici)).okul.davetKodu as string;
+    expect(kodlar).toContain(guncel);
+    const store = api.okulStore.getOkulStore();
+    for (const k of new Set([ilk, ...kodlar])) expect(await store.davettenOkul(k)).toBe(k === guncel ? await store.okulOf(await hesapId("yonetici1")) : null);
+  });
+
+  it("hatalı davet kodu denemesi saatte sınırlı; doğru kod sayılmaz", async () => {
+    const kod = await okulKur();
+    for (let i = 0; i < HATALI_DAVET_SAATLIK; i++) expect((await katil("ZZZZ-ZZZZ", yabanci)).status).toBe(404);
+    const r = await katil(kod, yabanci);
+    expect(r.status).toBe(429);
+    expect((await r.json()).error).toMatch(/Çok fazla/);
+    // Sınır hesap başınadır; başka öğretmen etkilenmez ve başarılı katılım sayacı artırmaz.
+    expect((await katil(kod)).status).toBe(200);
   });
 
   it("okul içi paylaşım: üyeler görür ve açar; başka okul ve üye olmayan göremez; yeniden paylaşım yer değiştirir", async () => {

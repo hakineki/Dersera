@@ -118,6 +118,9 @@ ${kovaliPuanLua(2, 4)}
 end
 return 1`;
 
+// Tek MGET'te en çok bu kadar kaynak (kaynak başına üç sayaç).
+const MGET_PARCA = 500;
+
 export function createRedisIstatistikStore(command: RedisCommand): IstatistikStore {
   return {
     async kodBagla(kod, kaynak, ttlMs) {
@@ -155,12 +158,19 @@ export function createRedisIstatistikStore(command: RedisCommand): IstatistikSto
     async istatistikler(kaynaklar) {
       if (kaynaklar.length === 0) return [];
       const n = OKUNAN_ALANLAR.length;
-      const degerler = ((await command(["MGET", ...kaynaklar.flatMap((k) => OKUNAN_ALANLAR.map((a) => sayacKey(k, a)))])) as (string | null)[] | null) ?? [];
-      return kaynaklar.map((_, i) => ({
-        ogrenci: Number(degerler[i * n] ?? 0),
-        puanToplam: Number(degerler[i * n + 1] ?? 0),
-        puanSayisi: Number(degerler[i * n + 2] ?? 0),
-      }));
+      // Okul panosu binlerce kaynak okuyabilir: istek gövdesi sınırlı kalsın diye parçalı MGET.
+      const parcalar: string[][] = [];
+      for (let i = 0; i < kaynaklar.length; i += MGET_PARCA) parcalar.push(kaynaklar.slice(i, i + MGET_PARCA));
+      const okunan = await Promise.all(
+        parcalar.map(async (p) => ((await command(["MGET", ...p.flatMap((k) => OKUNAN_ALANLAR.map((a) => sayacKey(k, a)))])) as (string | null)[] | null) ?? [])
+      );
+      return parcalar.flatMap((p, j) =>
+        p.map((_, i) => ({
+          ogrenci: Number(okunan[j][i * n] ?? 0),
+          puanToplam: Number(okunan[j][i * n + 1] ?? 0),
+          puanSayisi: Number(okunan[j][i * n + 2] ?? 0),
+        }))
+      );
     },
     async sil(kaynak) {
       await command(["DEL", ...TUM_ALANLAR.map((a) => sayacKey(kaynak, a))]);

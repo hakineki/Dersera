@@ -220,6 +220,7 @@ export default function OkulTab() {
   const [oyunlar, setOyunlar] = useState<PaylasimListesiOgesi[] | null>(null);
   const [hata, setHata] = useState("");
   const [kopyalandi, setKopyalandi] = useState(false);
+  const [yenileniyor, setYenileniyor] = useState(false);
 
   const yukle = useCallback(async () => {
     const r = await okulBilgisi();
@@ -237,7 +238,9 @@ export default function OkulTab() {
 
   async function yenile() {
     if (!window.confirm("Yeni davet kodu oluşturulsun mu? Eski kod artık çalışmaz.")) return;
+    setYenileniyor(true);
     const r = await davetYenile();
+    setYenileniyor(false);
     if ("error" in r) setHata(r.error);
     else setBilgi((b) => (b?.okul ? { ...b, okul: { ...b.okul, davetKodu: r.davetKodu } } : b));
   }
@@ -287,8 +290,8 @@ export default function OkulTab() {
               >
                 {kopyalandi ? "Kopyalandı" : "Kopyala"}
               </button>
-              <button onClick={yenile} className="text-xs text-gray-600 font-semibold hover:underline">
-                Yeni kod
+              <button onClick={yenile} disabled={yenileniyor} className="text-xs text-gray-600 font-semibold hover:underline disabled:opacity-50">
+                {yenileniyor ? "Yenileniyor…" : "Yeni kod"}
               </button>
             </div>
           </div>
