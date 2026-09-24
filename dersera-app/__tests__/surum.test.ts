@@ -3,7 +3,7 @@ import { buildApi, hesapAc, jsonRequest } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 import type { GameDefinition } from "@/lib/composer/definition";
-import { degisimOrani, surumKarari, VARYANT_ESIGI } from "@/lib/surum";
+import { degisimOrani, parmakizi, surumKarari, VARYANT_ESIGI } from "@/lib/surum";
 
 const girdi = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const dersler = [{ ders: "fizik", konuId: getUniteler(10, "fizik")[0].id }];
@@ -17,26 +17,57 @@ const degistir = (d: GameDefinition, n: number) => {
 };
 
 describe("sürüm kararı (saf)", () => {
-  it("değişim oranı: giriş + her durak + envanter + final birimleri", () => {
+  const oran = (a: GameDefinition, b: GameDefinition) => degisimOrani(parmakizi(a), parmakizi(b));
+
+  it("değişim oranı: giriş + envanter + final + her durak; duraklar içerikçe eşleşir", () => {
     const d = oyun();
-    expect(degisimOrani(d, kopya(d))).toBe(0);
-    expect(degisimOrani(d, degistir(d, 1))).toBeCloseTo(1 / 11);
+    expect(oran(d, kopya(d))).toBe(0);
+    expect(oran(d, degistir(d, 1))).toBeCloseTo(1 / 11);
     const baslik = kopya(d);
     baslik.meta.baslik = "Yeni başlık";
-    expect(degisimOrani(d, baslik)).toBeCloseTo(1 / 11);
+    expect(oran(d, baslik)).toBeCloseTo(1 / 11);
     const eksik = kopya(d);
     eksik.duraklar.pop();
-    expect(degisimOrani(d, eksik)).toBeGreaterThan(0);
+    expect(oran(d, eksik)).toBeCloseTo(1 / 11);
   });
 
-  it(`en çok %${VARYANT_ESIGI * 100} değişiklik yeni sürüm, fazlası varyant; kimlik değişikliği her zaman varyant; hiç değişmezse aynı`, () => {
+  it("durak kimlikleri yeniden numaralansa da içerik aynıysa değişim sıfırdır", () => {
     const d = oyun();
-    expect(surumKarari(d, kopya(d))).toEqual({ tur: "ayni" });
-    expect(surumKarari(d, degistir(d, 3))).toMatchObject({ tur: "surum" }); // 3/11 ≈ %27
-    expect(surumKarari(d, degistir(d, 4))).toMatchObject({ tur: "varyant", neden: "oran" }); // 4/11 ≈ %36
+    const y = kopya(d);
+    const yeniId = (id: string) => `x-${id}`;
+    for (const durak of y.duraklar) {
+      durak.id = yeniId(durak.id);
+      durak.secimler.forEach((c) => (c.hedef_durak_id = yeniId(c.hedef_durak_id)));
+      if (durak.varsayilan_sonraki_durak_id) durak.varsayilan_sonraki_durak_id = yeniId(durak.varsayilan_sonraki_durak_id);
+    }
+    expect(oran(d, y)).toBe(0);
+    // Kimlikler değiştiği için içerik aynı olsa da kayıt yeni sürümdür (aynı değil).
+    expect(surumKarari(d, y, parmakizi(d))).toEqual({ tur: "surum", oran: 0 });
+  });
+
+  it(`tabana göre en çok %${VARYANT_ESIGI * 100} değişiklik yeni sürüm, fazlası varyant; kimlik değişikliği varyant; değişmezse aynı`, () => {
+    const d = oyun();
+    const taban = parmakizi(d);
+    expect(surumKarari(d, kopya(d), taban)).toEqual({ tur: "ayni" });
+    expect(surumKarari(d, degistir(d, 3), taban)).toMatchObject({ tur: "surum" }); // 3/11 ≈ %27
+    expect(surumKarari(d, degistir(d, 4), taban)).toMatchObject({ tur: "varyant", neden: "oran" }); // 4/11 ≈ %36
     const alan = kopya(d);
     alan.meta.alan = "okul";
-    expect(surumKarari(d, alan)).toMatchObject({ tur: "varyant", neden: "kimlik" });
+    expect(surumKarari(d, alan, taban)).toMatchObject({ tur: "varyant", neden: "kimlik" });
+    const konu = kopya(d);
+    konu.meta.konu = "Başka konu";
+    expect(surumKarari(d, konu, taban)).toMatchObject({ tur: "varyant", neden: "kimlik" });
+  });
+
+  it("art arda küçük değişiklikler tabana göre birikir: eşik aşılınca varyant", () => {
+    const d = oyun();
+    const taban = parmakizi(d);
+    const a = degistir(d, 3);
+    expect(surumKarari(d, a, taban)).toMatchObject({ tur: "surum" });
+    const b = kopya(a);
+    b.duraklar[5].gorev.soru = "Başka soru";
+    // Son kayda göre yalnız 1/11, tabana göre 4/11.
+    expect(surumKarari(a, b, taban)).toMatchObject({ tur: "varyant", neden: "oran" });
   });
 });
 
@@ -50,8 +81,8 @@ describe("kütüphanede sürümleme", () => {
   });
   const cerezli = (req: Request) => (req.headers.set("cookie", cerez), req);
   const kaydet = async (d: GameDefinition) => (await (await api.library.POST(cerezli(jsonRequest("/api/library", { definition: d, dersler })))).json()).id as string;
-  const guncelle = async (id: string, d: GameDefinition) => {
-    const put = new Request(`http://localhost/api/library/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ definition: d }) });
+  const guncelle = async (id: string, d: GameDefinition, surum?: number) => {
+    const put = new Request(`http://localhost/api/library/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ definition: d, surum }) });
     return api.libraryItem.PUT(cerezli(put), api.idParams(id));
   };
   const liste = async () => (await (await api.library.GET(cerezli(new Request("http://localhost/api/library")))).json()).oyunlar as { id: string; baslik: string; surum?: number; soy_id?: string; turetildigi?: { id: string; baslik: string } | null }[];
@@ -85,6 +116,44 @@ describe("kütüphanede sürümleme", () => {
     expect(l.find((o) => o.id === r.id)).toMatchObject({ baslik: "Uyarlama", surum: 1, soy_id: id, turetildigi: { id, baslik: "Özgün" } });
   });
 
+  it("eski sekmeden (daha eski sürümden) gelen kayıt yeni sürümü ezmez: 409", async () => {
+    const d = oyun();
+    const id = await kaydet(d);
+    expect((await guncelle(id, degistir(d, 1), 1)).status).toBe(200);
+    const eski = await guncelle(id, degistir(d, 2), 1);
+    expect(eski.status).toBe(409);
+    expect((await eski.json()).error).toMatch(/daha yeni bir sürüm/);
+    expect((await guncelle(id, degistir(d, 2), 2)).status).toBe(200);
+  });
+
+  it("aynı sürümden eşzamanlı iki kayıt: biri yazılır, diğeri 409 (sessiz veri kaybı yok)", async () => {
+    const d = oyun();
+    const id = await kaydet(d);
+    const sonuc = await Promise.all([guncelle(id, degistir(d, 1), 1), guncelle(id, degistir(d, 2), 1)]);
+    expect(sonuc.map((r) => r.status).sort()).toEqual([200, 409]);
+    expect((await liste())[0].surum).toBe(2);
+  });
+
+  it("kayıt okunduktan sonra silinirse düzenleme onu geri getirmez", async () => {
+    const d = oyun();
+    const id = await kaydet(d);
+    const store = api.libraryStore.getLibraryStore();
+    const get = jest.spyOn(store, "get");
+    get.mockImplementationOnce(async (o, i) => {
+      const k = (await store.list(o)).find((x) => x.id === i) ?? null;
+      await store.remove(o, i);
+      return k;
+    });
+    expect((await guncelle(id, degistir(d, 1))).status).toBe(404);
+    get.mockRestore();
+    expect(await liste()).toEqual([]);
+  });
+
+  it("liste yanıtı sürüm tabanını (iç iz) taşımaz", async () => {
+    await kaydet(oyun());
+    expect(JSON.stringify(await liste())).not.toContain("taban");
+  });
+
   it("kütüphane doluysa varyant açılmaz (409), özgün oyun değişmez", async () => {
     const d = oyun();
     const id = await kaydet(d);
@@ -105,6 +174,7 @@ describe("kütüphanede sürümleme", () => {
     const k = (await store.get(sahip, id))!;
     delete k.surum;
     delete k.soy_id;
+    delete k.taban;
     await store.replace(sahip, k);
     expect((await (await guncelle(id, degistir(d, 1))).json()).surum).toMatchObject({ tur: "surum", surum: 2 });
   });
@@ -120,5 +190,23 @@ describe("kütüphanede sürümleme", () => {
     await guncelle(id, yeni);
     const oyunKaydi = await api.gamesStore.getGamesStore().get(kod);
     expect(oyunKaydi!.definition!.meta.baslik).toBe("Sürüm 1");
+  });
+});
+
+describe("Redis kütüphane deposu: sürüm denetimli yazım", () => {
+  it("tek betikte: kayıt yoksa 0, sürüm farklıysa -1, eşitse yazar", async () => {
+    const { createRedisLibraryStore } = await import("@/lib/libraryStore");
+    const { recordingCommand } = await import("./helpers/fakeRedis");
+    let yanit = 1;
+    const { command, calls } = recordingCommand(() => yanit);
+    const s = createRedisLibraryStore(command);
+    const kayit = { id: "abc12345", surum: 3 } as unknown as Parameters<typeof s.replace>[1];
+    expect(await s.replaceIfSurum("hesap:x", kayit, 2)).toBe("ok");
+    expect(calls[0][1]).toContain(`string.match(v, '"surum":(%d+)') or '1'`);
+    expect(calls[0].slice(2, 6)).toEqual(["1", "dersera:kutuphane:hesap:x", "abc12345", "2"]);
+    yanit = -1;
+    expect(await s.replaceIfSurum("hesap:x", kayit, 2)).toBe("catisma");
+    yanit = 0;
+    expect(await s.replaceIfSurum("hesap:x", kayit, 2)).toBe("yok");
   });
 });

@@ -159,6 +159,7 @@ export default function ComposerClient({
   const [kutuphaneDurumu, setKutuphaneDurumu] = useState<"kayitsiz" | "degisti" | "kaydedildi" | "kaydediliyor">("kayitsiz");
   const [kutuphaneHatasi, setKutuphaneHatasi] = useState("");
   const [kutuphaneBilgisi, setKutuphaneBilgisi] = useState("");
+  const [kutuphaneSurum, setKutuphaneSurum] = useState<number | undefined>(undefined);
   const [toplulukKopyasi, setToplulukKopyasi] = useState(false);
   const istek = useRef<AbortController | null>(null);
   const sonTanim = useRef<GameDefinition | null>(null);
@@ -196,6 +197,7 @@ export default function ComposerClient({
       setToplulukKopyasi(!id);
       if (id) {
         setKutuphaneId(id);
+        setKutuphaneSurum((d.oyun as { surum?: number }).surum ?? 1);
         setKutuphaneDurumu("kaydedildi");
       }
       setDurum({ tur: "onizleme" });
@@ -298,7 +300,7 @@ export default function ComposerClient({
     setKutuphaneDurumu("kaydediliyor");
     setKutuphaneHatasi("");
     setKutuphaneBilgisi("");
-    const r = await kutuphaneyeKaydet(gonderilen, sonuc.dersler, kutuphaneId);
+    const r = await kutuphaneyeKaydet(gonderilen, sonuc.dersler, kutuphaneId, kutuphaneId ? kutuphaneSurum : undefined);
     if ("error" in r) {
       setKutuphaneHatasi(r.error);
       setKutuphaneDurumu(kutuphaneId ? "degisti" : "kayitsiz");
@@ -307,13 +309,14 @@ export default function ComposerClient({
     setKutuphaneId(r.id);
     window.history.replaceState(null, "", `/composer?kutuphane=${encodeURIComponent(r.id)}`);
     const s = r.surum;
+    setKutuphaneSurum(s?.surum ?? 1);
     setKutuphaneBilgisi(
       !s || s.tur === "ayni"
         ? ""
         : s.tur === "surum"
           ? `Sürüm ${s.surum} olarak kaydedildi.`
           : s.neden === "kimlik"
-            ? "Oyunun sınıfı, dersi, alanı, deneyimi ya da süresi değiştiği için yeni bir varyant olarak kaydedildi; özgün oyun kütüphanende yerinde duruyor."
+            ? "Oyunun sınıfı, dersi, konusu, alanı, deneyimi ya da süresi değiştiği için yeni bir varyant olarak kaydedildi; özgün oyun kütüphanende yerinde duruyor."
             : `Oyunun %${Math.round(s.oran * 100)}'i değiştiği için yeni bir varyant olarak kaydedildi; özgün oyun kütüphanende yerinde duruyor.`
     );
     const guncel = sonTanim.current === gonderilen;
@@ -525,6 +528,7 @@ export default function ComposerClient({
               setKutuphaneDurumu("kayitsiz");
               setKutuphaneHatasi("");
               setKutuphaneBilgisi("");
+              setKutuphaneSurum(undefined);
               setToplulukKopyasi(false);
               window.history.replaceState(null, "", "/composer");
               setDurum({ tur: "form" });
