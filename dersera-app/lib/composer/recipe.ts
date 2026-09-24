@@ -57,7 +57,7 @@ export function maxDersSayisi(sure: number): number {
   return GOREV_ARALIGI[sure]?.max ?? 0;
 }
 
-// Çıktı uzunluğu durak sayısıyla büyür. Ölçüm: 4 duraklı oyun gpt-6-luna'da 7,7 bin, Claude Sonnet 5'te 15 bin token
+// Çıktı uzunluğu durak sayısıyla büyür. Ölçüm: 4 duraklı oyun gpt-6-luna'da 7,7 bin, Claude'da (ANTHROPIC_MODEL=claude-sonnet-5) 15 bin token
 // (durak başına ~3,2 bin). Tavan, sağlayıcının tek yanıt sınırı içindedir; SÜREYİ garanti etmez (bkz. COMPOSE_TIMEOUT_MS).
 export function oyunTokenSiniri(recipe: Recipe): number {
   return Math.min(40_000, 6_000 + recipe.anaGorev.max * 3_200);

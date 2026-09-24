@@ -89,7 +89,7 @@ const hataAnahtari = (h: { kod: string; durakId?: string }) => `${h.kod}|${h.dur
 function dahaIyi(eski: ComposeResult, yeni: ComposeResult): boolean {
   const eskiler = new Set(eski.validation.hatalar.map(hataAnahtari));
   const yeniler = yeni.validation.hatalar.map(hataAnahtari);
-  return yeniler.length < eskiler.size && yeniler.every((k) => eskiler.has(k));
+  return yeniler.length < eski.validation.hatalar.length && yeniler.every((k) => eskiler.has(k));
 }
 
 export async function composeAndValidate(input: ResolvedInput, client?: ComposeClient, now: () => number = Date.now): Promise<ComposeResult> {

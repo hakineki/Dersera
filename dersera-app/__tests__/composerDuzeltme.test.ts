@@ -139,6 +139,16 @@ describe("hedefli durak düzeltmesi", () => {
     expect(validation.uyarilar[0].mesaj).not.toContain(`"${out.duraklar[2].isim}"`);
   });
 
+  it("durak kimliği olmayan tekrar eden hatalar varken de iyileşme kabul edilir", async () => {
+    const out = bozuk();
+    out.ogrenme_hedefleri = [...out.ogrenme_hedefleri, "UYD.1.1", "UYD.1.2", "UYD.1.3"]; // 3 × hedef-disi (durak kimliği yok)
+    const d2 = { ...out.duraklar[1], gorev_turu: "coktan_secmeli", secenekler: ["Bilgi", "Şükür", "Sabır"], dogru_cevap: "Bilgi" };
+    const { client } = sahte([out, { duraklar: [d2] }]);
+    const { validation } = await composeAndValidate(input, client);
+    expect(validation.hatalar.map((h) => h.kod)).toEqual(["hedef-disi", "hedef-disi", "hedef-disi"]);
+    expect(validation.uyarilar[0].mesaj).toContain("yeniden yazdırıldı");
+  });
+
   it("en çok 3 durak hedeflenir", async () => {
     const out = toModelOutput(makeDefinition(input, 8));
     for (const i of [0, 2, 3, 4, 5]) out.duraklar[i].ipucu_2 = out.duraklar[i].ipucu_1;
