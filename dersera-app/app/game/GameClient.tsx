@@ -249,6 +249,10 @@ function computeElapsed(startTime: number, endTime?: number): number {
   return Math.floor(((endTime ?? Date.now()) - startTime) / 1000);
 }
 
+// Olay işleyicilerinden çağrılır (render sırasında değil); saf olmayan çağrılar bileşen dışında tutulur.
+const rastgeleSec = <T,>(dizi: T[]): T => dizi[Math.floor(Math.random() * dizi.length)];
+const simdi = () => Date.now();
+
 export default function GameClient({ stop, allStops, gameCode, nickname, startTime, aylar }: Props) {
   const [screen, setScreen] = useState<Screen>("loading");
   const [soru, setSoru] = useState<Soru | null>(null);
@@ -272,35 +276,37 @@ export default function GameClient({ stop, allStops, gameCode, nickname, startTi
     .map((slug) => AYLAR.find((a) => a.ay === slug)?.ad ?? slug)
     .join(", ");
 
-  // İlk yükleme
+  // İlk yükleme: kayıtlı ilerleme tarayıcıdan ilk render'dan sonra okunur (sunucuda localStorage yok).
   useEffect(() => {
-    const saved = loadProgress();
-    const savedPenalty = loadPenaltySeconds();
-    setProgress(saved);
-    setPenaltySeconds(savedPenalty);
-    setKanitCount(Object.keys(saved).length);
+    const t = setTimeout(() => {
+      const saved = loadProgress();
+      const savedPenalty = loadPenaltySeconds();
+      setProgress(saved);
+      setPenaltySeconds(savedPenalty);
+      setKanitCount(Object.keys(saved).length);
 
-    if (saved[stop.id]) {
-      const endTime = loadEndTime();
-      if (stop.nextStopId === null && endTime) {
-        const entry = buildLeaderboardEntry(nickname, startTime, endTime, savedPenalty, saved);
-        setSummaryData(entry);
-        setElapsedSeconds(entry.netSeconds);
-        setScreen("summary");
-      } else {
-        setScreen("already-done");
+      if (saved[stop.id]) {
+        const endTime = loadEndTime();
+        if (stop.nextStopId === null && endTime) {
+          const entry = buildLeaderboardEntry(nickname, startTime, endTime, savedPenalty, saved);
+          setSummaryData(entry);
+          setElapsedSeconds(entry.netSeconds);
+          setScreen("summary");
+        } else {
+          setScreen("already-done");
+        }
+        return;
       }
-      return;
-    }
 
-    const sorular = getSorular(stop.dersKey, aylar);
-    if (!sorular.length) {
+      const sorular = getSorular(stop.dersKey, aylar);
+      if (!sorular.length) {
+        setScreen("question");
+        return;
+      }
+      setSoru(rastgeleSec(sorular));
       setScreen("question");
-      return;
-    }
-    const picked = sorular[Math.floor(Math.random() * sorular.length)];
-    setSoru(picked);
-    setScreen("question");
+    });
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stop.id]);
 
@@ -309,8 +315,8 @@ export default function GameClient({ stop, allStops, gameCode, nickname, startTi
     if (screen === "summary" || screen === "loading") return;
     const endTime = loadEndTime();
     if (endTime) {
-      setElapsedSeconds(computeElapsed(startTime, endTime));
-      return;
+      const t = setTimeout(() => setElapsedSeconds(computeElapsed(startTime, endTime)));
+      return () => clearTimeout(t);
     }
     const id = setInterval(
       () => setElapsedSeconds(computeElapsed(startTime)),
@@ -359,7 +365,7 @@ export default function GameClient({ stop, allStops, gameCode, nickname, startTi
     setShowKanitAnim(true);
 
     if (stop.nextStopId === null) {
-      const endTs = Date.now();
+      const endTs = simdi();
       saveEndTime(endTs);
       const entry = buildLeaderboardEntry(nickname, startTime, endTs, loadPenaltySeconds(), updated);
       addLeaderboardEntry(entry);
@@ -394,8 +400,7 @@ export default function GameClient({ stop, allStops, gameCode, nickname, startTi
       const sorular = getSorular(stop.dersKey, aylar);
       const alternatives = sorular.filter((s) => s.soru !== soru.soru);
       if (alternatives.length > 0) {
-        const backup = alternatives[Math.floor(Math.random() * alternatives.length)];
-        setBackupSoru(backup);
+        setBackupSoru(rastgeleSec(alternatives));
       } else {
         setBackupSoru(soru); // havuzda başka soru yok, aynısını ver
       }
@@ -422,7 +427,6 @@ export default function GameClient({ stop, allStops, gameCode, nickname, startTi
     completeStop(wrongCount + 1);
   }
 
-  const isLastStop = stop.nextStopId === null;
   const displaySeconds = elapsedSeconds + penaltySeconds;
   const visibleHint =
     hintsRevealed >= 2 ? soru?.ipucu2 : hintsRevealed === 1 ? soru?.ipucu1 : null;

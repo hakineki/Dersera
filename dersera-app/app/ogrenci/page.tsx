@@ -1,3 +1,4 @@
+import Link from "next/link";
 import DerseraLogo from "@/components/DerseraLogo";
 
 export default function OgrenciPage() {
@@ -17,12 +18,9 @@ export default function OgrenciPage() {
             Henüz bir QR kod taramadıysan öğretmeninden ilk durağın yerini sor.
           </p>
         </div>
-        <a
-          href="/"
-          className="inline-block mt-6 text-purple-400 text-sm hover:text-purple-200 transition-colors"
-        >
+        <Link href="/" className="inline-block mt-6 text-purple-400 text-sm hover:text-purple-200 transition-colors">
           ← Geri dön
-        </a>
+        </Link>
       </div>
     </div>
   );
