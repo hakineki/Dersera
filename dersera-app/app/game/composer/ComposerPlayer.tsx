@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { yasProfiliOf, type YasProfili } from "@/lib/yasProfili";
 import { arrive, choose, currentStep, durakById, FINAL_ID, inventory, needsScan, qrOf } from "@/lib/composer/scene";
 import type { GameDefinition } from "@/lib/composer/definition";
 import {
@@ -23,7 +24,14 @@ import {
 import { buildLeaderboardEntry, sendPlayerRating, sendPlayerResult } from "@/lib/playerResult";
 import TaskView from "./TaskView";
 
-const shell = "min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 px-4 py-6";
+// Yaş profiline göre zemin (docs/URUN-BAGLAMI.md §5): lise daha olgun ve atmosferik, ortaokul canlı.
+const ZEMIN: Record<YasProfili, string> = {
+  PRESCHOOL_3_5: "from-indigo-900 via-purple-900 to-pink-900",
+  PRIMARY_6_10: "from-indigo-900 via-purple-900 to-pink-900",
+  MIDDLE_11_14: "from-indigo-900 via-purple-900 to-pink-900",
+  HIGH_15_18: "from-slate-950 via-indigo-950 to-slate-900",
+};
+const shellOf = (sinif: number) => `min-h-screen bg-gradient-to-br ${ZEMIN[yasProfiliOf(sinif)]} px-4 py-6`;
 const kart = "bg-white/10 border border-white/20 rounded-2xl p-5";
 const devam = "w-full bg-white text-indigo-900 font-bold py-3 rounded-xl";
 
@@ -189,7 +197,7 @@ export default function ComposerPlayer({
   );
 
   return (
-    <div className={shell}>
+    <div className={shellOf(def.meta.sinif)}>
       <div className="w-full max-w-md mx-auto">
         {ustBar}
 

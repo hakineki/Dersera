@@ -1,14 +1,23 @@
 import { getKonuSecenekleri, getUniteler, PROGRAM_DERSLERI, SINIFLAR } from "@/data/mufredat/programlar";
 import { parseComposeInput } from "@/lib/composer/input";
+import { hedefKodu } from "@/lib/composer/modelOutput";
 import { answerFormatError, isCorrect } from "@/lib/composer/answers";
 import { buildRecipe } from "@/lib/composer/recipe";
 
 describe("müfredat verisi", () => {
-  it("dokuz dersin 9–12. sınıf programları yüklenmiş", () => {
+  it("lise (9–12) ve ortaokul (5–8) programları yüklenmiş", () => {
     const secenekler = getKonuSecenekleri();
     for (const ders of ["matematik", "fizik", "kimya", "turk-dili", "biyoloji", "cografya", "din-kulturu"]) {
-      for (const s of SINIFLAR) expect(secenekler[`${s}:${ders}`]?.length).toBeGreaterThan(0);
+      for (const s of [9, 10, 11, 12]) expect(secenekler[`${s}:${ders}`]?.length).toBeGreaterThan(0);
     }
+    for (const ders of ["matematik", "fen-bilimleri", "turkce", "din-kulturu"]) {
+      for (const s of [5, 6, 7, 8]) expect(secenekler[`${s}:${ders}`]?.length).toBeGreaterThan(0);
+    }
+    for (const s of [5, 6, 7]) expect(secenekler[`${s}:sosyal-bilgiler`]?.length).toBeGreaterThan(0);
+    expect(secenekler["8:inkilap-tarihi"]?.length).toBeGreaterThan(0);
+    // Kademe dışı ders yok: lise dersi ortaokulda, ortaokul dersi lisede görünmez.
+    expect(secenekler["6:fizik"]).toBeUndefined();
+    expect(secenekler["10:fen-bilimleri"]).toBeUndefined();
     expect(secenekler["10:felsefe"]?.length).toBeGreaterThan(0);
     expect(secenekler["11:tarih"]?.length).toBeGreaterThan(0);
   });
@@ -20,7 +29,10 @@ describe("müfredat verisi", () => {
         const kodlar = uniteler.flatMap((u) => u.ogrenmeCiktilari.map((o) => `${u.id}/${o.kod}`));
         expect(new Set(kodlar).size).toBe(kodlar.length);
         uniteler.forEach((u) => u.ogrenmeCiktilari.forEach((o) => {
-          expect(o.kod).toMatch(/^([A-ZÇĞİÖŞÜ]{2,5}\.?)?\d+(\.\d+)+$/u);
+          expect(o.kod).toMatch(/^([A-ZÇĞİÖŞÜ]{1,5}(\.[A-ZÇĞİÖŞÜ]{1,5})*\.?)?\d+(\.\d+)+$/u);
+          // Model çıktısındaki kod bu işlevle ayıklanır: her gerçek kod aynen geçmeli (açıklamalı yazılsa da).
+          expect(hedefKodu(o.kod)).toBe(o.kod);
+          expect(hedefKodu(`${o.kod}: ${o.metin}`)).toBe(o.kod);
           expect(o.metin.length).toBeGreaterThan(10);
         }));
       }

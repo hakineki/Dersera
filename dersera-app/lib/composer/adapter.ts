@@ -1,5 +1,4 @@
-import { PROGRAM_DERS_ADI } from "@/data/mufredat/programlar";
-import type { Ders } from "@/data/mufredat";
+import { PROGRAM_DERS_ADI, PROGRAM_DERSLERI } from "@/data/mufredat/programlar";
 import { GameDefinitionSchema, type GameDefinition } from "@/lib/composer/definition";
 import { DersKonuSchema, type DersKonu } from "@/lib/composer/input";
 import { z } from "zod";
@@ -7,14 +6,14 @@ import { revalidate } from "@/lib/composer/service";
 import type { ValidationResult } from "@/lib/composer/validator";
 import { yonetisimDegerlendir, type YonetisimSonucu } from "@/lib/composer/yonetisim";
 import type { YzDenetim } from "@/lib/composer/yzDenetim";
-import { publishWindowMinutes, type GameStop, type PublishRequest } from "@/lib/games";
+import { publishWindowMinutes, type DurakDersi, type GameStop, type PublishRequest } from "@/lib/games";
 
 // Game Definition → mevcut oyun kaydı. Kod üretimi, katılım, sonuçlar ve süre mevcut sistemden gelir.
 
 // Birden çok ders seçildiyse klasik alanlar için ilk ders kullanılır.
-function dersKeyOf(def: GameDefinition): Ders {
+function dersKeyOf(def: GameDefinition): DurakDersi {
   const ilk = def.meta.ders.split(" + ")[0];
-  return (Object.entries(PROGRAM_DERS_ADI).find(([, ad]) => ad === ilk)?.[0] ?? "genel-kultur") as Ders;
+  return PROGRAM_DERSLERI.find((k) => PROGRAM_DERS_ADI[k] === ilk) ?? "genel-kultur";
 }
 
 // Öğretmen paneli ve sonuç tablosu durakları bu listeden okur. Sanal sahneler QR'sız olduğundan sıra numarası alır.

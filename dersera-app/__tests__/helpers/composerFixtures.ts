@@ -5,7 +5,7 @@ import { parseComposeInput, type ResolvedInput } from "@/lib/composer/input";
 import type { ModelOutput } from "@/lib/composer/modelOutput";
 
 export function resolvedInput(o: {
-  sinif: 9 | 10 | 11 | 12;
+  sinif: 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
   ders: string | string[];
   sure: 20 | 40 | 60;
   deneyim: "macera" | "dengeli" | "ders";

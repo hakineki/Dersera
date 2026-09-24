@@ -1,35 +1,13 @@
-import data from "./tymm-programlar.json";
+import lise from "./tymm-programlar.json";
+import ortaokul from "./tymm-ortaokul.json";
 
-// Türkiye Yüzyılı Maarif Modeli ortaöğretim programları (9–12). Composer yalnızca bu veriyi kullanır;
-// konu (ünite/tema) ve öğrenme çıktısı uydurulamaz. Aylık soru bankası (sinif10) ayrı bir kaynaktır.
+// Türkiye Yüzyılı Maarif Modeli öğretim programları: ortaokul (5–8, scripts/tymm-ortaokul.mjs) ve ortaöğretim (9–12).
+// Composer yalnızca bu veriyi kullanır; konu (ünite/tema) ve öğrenme çıktısı uydurulamaz. Aylık soru bankası (sinif10)
+// ayrı bir kaynaktır.
 
-export const SINIFLAR = [9, 10, 11, 12] as const;
-export type Sinif = (typeof SINIFLAR)[number];
+import { PROGRAM_DERSLERI, SINIFLAR, type ProgramDersi } from "./dersler";
 
-export const PROGRAM_DERSLERI = [
-  "matematik",
-  "fizik",
-  "kimya",
-  "turk-dili",
-  "biyoloji",
-  "tarih",
-  "cografya",
-  "felsefe",
-  "din-kulturu",
-] as const;
-export type ProgramDersi = (typeof PROGRAM_DERSLERI)[number];
-
-export const PROGRAM_DERS_ADI: Record<ProgramDersi, string> = {
-  matematik: "Matematik",
-  fizik: "Fizik",
-  kimya: "Kimya",
-  "turk-dili": "Türk Dili ve Edebiyatı",
-  biyoloji: "Biyoloji",
-  tarih: "Tarih",
-  cografya: "Coğrafya",
-  felsefe: "Felsefe",
-  "din-kulturu": "Din Kültürü",
-};
+export { PROGRAM_DERS_ADI, PROGRAM_DERSLERI, SINIFLAR, type ProgramDersi, type Sinif } from "./dersler";
 
 export interface OgrenmeCiktisi {
   kod: string;
@@ -50,12 +28,14 @@ interface ProgramVerisi {
   programlar: Partial<Record<ProgramDersi, Partial<Record<string, Unite[]>>>>;
 }
 
-const PROGRAM = data as ProgramVerisi;
-
-export const PROGRAM_KAYNAK = { url: PROGRAM.kaynak, alinma: PROGRAM.alinma };
+// İki kaynak ders → sınıf düzeyinde birleşir (aynı ders anahtarı, ör. matematik, iki kademede de vardır).
+const KAYNAKLAR = [lise, ortaokul] as ProgramVerisi[];
+const PROGRAMLAR: ProgramVerisi["programlar"] = {};
+for (const k of KAYNAKLAR)
+  for (const [ders, siniflar] of Object.entries(k.programlar)) PROGRAMLAR[ders as ProgramDersi] = { ...PROGRAMLAR[ders as ProgramDersi], ...siniflar };
 
 export function getUniteler(sinif: number, ders: string): Unite[] {
-  return PROGRAM.programlar[ders as ProgramDersi]?.[String(sinif)] ?? [];
+  return PROGRAMLAR[ders as ProgramDersi]?.[String(sinif)] ?? [];
 }
 
 export function getUnite(sinif: number, ders: string, uniteId: string): Unite | undefined {

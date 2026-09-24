@@ -86,7 +86,7 @@ function Secim<T extends string | number>({
               aria-pressed={deger === s.key}
               disabled={kapali}
               onClick={() => onChange(s.key)}
-              className={`text-left rounded-xl border px-3 py-2.5 text-sm transition-colors disabled:opacity-40 ${
+              className={`text-left rounded-xl border px-3 py-2.5 text-sm transition-colors ${
                 deger === s.key ? "border-indigo-600 bg-indigo-50 text-indigo-900 ring-1 ring-indigo-600" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
               }`}
             >
@@ -445,16 +445,15 @@ export default function ComposerClient({
                 <legend className="text-sm font-semibold text-gray-700 mb-1">Ders</legend>
                 <p className="text-xs text-gray-400 mb-2">Birden çok ders seçebilirsiniz; oyun dersleri tek bir hikâyede birleştirir.</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {dersler.map((d) => {
+                  {dersler.filter((d) => konular[`${sinif}:${d.key}`]?.length).map((d) => {
                     const secildi = secili.some((k) => k.ders === d.key);
                     return (
                       <button
                         key={d.key}
                         type="button"
                         aria-pressed={secildi}
-                        disabled={!konular[`${sinif}:${d.key}`]?.length}
                         onClick={() => dersDegistir(d.key)}
-                        className={`text-left rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors disabled:opacity-40 ${
+                        className={`text-left rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
                           secildi ? "border-indigo-600 bg-indigo-50 text-indigo-900 ring-1 ring-indigo-600" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
                         }`}
                       >

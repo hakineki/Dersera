@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   PROGRAM_DERS_ADI,
   PROGRAM_DERSLERI,
+  SINIFLAR,
   getUnite,
   type OgrenmeCiktisi,
   type ProgramDersi,
@@ -30,7 +31,7 @@ export { SERBEST_NOT_MAX };
 // ve isteğe bağlı ön not (senaryo fikri). Not kontrol karakterlerinden arındırılır; boşsa yok sayılır.
 export const ComposeInputSchema = z
   .object({
-    sinif: z.union([z.literal(9), z.literal(10), z.literal(11), z.literal(12)]),
+    sinif: z.number().int().refine((s) => (SINIFLAR as readonly number[]).includes(s)),
     dersler: z.array(DersKonuSchema).min(1).max(PROGRAM_DERSLERI.length),
     sure: z.union([z.literal(20), z.literal(40), z.literal(60)]),
     deneyim: z.enum(DENEYIMLER),
