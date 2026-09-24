@@ -5,7 +5,7 @@ import { ComposeError } from "@/lib/composer/errors";
 import { parseJsonText, type ModelOutput } from "@/lib/composer/modelOutput";
 import { parcaliUret } from "@/lib/composer/parcali";
 import type { ResolvedInput } from "@/lib/composer/input";
-import { SYSTEM_PROMPT } from "@/lib/composer/prompt";
+import { SYSTEM_PROMPT, type PromptParcalari } from "@/lib/composer/prompt";
 import type { Recipe } from "@/lib/composer/recipe";
 
 export const DEFAULT_MODEL = "claude-sonnet-4-6";
@@ -44,7 +44,7 @@ export async function composeGame(
 // Sistem prompt'u + tek kullanıcı mesajı → şemaya uyan JSON. İskelet, görev doldurma ve durak düzeltmesi bunu kullanır.
 export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>(
   schema: S,
-  user: string,
+  prompt: PromptParcalari,
   maxTokens: number,
   client: ComposeClient = clientFromEnv(),
   timeoutMs = COMPOSE_TIMEOUT_MS
@@ -58,7 +58,16 @@ export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>
         model: modelFromEnv(),
         max_tokens: maxTokens,
         system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: user }],
+        // Ortak kısım (sistem + müfredat + kurallar) önbelleğe yazılır; iskeletten sonra başlayan paralel gruplar onu ucuza okur.
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: prompt.ortak, cache_control: { type: "ephemeral" } },
+              { type: "text", text: prompt.asama },
+            ],
+          },
+        ],
         output_config: { format: zodOutputFormat(schema) },
       },
       { signal: controller.signal, timeout: timeoutMs, maxRetries: 0 }
@@ -73,7 +82,7 @@ export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>
   } catch (err) {
     if (err instanceof ComposeError) throw err;
     if (controller.signal.aborted || err instanceof Anthropic.APIConnectionTimeoutError || err instanceof Anthropic.APIUserAbortError) {
-      throw new ComposeError("timeout", `Oyun oluşturma ${timeoutMs / 1000} saniyede tamamlanmadı`);
+      throw new ComposeError("timeout", `Oyun oluşturma ${Math.round(timeoutMs / 1000)} saniyede tamamlanmadı`);
     }
     if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
       throw new ComposeError("config", `Anthropic kimlik doğrulaması başarısız (${err.status})`);

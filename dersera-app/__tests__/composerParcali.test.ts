@@ -18,20 +18,26 @@ beforeEach(() => {
 afterEach(() => jest.restoreAllMocks());
 
 // Aşamaya göre yanıt veren genel istek; eşzamanlı çağrı sayısını ölçer.
-function sahteIstek(out: ModelOutput, opts: { hataGrubu?: (ids: string[]) => Error | null; gecikme?: number } = {}) {
+function sahteIstek(out: ModelOutput, opts: { hataGrubu?: (ids: string[], deneme: number) => Error | null; gecikme?: number; yanit?: (ids: string[], y: unknown) => unknown } = {}) {
+  const denemeler = new Map<string, number>();
   const kayit: { semaAdi: string; prompt: string; maxTokens: number; timeoutMs: number }[] = [];
   let aktif = 0;
   let enCok = 0;
-  const istek = (async (_schema, semaAdi, prompt, maxTokens, timeoutMs) => {
+  const istek = (async (_schema, semaAdi, parcalar, maxTokens, timeoutMs) => {
+    const prompt = `${parcalar.ortak}\n${parcalar.asama}`;
     kayit.push({ semaAdi, prompt, maxTokens, timeoutMs });
     aktif++;
     enCok = Math.max(enCok, aktif);
     await new Promise((r) => setTimeout(r, opts.gecikme ?? 5));
     aktif--;
-    if (semaAdi === "dersera_gorevler" && opts.hataGrubu) {
+    if (semaAdi === "dersera_gorevler") {
       const ids = prompt.match(/döndür: ([^\n]+)/)![1].split(", ");
-      const h = opts.hataGrubu(ids);
+      const deneme = (denemeler.get(ids.join()) ?? 0) + 1;
+      denemeler.set(ids.join(), deneme);
+      const h = opts.hataGrubu?.(ids, deneme);
       if (h) throw h;
+      const y = modelYaniti(out, prompt);
+      return opts.yanit ? opts.yanit(ids, y) : y;
     }
     return modelYaniti(out, prompt);
   }) as Istek;
@@ -68,11 +74,34 @@ describe("parçalı üretim", () => {
     expect(grup).toMatch(/döndür: d1, d2, d3\n/);
   });
 
-  it("bir grup başarısız olursa o duraklar boş kalır, diğerleri doldurulur", async () => {
+  it("hızlı hatayla düşen grup bir kez yeniden denenir ve doldurulur", async () => {
+    const s = sahteIstek(oyun12, { hataGrubu: (ids, deneme) => (ids.includes("d4") && deneme === 1 ? new Error("429") : null) });
+    const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000);
+    expect(out).toEqual(oyun12);
+    expect(s.kayit.filter((k) => k.semaAdi === "dersera_gorevler")).toHaveLength(5);
+    expect(console.info).toHaveBeenCalledWith(expect.stringContaining("düşen: 429"));
+  });
+
+  it("yeniden denemede de düşen grubun durakları boş kalır, diğerleri doldurulur; eksikler günlüğe yazılır", async () => {
     const s = sahteIstek(oyun12, { hataGrubu: (ids) => (ids.includes("d4") ? new Error("ağ") : null) });
     const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000);
     expect(out.duraklar.filter((d) => d.soru === "").map((d) => d.id)).toEqual(["d4", "d5", "d6"]);
     expect(out.duraklar[0].soru).toBe(oyun12.duraklar[0].soru);
+    expect(console.info).toHaveBeenCalledWith(expect.stringContaining("görevi yazılamayan: d4, d5, d6"));
+  });
+
+  it("model kimliği farklı yazarsa (d1 → durak-1) o durak boş kalır ve günlüğe yazılır", async () => {
+    const s = sahteIstek(oyun12, {
+      yanit: (ids, y) => (ids.includes("d1") ? { duraklar: (y as { duraklar: { id: string }[] }).duraklar.map((d) => (d.id === "d1" ? { ...d, id: "durak-1" } : d)) } : y),
+    });
+    const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000);
+    expect(out.duraklar[0].soru).toBe("");
+    expect(console.info).toHaveBeenCalledWith(expect.stringContaining("görevi yazılamayan: d1"));
+  });
+
+  it("tüm gruplar düşerse zaman aşımı öncelikli iletilir", async () => {
+    const s = sahteIstek(oyun12, { hataGrubu: (ids) => (ids.includes("d1") ? new ComposeError("invalid-output", "kesildi") : new ComposeError("timeout", "süre")) });
+    await expect(parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000)).rejects.toMatchObject({ reason: "timeout" });
   });
 
   it("tüm gruplar başarısızsa ilk hata iletilir", async () => {
@@ -88,29 +117,53 @@ describe("parçalı üretim", () => {
     expect(s.kayit).toHaveLength(1);
   });
 
-  it("birleştirme: başka grubun ya da bilinmeyen kimlik yok sayılır; görev türü yalnız doluysa değişir", () => {
+  it("birleştirme: bilinmeyen kimlik yok sayılır; görev türü yalnız sayıya duyarlı türlerden değişebilir", () => {
     const iskelet = modelYaniti(oyun12, ISKELET_ISARETI) as Iskelet;
     const g1 = { ...(modelYaniti(oyun12, `${GOREV_ISARETI}\nYalnız şu durakların görev içeriğini yaz ve duraklar dizisinde döndür: d1\n`) as { duraklar: ModelOutput["duraklar"] }).duraklar[0] };
     const out = birlestir(iskelet, [{ ...g1, gorev_turu: "" } as never, { ...g1, id: "d99" } as never]);
     expect(out.duraklar[0].gorev_turu).toBe(oyun12.duraklar[0].gorev_turu);
     expect(out.duraklar).toHaveLength(12);
-    const tur = birlestir(iskelet, [{ ...g1, gorev_turu: "coktan_secmeli" } as never]);
-    expect(tur.duraklar[0].gorev_turu).toBe("coktan_secmeli");
+    // Çoktan seçmeli iskelet türü korunur…
+    expect(birlestir(iskelet, [{ ...g1, gorev_turu: "sayisal" } as never]).duraklar[0].gorev_turu).toBe(oyun12.duraklar[0].gorev_turu);
+    // …eşleştirme ise içerik gerektiriyorsa çoktan seçmeliye dönebilir.
+    const esl = { ...iskelet, duraklar: iskelet.duraklar.map((d, i) => (i === 0 ? { ...d, gorev_turu: "eslestirme" } : d)) };
+    expect(birlestir(esl, [{ ...g1, gorev_turu: "coktan_secmeli" } as never]).duraklar[0].gorev_turu).toBe("coktan_secmeli");
+  });
+
+  it("sınıf alanında düşen grup: seçim durağı silinmez, düzeltme adımı yazar", async () => {
+    const sinif = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
+    const oyun8 = toModelOutput(makeDefinition(sinif, 8));
+    let yazildi = false;
+    const client = {
+      messages: {
+        create: async (body: Record<string, unknown>) => {
+          const prompt = promptOf(body);
+          // d1–d3 grubu (d2 seçim durağı) iki denemede de düşer.
+          if (prompt.includes("döndür: d1, d2, d3")) throw new Error("503");
+          const yanit = prompt.includes("Düzeltilecek duraklar")
+            ? ((yazildi = true), { duraklar: oyun8.duraklar.filter((d) => ["d1", "d2", "d3"].includes(d.id)) })
+            : modelYaniti(oyun8, prompt);
+          return { model: "test", stop_reason: "end_turn", usage: { output_tokens: 1 }, content: [{ type: "text", text: JSON.stringify(yanit) }] };
+        },
+      },
+    };
+    const { definition, validation } = await composeAndValidate(sinif, client as never);
+    expect(yazildi).toBe(true);
+    expect(definition.duraklar.map((d) => d.id)).toContain("d2");
+    expect(definition.duraklar[1].sahne_turu).toBe("secim");
+    expect(validation.gecerli).toBe(true);
   });
 
   it("uçtan uca: 60 dk okul oyunu parçalı üretimle geçerli çıkar; başarısız grup düzeltme adımıyla doldurulur", async () => {
-    let grupHatasi = true;
+    const grupHatasi = true;
     const cagrilar: string[] = [];
     const client = {
       messages: {
         create: async (body: Record<string, unknown>) => {
           const prompt = promptOf(body);
           cagrilar.push(prompt.includes("Düzeltilecek duraklar") ? "duzelt" : prompt.includes(ISKELET_ISARETI) ? "iskelet" : "gorev");
-          // d10–d12 grubu bir kez başarısız olur; düzeltme adımı bu durakları yazar.
-          if (prompt.includes("döndür: d10, d11, d12") && grupHatasi) {
-            grupHatasi = false;
-            throw new Error("geçici hata");
-          }
+          // d10–d12 grubu iki denemede de başarısız olur; düzeltme adımı bu durakları yazar.
+          if (prompt.includes("döndür: d10, d11, d12") && grupHatasi) throw new Error("geçici hata");
           const yanit = prompt.includes("Düzeltilecek duraklar")
             ? { duraklar: oyun12.duraklar.filter((d) => ["d10", "d11", "d12"].includes(d.id)) }
             : modelYaniti(oyun12, prompt);
@@ -120,7 +173,8 @@ describe("parçalı üretim", () => {
     };
     const { validation } = await composeAndValidate(input60, client as never);
     expect(cagrilar.filter((c) => c === "iskelet")).toHaveLength(1);
-    expect(cagrilar.filter((c) => c === "gorev")).toHaveLength(4);
+    // 4 grup + düşen grubun bir yeniden denemesi
+    expect(cagrilar.filter((c) => c === "gorev")).toHaveLength(5);
     expect(cagrilar.filter((c) => c === "duzelt")).toHaveLength(1);
     expect(validation.gecerli).toBe(true);
   });

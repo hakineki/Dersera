@@ -8,7 +8,7 @@ import {
   type Iskelet,
   type ModelOutput,
 } from "@/lib/composer/modelOutput";
-import { buildGorevPrompt, buildIskeletPrompt, buildUserPrompt } from "@/lib/composer/prompt";
+import { buildGorevPrompt, buildIskeletPrompt, buildUserPrompt, type PromptParcalari } from "@/lib/composer/prompt";
 import type { Recipe } from "@/lib/composer/recipe";
 
 // Parçalı üretim: tek büyük çağrı 12 duraklı oyunu süre sınırına sığdıramıyordu (Claude'da durak başına ~3,2k token).
@@ -19,7 +19,7 @@ import type { Recipe } from "@/lib/composer/recipe";
 export type Istek = <S extends z.ZodObject<z.ZodRawShape>>(
   schema: S,
   semaAdi: string,
-  prompt: string,
+  prompt: PromptParcalari,
   maxTokens: number,
   timeoutMs: number
 ) => Promise<z.infer<S>>;
@@ -27,6 +27,10 @@ export type Istek = <S extends z.ZodObject<z.ZodRawShape>>(
 export const PARCA = 3;
 const ISKELET_MAX_MS = 100_000;
 const GOREV_MIN_MS = 20_000;
+// Hızlı hatayla (429, 5xx, kesilme) düşen grup, en az bu kadar süre kaldıysa bir kez yeniden denenir.
+const YENIDEN_DENEME_MIN_MS = 30_000;
+// Görev türü yalnız sayıya duyarlı türlerden değişebilir (ör. 3 çift çıkmayan eşleştirme → çoktan seçmeli).
+const DEGISEBILIR_TUR = new Set(["eslestirme", "siralama", "surukle_birak"]);
 
 export const iskeletTokenSiniri = (recipe: Recipe) => 3_000 + recipe.anaGorev.max * 900;
 export const gorevTokenSiniri = (durakSayisi: number) => 1_000 + durakSayisi * 2_500;
@@ -68,8 +72,7 @@ export function birlestir(iskelet: Iskelet, gorevler: GorevIcerigi[]): ModelOutp
         hikaye_metni: d.hikaye_metni,
         qr_durak_id: d.qr_durak_id,
         sonraki_durak_tarifi: d.sonraki_durak_tarifi,
-        // Görev türünü yalnız doldurma adımı içeriğe uymadığında değiştirir (ör. 3 çift çıkmayan eşleştirme).
-        gorev_turu: g?.gorev_turu || d.gorev_turu,
+        gorev_turu: g?.gorev_turu && DEGISEBILIR_TUR.has(d.gorev_turu) ? g.gorev_turu : d.gorev_turu,
         ogrenme_hedefi: d.ogrenme_hedefi,
         ...(g
           ? {
@@ -101,26 +104,48 @@ export async function parcaliUret(
   now: () => number = Date.now
 ): Promise<ModelOutput> {
   const basla = now();
-  const ana = buildUserPrompt(input, recipe, izinliQrIdleri);
-  const iskelet = await istek(IskeletSchema, "dersera_iskelet", buildIskeletPrompt(ana), iskeletTokenSiniri(recipe), Math.min(ISKELET_MAX_MS, butceMs));
+  const ortak = buildUserPrompt(input, recipe, izinliQrIdleri);
+  const iskelet = await istek(IskeletSchema, "dersera_iskelet", { ortak, asama: buildIskeletPrompt() }, iskeletTokenSiniri(recipe), Math.min(ISKELET_MAX_MS, butceMs));
   const iskeletMs = now() - basla;
 
   const kalan = butceMs - iskeletMs;
   if (kalan < GOREV_MIN_MS) throw new ComposeError("timeout", `İskelet ${Math.round(iskeletMs / 1000)} saniye sürdü; görevler için süre kalmadı`);
 
   const gruplar = parcalara(iskelet.duraklar.map((d) => d.id));
-  const sonuclar = await Promise.allSettled(
-    gruplar.map((ids) => istek(GorevDoldurmaSchema, "dersera_gorevler", buildGorevPrompt(ana, iskelet, ids), gorevTokenSiniri(ids.length), kalan))
-  );
-  const basarisiz = sonuclar.filter((s): s is PromiseRejectedResult => s.status === "rejected");
-  console.info(
-    `[compose] parçalı: ${iskelet.duraklar.length} durak, iskelet ${Math.round(iskeletMs / 1000)} sn, görevler ${Math.round((now() - basla - iskeletMs) / 1000)} sn, ${gruplar.length} grup, ${basarisiz.length} başarısız`
-  );
-  // Hiçbir grup doldurulamadıysa oyun kullanılamaz; ilk hatanın nedeni (zaman aşımı, yapılandırma…) iletilir.
-  if (basarisiz.length === gruplar.length && gruplar.length > 0) throw basarisiz[0].reason;
+  const doldur = (ids: string[], timeoutMs: number) =>
+    istek(GorevDoldurmaSchema, "dersera_gorevler", { ortak, asama: buildGorevPrompt(iskelet, ids) }, gorevTokenSiniri(ids.length), timeoutMs);
+  const sonuclar: PromiseSettledResult<{ duraklar: GorevIcerigi[] }>[] = await Promise.allSettled(gruplar.map((ids) => doldur(ids, kalan)));
 
-  const gorevler = sonuclar.flatMap((s, i) =>
-    s.status === "fulfilled" ? s.value.duraklar.filter((g) => gruplar[i].includes(g.id)) : []
+  // Düşen gruplar süre yetiyorsa bir kez yeniden denenir; düzeltme adımının üç yeri boş duraklara harcanmasın.
+  const dusenler = sonuclar.flatMap((s, i) => (s.status === "rejected" ? [i] : []));
+  const nedenler = dusenler.map((i) => hataOzeti((sonuclar[i] as PromiseRejectedResult).reason));
+  const ikinciKalan = butceMs - (now() - basla);
+  if (dusenler.length && ikinciKalan >= YENIDEN_DENEME_MIN_MS) {
+    const tekrar = await Promise.allSettled(dusenler.map((i) => doldur(gruplar[i], ikinciKalan)));
+    tekrar.forEach((s, k) => {
+      if (s.status === "fulfilled") sonuclar[dusenler[k]] = s;
+    });
+  }
+
+  const gorevler = sonuclar.flatMap((s, i) => (s.status === "fulfilled" ? s.value.duraklar.filter((g) => gruplar[i].includes(g.id)) : []));
+  const yazilan = new Set(gorevler.map((g) => g.id));
+  const eksik = iskelet.duraklar.map((d) => d.id).filter((id) => !yazilan.has(id));
+  const hala = sonuclar.filter((s): s is PromiseRejectedResult => s.status === "rejected");
+  console.info(
+    `[compose] parçalı: ${iskelet.duraklar.length} durak, iskelet ${Math.round(iskeletMs / 1000)} sn, toplam ${Math.round((now() - basla) / 1000)} sn, ${gruplar.length} grup` +
+      (nedenler.length ? `, düşen: ${nedenler.join("; ")}` : "") +
+      (hala.length ? `, yeniden denemeden sonra ${hala.length} grup başarısız` : "") +
+      (eksik.length ? `, görevi yazılamayan: ${eksik.join(", ")}` : "")
   );
+  // Hiçbir grup doldurulamadıysa oyun kullanılamaz. Zaman aşımı varsa o iletilir (öğretmen tekrar deneyebilir).
+  if (hala.length === gruplar.length && gruplar.length > 0) {
+    const zamanAsimi = hala.find((s) => s.reason instanceof ComposeError && s.reason.reason === "timeout");
+    throw (zamanAsimi ?? hala[0]).reason;
+  }
   return birlestir(iskelet, gorevler);
+}
+
+function hataOzeti(err: unknown): string {
+  if (err instanceof ComposeError) return `${err.reason}: ${err.message}`;
+  return err instanceof Error ? err.message : String(err);
 }

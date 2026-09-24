@@ -118,8 +118,8 @@ describe("hedefli durak düzeltmesi", () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].body.max_tokens).toBe(1_500 + 3_500);
     expect(calls[0].options.timeout).toBe(90_000);
-    expect(calls[0].body.messages[0].content).toContain("3-5 çift olmalı");
-    expect(calls[0].body.messages[0].content).toContain('"id":"d2"');
+    expect(promptOf(calls[0].body as never)).toContain("3-5 çift olmalı");
+    expect(promptOf(calls[0].body as never)).toContain('"id":"d2"');
     expect(validation.gecerli).toBe(true);
     const yeni = definition.duraklar[1];
     expect(yeni.gorev.soru).toBe("Yeni soru?");
@@ -162,9 +162,19 @@ describe("hedefli durak düzeltmesi", () => {
     for (const i of [0, 2, 3, 4, 5]) out.duraklar[i].ipucu_2 = out.duraklar[i].ipucu_1;
     const { client, calls } = sahte([out, { duraklar: [] }]);
     await composeAndValidate(input, client);
-    const gonderilen = calls[0].body.messages[0].content.split("Düzeltilecek duraklar (JSON):")[1];
+    const gonderilen = promptOf(calls[0].body as never).split("Düzeltilecek duraklar (JSON):")[1];
     expect(JSON.parse(gonderilen)).toHaveLength(3);
     expect(calls[0].body.max_tokens).toBe(1_500 + 3 * 3_500);
+  });
+
+  it("görevi hiç yazılmamış duraklar düzeltmede önceliklidir", async () => {
+    const out = toModelOutput(makeDefinition(input, 8));
+    out.duraklar[0].ipucu_2 = out.duraklar[0].ipucu_1; // d1: küçük hata
+    for (const i of [5, 6, 7]) Object.assign(out.duraklar[i], { soru: "", dogru_cevap: "", secenekler: [], ipucu_1: "", ipucu_2: "", destek_soru: "", destek_secenekler: [], destek_dogru_cevap: "", destek_aciklama: "" });
+    const { client, calls } = sahte([out, { duraklar: [] }]);
+    await composeAndValidate(input, client);
+    const gonderilen = JSON.parse(promptOf(calls[0].body as never).split("Düzeltilecek duraklar (JSON):")[1]) as { id: string }[];
+    expect(gonderilen.map((d) => d.id)).toEqual(["d6", "d7", "d8"]);
   });
 
   it("hata yoksa ikinci çağrı yapılmaz", async () => {

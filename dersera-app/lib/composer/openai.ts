@@ -6,10 +6,10 @@ import { parcaliUret } from "@/lib/composer/parcali";
 import type { z } from "zod";
 import { parseJsonText, type ModelOutput } from "@/lib/composer/modelOutput";
 import type { ResolvedInput } from "@/lib/composer/input";
-import { SYSTEM_PROMPT } from "@/lib/composer/prompt";
+import { SYSTEM_PROMPT, type PromptParcalari } from "@/lib/composer/prompt";
 import type { Recipe } from "@/lib/composer/recipe";
 
-// OpenAI uyumlu sağlayıcı. Aynı düz ModelOutputSchema kullanılır; GameDefinition'a dönüşüm değişmez.
+// OpenAI uyumlu sağlayıcı. Parçalı üretim ve düzeltme Anthropic ile aynı şemaları kullanır; GameDefinition'a dönüşüm değişmez.
 export const DEFAULT_OPENAI_MODEL = "gpt-6-luna";
 
 // Sadece test için enjekte edilebilir; üretimde env'den kurulur.
@@ -41,7 +41,7 @@ export async function composeGameOpenAI(
 export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawShape>>(
   schema: S,
   semaAdi: string,
-  user: string,
+  prompt: PromptParcalari,
   maxTokens: number,
   client: OpenAIComposeClient = clientFromEnv(),
   timeoutMs = COMPOSE_TIMEOUT_MS
@@ -56,7 +56,8 @@ export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawS
         max_completion_tokens: maxTokens,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: user },
+          // Ortak ön ek aynı kaldığı için OpenAI onu otomatik önbellekler.
+          { role: "user", content: `${prompt.ortak}\n\n${prompt.asama}` },
         ],
         response_format: zodResponseFormat(schema, semaAdi),
       },
@@ -73,7 +74,7 @@ export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawS
   } catch (err) {
     if (err instanceof ComposeError) throw err;
     if (controller.signal.aborted || err instanceof OpenAI.APIConnectionTimeoutError || err instanceof OpenAI.APIUserAbortError) {
-      throw new ComposeError("timeout", `Oyun oluşturma ${timeoutMs / 1000} saniyede tamamlanmadı`);
+      throw new ComposeError("timeout", `Oyun oluşturma ${Math.round(timeoutMs / 1000)} saniyede tamamlanmadı`);
     }
     if (err instanceof OpenAI.AuthenticationError || err instanceof OpenAI.PermissionDeniedError) {
       throw new ComposeError("config", `OpenAI kimlik doğrulaması başarısız (${err.status})`);

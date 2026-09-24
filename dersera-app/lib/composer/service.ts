@@ -1,7 +1,7 @@
 import { composeGame, yapilandirilmisIstek, type ComposeClient } from "@/lib/composer/anthropic";
 import { ComposeError } from "@/lib/composer/errors";
 import { DuzeltmeSchema, toDefinition, type Duzeltme, type ModelOutput } from "@/lib/composer/modelOutput";
-import { buildDuzeltmePrompt, buildUserPrompt } from "@/lib/composer/prompt";
+import { buildDuzeltmePrompt, buildUserPrompt, type PromptParcalari } from "@/lib/composer/prompt";
 import { composeGameOpenAI, yapilandirilmisIstekOpenAI } from "@/lib/composer/openai";
 import type { Recipe } from "@/lib/composer/recipe";
 import { onar } from "@/lib/composer/repair";
@@ -27,7 +27,7 @@ export function saglayiciFromEnv(): Saglayici {
 
 interface Uretici {
   oyun(input: ResolvedInput, recipe: Recipe): Promise<ModelOutput>;
-  duzelt(prompt: string, maxTokens: number, timeoutMs: number): Promise<Duzeltme>;
+  duzelt(prompt: PromptParcalari, maxTokens: number, timeoutMs: number): Promise<Duzeltme>;
 }
 
 function ureticiSec(client?: ComposeClient): Uretici {
@@ -101,14 +101,17 @@ export async function composeAndValidate(input: ResolvedInput, client?: ComposeC
   const sonuc = degerlendir(raw, input);
 
   const duzeltilebilir = sonuc.validation.hatalar.filter((h) => h.durakId && DUZELTILEBILIR.has(h.kod));
-  const hedef = new Set([...new Set(duzeltilebilir.map((h) => h.durakId!))].slice(0, DUZELTME_EN_COK));
+  // Görevi hiç yazılmamış duraklar (düşen görev grubu) önce: yarım kalan oyun, küçük biçim hatasından daha kötüdür.
+  const bos = new Set(duzeltilebilir.filter((h) => h.kod === "soru-bos").map((h) => h.durakId!));
+  const sirali = [...new Set(duzeltilebilir.map((h) => h.durakId!))].sort((a, b) => Number(bos.has(b)) - Number(bos.has(a)));
+  const hedef = new Set(sirali.slice(0, DUZELTME_EN_COK));
   const hatalar = duzeltilebilir.filter((h) => hedef.has(h.durakId!));
   const hedefDisi = new Set(hatalar.filter((h) => h.kod === "hedef-disi").map((h) => h.durakId!));
   const kalan = TOPLAM_BUTCE_MS - (now() - basla);
   if (hedef.size === 0 || kalan < DUZELTME_MIN_MS) return sonuc;
 
   try {
-    const prompt = buildDuzeltmePrompt(buildUserPrompt(input, recipe, IZINLI_QR_IDLERI), raw.duraklar.filter((d) => hedef.has(d.id)), hatalar.map((h) => h.mesaj));
+    const prompt = { ortak: buildUserPrompt(input, recipe, IZINLI_QR_IDLERI), asama: buildDuzeltmePrompt(raw.duraklar.filter((d) => hedef.has(d.id)), hatalar.map((h) => h.mesaj)) };
     const duzeltme = await uretici.duzelt(prompt, duzeltmeToken(hedef.size), Math.min(kalan - 5_000, DUZELTME_MAX_MS));
     // Önce tüm yamalar birlikte; olmazsa yalnız kendi hatası tamamen giden duraklar.
     const hepsi = degerlendir(yamala(raw, duzeltme, hedef, hedefDisi), input);

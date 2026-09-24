@@ -3,7 +3,7 @@ import { buildRecipe } from "@/lib/composer/recipe";
 import { composeAndValidate, IZINLI_QR_IDLERI, validationContext } from "@/lib/composer/service";
 import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
 import { validateGame } from "@/lib/composer/validator";
-import { fakeClient, makeDefinition, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
+import { fakeClient, makeDefinition, promptOf, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { hedefKodu, ModelOutputSchema, toDefinition } from "@/lib/composer/modelOutput";
 
@@ -67,6 +67,21 @@ describe("composeGame", () => {
     expect(aborted).toBe(true);
   });
 
+  it("ortak prompt önbelleğe alınır (cache_control); aşama metni ayrı bloktadır", async () => {
+    const { client, calls } = fakeClient(toModelOutput(makeDefinition(input)));
+    await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
+    for (const c of calls) {
+      const [ortak, asama] = (c.body.messages as { content: { text: string; cache_control?: unknown }[] }[])[0].content;
+      expect(ortak.cache_control).toEqual({ type: "ephemeral" });
+      expect(ortak.text).not.toMatch(/İSKELET AŞAMASI|GÖREV DOLDURMA AŞAMASI/);
+      expect(asama.text).toMatch(/İSKELET AŞAMASI|GÖREV DOLDURMA AŞAMASI/);
+      expect(asama.cache_control).toBeUndefined();
+    }
+    // Tüm aşamalarda ortak kısım aynıdır (önbellek isabeti için).
+    const ortaklar = calls.map((c) => (c.body.messages as { content: { text: string }[] }[])[0].content[0].text);
+    expect(new Set(ortaklar).size).toBe(1);
+  });
+
   it("API anahtarı yoksa yapılandırma hatası verir", async () => {
     delete process.env.ANTHROPIC_API_KEY;
     await expect(composeGame(input, recipe, IZINLI_QR_IDLERI)).rejects.toBeInstanceOf(ComposeError);
@@ -76,7 +91,7 @@ describe("composeGame", () => {
   it("prompt yalnız müfredat ve seçimleri içerir; kişisel veri alanı yok", async () => {
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(input)));
     await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
-    const user = (calls[0].body.messages as { content: string }[])[0].content;
+    const user = promptOf(calls[0].body);
     expect(calls[0].body.system).toBe(SYSTEM_PROMPT);
     for (const o of input.ogrenmeCiktilari) expect(user).toContain(o.kod);
     expect(user).toContain(input.dersler[0].unite.ad);
@@ -92,7 +107,7 @@ describe("composeGame", () => {
     const okul = resolvedInput({ sinif: 11, ders: "matematik", sure: 60, deneyim: "macera", alan: "okul" });
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(okul)));
     await composeGame(okul, buildRecipe(60, "macera", "okul"), IZINLI_QR_IDLERI, client);
-    const user = (calls[0].body.messages as { content: string }[])[0].content;
+    const user = promptOf(calls[0].body);
     expect(user).toContain("qr-1, qr-2");
     expect(user).toContain("qr-20");
     expect(user).not.toContain("qr-21");
@@ -169,7 +184,7 @@ describe("çok dersli oyun prompt'u", () => {
     const coklu = resolvedInput({ sinif: 10, ders: ["fizik", "matematik"], sure: 40, deneyim: "dengeli", alan: "sinif" });
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(coklu)));
     await composeGame(coklu, recipe, IZINLI_QR_IDLERI, client);
-    const user = (calls[0].body.messages as { content: string }[])[0].content;
+    const user = promptOf(calls[0].body);
     expect(user).toContain("Ders: Fizik");
     expect(user).toContain("Ders: Matematik");
     for (const k of coklu.dersler) expect(user).toContain(k.unite.ad);
@@ -180,7 +195,7 @@ describe("çok dersli oyun prompt'u", () => {
   it("tek derste disiplinler arası kuralı eklemez", async () => {
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(input)));
     await composeGame(input, recipe, IZINLI_QR_IDLERI, client);
-    expect((calls[0].body.messages as { content: string }[])[0].content).not.toMatch(/disiplinler arası/);
+    expect(promptOf(calls[0].body)).not.toMatch(/disiplinler arası/);
   });
 });
 

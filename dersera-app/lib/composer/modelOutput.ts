@@ -115,7 +115,6 @@ export function parseJsonText<S extends z.ZodType>(text: string, schema: S): { o
   return parsed.success ? { ok: true, output: parsed.data } : { ok: false, error: "Çıktı şemaya uymadı" };
 }
 
-export const parseModelText = (text: string) => parseJsonText(text, ModelOutputSchema);
 
 const orNull = (s: string) => (s.trim() ? s.trim() : null);
 // Model kodun yanına açıklamayı da yazabiliyor ("FEL.10.1.1: Felsefenin ..."); yalnız kod tutulur.

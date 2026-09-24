@@ -116,7 +116,11 @@ export function modelYaniti(out: ModelOutput | null, prompt: string): unknown {
   return out;
 }
 
-export const promptOf = (body: Record<string, unknown>) => (body.messages as { content: string }[]).map((m) => m.content).join("\n");
+type Icerik = string | { type: string; text: string }[];
+export const promptOf = (body: Record<string, unknown>) =>
+  (body.messages as { content: Icerik }[])
+    .map((m) => (typeof m.content === "string" ? m.content : m.content.map((b) => b.text).join("\n")))
+    .join("\n");
 
 export function fakeClient(output: ModelOutput | null, stop_reason = "end_turn") {
   const calls: { body: Record<string, unknown>; options: Record<string, unknown> }[] = [];

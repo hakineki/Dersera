@@ -17,52 +17,15 @@ describe("otomatik onarım", () => {
     expect(r.definition).toEqual(def);
   });
 
-  it("görevsiz seçim durağını önceki durağa taşır", () => {
+  it("görevi boş seçim durağını silmez (parçalı üretimde düşen grup); hata görünür kalır ve düzeltmeye gider", () => {
     const def = clone(makeDefinition(input, 7));
-    // d1 → (boş seçim) → d3 | d4 ; d2 görevsiz bir seçim düğümü
     const g = def.duraklar[1].gorev;
     g.soru = ""; g.dogru_cevap = ""; g.ipucu_1 = ""; g.ipucu_2 = "";
     g.destek_gorevi = { soru: "", secenekler: [], dogru_cevap: "", aciklama: "" };
-    expect(codes(def)).toContain("soru-bos");
-    const r = onar(def);
-    expect(r.definition.duraklar.map((d) => d.id)).not.toContain("d2");
-    expect(r.definition.duraklar[0]).toMatchObject({ sahne_turu: "secim", varsayilan_sonraki_durak_id: null });
-    expect(codes(r.definition)).toEqual([]);
-    expect(r.notlar).toHaveLength(1);
-  });
-
-  const bosalt = (def: GameDefinition, i: number) => {
-    const g = def.duraklar[i].gorev;
-    g.soru = ""; g.dogru_cevap = ""; g.ipucu_1 = ""; g.ipucu_2 = ""; g.odul_id = null;
-    g.destek_gorevi = { soru: "", secenekler: [], dogru_cevap: "", aciklama: "" };
-    return def;
-  };
-
-  it.each([
-    ["seçim önceki durağa dönüyor (rota kaybolurdu)", (def: GameDefinition) => { def.duraklar[1].secimler[1].hedef_durak_id = "d1"; }],
-    ["silinecek durak ödül veriyor", (def: GameDefinition) => { def.duraklar[1].gorev.odul_id = "n1"; }],
-    ["iki durak boş seçime bağlanıyor", (def: GameDefinition) => { def.duraklar[3].varsayilan_sonraki_durak_id = "d2"; }],
-  ])("görevsiz seçimi taşımaz: %s", (_l, boz) => {
-    const def = bosalt(clone(makeDefinition(input, 7)), 1);
-    boz(def);
     const r = onar(def);
     expect(r.definition.duraklar.map((d) => d.id)).toContain("d2");
-    expect(r.notlar.filter((n) => n.includes("seçimi"))).toEqual([]);
-    expect(codes(r.definition).length).toBeGreaterThan(0);
-  });
-
-  it("okul oyununda QR'lı boş seçim durağını silmez", () => {
-    const okul = resolvedInput({ sinif: 11, ders: "matematik", sure: 60, deneyim: "macera", alan: "okul" });
-    const def = bosalt(clone(makeDefinition(okul, 9)), 1);
-    expect(onar(def).definition.duraklar.map((d) => d.id)).toContain("d2");
-  });
-
-  it("başlangıç durağı boş seçimse dokunmaz", () => {
-    const def = bosalt(clone(makeDefinition(input, 7)), 0);
-    def.duraklar[0].sahne_turu = "secim";
-    def.duraklar[0].secimler = [{ metin: "a", hedef_durak_id: "d2" }, { metin: "b", hedef_durak_id: "d3" }];
-    def.duraklar[0].varsayilan_sonraki_durak_id = null;
-    expect(onar(def).definition.duraklar[0].id).toBe("d1");
+    expect(r.definition.duraklar[1].sahne_turu).toBe("secim");
+    expect(codes(r.definition)).toContain("soru-bos");
   });
 
   it("ödülsüz ortak durak kalmadıysa nesneyi taşımaz; hata kalır", () => {
