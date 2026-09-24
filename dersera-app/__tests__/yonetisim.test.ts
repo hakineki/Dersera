@@ -124,6 +124,11 @@ describe("çocuk güvenliği taraması", () => {
     expect(tek("Birayı içtik.")[0]).toMatchObject({ kategori: "madde", terim: "birayı içtik" });
     expect(tek("Sigarayı yaktı ve nefes aldı.")[0]).toMatchObject({ kategori: "madde", terim: "sigarayı yaktı" });
     expect(tek("Alkolü içti.")[0]).toMatchObject({ kategori: "madde", terim: "alkolü içti" });
+    expect(tek("Viskiyi içti.")[0]).toMatchObject({ kategori: "madde" });
+    expect(tek("Kahraman votkayı bitirdi.")[0]).toMatchObject({ kategori: "madde", terim: "votkayı" });
+    expect(tek("Rakıyı içti ve sızdı.")[0]).toMatchObject({ kategori: "madde", terim: "rakıyı içti" });
+    expect(tek("Şarabını içti ve gitti.")[0]).toMatchObject({ kategori: "madde", terim: "şarabını içti" });
+    expect(tek("Sigaralarından birini yaktı.")).toEqual([]); // araya giren kelime: yapay zekâ katmanının işi
     expect(tek("Köylüleri vahşice öldürdüler")[0]).toMatchObject({ kategori: "siddet" });
     expect(tek("Telefon numaranı buraya yaz.")[0]).toMatchObject({ kategori: "kisisel-veri" });
     expect(tek("Kendine zarar verme oyunu.")[0]).toMatchObject({ kategori: "kendine-zarar" });

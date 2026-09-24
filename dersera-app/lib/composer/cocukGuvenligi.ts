@@ -55,10 +55,11 @@ const HAM_KURALLAR: Kural[] = [
   {
     kategori: "madde",
     engel: false,
-    tam: ["votka", "viski", "rakı"],
-    kok: ["eroin", "kokain", "esrarkeş", "bonzai", "ekstazi", "sarhoş"],
+    // "rakı" kök olamaz ("rakım" = yükselti); ekli hâli ifade içinde yakalanır.
+    tam: ["rakı"],
+    kok: ["votka", "viski", "eroin", "kokain", "esrarkeş", "bonzai", "ekstazi", "sarhoş"],
     ifade: [
-      "sigara|içki|alkol|şarap|şarab|bira|rakı içti|içtik|içtim|içmek|içme|içiyor|içelim|içerek|içip|içen|içmiş|içsin|içebil|içecek",
+      "sigara|içki|alkol|şarap|şarab|bira|rakı|votka|viski içti|içtik|içtim|içmek|içme|içiyor|içelim|içerek|içip|içen|içmiş|içsin|içebil|içecek",
       "sigara yaktı|yakmak|yakıyor|yakalım|yakıp|yakan|yaksın",
       "sigara tüttür",
     ],
@@ -87,8 +88,12 @@ export interface TaranacakMetin {
 }
 
 const AYIRICI = /[^\p{L}\p{M}\p{N}]+/u;
-// İfadenin ilk kelimelerine gelebilecek isim ekleri (katlanmış): belirtme, yönelme, çoğul.
-const ISIM_EKLERI = new Set(["", "i", "u", "ü", "yi", "yu", "yü", "ni", "nu", "nü", "a", "e", "ya", "ye", "lar", "ler", "lari", "leri"]);
+// İfadenin ilk kelimelerine gelebilecek isim ekleri (katlanmış): belirtme, yönelme, çoğul, iyelik + belirtme.
+// Kapalı liste: açık uçlu önek eşleşmesi "biraz", "rakım" gibi kelimelerde yanlış alarm verir.
+const ISIM_EKLERI = new Set([
+  "", "i", "u", "ü", "yi", "yu", "yü", "ni", "nu", "nü", "a", "e", "ya", "ye",
+  "lar", "ler", "lari", "leri", "ini", "unu", "ünü", "sini", "sunu", "larini", "lerini", "larindan", "lerinden",
+]);
 const ekliMi = (kelime: string, kok: string) => kelime.startsWith(kok) && ISIM_EKLERI.has(kelime.slice(kok.length));
 
 function ifadeBul(ks: string[], ifade: string): number {
