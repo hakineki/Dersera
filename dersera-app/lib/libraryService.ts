@@ -146,7 +146,7 @@ export async function yenidenYayinla(
 ): Promise<YenidenYayinSonucu> {
   const kayit = await library.get(sahip, id);
   if (!kayit) return { ok: false, status: 404, error: "Oyun kütüphanede bulunamadı" };
-  const composed = await parseComposerPublish({ composer: { definition: kayit.definition, dersler: kayit.dersler } }, (def) => yzDenetle(def));
+  const composed = await parseComposerPublish({ composer: { definition: kayit.definition, dersler: kayit.dersler } }, (def) => yzDenetle(def, { sinirAnahtari: `hesap:${sahip}` }));
   if (!composed.ok) return composed;
   const published = await publishGame(games, { ...composed.request, durationMinutes: sure ?? composed.request.durationMinutes }, now);
   if (!published) return { ok: false, status: 503, error: "Benzersiz oyun kodu üretilemedi" };

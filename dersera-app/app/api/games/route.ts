@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   let yonetisim: YonetisimSonucu | undefined;
   if (body && typeof body === "object" && "composer" in body) {
     // Uç nokta oturumsuzdur: önbellekte olmayan içeriğin ücretli denetimi IP ve günlük sınırla korunur.
-    const composed = await parseComposerPublish(body, (def) => yzDenetle(def, { ip: clientIp(req) }));
+    const composed = await parseComposerPublish(body, (def) => yzDenetle(def, { sinirAnahtari: `ip:${clientIp(req)}` }));
     if (!composed.ok) {
       return NextResponse.json(
         { error: composed.error, validation: composed.validation, yonetisim: composed.yonetisim, ...(composed.guvenlik && { guvenlik: composed.guvenlik }) },

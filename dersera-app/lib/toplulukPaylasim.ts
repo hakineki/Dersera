@@ -117,7 +117,7 @@ export async function topluluktaPaylas(
 
   const r = parseComposerDefinition(kutuphaneKaydi.definition, kutuphaneKaydi.dersler);
   if (!r.ok) return { ok: false, status: r.status, error: r.error };
-  const yonetisim = yonetisimDegerlendir(r.definition, r.validation, r.validation.gecerli ? await yzDenetle(r.definition) : undefined);
+  const yonetisim = yonetisimDegerlendir(r.definition, r.validation, r.validation.gecerli ? await yzDenetle(r.definition, { sinirAnahtari: `hesap:${sahip}` }) : undefined);
   if (yonetisim.karar === "BLOCK") return { ok: false, status: 422, error: "Oyun içerik denetiminden geçmedi; topluluğa gönderilemez.", yonetisim };
 
   const [ist] = await kutuphaneIstatistikleri([kaynak]);
