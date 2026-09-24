@@ -8,6 +8,8 @@ import type { KutuphaneKaydi, KutuphaneListeOgesi } from "@/lib/library";
 import { kutuphanedenSil, kutuphanedenYayinla, kutuphaneListesi, kutuphaneOyunu } from "@/lib/libraryClient";
 import { TOPLULUK_KURALLARI } from "@/lib/topluluk";
 import { toplulugaGonder, topluluktanGeriCekIstegi } from "@/lib/toplulukClient";
+import { krediDurumuGetir, krediMetni } from "@/lib/krediClient";
+import type { KrediDurumu } from "@/lib/kredi";
 import type { TeacherGame } from "@/lib/teacherGame";
 import { DENEYIM_SECENEKLERI, GOREV_TUR_ADI } from "@/app/composer/labels";
 
@@ -64,6 +66,10 @@ export function ToplulukBolumu({ oyun, onYenile }: { oyun: KutuphaneListeOgesi; 
   }
 
   const paylasEtiketi = t?.durum === "yayinda" ? "Güncel sürümü gönder" : t?.durum === "reddedildi" ? "Düzeltip yeniden gönder" : "🌐 Toplulukta paylaş";
+  // Hiç oynanmamış ve hiç gönderilmemiş oyunda kapalı düğme ve eksik listesi yerine kısa bir not.
+  if (!t && oyun.ogrenci_sayisi === 0) {
+    return <p className="mt-3 border-t border-gray-100 pt-3 text-xs text-gray-500">Sınıfta oynatıldıkça topluluğa gönderebilirsin.</p>;
+  }
   return (
     <div className="mt-3 border-t border-gray-100 pt-3 text-sm space-y-2">
       {t?.durum === "inceleme" && (
@@ -105,12 +111,8 @@ export function ToplulukBolumu({ oyun, onYenile }: { oyun: KutuphaneListeOgesi; 
           </button>
         )}
       </div>
-      {!oyun.paylasim.uygun && t?.durum !== "inceleme" && (
-        <ul className="text-xs text-gray-500 list-disc list-inside" aria-label="Topluluğa göndermek için">
-          {oyun.paylasim.nedenler.map((n) => (
-            <li key={n}>{n}</li>
-          ))}
-        </ul>
+      {oyun.paylasim.nedenler.length > 0 && t?.durum !== "inceleme" && (
+        <p className="text-xs text-gray-500">Topluluğa göndermek için: {oyun.paylasim.nedenler.join(" · ")}</p>
       )}
       {hata && (
         <p role="alert" className="text-red-600">
@@ -234,13 +236,18 @@ function OyunKarti({
 
 export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: TeacherGame) => void }) {
   const [oyunlar, setOyunlar] = useState<KutuphaneListeOgesi[] | null>(null);
+  const [hesap, setHesap] = useState<{ toplulukHazir: boolean; kalanGun: number } | null>(null);
+  const [kredi, setKredi] = useState<KrediDurumu | null>(null);
   const [hata, setHata] = useState(false);
 
   const yukle = useCallback(async () => {
     setHata(false);
-    const liste = await kutuphaneListesi();
-    if (liste) setOyunlar(liste);
-    else setHata(true);
+    const [liste, k] = await Promise.all([kutuphaneListesi(), krediDurumuGetir()]);
+    setKredi(k);
+    if (liste) {
+      setOyunlar(liste.oyunlar);
+      setHesap(liste.hesap);
+    } else setHata(true);
   }, []);
 
   useEffect(() => {
@@ -259,6 +266,16 @@ export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: Teac
           + Yeni Oyun
         </Link>
       </div>
+      {kredi && (
+        <p className="text-sm text-gray-700">
+          <span aria-hidden="true">💳 </span>Kredin: <strong>{krediMetni(kredi)}</strong>. Oyun oluşturmak 2–4 kredi; yayınlamak, düzenlemek ve öğrencilerin oynaması ücretsiz.
+        </p>
+      )}
+      {hesap && !hesap.toplulukHazir && (
+        <p className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-sm text-indigo-900">
+          Topluluğa oyun gönderebilmek için hesabının {TOPLULUK_KURALLARI.hesapYasiGun} günlük olması gerekir ({hesap.kalanGun} gün kaldı).
+        </p>
+      )}
 
       {hata && (
         <div role="alert" className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-700">

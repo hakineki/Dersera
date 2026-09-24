@@ -46,9 +46,14 @@ export async function eskiKutuphaneyiTasi(): Promise<{ tasinan: number; kalan: n
   return sonuc;
 }
 
-export async function kutuphaneListesi(): Promise<KutuphaneListeOgesi[] | null> {
+export interface KutuphaneListesi {
+  oyunlar: KutuphaneListeOgesi[];
+  hesap: { toplulukHazir: boolean; kalanGun: number };
+}
+
+export async function kutuphaneListesi(): Promise<KutuphaneListesi | null> {
   const res = await istek("/api/library");
-  return res?.ok ? ((await res.json()) as { oyunlar: KutuphaneListeOgesi[] }).oyunlar : null;
+  return res?.ok ? ((await res.json()) as KutuphaneListesi) : null;
 }
 
 export interface KutuphaneDetayi {
