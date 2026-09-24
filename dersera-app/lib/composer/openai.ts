@@ -65,7 +65,7 @@ export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawS
     const choice = completion.choices[0];
     console.info(`[compose] model=${completion.model} stop=${choice?.finish_reason} output_tokens=${completion.usage?.completion_tokens}`);
     if (choice?.message.refusal) throw new ComposeError("invalid-output", "Model isteği reddetti");
-    if (choice?.finish_reason === "length") throw new ComposeError("invalid-output", `Çıktı max_tokens (${maxTokens}) sınırında kesildi`);
+    if (choice?.finish_reason === "length") throw new ComposeError("invalid-output", `Çıktı max_tokens (${maxTokens}) sınırında kesildi`, true);
     if (choice?.finish_reason === "content_filter") throw new ComposeError("invalid-output", "Çıktı içerik filtresine takıldı");
     const parsed = parseJsonText(choice?.message.content ?? "", schema);
     if (!parsed.ok) throw new ComposeError("invalid-output", `${parsed.error} (stop=${choice?.finish_reason})`);

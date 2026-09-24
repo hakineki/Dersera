@@ -47,7 +47,7 @@ function sahteIstek(out: ModelOutput, opts: { hataGrubu?: (ids: string[], deneme
 describe("parçalı üretim", () => {
   it("12 durak: önce iskelet, sonra 4 görev grubu PARALEL; birleşik çıktı tek çağrılık oyunla aynı", async () => {
     const s = sahteIstek(oyun12);
-    const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000);
+    const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000, Date.now, 0);
     expect(s.kayit.map((k) => k.semaAdi)).toEqual(["dersera_iskelet", "dersera_gorevler", "dersera_gorevler", "dersera_gorevler", "dersera_gorevler"]);
     expect(s.enCok()).toBe(4);
     expect(out).toEqual(oyun12);
@@ -55,7 +55,7 @@ describe("parçalı üretim", () => {
 
   it("token sınırları iskelette durak sayısıyla, görevde grup büyüklüğüyle ölçeklenir", async () => {
     const s = sahteIstek(oyun12);
-    await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000);
+    await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000, Date.now, 0);
     expect(s.kayit[0].maxTokens).toBe(iskeletTokenSiniri(recipe60));
     expect(iskeletTokenSiniri(recipe60)).toBe(3_000 + 12 * 900);
     expect(s.kayit.slice(1).every((k) => k.maxTokens === gorevTokenSiniri(3))).toBe(true);
@@ -65,7 +65,7 @@ describe("parçalı üretim", () => {
 
   it("iskelet prompt'u görev içeriği yazdırmaz; grup prompt'u iskeleti ve yalnız o grubun kimliklerini taşır", async () => {
     const s = sahteIstek(oyun12);
-    await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000);
+    await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000, Date.now, 0);
     expect(s.kayit[0].prompt).toContain(ISKELET_ISARETI);
     expect(s.kayit[0].prompt).toContain("gorev_ozeti");
     const grup = s.kayit[1].prompt;
@@ -76,14 +76,27 @@ describe("parçalı üretim", () => {
 
   it("yapılandırma hatası yeniden denenmez; kesilen çıktı 1,5 kat token sınırıyla yeniden denenir", async () => {
     const config = sahteIstek(oyun12, { hataGrubu: (ids) => (ids.includes("d4") ? new ComposeError("config", "anahtar yok") : null) });
-    await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, config.istek, 190_000);
+    await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, config.istek, 190_000, Date.now, 0);
     expect(config.kayit.filter((k) => k.semaAdi === "dersera_gorevler")).toHaveLength(4);
 
-    const kesik = sahteIstek(oyun12, { hataGrubu: (ids, deneme) => (ids.includes("d4") && deneme === 1 ? new ComposeError("invalid-output", "Çıktı max_tokens (8500) sınırında kesildi") : null) });
-    const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, kesik.istek, 190_000);
+    const kesik = sahteIstek(oyun12, { hataGrubu: (ids, deneme) => (ids.includes("d4") && deneme === 1 ? new ComposeError("invalid-output", "kesildi", true) : null) });
+    const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, kesik.istek, 190_000, Date.now, 0);
     expect(out).toEqual(oyun12);
     const d4 = kesik.kayit.filter((k) => k.prompt.includes("döndür: d4, d5, d6"));
     expect(d4.map((k) => k.maxTokens)).toEqual([gorevTokenSiniri(3), Math.round(gorevTokenSiniri(3) * 1.5)]);
+  });
+
+  it("kesilme olmayan hatada yeniden denemeden önce kısa beklenir", async () => {
+    const zaman: number[] = [];
+    const s = sahteIstek(oyun12, {
+      gecikme: 0,
+      hataGrubu: (ids, deneme) => {
+        if (ids.includes("d4")) zaman.push(Date.now());
+        return ids.includes("d4") && deneme === 1 ? new Error("429") : null;
+      },
+    });
+    await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000, Date.now, 50);
+    expect(zaman[1] - zaman[0]).toBeGreaterThanOrEqual(45);
   });
 
   it("yeniden deneme diğer grupları beklemez (hemen başlar)", async () => {
@@ -95,7 +108,7 @@ describe("parçalı üretim", () => {
         return ids.includes("d1") && deneme === 1 ? new Error("429") : null;
       },
     });
-    await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000);
+    await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000, Date.now, 0);
     // d1'in ikinci denemesi, tüm ilk denemeler bitmeden başlar (paralel akış).
     expect(sira.indexOf("d1#2")).toBeGreaterThan(-1);
     expect(s.enCok()).toBeGreaterThanOrEqual(4);
@@ -103,37 +116,38 @@ describe("parçalı üretim", () => {
 
   it("hızlı hatayla düşen grup bir kez yeniden denenir ve doldurulur", async () => {
     const s = sahteIstek(oyun12, { hataGrubu: (ids, deneme) => (ids.includes("d4") && deneme === 1 ? new Error("429") : null) });
-    const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000);
+    const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000, Date.now, 0);
     expect(out).toEqual(oyun12);
     expect(s.kayit.filter((k) => k.semaAdi === "dersera_gorevler")).toHaveLength(5);
-    expect(console.info).toHaveBeenCalledWith(expect.stringContaining("düşen: 429"));
+    expect(console.info).toHaveBeenCalledWith(expect.stringContaining("düşen: d4…: 429"));
   });
 
   it("yeniden denemede de düşen grubun durakları boş kalır, diğerleri doldurulur; eksikler günlüğe yazılır", async () => {
     const s = sahteIstek(oyun12, { hataGrubu: (ids) => (ids.includes("d4") ? new Error("ağ") : null) });
-    const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000);
+    const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000, Date.now, 0);
     expect(out.duraklar.filter((d) => d.soru === "").map((d) => d.id)).toEqual(["d4", "d5", "d6"]);
     expect(out.duraklar[0].soru).toBe(oyun12.duraklar[0].soru);
     expect(console.info).toHaveBeenCalledWith(expect.stringContaining("görevi yazılamayan: d4, d5, d6"));
+    expect(console.info).toHaveBeenCalledWith(expect.stringContaining("d4… (yeniden deneme): ağ"));
   });
 
   it("model kimliği farklı yazarsa (d1 → durak-1) o durak boş kalır ve günlüğe yazılır", async () => {
     const s = sahteIstek(oyun12, {
       yanit: (ids, y) => (ids.includes("d1") ? { duraklar: (y as { duraklar: { id: string }[] }).duraklar.map((d) => (d.id === "d1" ? { ...d, id: "durak-1" } : d)) } : y),
     });
-    const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000);
+    const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000, Date.now, 0);
     expect(out.duraklar[0].soru).toBe("");
     expect(console.info).toHaveBeenCalledWith(expect.stringContaining("görevi yazılamayan: d1"));
   });
 
   it("tüm gruplar düşerse zaman aşımı öncelikli iletilir", async () => {
     const s = sahteIstek(oyun12, { hataGrubu: (ids) => (ids.includes("d1") ? new ComposeError("invalid-output", "kesildi") : new ComposeError("timeout", "süre")) });
-    await expect(parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000)).rejects.toMatchObject({ reason: "timeout" });
+    await expect(parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000, Date.now, 0)).rejects.toMatchObject({ reason: "timeout" });
   });
 
   it("tüm gruplar başarısızsa ilk hata iletilir", async () => {
     const s = sahteIstek(oyun12, { hataGrubu: () => new ComposeError("timeout", "süre") });
-    await expect(parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000)).rejects.toMatchObject({ reason: "timeout" });
+    await expect(parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000, Date.now, 0)).rejects.toMatchObject({ reason: "timeout" });
   });
 
   it("iskelet bütçeyi tükettiyse görev çağrısı yapılmaz; timeout döner", async () => {

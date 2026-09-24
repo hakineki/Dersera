@@ -66,7 +66,7 @@ export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>
     );
     console.info(`[compose] model=${response.model} stop=${response.stop_reason} output_tokens=${response.usage?.output_tokens}`);
     if (response.stop_reason === "refusal") throw new ComposeError("invalid-output", "Model isteği reddetti");
-    if (response.stop_reason === "max_tokens") throw new ComposeError("invalid-output", `Çıktı max_tokens (${maxTokens}) sınırında kesildi`);
+    if (response.stop_reason === "max_tokens") throw new ComposeError("invalid-output", `Çıktı max_tokens (${maxTokens}) sınırında kesildi`, true);
     const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");
     const parsed = parseJsonText(text, schema);
     if (!parsed.ok) throw new ComposeError("invalid-output", `${parsed.error} (stop=${response.stop_reason})`);

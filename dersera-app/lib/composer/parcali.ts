@@ -29,6 +29,8 @@ const ISKELET_MAX_MS = 100_000;
 const GOREV_MIN_MS = 20_000;
 // Hızlı hatayla (429, 5xx, kesilme) düşen grup, en az bu kadar süre kaldıysa bir kez yeniden denenir.
 const YENIDEN_DENEME_MIN_MS = 30_000;
+// Oran sınırı (429) aynı anda tekrar vurulmasın diye yeniden denemeden önce kısa bekleme.
+export const YENIDEN_DENEME_BEKLEME_MS = 2_000;
 // Görev türü yalnız sayıya duyarlı türlerden değişebilir (ör. 3 çift çıkmayan eşleştirme → çoktan seçmeli).
 const DEGISEBILIR_TUR = new Set(["eslestirme", "siralama", "surukle_birak"]);
 
@@ -95,13 +97,16 @@ export function birlestir(iskelet: Iskelet, gorevler: GorevIcerigi[]): ModelOutp
   };
 }
 
+const bekle = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export async function parcaliUret(
   input: ResolvedInput,
   recipe: Recipe,
   izinliQrIdleri: string[],
   istek: Istek,
   butceMs: number,
-  now: () => number = Date.now
+  now: () => number = Date.now,
+  beklemeMs = YENIDEN_DENEME_BEKLEME_MS
 ): Promise<ModelOutput> {
   const basla = now();
   const ortak = buildUserPrompt(input, recipe, izinliQrIdleri);
@@ -122,11 +127,16 @@ export async function parcaliUret(
     try {
       return await doldur(ids, sinir, kalan);
     } catch (err) {
-      nedenler.push(hataOzeti(err));
-      const yeniKalan = butceMs - (now() - basla);
-      if ((err instanceof ComposeError && err.reason === "config") || yeniKalan < YENIDEN_DENEME_MIN_MS) throw err;
-      const kesildi = err instanceof ComposeError && err.message.includes("max_tokens");
-      return doldur(ids, kesildi ? Math.round(sinir * 1.5) : sinir, yeniKalan);
+      nedenler.push(`${ids[0]}…: ${hataOzeti(err)}`);
+      if ((err instanceof ComposeError && err.reason === "config") || butceMs - (now() - basla) < YENIDEN_DENEME_MIN_MS + beklemeMs) throw err;
+      const kesildi = err instanceof ComposeError && err.kesildi;
+      if (!kesildi) await bekle(beklemeMs);
+      try {
+        return await doldur(ids, kesildi ? Math.round(sinir * 1.5) : sinir, butceMs - (now() - basla));
+      } catch (tekrarHatasi) {
+        nedenler.push(`${ids[0]}… (yeniden deneme): ${hataOzeti(tekrarHatasi)}`);
+        throw tekrarHatasi;
+      }
     }
   };
   const sonuclar = await Promise.allSettled(gruplar.map(grupDoldur));
