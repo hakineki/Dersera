@@ -16,8 +16,12 @@ export interface DurakIzi {
   h: (string | null)[];
 }
 
+// İz biçimi değişirse artırılır: kayıttaki eski biçimli taban okunurken yeniden hesaplanır.
+export const IZ_SURUMU = 1;
+
 // Karşılaştırma için sıkıştırılmış iz (kayıtta taban olarak saklanır; tanımı iki kez tutmamak için).
 export interface Parmakizi {
+  v: number;
   giris: string;
   envanter: string;
   final: string;
@@ -39,6 +43,7 @@ export function parmakizi(def: GameDefinition): Parmakizi {
     };
   });
   return {
+    v: IZ_SURUMU,
     giris: iz([def.meta.baslik, def.hikaye_giris, def.oyun_amaci, def.ogrenme_hedefleri]),
     envanter: iz([...nesne.values()].sort()),
     final: iz({ ...def.final, gerekli_nesneler: def.final.gerekli_nesneler.map(nesneIzi).sort() }),

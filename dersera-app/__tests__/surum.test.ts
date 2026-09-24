@@ -262,3 +262,25 @@ describe("Redis kütüphane deposu: sürüm denetimli yazım", () => {
     expect(await s.replaceIfSurum("hesap:x", kayit, 2)).toBe("yok");
   });
 });
+
+describe("taban izi biçim sürümü", () => {
+  it("eski biçimli taban yok sayılır ve mevcut tanımdan yeniden hesaplanır", async () => {
+    clearRedisEnv();
+    const api = await buildApi();
+    const cerez = await hesapAc(api, "ogretmen1");
+    const cerezli = (req: Request) => (req.headers.set("cookie", cerez), req);
+    const d = oyun();
+    const id = (await (await api.library.POST(cerezli(jsonRequest("/api/library", { definition: d, dersler })))).json()).id as string;
+    const store = api.libraryStore.getLibraryStore();
+    const sahip = (await api.libraryService.istekSahibi(cerezli(new Request("http://localhost/"))))!;
+    const k = (await store.get(sahip, id))!;
+    expect(k.taban?.v).toBe(1);
+    // Eski (sürümsüz, string dizili) biçim.
+    (k as unknown as { taban: unknown }).taban = { giris: "x", envanter: "y", final: "z", duraklar: ["a", "b"] };
+    await store.replace(sahip, k);
+    const put = new Request(`http://localhost/api/library/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ definition: degistir(d, 1) }) });
+    const r = await (await api.libraryItem.PUT(cerezli(put), api.idParams(id))).json();
+    expect(r.surum).toMatchObject({ tur: "surum", surum: 2 });
+    expect(r.surum.oran).toBeCloseTo(1 / 11);
+  });
+});

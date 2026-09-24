@@ -11,7 +11,7 @@ import { isKutuphaneAnahtari, kayitOlustur, KUTUPHANE_HEADER, KUTUPHANE_LIMIT, t
 import type { LibraryStore } from "@/lib/libraryStore";
 import type { ValidationResult } from "@/lib/composer/validator";
 import type { YonetisimSonucu } from "@/lib/composer/yonetisim";
-import { parmakizi, surumKarari } from "@/lib/surum";
+import { IZ_SURUMU, parmakizi, surumKarari, type Parmakizi } from "@/lib/surum";
 
 // Eski (hesap öncesi) kütüphaneler tarayıcı anahtarının özetine bağlıydı; yalnız hesaba taşımada kullanılır.
 export const eskiSahipOf = (anahtar: string) => hashToken(anahtar);
@@ -64,7 +64,8 @@ export async function kutuphaneKaydiniGuncelle(store: LibraryStore, sahip: strin
   const istenen = (body as { surum?: unknown } | null)?.surum;
   const beklenen = Number.isInteger(istenen) ? (istenen as number) : surum;
   if (beklenen !== surum) return CATISMA;
-  const taban = kayit.taban ?? parmakizi(kayit.definition);
+  // Taban yoksa ya da eski biçimdeyse mevcut tanımdan yeniden hesaplanır (yanlış yorumlanmaz).
+  const taban: Parmakizi = kayit.taban?.v === IZ_SURUMU ? (kayit.taban as Parmakizi) : parmakizi(kayit.definition);
   const karar = surumKarari(kayit.definition, r.definition, taban);
   if (karar.tur === "ayni") {
     // İçerik değişmedi: kayıt yerinde tutulur (bu arada silindiyse geri getirilmez, 404).

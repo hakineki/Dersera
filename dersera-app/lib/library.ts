@@ -37,6 +37,7 @@ export interface KutuphaneOzeti {
 
 // Sürüm tabanı: oyunun ilk sürümünün içerik izi (lib/surum.ts). Liste yanıtına girmez.
 export interface KutuphaneTabani {
+  v?: number;
   giris: string;
   envanter: string;
   final: string;
