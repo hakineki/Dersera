@@ -25,16 +25,22 @@ export interface PublishResponse {
   persistent: boolean;
 }
 
-export async function publishGameRequest(req: PublishRequest): Promise<PublishResponse | null> {
+const YAYIN_HATASI = "Oyun yayınlanamadı. Bağlantını kontrol edip tekrar dene.";
+
+// Sunucu yayını reddederse gerekçesi (ör. içerik denetimi bulguları) öğretmene gösterilir.
+export async function publishGameRequest(req: PublishRequest): Promise<PublishResponse | { error: string }> {
   try {
     const res = await fetch("/api/games", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(req),
     });
-    return res.ok ? ((await res.json()) as PublishResponse) : null;
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) return json as PublishResponse;
+    const bulgular: string[] = Array.isArray(json.bulgular) ? json.bulgular.map((b: { mesaj?: unknown }) => b.mesaj).filter((m: unknown): m is string => typeof m === "string") : [];
+    return { error: [typeof json.error === "string" ? json.error : YAYIN_HATASI, ...bulgular.slice(0, 3)].join(" ") };
   } catch {
-    return null;
+    return { error: YAYIN_HATASI };
   }
 }
 

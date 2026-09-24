@@ -84,7 +84,12 @@ export async function kutuphanedenYayinla(id: string, durationMinutes: number): 
   const res = await istek(`/api/library/${id}/publish`, { method: "POST", body: JSON.stringify({ durationMinutes }) });
   if (!res) return { error: "Bağlantı kurulamadı." };
   const json = await res.json().catch(() => ({}));
-  return res.ok ? (json as PublishResponse) : { error: json.error ?? "Oyun yayınlanamadı." };
+  if (res.ok) return json as PublishResponse;
+  const engeller = ((json.yonetisim?.kapilar ?? []) as { bulgular: { karar: string; mesaj: string }[] }[])
+    .flatMap((k) => k.bulgular)
+    .filter((b) => b.karar === "BLOCK")
+    .map((b) => b.mesaj);
+  return { error: [json.error ?? "Oyun yayınlanamadı.", ...engeller.slice(0, 3)].join(" ") };
 }
 
 // Topluluk kütüphanesindeki oyun ("Oyunu Kullan"): kütüphane detayıyla aynı biçimde gelir.

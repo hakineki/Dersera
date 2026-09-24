@@ -10,6 +10,7 @@ import type { GamesStore } from "@/lib/gamesStore";
 import { isKutuphaneAnahtari, kayitOlustur, KUTUPHANE_HEADER, KUTUPHANE_LIMIT, type KutuphaneKaydi } from "@/lib/library";
 import type { LibraryStore } from "@/lib/libraryStore";
 import type { ValidationResult } from "@/lib/composer/validator";
+import type { YonetisimSonucu } from "@/lib/composer/yonetisim";
 
 // Eski (hesap öncesi) kütüphaneler tarayıcı anahtarının özetine bağlıydı; yalnız hesaba taşımada kullanılır.
 export const eskiSahipOf = (anahtar: string) => hashToken(anahtar);
@@ -60,8 +61,8 @@ export function kayitDetayi(kayit: KutuphaneKaydi) {
 }
 
 export type YenidenYayinSonucu =
-  | { ok: true; game: PublicGame; adminToken: string }
-  | { ok: false; status: number; error: string; validation?: ValidationResult };
+  | { ok: true; game: PublicGame; adminToken: string; yonetisim: YonetisimSonucu }
+  | { ok: false; status: number; error: string; validation?: ValidationResult; yonetisim?: YonetisimSonucu };
 
 export function parseSure(v: unknown): number | null | undefined {
   if (v === undefined || v === null) return undefined;
@@ -88,8 +89,11 @@ export async function yenidenYayinla(
   await library.replace(sahip, { ...guncel, sonKod: published.game.code, sonYayin: now });
   // Topluluğa oynatılan (doğrulanmış) sürüm gider; aynı kütüphane kaydının eski topluluk sürümü pasife alınır.
   await kodKaynagaBagla(published.game.code, `${sahip}:${id}`, published.game.expiresAt, now);
-  await topluluguEkleGuvenli(composed.request.definition!, composed.dersler, sahip, published.game.code, published.game.expiresAt, { kaynak: `${sahip}:${id}` });
-  return { ok: true, ...published };
+  // Gözden geçirme gerektiren (REVIEW) oyun topluluğa otomatik gitmez.
+  if (composed.yonetisim.karar === "PASS") {
+    await topluluguEkleGuvenli(composed.request.definition!, composed.dersler, sahip, published.game.code, published.game.expiresAt, { kaynak: `${sahip}:${id}` });
+  }
+  return { ok: true, ...published, yonetisim: composed.yonetisim };
 }
 
 export function anahtarOf(req: Request): string | null {

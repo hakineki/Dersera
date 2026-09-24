@@ -7,6 +7,7 @@ import { checkLimit } from "@/lib/composer/rateLimit";
 import { GAME_RETENTION_MS } from "@/lib/gamesStore";
 import { filtredenGecer, TOPLULUK_SAYFA, type ToplulukFiltresi, type ToplulukKaydi, type ToplulukOzeti } from "@/lib/topluluk";
 import { getToplulukStore, type ToplulukStore } from "@/lib/toplulukStore";
+import { ozetEngelli } from "@/lib/composer/yonetisim";
 
 const BASLIK_MAX = 120;
 // Bir hesap günde en çok bu kadar yeni topluluk kaydı açabilir (listeyi doldurmaya karşı).
@@ -151,7 +152,8 @@ export async function listele(
     for (const oge of ogeler) {
       taranan++;
       konum = oge.skor;
-      if (oge.ozet && filtredenGecer(oge.ozet, filtre)) oyunlar.push(oge.ozet);
+      // Yönetişimden önce eklenmiş kayıtlar için savunma: başlığı/konusu engelli öğe listelenmez.
+      if (oge.ozet && filtredenGecer(oge.ozet, filtre) && !ozetEngelli(oge.ozet)) oyunlar.push(oge.ozet);
       if (oyunlar.length === limit) break;
     }
     // Sıralı kümede bu partiden sonra kayıt yoksa (ham yanıt eksikse) liste bitmiştir.

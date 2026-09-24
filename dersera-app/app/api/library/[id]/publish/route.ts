@@ -19,8 +19,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   try {
     const games = getGamesStore();
     const r = await yenidenYayinla(getLibraryStore(), games, sahip, id, sure);
-    if (!r.ok) return NextResponse.json({ error: r.error, validation: r.validation }, { status: r.status });
-    return NextResponse.json({ game: r.game, adminToken: r.adminToken, persistent: games.persistent }, { status: 201 });
+    if (!r.ok) return NextResponse.json({ error: r.error, validation: r.validation, yonetisim: r.yonetisim }, { status: r.status });
+    return NextResponse.json({ game: r.game, adminToken: r.adminToken, persistent: games.persistent, yonetisim: r.yonetisim }, { status: 201 });
   } catch (err) {
     console.error("[kutuphane] yayınlama hatası", err);
     return NextResponse.json({ error: "Oyun yayınlanamadı" }, { status: 503 });
