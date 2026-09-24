@@ -1,5 +1,5 @@
 import { normalize, parseNumber } from "@/lib/composer/answers";
-import { cocukGuvenligiTara, KATEGORI_ADI } from "@/lib/composer/cocukGuvenligi";
+import { cocukGuvenligiTara, KATEGORI_ADI, metinleriTara, type GuvenlikEslesmesi } from "@/lib/composer/cocukGuvenligi";
 import type { GameDefinition } from "@/lib/composer/definition";
 import type { ValidationResult } from "@/lib/composer/validator";
 
@@ -46,6 +46,14 @@ export const enAgir = (kararlar: Karar[]): Karar => kararlar.reduce<Karar>((a, b
 
 // Doğrulayıcı hata kodlarının kapıları; listede olmayan kod oyun mantığı kapısına düşer.
 const HATA_KAPISI: Record<string, KapiId> = {
+  "durak-yok": "sema",
+  "durak-fazla": "sema",
+  "nesne-fazla": "sema",
+  "metin-uzun": "sema",
+  "secenek-fazla": "sema",
+  "durak-id-tekrar": "sema",
+  "durak-id-bicim": "sema",
+  "nesne-id-tekrar": "sema",
   "hedef-disi": "mufredat",
   "ders-eksik": "mufredat",
   "soru-bos": "ogrenme-kalitesi",
@@ -75,6 +83,23 @@ function tekrarlananSorular(def: GameDefinition, ekle: (b: Bulgu) => void) {
   }
 }
 
+// Metindeki sayılar. Sıra sayısı ("2. yasa", "3.'sü") alınmaz; "1.000" binlik, "9,8" ve "9.8" ondalık okunur.
+export function metindekiSayilar(metin: string): number[] {
+  const out: number[] = [];
+  for (const m of metin.matchAll(/(?<![\p{L}\p{N}])-?\d+(?:[.,]\d+)*(?![\p{L}\p{N}])/gu)) {
+    const ham = m[0];
+    const sonra = metin.slice(m.index + ham.length);
+    // Sıra sayısı: noktadan sonra küçük harfle devam ("2. yasa") ya da kesme ("3.'sü"). Cümle sonu ("Cevap 12.") sayıdır.
+    if (/^\.(\s+\p{Ll}|['’])/u.test(sonra)) continue;
+    if (/^-?\d{1,3}(\.\d{3})+$/.test(ham)) out.push(Number(ham.replace(/\./g, "")));
+    else {
+      const n = parseNumber(ham);
+      if (n !== null) out.push(n);
+    }
+  }
+  return out;
+}
+
 // İpucu doğru cevabı açıkça söylüyorsa görev öğretmez. Cevap soruda zaten geçiyorsa ipucunda geçmesi sızıntı değildir.
 function cevabiVerenIpuclari(def: GameDefinition, ekle: (b: Bulgu) => void) {
   for (const d of def.duraklar) {
@@ -83,7 +108,8 @@ function cevabiVerenIpuclari(def: GameDefinition, ekle: (b: Bulgu) => void) {
     let sizdi = false;
     if (g.tur === "sayisal") {
       const cevap = parseNumber(g.dogru_cevap);
-      sizdi = cevap !== null && ipuclari.some((i) => (i.match(/-?\d+(?:[.,]\d+)?/g) ?? []).some((n) => parseNumber(n) === cevap));
+      // Büyük/küçük harf sıra sayısı ayrımında gerektiğinden ham metin kullanılır.
+      sizdi = cevap !== null && !metindekiSayilar(g.soru).includes(cevap) && [g.ipucu_1, g.ipucu_2].some((i) => metindekiSayilar(i).includes(cevap));
     } else if (g.tur === "coktan_secmeli" || g.tur === "gorsel_secim") {
       const cevap = normalize(g.dogru_cevap);
       sizdi = cevap.length >= 4 && !normalize(g.soru).includes(cevap) && ipuclari.some((i) => i.includes(cevap));
@@ -99,6 +125,29 @@ function bosHikayeler(def: GameDefinition, ekle: (b: Bulgu) => void) {
   }
 }
 
+function guvenlikBulgusu(e: GuvenlikEslesmesi): Bulgu {
+  return {
+    kod: `guvenlik-${e.kategori}`,
+    karar: e.engel ? "BLOCK" : "REVIEW",
+    durakId: e.durakId,
+    mesaj: `${e.yer}: "${e.terim}" ifadesi (${KATEGORI_ADI[e.kategori]}) ${e.engel ? "öğrenci oyununda kullanılamaz" : "yaşa uygunluk açısından gözden geçirilmeli"}.`,
+  };
+}
+
+// Composer öncesi (klasik) oyunun öğretmence yazılabilen durak adı ve hikâyesi: yalnız engelleyen ifadeler aranır.
+export function klasikDurakEngelleri(stops: { qr: number; name: string; hikaye: string }[]): Bulgu[] {
+  const metinler = stops.flatMap((s) => [
+    { metin: s.name, yer: `${s.qr}. durak · ad` },
+    { metin: s.hikaye, yer: `${s.qr}. durak · hikâye` },
+  ]);
+  return metinleriTara(metinler).filter((e) => e.engel).map(guvenlikBulgusu);
+}
+
+// Topluluk listesinde yalnız özet görünür: başlık ve konuda engelleyen ifade varsa öğe gösterilmez.
+export function ozetEngelli(o: { baslik: string; konu: string }): boolean {
+  return metinleriTara([{ metin: `${o.baslik}\n${o.konu}`, yer: "özet" }]).some((e) => e.engel);
+}
+
 // Tanım şemadan geçmiş olmalıdır (şemadan geçmeyen tanım bu noktaya gelmeden 422 ile reddedilir).
 export function yonetisimDegerlendir(def: GameDefinition, validation: ValidationResult): YonetisimSonucu {
   const t = Object.fromEntries(KAPILAR.map((k) => [k.id, { bulgular: [], notlar: [] }])) as unknown as Toplayici;
@@ -111,17 +160,10 @@ export function yonetisimDegerlendir(def: GameDefinition, validation: Validation
   cevabiVerenIpuclari(def, ekle("ogrenme-kalitesi"));
   bosHikayeler(def, ekle("oyun-kalitesi"));
 
-  for (const e of cocukGuvenligiTara(def)) {
-    ekle("cocuk-guvenligi")({
-      kod: `guvenlik-${e.kategori}`,
-      karar: e.engel ? "BLOCK" : "REVIEW",
-      durakId: e.durakId,
-      mesaj: `${e.yer}: "${e.terim}" ifadesi (${KATEGORI_ADI[e.kategori]}) ${e.engel ? "öğrenci oyununda kullanılamaz" : "yaşa uygunluk açısından gözden geçirilmeli"}.`,
-    });
-  }
+  cocukGuvenligiTara(def).map(guvenlikBulgusu).forEach(ekle("cocuk-guvenligi"));
 
-  t.sema.notlar.push("Oyun tanımı şemaya uygun.");
-  t.benzerlik.notlar.push("Sınıf yayınında uygulanmaz; topluluğa gönderimde denetlenir.");
+  if (t.sema.bulgular.length === 0) t.sema.notlar.push("Oyun tanımı şemaya ve boyut sınırlarına uygun.");
+  t.benzerlik.notlar.push("Sınıf yayınında uygulanmaz.");
   t.ekonomi.notlar.push("Oluşturma sınırları üretim sırasında denetlenir.");
 
   const kapilar = KAPILAR.map(({ id }) => ({ kapi: id, karar: enAgir(t[id].bulgular.map((b) => b.karar)), ...t[id] }));
@@ -132,7 +174,8 @@ export function yonetisimDegerlendir(def: GameDefinition, validation: Validation
 export const ROZETLER = ["Müfredat Uyumu", "Oyun Mantığı", "Öğrenme Kalitesi", "Çocuk Güvenliği", "Yayına Uygunluk"] as const;
 const ROZET_KAPILARI: Record<Exclude<(typeof ROZETLER)[number], "Yayına Uygunluk">, KapiId[]> = {
   "Müfredat Uyumu": ["sema", "mufredat"],
-  "Oyun Mantığı": ["oyun-mantigi"],
+  // Oyun kalitesi (ör. boş hikâye) oyunun akışıyla birlikte gösterilir.
+  "Oyun Mantığı": ["oyun-mantigi", "oyun-kalitesi"],
   "Öğrenme Kalitesi": ["ogrenme-kalitesi"],
   "Çocuk Güvenliği": ["cocuk-guvenligi"],
 };

@@ -85,7 +85,7 @@ export default function ComposerPreview({
             const g = ROZET_GORUNUMU[r.karar];
             return (
               <li key={r.ad} className={`border rounded-xl px-3 py-2 ${g.sinif}`}>
-                <p className="text-[11px] opacity-80">{r.ad}</p>
+                <p className="text-xs">{r.ad}</p>
                 <p className="font-bold text-sm">
                   <span aria-hidden="true">{g.simge} </span>
                   {g.metin}
@@ -107,14 +107,14 @@ export default function ComposerPreview({
         </div>
       )}
       {incelemeler.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <div role="status" className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="font-semibold text-amber-900 text-sm mb-2">Yayınlamadan önce gözden geçirin:</p>
           <ul className="list-disc list-inside text-sm text-amber-800 space-y-1">
             {incelemeler.map((b, i) => (
               <li key={i}>{b.mesaj}</li>
             ))}
           </ul>
-          <p className="text-xs text-amber-700 mt-2">Sınıfınızda yayınlayabilirsiniz; gözden geçirme gerektiren oyunlar topluluğa otomatik eklenmez.</p>
+          <p className="text-xs text-amber-700 mt-2">Sınıfınızda yayınlayabilirsiniz. Gözden geçirme gerektiren oyun topluluğa otomatik eklenmez; topluluktaki önceki sürümü (varsa) yerinde kalır.</p>
         </div>
       )}
 

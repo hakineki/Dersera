@@ -1,12 +1,12 @@
 import { clearRedisEnv } from "./helpers/fakeRedis";
-import { buildApi, hesapAc, jsonRequest } from "./helpers/api";
+import { buildApi, hesapAc, jsonRequest, samplePublish } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 import { validationContext } from "@/lib/composer/context";
 import type { GameDefinition } from "@/lib/composer/definition";
-import { cocukGuvenligiTara } from "@/lib/composer/cocukGuvenligi";
+import { cocukGuvenligiTara, metinleriTara } from "@/lib/composer/cocukGuvenligi";
 import { validateGame } from "@/lib/composer/validator";
-import { ekBulgular, KAPILAR, rozetler, yonetisimDegerlendir, type KapiId } from "@/lib/composer/yonetisim";
+import { ekBulgular, KAPILAR, klasikDurakEngelleri, metindekiSayilar, ozetEngelli, rozetler, yonetisimDegerlendir, type KapiId } from "@/lib/composer/yonetisim";
 
 const girdi = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const dersler = [{ ders: "fizik", konuId: getUniteler(10, "fizik")[0].id }];
@@ -17,6 +17,7 @@ const oyun = (degistir?: (d: GameDefinition) => void) => {
 };
 const degerlendir = (d: GameDefinition) => yonetisimDegerlendir(d, validateGame(d, validationContext(girdi)));
 const kapi = (d: GameDefinition, id: KapiId) => degerlendir(d).kapilar.find((k) => k.kapi === id)!;
+const sayisalGorev = (d: GameDefinition, alanlar: Record<string, unknown>) => Object.assign(d.duraklar[2].gorev, { tur: "sayisal", secenekler: [], ...alanlar });
 
 describe("içerik yönetişimi: kapılar", () => {
   it("geçerli oyun sekiz kapının hepsinden PASS alır; rozetler uygun", () => {
@@ -41,6 +42,14 @@ describe("içerik yönetişimi: kapılar", () => {
     expect(degerlendir(kopuk).karar).toBe("BLOCK");
   });
 
+  it("şema niteliğindeki hatalar şema kapısına düşer ve Müfredat Uyumu rozetine yansır", () => {
+    const d = oyun((x) => (x.duraklar[2].gorev.soru = "x".repeat(1001)));
+    expect(kapi(d, "sema")).toMatchObject({ karar: "BLOCK", notlar: [] });
+    expect(kapi(d, "oyun-mantigi").karar).toBe("PASS");
+    expect(rozetler(degerlendir(d))[0]).toEqual({ ad: "Müfredat Uyumu", karar: "BLOCK" });
+    expect(kapi(oyun(), "sema").notlar).toEqual([expect.stringMatching(/şemaya/)]);
+  });
+
   it("tarif sapması yayını etkilemez: oyun kalitesi notu olarak kalır", () => {
     const k = kapi(makeDefinition(girdi, 5), "oyun-kalitesi");
     expect(k.karar).toBe("PASS");
@@ -56,11 +65,6 @@ describe("içerik yönetişimi: kapılar", () => {
     });
     expect(kapi(secmeli, "ogrenme-kalitesi").bulgular[0]).toMatchObject({ kod: "ipucu-cevap", karar: "REVIEW", durakId: "d3" });
 
-    const sayisal = oyun((d) => {
-      Object.assign(d.duraklar[2].gorev, { tur: "sayisal", secenekler: [], dogru_cevap: "9,8", ipucu_2: "Sonuç 9.8 çıkar." });
-    });
-    expect(kapi(sayisal, "ogrenme-kalitesi").bulgular[0]).toMatchObject({ kod: "ipucu-cevap" });
-
     // Cevap soruda zaten geçiyorsa ipucunda geçmesi sızıntı değildir.
     const soruda = oyun((d) => {
       Object.assign(d.duraklar[2].gorev, { soru: "Galileo mu Newton mu?", secenekler: ["Newton", "Galileo"], dogru_cevap: "Galileo", ipucu_1: "Galileo'nun deneyini düşün." });
@@ -72,9 +76,22 @@ describe("içerik yönetişimi: kapılar", () => {
     expect(degerlendir(bos).karar).toBe("REVIEW");
   });
 
+  it("sayısal ipucu: cevabı veren sayı yakalanır; sıra sayısı, sorudaki sayı ve binlik ayracı yanlış alarm vermez", () => {
+    expect(kapi(oyun((d) => sayisalGorev(d, { dogru_cevap: "9.8", ipucu_2: "Sonuç 9,8 çıkar." })), "ogrenme-kalitesi").bulgular[0]).toMatchObject({ kod: "ipucu-cevap" });
+    expect(kapi(oyun((d) => sayisalGorev(d, { dogru_cevap: "12", ipucu_1: "Cevap 12." })), "ogrenme-kalitesi").karar).toBe("REVIEW");
+    expect(kapi(oyun((d) => sayisalGorev(d, { dogru_cevap: "1000", ipucu_1: "Yaklaşık 1.000 kadar." })), "ogrenme-kalitesi").karar).toBe("REVIEW");
+    expect(kapi(oyun((d) => sayisalGorev(d, { dogru_cevap: "2", ipucu_1: "Newton'un 2. yasasını kullan.", ipucu_2: "Kuvvetlerin 3.'sünü düşün." })), "ogrenme-kalitesi").karar).toBe("PASS");
+    expect(kapi(oyun((d) => sayisalGorev(d, { dogru_cevap: "1", ipucu_1: "1.000 gramı kilograma çevir." })), "ogrenme-kalitesi").karar).toBe("PASS");
+    expect(kapi(oyun((d) => sayisalGorev(d, { soru: "Kütlesi 2 kg olan cisme 4 N uygulanıyor; kütle kaç kg?", dogru_cevap: "2", ipucu_1: "2 kg'lık cismi düşün." })), "ogrenme-kalitesi").karar).toBe("PASS");
+    expect(metindekiSayilar("Bu 2. yasa; 3,5 m; 1.250 kg; x2 değil; -4 derece.")).toEqual([3.5, 1250, -4]);
+  });
+
   it("rozetler: REVIEW ve BLOCK doğru rozete ve Yayına Uygunluk'a yansır", () => {
     const s = degerlendir(oyun((d) => (d.duraklar[1].hikaye_metni = "Kumarhanenin önündesin.")));
     expect(rozetler(s)).toEqual(expect.arrayContaining([{ ad: "Çocuk Güvenliği", karar: "REVIEW" }, { ad: "Yayına Uygunluk", karar: "REVIEW" }, { ad: "Oyun Mantığı", karar: "PASS" }]));
+    expect(rozetler(degerlendir(oyun((d) => (d.duraklar[4].hikaye_metni = ""))))).toContainEqual({ ad: "Oyun Mantığı", karar: "REVIEW" });
+    const ikisi = degerlendir(oyun((d) => ((d.duraklar[4].hikaye_metni = ""), (d.duraklar[2].hikaye_metni = "Siktir."))));
+    expect(ikisi.karar).toBe("BLOCK");
   });
 
   it("ekBulgular doğrulama hatalarını tekrar etmez, yalnız yönetişimin kendi bulgularını verir", () => {
@@ -89,37 +106,65 @@ describe("içerik yönetişimi: kapılar", () => {
 
 describe("çocuk güvenliği taraması", () => {
   const tara = (metin: string) => cocukGuvenligiTara(oyun((d) => (d.duraklar[2].hikaye_metni = metin)));
+  const tek = (metin: string) => metinleriTara([{ metin, yer: "metin" }]);
 
-  it("açık küfür yayını engeller; bağlama bağlı ifade gözden geçirme ister", () => {
-    expect(tara("Siktir git dedi.")).toEqual([expect.objectContaining({ kategori: "kufur", engel: true, durakId: "d3", yer: '"Rota A" durağı' })]);
+  it("açık küfür ve müstehcenlik yayını engeller; bağlama bağlı ifade gözden geçirme ister", () => {
+    expect(tara("Siktir git dedi.")).toEqual([expect.objectContaining({ kategori: "kufur", engel: true, terim: "siktir", durakId: "d3", yer: '"Rota A" durağı · hikâye' })]);
+    expect(tek("porno sitesi")[0]).toMatchObject({ kategori: "cinsel", engel: true });
+    expect(tek("Kahpe felek")[0]).toMatchObject({ kategori: "kufur", engel: false });
     expect(tara("Kumar masasına otur.")[0]).toMatchObject({ kategori: "kumar", engel: false });
-    expect(tara("Bu iksir uyuşturucudur.")[0]).toMatchObject({ kategori: "madde", engel: false });
-    expect(tara("Telefon numaranı buraya yaz.")[0]).toMatchObject({ kategori: "kisisel-veri" });
-    expect(tara("Kendine zarar verme oyunu.")[0]).toMatchObject({ kategori: "kendine-zarar" });
+    expect(tek("Bahis oynayalım")[0]).toMatchObject({ kategori: "kumar", terim: "bahis oynayalım" });
+    expect(tek("Bu iksir eroindir.")[0]).toMatchObject({ kategori: "madde", engel: false });
+    expect(tek("Telefon numaranı buraya yaz.")[0]).toMatchObject({ kategori: "kisisel-veri" });
+    expect(tek("Kendine zarar verme oyunu.")[0]).toMatchObject({ kategori: "kendine-zarar" });
   });
 
-  it("Türkçe büyük harf (İ/I) ve eklerle eşleşir", () => {
-    expect(tara("İNTİHAR mektubu")[0]).toMatchObject({ kategori: "kendine-zarar" });
-    expect(tara("KUMARHANEYE gir")[0]).toMatchObject({ kategori: "kumar" });
+  it("Türkçe büyük harf, ASCII I, şapkalı harf, ayrı yazım ve NFD ile eşleşir; mesajda metindeki asıl kelime görünür", () => {
+    expect(tek("İNTİHAR mektubu")[0]).toMatchObject({ kategori: "kendine-zarar", terim: "intihar" });
+    expect(tek("KUMARHANEYE gir")[0]).toMatchObject({ kategori: "kumar", terim: "kumarhaneye" });
+    expect(tek("SIKTIR")[0]).toMatchObject({ kategori: "kufur", engel: true });
+    expect(tek("Sen bir Gerizekâlısın")[0]).toMatchObject({ kategori: "zorbalik", terim: "gerizekâlısın" });
+    expect(tek("geri zekalı çocuk")[0]).toMatchObject({ kategori: "zorbalik", terim: "geri zekalı" });
+    expect(tek("Sarhos".normalize("NFD") + " ve " + "sarhoş".normalize("NFD"))[0]).toMatchObject({ kategori: "madde" });
   });
 
   it.each([
     "Kurtuluş Savaşı'nda cephane taşıyan kadınlar",
     "Bitkilerde eşeyli üreme ve cinsel hücreler",
-    "Esrarengiz bir kapı açıldı.",
+    "Esrarengiz bir kapı açıldı; mağaranın esrar perdesi kalktı.",
     "Alkoller ve karboksilik asitler",
-    "Şifreyi çöz ve kapıyı aç.",
+    "HCl(aq) + NaOH(aq) → NaCl(aq) + H2O(s)",
+    "Şifreyi çöz ve kapıyı aç. Şifrenin ilk rakamı 4, parolanın son harfi K.",
     "Sevgili öğrenciler, bahçede buluşalım.",
     "Anahtar sözcük: seksen dört",
+    "Londra Boğazlar Sözleşmesi imzalandı.",
+    "Jüpiter çıplak gözle görülebilir; çıplak bakır tel kullan.",
+    "İpi bıçakla kes.",
+    "Bira mayası glikozu fermente eder; şarap sirkeye dönüşür.",
+    "Bahis konusu olan antlaşma",
+    "Ezik elmayı ayır.",
+    "Hocalı Katliamı ve Engizisyon dönemi",
+    "Acil durumda 112 telefon numarasını ara.",
+    "İbn-i Sina ve amino asitler",
+    "Rakım 1200 metre.",
+    "Sigaranın zararlarını öğren.",
   ])("müfredat ve macera dili yanlış alarm vermez: %s", (metin) => {
-    expect(tara(metin)).toEqual([]);
+    expect(tek(metin)).toEqual([]);
   });
 
-  it("öğrencinin gördüğü tüm alanlar taranır: seçenek, seçim metni, final, giriş", () => {
-    expect(cocukGuvenligiTara(oyun((d) => (d.duraklar[0].gorev.secenekler = ["A", "bahis", "C"])))[0].durakId).toBe("d1");
-    expect(cocukGuvenligiTara(oyun((d) => (d.duraklar[1].secimler[0].metin = "Kumarhaneye git")))[0].durakId).toBe("d2");
-    expect(cocukGuvenligiTara(oyun((d) => (d.final.basari_metni = "Sarhoş kaptan kazandı")))[0].yer).toBe("Final");
-    expect(cocukGuvenligiTara(oyun((d) => (d.meta.baslik = "Sigara Adası")))[0].yer).toBe("Oyun girişi");
+  it("öğrencinin gördüğü tüm alanlar taranır ve alan adı mesajda yer alır", () => {
+    expect(cocukGuvenligiTara(oyun((d) => (d.duraklar[0].gorev.secenekler = ["A", "rulet", "C"])))[0]).toMatchObject({ durakId: "d1", yer: '"Başlangıç" durağı · seçenekler' });
+    expect(cocukGuvenligiTara(oyun((d) => (d.duraklar[1].secimler[0].metin = "Kumarhaneye git")))[0].yer).toBe('"Yol Ayrımı" durağı · seçimler');
+    expect(cocukGuvenligiTara(oyun((d) => (d.duraklar[1].gorev.ipucu_2 = "Salak olma")))[0].yer).toBe('"Yol Ayrımı" durağı · ipuçları');
+    expect(cocukGuvenligiTara(oyun((d) => (d.final.basari_metni = "Sarhoş kaptan kazandı")))[0].yer).toBe("Final · başarı metni");
+    expect(cocukGuvenligiTara(oyun((d) => (d.meta.baslik = "Kumar Adası")))[0].yer).toBe("Oyun girişi · başlık");
+  });
+
+  it("klasik oyun durakları ve topluluk özeti yalnız engelleyen ifadeye bakar", () => {
+    expect(klasikDurakEngelleri([{ qr: 3, name: "Liman", hikaye: "Siktir git." }])).toEqual([expect.objectContaining({ karar: "BLOCK", mesaj: expect.stringContaining("3. durak · hikâye") })]);
+    expect(klasikDurakEngelleri([{ qr: 3, name: "Kumarhane", hikaye: "Rulet" }])).toEqual([]);
+    expect(ozetEngelli({ baslik: "Orospu Adası", konu: "Kuvvet" })).toBe(true);
+    expect(ozetEngelli({ baslik: "Kumar Adası", konu: "Kuvvet" })).toBe(false);
   });
 });
 
@@ -133,7 +178,7 @@ describe("yayın yönetişimi atlayamaz", () => {
   });
   const cerezli = (req: Request) => (req.headers.set("cookie", ogretmen), req);
   const yayinla = (definition: GameDefinition) => api.games.POST(cerezli(jsonRequest("/api/games", { composer: { definition, dersler } })));
-  const topluluk = async () => (await (await api.topluluk.GET(new Request("http://localhost/api/topluluk"))).json()).oyunlar as { baslik: string }[];
+  const topluluk = async () => (await (await api.topluluk.GET(new Request("http://localhost/api/topluluk"))).json()).oyunlar as { baslik: string; oyun_id: string }[];
 
   it("BLOCK: yayın 422, oyun kodu üretilmez, yanıtta gerekçeli yönetişim sonucu var", async () => {
     const res = await yayinla(oyun((d) => (d.duraklar[2].hikaye_metni = "Orospu çocuğu!")));
@@ -163,7 +208,7 @@ describe("yayın yönetişimi atlayamaz", () => {
     expect((await topluluk()).map((o) => o.baslik)).toEqual(["Temiz Oyun"]);
   });
 
-  it("kütüphaneden yayında da aynı kural: BLOCK 422, REVIEW topluluğa gitmez", async () => {
+  it("kütüphaneden yayında da aynı kural: BLOCK 422, REVIEW 201 + yonetisim ve topluluğa gitmez", async () => {
     const kaydet = async (definition: GameDefinition) =>
       (await (await api.library.POST(cerezli(jsonRequest("/api/library", { definition, dersler })))).json()).id as string;
     const yayin = (id: string) => api.libraryPublish.POST(cerezli(jsonRequest(`/api/library/${id}/publish`, {})), api.idParams(id));
@@ -174,6 +219,30 @@ describe("yayın yönetişimi atlayamaz", () => {
 
     const inceleme = await yayin(await kaydet(oyun((d) => (d.duraklar[1].hikaye_metni = "Bahis oynayalım."))));
     expect(inceleme.status).toBe(201);
+    expect((await inceleme.json()).yonetisim.karar).toBe("REVIEW");
+    expect(await topluluk()).toEqual([]);
+  });
+
+  it("klasik (composer öncesi) yayında öğrenciye görünen durak metni engelliyse 422", async () => {
+    const yayin = samplePublish();
+    yayin.stops[1] = { ...yayin.stops[1], hikaye: "Siktir git buradan." };
+    const res = await api.games.POST(jsonRequest("/api/games", yayin));
+    expect(res.status).toBe(422);
+    expect((await res.json()).bulgular[0].mesaj).toMatch(/durak · hikâye/);
+    expect((await api.games.POST(jsonRequest("/api/games", samplePublish()))).status).toBe(201);
+  });
+
+  it("yönetişimden önce topluluğa girmiş engelli kayıt: listede görünmez, detayı 404 ve pasife alınır", async () => {
+    const eski = oyun((d) => (d.meta.baslik = "Eski Oyun"));
+    await yayinla(eski);
+    const [kayit] = await topluluk();
+    const store = api.toplulukStore.getToplulukStore();
+    // Kaydın yönetişimden önce eklendiğini taklit et: içerik sonradan engelli hâle gelir.
+    const tam = (await store.get(kayit.oyun_id))!;
+    tam.definition.duraklar[2].hikaye_metni = "Siktir git.";
+    const detay = await api.toplulukOyun.GET(cerezli(new Request(`http://localhost/api/topluluk/${kayit.oyun_id}`)), api.idParams(kayit.oyun_id));
+    expect(detay.status).toBe(404);
+    expect((await store.get(kayit.oyun_id))!.aktif).toBe(false);
     expect(await topluluk()).toEqual([]);
   });
 });

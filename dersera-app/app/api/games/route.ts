@@ -9,7 +9,7 @@ import { getLibraryStore } from "@/lib/libraryStore";
 import { topluluguEkleGuvenli } from "@/lib/toplulukService";
 import { kodKaynagaBagla } from "@/lib/istatistikService";
 import type { DersKonu } from "@/lib/composer/input";
-import type { YonetisimSonucu } from "@/lib/composer/yonetisim";
+import { klasikDurakEngelleri, type YonetisimSonucu } from "@/lib/composer/yonetisim";
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -35,6 +35,11 @@ export async function POST(req: Request) {
   }
   if (!request) {
     return NextResponse.json({ error: "Geçersiz oyun ayarları" }, { status: 422 });
+  }
+  // Klasik oyunda da öğrenciye gösterilen serbest metinler yönetişimi atlayamaz.
+  if (!request.definition) {
+    const engeller = klasikDurakEngelleri(request.stops);
+    if (engeller.length) return NextResponse.json({ error: "Oyun içerik denetiminden geçmedi; yayınlanamaz", bulgular: engeller }, { status: 422 });
   }
 
   try {

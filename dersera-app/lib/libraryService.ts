@@ -61,7 +61,7 @@ export function kayitDetayi(kayit: KutuphaneKaydi) {
 }
 
 export type YenidenYayinSonucu =
-  | { ok: true; game: PublicGame; adminToken: string }
+  | { ok: true; game: PublicGame; adminToken: string; yonetisim: YonetisimSonucu }
   | { ok: false; status: number; error: string; validation?: ValidationResult; yonetisim?: YonetisimSonucu };
 
 export function parseSure(v: unknown): number | null | undefined {
@@ -93,7 +93,7 @@ export async function yenidenYayinla(
   if (composed.yonetisim.karar === "PASS") {
     await topluluguEkleGuvenli(composed.request.definition!, composed.dersler, sahip, published.game.code, published.game.expiresAt, { kaynak: `${sahip}:${id}` });
   }
-  return { ok: true, ...published };
+  return { ok: true, ...published, yonetisim: composed.yonetisim };
 }
 
 export function anahtarOf(req: Request): string | null {
