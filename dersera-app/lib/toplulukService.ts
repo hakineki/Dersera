@@ -162,7 +162,9 @@ export async function listele(
 
 // "Oyunu Kullan": düzenleyicinin ihtiyaç duyduğu tam oyun ve bağlam. Oluşturan bilgisi dışarı verilmez.
 export function kullanimDetayi(kayit: ToplulukKaydi) {
-  const { olusturan: _gizli, definition, dersler, ...ozet } = kayit;
+  const { olusturan: _gizli, puan_ortalama: _p, puan_sayisi: _s, definition, dersler, ...ozet } = kayit;
   void _gizli;
+  void _p;
+  void _s;
   return { oyun: { ...ozet, definition, dersler }, ...duzenlemeBaglami(kayit.sinif, dersler, definition) };
 }

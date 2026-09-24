@@ -1,5 +1,5 @@
 import { clearRedisEnv, recordingCommand } from "./helpers/fakeRedis";
-import { buildApi, hesapAc, jsonRequest, samplePublish } from "./helpers/api";
+import { buildApi, hesapAc, jsonRequest, katilVeBitir, samplePublish } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 import type { GameDefinition } from "@/lib/composer/definition";
@@ -72,16 +72,25 @@ describe("topluluk kütüphanesi", () => {
     expect((await liste()).data.oyunlar).toHaveLength(1);
   });
 
-  it("öğrenci katıldıkça oynanma sayısı artar (tekrar yayının kodu da aynı kayda sayılır)", async () => {
+  it("oynanma sayısı katılımla değil, oyunu bitiren öğrenciyle artar (tekrar yayının kodu da aynı kayda sayılır)", async () => {
     const d = baslikli(fizik, "Bir");
     const a = await yayinla(d, fizikDersler);
     const b = await yayinla(d, fizikDersler);
-    const katil = (kod: string, nickname: string) => api.join.POST(jsonRequest("/join", { nickname }), api.params(kod));
-    expect((await katil(a.game.code, "Kartal")).status).toBe(201);
-    expect((await katil(a.game.code, "Şahin")).status).toBe(201);
-    expect((await katil(a.game.code, "Kartal")).status).toBe(409); // aynı takma ad sayılmaz
-    expect((await katil(b.game.code, "Atmaca")).status).toBe(201);
+    expect((await api.join.POST(jsonRequest("/join", { nickname: "Yarım" }), api.params(a.game.code))).status).toBe(201);
+    expect((await liste()).data.oyunlar[0].oynanma_sayisi).toBe(0);
+    await katilVeBitir(api, a.game.code, "Kartal");
+    await katilVeBitir(api, a.game.code, "Şahin");
+    await katilVeBitir(api, b.game.code, "Atmaca");
     expect((await liste()).data.oyunlar[0].oynanma_sayisi).toBe(3);
+  });
+
+  it("aynı öğrencinin sonucu tekrar gönderilse de oynanma bir kez sayılır; oluşturanın kendi oturumu sayılmaz", async () => {
+    const { game } = await yayinla(baslikli(fizik, "Bir"), fizikDersler);
+    const token = await katilVeBitir(api, game.code, "Kartal");
+    const tekrar = { nickname: "Kartal", netSeconds: 500, penaltySeconds: 0, hintsUsed: 0, completedAt: 1_790_000_000_000 };
+    expect((await api.results.POST(jsonRequest("/api/results", { gameCode: game.code, playerToken: token, result: tekrar }))).status).toBe(201);
+    await katilVeBitir(api, game.code, "Öğretmen", ogretmen);
+    expect((await liste()).data.oyunlar[0].oynanma_sayisi).toBe(1);
   });
 
   it("topluluk deposu hata verse de yayın ve katılım başarılı olur", async () => {
@@ -90,7 +99,7 @@ describe("topluluk kütüphanesi", () => {
       throw new Error("redis kapalı");
     });
     const { game } = await yayinla(baslikli(fizik, "Bir"), fizikDersler);
-    expect((await api.join.POST(jsonRequest("/join", { nickname: "Kartal" }), api.params(game.code))).status).toBe(201);
+    await katilVeBitir(api, game.code, "Kartal"); // katılım ve sonuç kaydı hata vermez
     spy.mockRestore();
     err.mockRestore();
   });
@@ -293,7 +302,7 @@ describe("topluluk kütüphanesi", () => {
     for (let i = 0; i < GUNLUK_TOPLULUK_KAYDI + 3; i++) kodlar.push((await yayinla(d, fizikDersler)).game.code);
     warn.mockRestore();
     const son = kodlar[kodlar.length - 1];
-    expect((await api.join.POST(jsonRequest("/join", { nickname: "Kartal" }), api.params(son))).status).toBe(201);
+    await katilVeBitir(api, son, "Kartal");
     expect((await liste()).data.oyunlar[0].oynanma_sayisi).toBe(1);
   });
 

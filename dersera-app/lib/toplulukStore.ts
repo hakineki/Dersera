@@ -1,5 +1,6 @@
 import { redisFromEnv, type RedisCommand } from "@/lib/redis";
 import type { ToplulukKaydi, ToplulukOzeti } from "@/lib/topluluk";
+import { gosterilecekOrtalama } from "@/lib/istatistik";
 
 // Anahtarlar: özet (liste), tam kayıt (Oyunu Kullan), yayın zamanına göre sıralı küme, içerik özeti → id
 // (aynı oyun tekrar yayınlanınca yeni kayıt açılmaz), kaynak → son id (kütüphanede düzenlenip yeniden yayınlanan
@@ -35,7 +36,6 @@ const oynanmaKey = (id: string) => `dersera:topluluk:oynanma:${id}`;
 const puanToplamKey = (id: string) => `dersera:topluluk:puan-toplam:${id}`;
 const puanSayisiKey = (id: string) => `dersera:topluluk:puan-sayisi:${id}`;
 
-const ortalamaOf = (toplam: number, sayi: number) => (sayi > 0 ? Math.round((toplam / sayi) * 10) / 10 : null);
 const icerikKey = (h: string) => `dersera:topluluk:icerik:${h}`;
 const kaynakKey = (k: string) => `dersera:topluluk:kaynak:${k}`;
 const kodKey = (kod: string) => `dersera:topluluk:kod:${kod}`;
@@ -95,7 +95,7 @@ export function createMemoryToplulukStore(): ToplulukStore {
         .slice(0, adet)
         .map((x) => {
           const p = puanlar.get(x.k.oyun_id) ?? { toplam: 0, sayi: 0 };
-          return { skor: x.skor, ozet: { ...ozetOf(x.k, oynanma.get(x.k.oyun_id) ?? 0), puan_ortalama: ortalamaOf(p.toplam, p.sayi), puan_sayisi: p.sayi } };
+          return { skor: x.skor, ozet: { ...ozetOf(x.k, oynanma.get(x.k.oyun_id) ?? 0), puan_ortalama: gosterilecekOrtalama(p.toplam, p.sayi), puan_sayisi: p.sayi } };
         });
     },
     async kaynakGuncelle(kaynak, id) {
@@ -179,7 +179,7 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
             ? {
                 ...(JSON.parse(ozetler[i]!) as ToplulukOzeti),
                 oynanma_sayisi: Number(sayilar[i * 3] ?? 0),
-                puan_ortalama: ortalamaOf(Number(sayilar[i * 3 + 1] ?? 0), sayi),
+                puan_ortalama: gosterilecekOrtalama(Number(sayilar[i * 3 + 1] ?? 0), sayi),
                 puan_sayisi: sayi,
               }
             : null,
@@ -208,8 +208,8 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
       await command(["INCR", oynanmaKey(id)]);
     },
     async puanEkle(id, puan) {
-      await command(["INCRBY", puanToplamKey(id), puan]);
-      await command(["INCR", puanSayisiKey(id)]);
+      // Toplam ve sayı birlikte artar (yarım yazılmış ortalama olmaz).
+      await command(["EVAL", "redis.call('INCRBY', KEYS[1], ARGV[1]) redis.call('INCR', KEYS[2]) return 1", 2, puanToplamKey(id), puanSayisiKey(id), puan]);
     },
   };
 }

@@ -95,3 +95,15 @@ export async function hesapAc(api: Awaited<ReturnType<typeof buildApi>>, kullani
   if (res.status !== 201) throw new Error(`hesap açılamadı: ${res.status}`);
   return oturumCerezi(res)!;
 }
+
+// Öğrenci oyuna katılır ve oyunu bitirip sonucunu gönderir; oyuncu anahtarını döndürür.
+// cerez verilirse sonuç o oturumla gönderilir (ör. öğretmenin kendi oyununu oynaması).
+export async function katilVeBitir(api: Awaited<ReturnType<typeof buildApi>>, kod: string, nickname: string, cerez: string | null = null): Promise<string> {
+  const katil = await api.join.POST(jsonRequest("/join", { nickname }), api.params(kod));
+  if (katil.status !== 201) throw new Error(`katılım başarısız: ${katil.status}`);
+  const playerToken = (await katil.json()).playerToken as string;
+  const sonuc = { nickname, netSeconds: 540, penaltySeconds: 0, hintsUsed: 0, completedAt: 1_790_000_000_000 };
+  const res = await api.results.POST(cerezli(jsonRequest("/api/results", { gameCode: kod, playerToken, result: sonuc }), cerez));
+  if (res.status !== 201) throw new Error(`sonuç kaydedilemedi: ${res.status}`);
+  return playerToken;
+}

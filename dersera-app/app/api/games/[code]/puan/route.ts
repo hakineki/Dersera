@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { normalizeGameCode } from "@/lib/games";
 import { getGamesStore } from "@/lib/gamesStore";
 import { verifyPlayer } from "@/lib/gamesService";
-import { gecerliPuan, puanVer } from "@/lib/istatistikService";
+import { gecerliPuan } from "@/lib/istatistik";
+import { puanVer } from "@/lib/istatistikService";
+import { istekSahibi } from "@/lib/libraryService";
 import { NICKNAME_PATTERN } from "@/lib/results";
 
 // Oyun sonunda öğrencinin anonim puanı (1–5). Yalnız o oyuna katılan cihazın oyuncu anahtarıyla, takma ad başına bir kez.
@@ -24,7 +26,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     const game = await games.get(code);
     if (!game) return NextResponse.json({ error: "Oyun bulunamadı" }, { status: 404 });
     if (!(await verifyPlayer(games, code, nickname, body.playerToken))) return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
-    const sonuc = await puanVer(code, nickname, body.puan as number, game.expiresAt);
+    const sonuc = await puanVer(code, nickname, body.puan as number, await istekSahibi(req), game.expiresAt);
+    if (sonuc === "bitirmedi") return NextResponse.json({ error: "Puan, oyunu bitirip sonucun kaydedildikten sonra verilebilir" }, { status: 403 });
     return sonuc === "kaydedildi" ? NextResponse.json({ ok: true }, { status: 201 }) : NextResponse.json({ error: "Bu oyuna zaten puan verdin" }, { status: 409 });
   } catch (err) {
     console.error("[istatistik] puan kaydedilemedi", err instanceof Error ? err.message : err);

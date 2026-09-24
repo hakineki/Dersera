@@ -13,6 +13,7 @@ import {
   loadProgress,
   loadSceneState,
   markStopComplete,
+  nicknameKey,
   saveEndTime,
   saveSceneState,
   type GameProgress,
@@ -27,34 +28,74 @@ const kart = "bg-white/10 border border-white/20 rounded-2xl p-5";
 const devam = "w-full bg-white text-indigo-900 font-bold py-3 rounded-xl";
 
 const PUAN_ETIKETI = ["Hiç beğenmedim", "Beğenmedim", "Fena değil", "Beğendim", "Çok beğendim"];
+const puanBayragi = (gameCode: string, nickname: string) => `dersera:puan-verildi:${gameCode}:${nicknameKey(nickname)}`;
 
 // Anonim oyun puanı: yalnız toplam ve ortalama saklanır; öğretmen tek tek puanları görmez.
 function OyunPuani({ gameCode, nickname }: { gameCode: string; nickname: string }) {
-  const [durum, setDurum] = useState<"secim" | "gonderiliyor" | "tamam" | "hata">("secim");
-  async function ver(puan: number) {
+  const [secili, setSecili] = useState(0);
+  const [onizleme, setOnizleme] = useState(0);
+  const [durum, setDurum] = useState<"secim" | "gonderiliyor" | "tamam" | "zaten" | "hata">(() => {
+    try {
+      return localStorage.getItem(puanBayragi(gameCode, nickname)) ? "tamam" : "secim";
+    } catch {
+      return "secim";
+    }
+  });
+
+  async function gonder() {
     setDurum("gonderiliyor");
-    const r = await sendPlayerRating(gameCode, nickname, puan);
-    setDurum(r === "hata" ? "hata" : "tamam");
+    const r = await sendPlayerRating(gameCode, nickname, secili);
+    if (r === "kaydedildi" || r === "zaten") {
+      try {
+        localStorage.setItem(puanBayragi(gameCode, nickname), "1");
+      } catch {
+        /* ignore */
+      }
+    }
+    setDurum(r === "kaydedildi" ? "tamam" : r === "zaten" ? "zaten" : "hata");
   }
+
+  if (durum === "tamam" || durum === "zaten") {
+    return (
+      <div className={kart}>
+        <p role="status" className="text-green-200 text-sm font-semibold">
+          {durum === "tamam" ? "Teşekkürler! Puanın isimsiz olarak kaydedildi." : "Bu oyuna zaten puan vermişsin. Teşekkürler!"}
+        </p>
+      </div>
+    );
+  }
+  const gorunen = onizleme || secili;
   return (
     <div className={kart}>
-      {durum === "tamam" ? (
-        <p role="status" className="text-green-200 text-sm font-semibold">
-          Teşekkürler! Puanın öğretmenine isimsiz olarak iletildi.
-        </p>
-      ) : (
-        <fieldset disabled={durum === "gonderiliyor"}>
-          <legend className="text-white font-semibold text-sm mb-2">Oyunu nasıl buldun?</legend>
-          <div className="flex justify-center gap-1">
-            {PUAN_ETIKETI.map((etiket, i) => (
-              <button key={etiket} type="button" onClick={() => ver(i + 1)} aria-label={`${i + 1} yıldız: ${etiket}`} className="text-3xl px-1 hover:scale-110 transition-transform disabled:opacity-50">
-                <span aria-hidden="true">⭐</span>
-              </button>
-            ))}
-          </div>
-          {durum === "hata" && <p role="alert" className="text-red-200 text-xs mt-2">Puan gönderilemedi. Tekrar dene.</p>}
-        </fieldset>
-      )}
+      <fieldset disabled={durum === "gonderiliyor"}>
+        <legend className="text-white font-semibold text-sm mb-2">Oyunu nasıl buldun?</legend>
+        <div className="flex justify-center" onMouseLeave={() => setOnizleme(0)}>
+          {PUAN_ETIKETI.map((etiket, i) => (
+            <button
+              key={etiket}
+              type="button"
+              aria-pressed={secili === i + 1}
+              aria-label={`${i + 1} yıldız: ${etiket}`}
+              onClick={() => setSecili(i + 1)}
+              onMouseEnter={() => setOnizleme(i + 1)}
+              onFocus={() => setOnizleme(i + 1)}
+              onBlur={() => setOnizleme(0)}
+              className={`w-11 h-11 text-3xl leading-none transition-transform hover:scale-110 ${i < gorunen ? "" : "opacity-30 grayscale"}`}
+            >
+              <span aria-hidden="true">⭐</span>
+            </button>
+          ))}
+        </div>
+        <p className="text-purple-200 text-xs mt-1 h-4">{gorunen ? PUAN_ETIKETI[gorunen - 1] : ""}</p>
+        <button type="button" onClick={gonder} disabled={!secili} className="mt-2 bg-white text-indigo-900 font-bold text-sm px-5 py-2 rounded-lg disabled:opacity-40">
+          {durum === "gonderiliyor" ? "Gönderiliyor…" : "Puanı gönder"}
+        </button>
+        {durum === "hata" && (
+          <p role="alert" className="text-red-200 text-xs mt-2">
+            Puan gönderilemedi. Tekrar dene.
+          </p>
+        )}
+      </fieldset>
     </div>
   );
 }

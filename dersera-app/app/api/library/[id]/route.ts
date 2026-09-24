@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isKutuphaneId } from "@/lib/library";
 import { getLibraryStore } from "@/lib/libraryStore";
 import { kokenReddi, oturumGerekli } from "@/lib/authRequest";
+import { istatistikleriSil } from "@/lib/istatistikService";
 import { istekSahibi, kayitDetayi, kutuphaneKaydiniGuncelle } from "@/lib/libraryService";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -52,6 +53,7 @@ export async function DELETE(req: Request, ctx: Ctx) {
   if (h.hata) return h.hata;
   try {
     const silindi = await getLibraryStore().remove(h.sahip, h.id);
+    if (silindi) await istatistikleriSil(`${h.sahip}:${h.id}`);
     return silindi ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Oyun bulunamadı" }, { status: 404 });
   } catch (err) {
     console.error("[kutuphane] silme hatası", err);

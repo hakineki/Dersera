@@ -1,18 +1,22 @@
+import { createHash } from "crypto";
 import { nicknameKey } from "@/lib/gameState";
 import { GAME_RETENTION_MS } from "@/lib/gamesStore";
+import { gosterilecekOrtalama } from "@/lib/istatistik";
 import { getIstatistikStore, type Istatistik } from "@/lib/istatistikStore";
 import { getToplulukStore } from "@/lib/toplulukStore";
 
-// Öğrenci puanı 1–5 tam sayıdır.
-export const PUAN_MIN = 1;
-export const PUAN_MAX = 5;
-export const gecerliPuan = (v: unknown): v is number => Number.isInteger(v) && (v as number) >= PUAN_MIN && (v as number) <= PUAN_MAX;
-
-export const ortalama = (toplam: number, sayi: number): number | null => (sayi > 0 ? Math.round((toplam / sayi) * 10) / 10 : null);
+// Tek bir yayın kodu (bir sınıf oturumu) en çok bu kadar öğrenci sayısı ekleyebilir: tek kodla şişirmeye karşı.
+export const KOD_BASINA_EN_COK_OGRENCI = 60;
 
 export function istatistikOzeti(i: Istatistik) {
-  return { ogrenci_sayisi: i.ogrenci, puan_ortalama: ortalama(i.puanToplam, i.puanSayisi), puan_sayisi: i.puanSayisi };
+  return { ogrenci_sayisi: i.ogrenci, puan_ortalama: gosterilecekOrtalama(i.puanToplam, i.puanSayisi), puan_sayisi: i.puanSayisi };
 }
+
+// Oyuncu kimliği takma adın özetidir; takma ad düz metin saklanmaz.
+const oyuncuOf = (nickname: string) => createHash("sha256").update(nicknameKey(nickname)).digest("hex");
+
+// İsteği yapan oyunun sahibi mi? Öğretmen kendi oyununu kendi oturumuyla oynarsa sayılmaz.
+const sahibinKaynagi = (kaynak: string | null, istekSahibi: string | null) => !!(kaynak && istekSahibi && kaynak.startsWith(`${istekSahibi}:`));
 
 // Kütüphane listesi için: okunamazsa herkes için sıfır döner (liste yine gelir).
 export async function kutuphaneIstatistikleri(kaynaklar: string[]) {
@@ -26,6 +30,15 @@ export async function kutuphaneIstatistikleri(kaynaklar: string[]) {
   }
 }
 
+// Kütüphane kaydı silinince sayaçları da silinir. Hata silmeyi bozmaz.
+export async function istatistikleriSil(kaynak: string) {
+  try {
+    await getIstatistikStore().sil(kaynak);
+  } catch (err) {
+    console.error("[istatistik] silinemedi", err instanceof Error ? err.message : err);
+  }
+}
+
 // Yayın anında: oyun kodu kütüphane kaydına bağlanır (yalnız sahibi doğrulanmış kütüphane oyunları).
 export async function kodKaynagaBagla(kod: string, kutuphaneKaynagi: string | undefined, expiresAt: number, now = Date.now()) {
   if (!kutuphaneKaynagi) return;
@@ -36,33 +49,45 @@ export async function kodKaynagaBagla(kod: string, kutuphaneKaynagi: string | un
   }
 }
 
-// Katılımın yan etkisi: kütüphane kaydının öğrenci sayısı ve topluluk kaydının oynanma sayısı artar. Hata katılımı bozmaz.
-export async function katilimSay(kod: string): Promise<void> {
+// Sonuç kaydedildikten sonra: oyuncu bu kodda ilk kez bitirdiyse kütüphane öğrenci sayısı ve topluluk oynanma sayısı artar.
+// Sahibin kendi oturumu ve kod başına sınırı aşan bitirişler sayılmaz. Hata sonuç kaydını bozmaz.
+export async function bitirisSay(kod: string, nickname: string, istekSahibi: string | null, expiresAt: number, now = Date.now()): Promise<void> {
   try {
-    const kaynak = await getIstatistikStore().kodunKaynagi(kod);
-    if (kaynak) await getIstatistikStore().ogrenciEkle(kaynak);
-  } catch (err) {
-    console.error("[istatistik] öğrenci sayılamadı", err instanceof Error ? err.message : err);
-  }
-  try {
+    const store = getIstatistikStore();
+    const kaynak = await store.kodunKaynagi(kod);
+    const sonuc = await store.bitirenKaydet(kod, oyuncuOf(nickname), kaynak, !sahibinKaynagi(kaynak, istekSahibi), KOD_BASINA_EN_COK_OGRENCI, expiresAt + GAME_RETENTION_MS - now);
+    if (sonuc !== "yeni-sayildi") return;
     const topluluk = getToplulukStore();
     const id = await topluluk.kodunOyunu(kod);
-    if (id) await topluluk.oynanmaArtir(id);
+    if (!id) return;
+    const kayit = await topluluk.get(id);
+    if (!kayit || (istekSahibi && kayit.olusturan === istekSahibi)) return;
+    await topluluk.oynanmaArtir(id);
   } catch (err) {
-    console.error("[topluluk] oynanma sayılamadı", err instanceof Error ? err.message : err);
+    console.error("[istatistik] bitiriş sayılamadı", err instanceof Error ? err.message : err);
   }
 }
 
-export type PuanSonucu = "kaydedildi" | "zaten-verildi";
+export type PuanSonucu = "kaydedildi" | "zaten-verildi" | "bitirmedi";
 
-// Oyuncu doğrulandıktan sonra çağrılır. Takma ad başına bir oy; toplamlar kütüphane ve topluluk kaydına eklenir.
-export async function puanVer(kod: string, nickname: string, puan: number, expiresAt: number, now = Date.now()): Promise<PuanSonucu> {
+// Oyuncu doğrulandıktan sonra çağrılır. Yalnız oyunu bitirmiş (sonucu kaydedilmiş) oyuncu, takma ad başına bir kez oy verir.
+// Bitirişi sayılmamış oyuncunun (sahibin oturumu, kod sınırı dışı) oyu kaydedilir ama toplamlara eklenmez.
+export async function puanVer(kod: string, nickname: string, puan: number, istekSahibi: string | null, expiresAt: number, now = Date.now()): Promise<PuanSonucu> {
   const store = getIstatistikStore();
-  if (!(await store.oyKaydet(kod, nicknameKey(nickname), expiresAt + GAME_RETENTION_MS - now))) return "zaten-verildi";
+  const oyuncu = oyuncuOf(nickname);
+  const bitiris = await store.bitirisDurumu(kod, oyuncu);
+  if (bitiris === "yok") return "bitirmedi";
   const kaynak = await store.kodunKaynagi(kod);
-  if (kaynak) await store.puanEkle(kaynak, puan);
-  const topluluk = getToplulukStore();
-  const id = await topluluk.kodunOyunu(kod);
-  if (id) await topluluk.puanEkle(id, puan);
+  const sayilsin = bitiris === "sayildi" && !sahibinKaynagi(kaynak, istekSahibi);
+  if (!(await store.puanKaydet(kod, oyuncu, kaynak, puan, sayilsin, expiresAt + GAME_RETENTION_MS - now))) return "zaten-verildi";
+  // Topluluk toplamı yan etkidir: hatası öğrencinin puanını geçersiz kılmasın.
+  try {
+    const topluluk = getToplulukStore();
+    const id = sayilsin ? await topluluk.kodunOyunu(kod) : null;
+    const kayit = id ? await topluluk.get(id) : null;
+    if (id && kayit && !(istekSahibi && kayit.olusturan === istekSahibi)) await topluluk.puanEkle(id, puan);
+  } catch (err) {
+    console.error("[topluluk] puan eklenemedi", err instanceof Error ? err.message : err);
+  }
   return "kaydedildi";
 }
