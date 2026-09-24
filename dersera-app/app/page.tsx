@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import DerseraLogo from "@/components/DerseraLogo";
 
 export default function RoleSelector() {
@@ -42,6 +43,13 @@ export default function RoleSelector() {
             <span className="ml-auto text-indigo-400 group-hover:text-white transition-colors">→</span>
           </button>
         </div>
+
+        <Link
+          href="/library"
+          className="mt-4 w-full flex items-center justify-center gap-2 text-purple-200 hover:text-white border border-white/15 hover:border-white/30 rounded-2xl px-6 py-3 text-sm font-semibold transition-colors"
+        >
+          📚 Kütüphane
+        </Link>
 
         <p className="text-center text-purple-400/50 text-xs mt-8">
           Okulun Şifresi v3

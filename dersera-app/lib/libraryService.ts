@@ -1,4 +1,6 @@
 import { parseComposerDefinition, parseComposerPublish } from "@/lib/composer/adapter";
+import { getToplulukStore } from "@/lib/toplulukStore";
+import { topluluguEkle } from "@/lib/toplulukService";
 import { describeKonular, resolveKonular } from "@/lib/composer/input";
 import { MAX_DURATION_MIN, MIN_DURATION_MIN, type PublicGame } from "@/lib/games";
 import { hashToken, publishGame } from "@/lib/gamesService";
@@ -53,16 +55,19 @@ export async function kutuphaneKaydiniGuncelle(store: LibraryStore, sahip: strin
 }
 
 // Düzenleyicinin ihtiyaç duyduğu bağlam: öğrenme çıktıları ve güncel doğrulama. Müfredat verisi sunucuda kalır.
-export function kayitDetayi(kayit: KutuphaneKaydi) {
-  const r = resolveKonular(kayit.sinif, kayit.dersler);
+export function duzenlemeBaglami(sinif: number, dersler: KutuphaneKaydi["dersler"], definition: KutuphaneKaydi["definition"]) {
+  const r = resolveKonular(sinif, dersler);
   const d = r.ok ? describeKonular(r.konular) : null;
-  const dogrulama = parseComposerDefinition(kayit.definition, kayit.dersler);
+  const dogrulama = parseComposerDefinition(definition, dersler);
   return {
-    oyun: kayit,
     hedefler: d?.ogrenmeCiktilari ?? [],
     hedefDersleri: d?.hedefDersleri ?? {},
     validation: dogrulama.ok ? dogrulama.validation : null,
   };
+}
+
+export function kayitDetayi(kayit: KutuphaneKaydi) {
+  return { oyun: kayit, ...duzenlemeBaglami(kayit.sinif, kayit.dersler, kayit.definition) };
 }
 
 export type YenidenYayinSonucu =
@@ -92,6 +97,7 @@ export async function yenidenYayinla(
   // Yayın sırasında gelen bir düzenleme ezilmesin: kaydın en güncel hâli okunup yalnız son kod/tarih yazılır.
   const guncel = (await library.get(sahip, id)) ?? kayit;
   await library.replace(sahip, { ...guncel, sonKod: published.game.code, sonYayin: now });
+  await topluluguEkleGuvenli(guncel.definition, guncel.dersler, sahip, published.game.code, published.game.expiresAt);
   return { ok: true, ...published };
 }
 
@@ -113,4 +119,13 @@ export async function kutuphaneyiTasi(store: LibraryStore, eskiSahip: string, ye
     yer--;
   }
   return { tasinan, kalan: eskiler.length - tasinan };
+}
+
+// Topluluk kaydı yayının yan etkisidir: hata olursa yayın yine başarılı sayılır, yalnız loglanır.
+export async function topluluguEkleGuvenli(definition: KutuphaneKaydi["definition"], dersler: KutuphaneKaydi["dersler"], olusturan: string | null, kod: string, expiresAt: number) {
+  try {
+    await topluluguEkle(getToplulukStore(), definition, dersler, olusturan, kod, expiresAt);
+  } catch (err) {
+    console.error("[topluluk] kayıt eklenemedi", err instanceof Error ? err.message : err);
+  }
 }

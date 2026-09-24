@@ -823,6 +823,9 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Link href="/library" className="text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+              📚 Topluluk
+            </Link>
             <Link href="/qr-kutuphane" className="text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
               ▦ QR Kütüphanesi
             </Link>

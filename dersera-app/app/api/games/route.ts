@@ -3,6 +3,8 @@ import { parseComposerPublish } from "@/lib/composer/adapter";
 import { parsePublishRequest, type PublishRequest } from "@/lib/games";
 import { getGamesStore } from "@/lib/gamesStore";
 import { publishGame } from "@/lib/gamesService";
+import { istekSahibi, topluluguEkleGuvenli } from "@/lib/libraryService";
+import type { DersKonu } from "@/lib/composer/input";
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -13,12 +15,14 @@ export async function POST(req: Request) {
   }
 
   let request: PublishRequest | null;
+  let dersler: DersKonu[] | null = null;
   if (body && typeof body === "object" && "composer" in body) {
     const composed = parseComposerPublish(body);
     if (!composed.ok) {
       return NextResponse.json({ error: composed.error, validation: composed.validation }, { status: composed.status });
     }
     request = composed.request;
+    dersler = composed.dersler;
   } else {
     request = parsePublishRequest(body);
   }
@@ -31,6 +35,9 @@ export async function POST(req: Request) {
     const published = await publishGame(store, request);
     if (!published) {
       return NextResponse.json({ error: "Benzersiz oyun kodu üretilemedi" }, { status: 503 });
+    }
+    if (request.definition && dersler) {
+      await topluluguEkleGuvenli(request.definition, dersler, await istekSahibi(req), published.game.code, published.game.expiresAt);
     }
     return NextResponse.json({ ...published, persistent: store.persistent }, { status: 201 });
   } catch (err) {

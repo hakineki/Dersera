@@ -21,6 +21,9 @@ export async function buildApi() {
     sifre: typeof import("@/app/api/auth/sifre/route");
     ad: typeof import("@/app/api/auth/ad/route");
     authStore: typeof import("@/lib/authStore");
+    topluluk: typeof import("@/app/api/topluluk/route");
+    toplulukOyun: typeof import("@/app/api/topluluk/[id]/route");
+    toplulukStore: typeof import("@/lib/toplulukStore");
   };
   await jest.isolateModulesAsync(async () => {
     mods = {
@@ -42,6 +45,9 @@ export async function buildApi() {
       sifre: await import("@/app/api/auth/sifre/route"),
       ad: await import("@/app/api/auth/ad/route"),
       authStore: await import("@/lib/authStore"),
+      topluluk: await import("@/app/api/topluluk/route"),
+      toplulukOyun: await import("@/app/api/topluluk/[id]/route"),
+      toplulukStore: await import("@/lib/toplulukStore"),
     };
   });
   return {

@@ -10,7 +10,7 @@ import type { GameDefinition } from "@/lib/composer/definition";
 import { validateGame, type ValidationResult } from "@/lib/composer/validator";
 import { oturumBilgisi } from "@/lib/authClient";
 import { saveTeacherGame } from "@/lib/teacherGame";
-import { kutuphaneOyunu, kutuphaneyeKaydet } from "@/lib/libraryClient";
+import { kutuphaneOyunu, kutuphaneyeKaydet, toplulukOyunu } from "@/lib/libraryClient";
 import type { PublishResponse } from "@/lib/gamesClient";
 import ComposerPreview from "./ComposerPreview";
 import DurakEditor, { type Duzenlenen } from "./DurakEditor";
@@ -132,6 +132,7 @@ export default function ComposerClient({
   const [kutuphaneId, setKutuphaneId] = useState<string | null>(null);
   const [kutuphaneDurumu, setKutuphaneDurumu] = useState<"kayitsiz" | "degisti" | "kaydedildi" | "kaydediliyor">("kayitsiz");
   const [kutuphaneHatasi, setKutuphaneHatasi] = useState("");
+  const [toplulukKopyasi, setToplulukKopyasi] = useState(false);
   const istek = useRef<AbortController | null>(null);
   const sonTanim = useRef<GameDefinition | null>(null);
   useEffect(() => {
@@ -144,21 +145,27 @@ export default function ComposerClient({
   }, []);
 
   // /composer?kutuphane=<id>: kütüphanedeki oyun aynı düzenleyiciyle açılır.
+  // /composer?topluluk=<id>: topluluk oyunu kopya olarak açılır (kaydedilince öğretmenin kendi kütüphanesine girer).
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("kutuphane");
-    if (!id) return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("kutuphane");
+    const topluluk = params.get("topluluk");
+    if (!id && !topluluk) return;
     let iptal = false;
     const t = setTimeout(async () => {
       setDurum({ tur: "yukleniyor" });
-      const d = await kutuphaneOyunu(id);
+      const d = id ? await kutuphaneOyunu(id) : await toplulukOyunu(topluluk!);
       if (iptal) return;
       if (!d || !d.validation) {
-        setDurum({ tur: "hata", mesaj: "Kütüphanedeki oyun açılamadı.", kutuphane: true });
+        setDurum({ tur: "hata", mesaj: id ? "Kütüphanedeki oyun açılamadı." : "Topluluk oyunu açılamadı. Öğretmen olarak giriş yaptığından emin ol.", kutuphane: true });
         return;
       }
       setSonuc({ definition: d.oyun.definition, validation: d.validation, dersler: d.oyun.dersler, hedefler: d.hedefler, hedefDersleri: d.hedefDersleri });
-      setKutuphaneId(id);
-      setKutuphaneDurumu("kaydedildi");
+      setToplulukKopyasi(!id);
+      if (id) {
+        setKutuphaneId(id);
+        setKutuphaneDurumu("kaydedildi");
+      }
       setDurum({ tur: "onizleme" });
     });
     return () => {
@@ -303,7 +310,7 @@ export default function ComposerClient({
       <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <DerseraLogo />
-          <p className="text-xs font-semibold text-indigo-200 border-l border-indigo-700 pl-3">{kutuphaneId ? "Kütüphane Oyununu Düzenle" : "Yeni Oyun Oluştur"}</p>
+          <p className="text-xs font-semibold text-indigo-200 border-l border-indigo-700 pl-3">{kutuphaneId ? "Kütüphane Oyununu Düzenle" : toplulukKopyasi ? "Topluluk Oyunu (Kopya)" : "Yeni Oyun Oluştur"}</p>
         </div>
         <Link href="/ogretmen" className="text-indigo-300 hover:text-white text-sm whitespace-nowrap">
           ← Panel
@@ -443,6 +450,7 @@ export default function ComposerClient({
               setKutuphaneId(null);
               setKutuphaneDurumu("kayitsiz");
               setKutuphaneHatasi("");
+              setToplulukKopyasi(false);
               window.history.replaceState(null, "", "/composer");
               setDurum({ tur: "form" });
             }}
