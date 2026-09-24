@@ -9,6 +9,7 @@ import { getSorular } from "@/data/mufredat";
 import { formatElapsed, buildResultCode, type LeaderboardEntry } from "@/lib/gameState";
 import { toStops } from "@/lib/games";
 import { definitionPanelStops } from "@/lib/composer/scene";
+import OgrenmeRaporuKarti from "./OgrenmeRaporu";
 import { loadTeacherGame, saveTeacherGame, type TeacherGame } from "@/lib/teacherGame";
 import AySecici from "./AySecici";
 import OyunTab from "./OyunTab";
@@ -909,6 +910,8 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
         {activeTab === "sorular" && <SorularTab selectedAylar={selectedAylar} toggleAy={toggleAy} />}
         {activeTab === "siralama" &&
           (teacherGame ? (
+            <>
+              {teacherGame.game.definition && <OgrenmeRaporuKarti definition={teacherGame.game.definition} leaderboard={leaderboard} gameCode={teacherGame.game.code} />}
             <SiralamaTabs
               leaderboard={leaderboard}
               stops={teacherGame.game.definition ? definitionPanelStops(teacherGame.game.definition) : toStops(teacherGame.game.stops)}
@@ -916,6 +919,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
               sync={sync}
               onRefresh={refreshLeaderboard}
             />
+            </>
           ) : (
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-500">
               Önce <strong>Oyun</strong> sekmesinden bir oyun yayınla; sonuçlar burada görünür.
