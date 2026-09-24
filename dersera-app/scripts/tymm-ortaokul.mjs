@@ -5,7 +5,8 @@
 //
 // Kaynak yapısı: /Ders/GetDerslerBySinif (dersler), /Unite/GetUnitelerByDersId (üniteler), /<ders-url>/unite/<id>
 // (ünite sayfası). Ünite alanları lise verisiyle (tymm-programlar.json) aynıdır: id, ad, amac, konular, ogrenmeCiktilari.
-// konular: "İçerik Çerçevesi" bölümündeki maddeler; madde yoksa bölümdeki satırlar.
+// konular: "İçerik Çerçevesi" bölümündeki maddeler; madde yoksa bölümdeki satırlar. Bazı ünite sayfalarında (ör. 5. ve
+// 8. sınıf Türkçe) bu bölüm yoktur; konular boş kalır (lise verisinde de 57 ünitede boştur), istem "belirtilmemiş" yazar.
 
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -78,16 +79,21 @@ const satirlar = (h) =>
     .map((s) => s.replace(/^[•·\-–]\s*/, "").trim())
     .filter(Boolean);
 
-// Kod: "FB.5.2.1." (ders.sınıf.ünite.sıra) ya da Türkçe'de "T.D.5.3." (ders.beceri.sınıf.sıra).
-const KOD = /^([A-ZÇĞİÖŞÜ]{1,6}(?:\.[A-ZÇĞİÖŞÜ]{1,6})?\.(\d+)(?:\.\d+){1,2})\.?\s+(.+)$/u;
+// Kod: "FB.5.2.1." (ders.sınıf.ünite.sıra) ya da Türkçe'de "T.D.5.3." (ders.beceri.sınıf.sıra). Bazı sayfalarda
+// koddan sonra boşluk yoktur ("SB.6.3.1.Türkistan’da ...").
+const KOD = /^([A-ZÇĞİÖŞÜ]{1,6}(?:\.[A-ZÇĞİÖŞÜ]{1,6})?\.(\d+)(?:\.\d+){1,2})(?:\.?:?\s+|\.(?=\p{L}))(.+)$/u;
+// Kod gibi başlayan her satır (kısmi kayıp denetimi: ayrıştırılamayan kod satırı uyarılır).
+const KOD_GIBI = /^[A-ZÇĞİÖŞÜ]{1,6}(?:\.[A-ZÇĞİÖŞÜ]{1,6})?\.\d+\.\d+/u;
 
 function uniteAyristir(html, sinif) {
   const intro = /<div class="unite-detail__intro text">([\s\S]*?)<\/div>/.exec(html);
   const cikti = bolum(html, "Öğrenme Çıktıları ve Süreç Bileşenleri") ?? "";
   const ogrenmeCiktilari = [];
+  const atlanan = [];
   for (const s of satirlar(cikti)) {
     const m = KOD.exec(s);
     if (m && Number(m[2]) === sinif) ogrenmeCiktilari.push({ kod: m[1], metin: m[3].trim() });
+    else if (KOD_GIBI.test(s)) atlanan.push(s.slice(0, 60));
   }
   const icerik = bolum(html, "İçerik Çerçevesi") ?? "";
   const maddeler = [...icerik.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map((m) => duz(m[1])).filter(Boolean);
@@ -95,6 +101,7 @@ function uniteAyristir(html, sinif) {
     amac: intro ? duz(intro[1]) || null : null,
     konular: maddeler.length ? maddeler : satirlar(icerik),
     ogrenmeCiktilari,
+    atlanan,
   };
 }
 
@@ -109,7 +116,8 @@ for (const ders of DERSLER) {
     for (const u of uniteler) {
       await bekle(BEKLE_MS);
       const html = await al(`/${u.url}/unite/${u.id}`, "text");
-      const a = uniteAyristir(html, sinif);
+      const { atlanan, ...a } = uniteAyristir(html, sinif);
+      for (const s of atlanan) uyarilar.push(`${ders.key} ${sinif}. sınıf (${u.id}): ayrıştırılamayan kod satırı: ${s}`);
       const ad = u.title.replace(/^\d+\.\s*(?:Ünite|Tema|Öğrenme Alanı)\s*:\s*/i, "").trim();
       if (!a.ogrenmeCiktilari.length) uyarilar.push(`${ders.key} ${sinif}. sınıf "${ad}" (${u.id}): öğrenme çıktısı bulunamadı`);
       liste.push({ id: String(u.id), ad, ...a });

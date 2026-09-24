@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "crypto";
-import { PROGRAM_DERS_ADI, PROGRAM_DERSLERI } from "@/data/mufredat/programlar";
+import { PROGRAM_DERS_ADI, PROGRAM_DERSLERI, SINIFLAR } from "@/data/mufredat/programlar";
 import type { GameDefinition } from "@/lib/composer/definition";
 import { duzenlemeBaglami } from "@/lib/composer/duzenleme";
 import { ALANLAR, DENEYIMLER, type DersKonu } from "@/lib/composer/input";
@@ -73,7 +73,7 @@ export function listeSorgusu(params: URLSearchParams): ListeSorgusu {
   }
   const sinif = params.get("sinif");
   if (sinif) {
-    if (!["9", "10", "11", "12"].includes(sinif)) return { ok: false, error: "Geçersiz sınıf" };
+    if (!SINIFLAR.map(String).includes(sinif)) return { ok: false, error: "Geçersiz sınıf" };
     filtre.sinif = Number(sinif);
   }
   const alan = params.get("alan");

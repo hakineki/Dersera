@@ -9,6 +9,7 @@ import {
   MIN_DURATION_MIN,
   QR_COUNT,
   defaultGameStop,
+  durakDersAdi,
   formatRemaining,
   isGameActive,
   remainingSeconds,
@@ -143,7 +144,7 @@ function ActiveGame({
               )}
               <span>{s.emoji}</span>
               <span className="font-medium text-gray-900 flex-1">{s.name}</span>
-              <span className="text-xs text-gray-400">{DERS_ADI[s.dersKey]}</span>
+              <span className="text-xs text-gray-400">{durakDersAdi(s.dersKey)}</span>
             </li>
           ))}
         </ol>

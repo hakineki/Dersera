@@ -67,3 +67,27 @@ describe("ortaokul müfredatı ile oyun", () => {
     expect(json).toContain("Kuvveti Tanıyalım");
   });
 });
+
+describe("durak dersi (öğretmen paneli ve oyun görünümü)", () => {
+  it("ortaokul dersi adıyla görünür; soru bankası alanı klasik derse düşer", async () => {
+    const { definitionToStops } = await import("@/lib/composer/adapter");
+    const { durakDersAdi, toStops } = await import("@/lib/games");
+    const { PROGRAM_DERSLERI, PROGRAM_DERS_ADI } = await import("@/data/mufredat/dersler");
+    const orta = makeDefinition(resolvedInput({ sinif: 6, ders: "fen-bilimleri", sure: 40, deneyim: "dengeli", alan: "sinif" }), 7);
+    const duraklar = definitionToStops(orta);
+    expect(duraklar[0].dersKey).toBe("fen-bilimleri");
+    expect(durakDersAdi(duraklar[0].dersKey)).toBe("Fen Bilimleri");
+    expect(toStops(duraklar)[0]).toMatchObject({ subject: "Fen Bilimleri", dersKey: "genel-kultur" });
+    const lise = definitionToStops(makeDefinition(resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" }), 7));
+    expect(toStops(lise)[0]).toMatchObject({ subject: "Fizik", dersKey: "fizik" });
+    for (const k of PROGRAM_DERSLERI) expect(durakDersAdi(k)).toBe(k === "din-kulturu" ? "Din Kültürü ve Ahlak Bilgisi" : PROGRAM_DERS_ADI[k]);
+  });
+
+  it("istemciye giden modüller müfredat verisini (JSON) içe aktarmaz", () => {
+    const fs = jest.requireActual<typeof import("fs")>("fs");
+    for (const f of ["lib/games.ts", "data/mufredat/dersler.ts"]) {
+      const kaynak = fs.readFileSync(`${process.cwd()}/${f}`, "utf8");
+      expect(kaynak).not.toMatch(/from ["'][^"']*(programlar|\.json)["']/);
+    }
+  });
+});

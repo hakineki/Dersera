@@ -5,41 +5,9 @@ import ortaokul from "./tymm-ortaokul.json";
 // Composer yalnızca bu veriyi kullanır; konu (ünite/tema) ve öğrenme çıktısı uydurulamaz. Aylık soru bankası (sinif10)
 // ayrı bir kaynaktır.
 
-export const SINIFLAR = [5, 6, 7, 8, 9, 10, 11, 12] as const;
-export type Sinif = (typeof SINIFLAR)[number];
+import { PROGRAM_DERSLERI, SINIFLAR, type ProgramDersi } from "./dersler";
 
-export const PROGRAM_DERSLERI = [
-  "matematik",
-  "fizik",
-  "kimya",
-  "turk-dili",
-  "biyoloji",
-  "tarih",
-  "cografya",
-  "felsefe",
-  "din-kulturu",
-  "fen-bilimleri",
-  "turkce",
-  "sosyal-bilgiler",
-  "inkilap-tarihi",
-] as const;
-export type ProgramDersi = (typeof PROGRAM_DERSLERI)[number];
-
-export const PROGRAM_DERS_ADI: Record<ProgramDersi, string> = {
-  matematik: "Matematik",
-  fizik: "Fizik",
-  kimya: "Kimya",
-  "turk-dili": "Türk Dili ve Edebiyatı",
-  biyoloji: "Biyoloji",
-  tarih: "Tarih",
-  cografya: "Coğrafya",
-  felsefe: "Felsefe",
-  "din-kulturu": "Din Kültürü",
-  "fen-bilimleri": "Fen Bilimleri",
-  turkce: "Türkçe",
-  "sosyal-bilgiler": "Sosyal Bilgiler",
-  "inkilap-tarihi": "T.C. İnkılap Tarihi ve Atatürkçülük",
-};
+export { PROGRAM_DERS_ADI, PROGRAM_DERSLERI, SINIFLAR, type ProgramDersi, type Sinif } from "./dersler";
 
 export interface OgrenmeCiktisi {
   kod: string;

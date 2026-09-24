@@ -86,7 +86,7 @@ function Secim<T extends string | number>({
               aria-pressed={deger === s.key}
               disabled={kapali}
               onClick={() => onChange(s.key)}
-              className={`text-left rounded-xl border px-3 py-2.5 text-sm transition-colors disabled:opacity-40 ${
+              className={`text-left rounded-xl border px-3 py-2.5 text-sm transition-colors ${
                 deger === s.key ? "border-indigo-600 bg-indigo-50 text-indigo-900 ring-1 ring-indigo-600" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
               }`}
             >
@@ -453,7 +453,7 @@ export default function ComposerClient({
                         type="button"
                         aria-pressed={secildi}
                         onClick={() => dersDegistir(d.key)}
-                        className={`text-left rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors disabled:opacity-40 ${
+                        className={`text-left rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
                           secildi ? "border-indigo-600 bg-indigo-50 text-indigo-900 ring-1 ring-indigo-600" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
                         }`}
                       >

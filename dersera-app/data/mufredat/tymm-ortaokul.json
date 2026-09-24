@@ -1187,6 +1187,10 @@
      ],
      "ogrenmeCiktilari": [
       {
+       "kod": "FB.7.1.1",
+       "metin": "Uzay araştırmaları için geliştirilen teknolojileri karşılaştırabilme"
+      },
+      {
        "kod": "FB.7.1.2",
        "metin": "Uzay gözlem araçları ile ilgili bilimsel model oluşturabilme"
       },
@@ -1321,6 +1325,10 @@
       {
        "kod": "FB.7.5.3",
        "metin": "Farklı moleküllere ait bilimsel model oluşturabilme"
+      },
+      {
+       "kod": "FB.7.5.4",
+       "metin": "Saf maddeleri element ve bileşik olarak sınıflandırabilme"
       },
       {
        "kod": "FB.7.5.5",
@@ -2214,6 +2222,10 @@
        "metin": "Konuşma sürecini değerlendirebilme"
       },
       {
+       "kod": "T.Y.5.2",
+       "metin": "Yazmada strateji, yöntem ve teknik seçimlerini yönetebilme"
+      },
+      {
        "kod": "T.Y.5.3",
        "metin": "Yazısında içerik ve yapıya yönelik seçimlerini yönetebilme"
       },
@@ -2533,6 +2545,10 @@
        "metin": "Metnin derin anlamını belirlemeye yönelik üst düzey çıkarımlar yapabilme"
       },
       {
+       "kod": "T.O.6.10",
+       "metin": "Metin içi karşılaştırma yapabilme"
+      },
+      {
        "kod": "T.O.6.11",
        "metin": "Metinler arası karşılaştırma yapabilme"
       },
@@ -2659,6 +2675,10 @@
        "metin": "Çoklu ortam ögelerine yönelik çözümleme yapabilme"
       },
       {
+       "kod": "T.D.6.21",
+       "metin": "Dinlediğini/izlediğini özetleyebilme"
+      },
+      {
        "kod": "T.D.6.25",
        "metin": "Dinleme/izleme sürecine yönelik öz yansıtma yapabilme/kendini uyarlayabilme"
       },
@@ -2725,6 +2745,10 @@
       {
        "kod": "T.Y.6.10",
        "metin": "Yazısında sınıflandırma yapabilme"
+      },
+      {
+       "kod": "T.Y.6.17",
+       "metin": "Yazısında düşünceyi geliştirme yollarını kullanabilme"
       },
       {
        "kod": "T.Y.6.21",
@@ -2925,6 +2949,10 @@
       {
        "kod": "T.Y.6.14",
        "metin": "Yazılı üretiminde ve yazılı etkileşiminde tartışabilme"
+      },
+      {
+       "kod": "T.Y.6.19",
+       "metin": "Yazısında açık ve örtük ifade etmeye yönelik yapıları kullanabilme"
       },
       {
        "kod": "T.Y.6.20",
@@ -4717,6 +4745,10 @@
      ],
      "ogrenmeCiktilari": [
       {
+       "kod": "SB.5.6.1",
+       "metin": "Teknolojik gelişmelerin toplum hayatına etkilerini tartışabilme"
+      },
+      {
        "kod": "SB.5.6.2",
        "metin": "Teknolojik ürünlerin bilinçli kullanımının önemine ilişkin oluşturduğu ürünü paylaşabilme"
       }
@@ -4782,8 +4814,16 @@
      ],
      "ogrenmeCiktilari": [
       {
+       "kod": "SB.6.3.1",
+       "metin": "Türkistan’da kurulan ilk Türk devletlerinin medeniyetimize katkılarını sorgulayabilme"
+      },
+      {
        "kod": "SB.6.3.2",
        "metin": "VII-XIII. yüzyıllar arasında İslam medeniyetinin eğitim, bilim, hukuk, kültür, sanat ve mimari alanlarında insanlığın ortak mirasına katkılarına dair akıl yürütebilme"
+      },
+      {
+       "kod": "SB.6.3.3",
+       "metin": "İslamiyet’in kabulüyle Türklerin sosyal ve kültürel hayatlarında meydana gelen değişime tarihsel bağlam oluşturabilme"
       },
       {
        "kod": "SB.6.3.4",

@@ -1,4 +1,5 @@
 import { AYLAR, CORE_DERSLER, DERS_ADI, type Ders } from "@/data/mufredat";
+import { PROGRAM_DERS_ADI, type ProgramDersi } from "@/data/mufredat/dersler";
 import { GENEL_HIKAYE, HIKAYE, stops as templates, type Stop } from "@/data/stops";
 import type { GameDefinition } from "@/lib/composer/definition";
 
@@ -7,13 +8,21 @@ export const MIN_DURATION_MIN = 5;
 export const MAX_DURATION_MIN = 8 * 60;
 export const DURATION_PRESETS_MIN = [30, 60, 120] as const;
 
+// Klasik oyunda soru bankası dersi; composer oyununda programın dersi (ör. ortaokul "fen-bilimleri").
+export type DurakDersi = Ders | ProgramDersi;
+
 export interface GameStop {
   qr: number;
   name: string;
   emoji: string;
-  dersKey: Ders;
+  dersKey: DurakDersi;
   hikaye: string;
 }
+
+const klasikDersMi = (k: string): k is Ders => Object.hasOwn(DERS_ADI, k);
+
+// Durak dersinin görünen adı (klasik ya da program dersi).
+export const durakDersAdi = (k: DurakDersi): string => (klasikDersMi(k) ? DERS_ADI[k] : (PROGRAM_DERS_ADI[k] ?? DERS_ADI["genel-kultur"]));
 
 // İstemciye giden oyun görünümü; yönetici anahtarının özeti asla bu tipte yer almaz.
 export interface PublicGame {
@@ -98,8 +107,9 @@ export function toStops(stops: GameStop[]): Stop[] {
     order: i + 1,
     name: s.name,
     emoji: s.emoji,
-    subject: DERS_ADI[s.dersKey],
-    dersKey: s.dersKey,
+    subject: durakDersAdi(s.dersKey),
+    // Soru bankası yalnız klasik derslerde; program dersinde (composer) kullanılmaz.
+    dersKey: klasikDersMi(s.dersKey) ? s.dersKey : "genel-kultur",
     nextStopId: stops[i + 1] ? stopId(stops[i + 1].qr) : null,
     nextClue: nextClueFor(stops, i),
     hikaye: s.hikaye,
