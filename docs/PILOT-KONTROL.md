@@ -27,7 +27,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
    DERSERA_REDIS_DUMAN=1 KV_REST_API_URL="<duman-db-url>" KV_REST_API_TOKEN="<duman-db-token>" npx jest __tests__/depoSozlesmesi.test.ts
    ```
 
-3. Beklenen: `bellek depoları` ve `redis depoları` altında 7'şer test geçer. Test bitince yazdığı anahtarları siler.
+3. Beklenen: `bellek depoları` ve `redis depoları` altında 8'er test geçer. Test bitince yazdığı anahtarları siler.
 
 ## 3. Uçtan uca akış (gizli sekmede, canlı adreste)
 
@@ -54,6 +54,10 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 17 | A: topluluktan geri çeker | Listeden çıkar; aynı içerik yeniden paylaşılınca incelemesiz geri gelir. |
 | 18 | Kredi bitince oluşturma | 402: "bakiyen yetmiyor"; model çağrılmaz. |
 | 19 | Yönetici: içerik uyarısı alan bir oyunu yayınla, `/moderasyon`u aç | Kayıt "Sınıf yayını" olarak görünür; "Oyunu bitir" öğrencilerin oyununu sonlandırır. |
+| 20 | A: Öğretmen paneli → Okulum → okul oluştur | A okul yöneticisi; davet kodu yalnız A'da görünür. |
+| 21 | B: davet koduyla katıl (küçük harf/tireyle de) | B öğretmen; davet kodu ve pano B'de yok. B ikinci bir okula katılamaz. |
+| 22 | A: Kütüphane kartında "Okulla paylaş" | B'nin okul kütüphanesinde görünür; B "Kullan" ile composer'da kopya açar ve kendi kütüphanesine kaydeder. |
+| 23 | A: Okulum → pano; B'yi çıkar | Pano öğretmen/oyun/öğrenci sayılarını gösterir; çıkarılan B okulu artık görmez. |
 
 ## 4. Dağıtım doğrulaması
 

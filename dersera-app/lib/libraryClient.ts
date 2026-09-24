@@ -50,6 +50,8 @@ export async function eskiKutuphaneyiTasi(): Promise<{ tasinan: number; kalan: n
 export interface KutuphaneListesi {
   oyunlar: KutuphaneListeOgesi[];
   hesap: { toplulukHazir: boolean; kalanGun: number };
+  // Öğretmenin okulu (üye değilse null).
+  okul?: { ad: string } | null;
 }
 
 export async function kutuphaneListesi(): Promise<KutuphaneListesi | null> {

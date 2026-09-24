@@ -14,6 +14,8 @@ export interface LibraryStore {
   replaceIfSurum(owner: string, kayit: KutuphaneKaydi, beklenen: number): Promise<"ok" | "yok" | "catisma">;
   remove(owner: string, id: string): Promise<boolean>;
   count(owner: string): Promise<number>;
+  // Yalnız kayıt kimlikleri (tanımları okumadan; ör. okul panosu).
+  idler(owner: string): Promise<string[]>;
 }
 
 const libKey = (owner: string) => `dersera:kutuphane:${owner}`;
@@ -49,6 +51,9 @@ export function createMemoryLibraryStore(): LibraryStore {
     },
     async count(owner) {
       return of(owner).size;
+    },
+    async idler(owner) {
+      return [...of(owner).keys()];
     },
   };
 }
@@ -103,6 +108,9 @@ return 1`,
     },
     async count(owner) {
       return Number(await command(["HLEN", libKey(owner)]));
+    },
+    async idler(owner) {
+      return ((await command(["HKEYS", libKey(owner)])) as string[] | null) ?? [];
     },
   };
 }

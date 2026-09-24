@@ -1,3 +1,5 @@
+import { kutuphaneOkulDurumu } from "@/lib/okulService";
+import { getOkulStore } from "@/lib/okulStore";
 import { NextResponse } from "next/server";
 import { ozetOf } from "@/lib/library";
 import { getLibraryStore } from "@/lib/libraryStore";
@@ -19,9 +21,14 @@ export async function GET(req: Request) {
     const kaynaklar = sirali.map((o) => `${sahip}:${o.id}`);
     const ist = await kutuphaneIstatistikleri(kaynaklar);
     const topluluk = await toplulukDurumlari(getToplulukStore(), kaynaklar);
+    // Okul okunamazsa kütüphane yine gelir (okul bilgisi boş).
+    const okul = await kutuphaneOkulDurumu({ okul: getOkulStore() }, hesap, kaynaklar).catch((err: unknown) => {
+      console.error("[kutuphane] okul durumu okunamadı", err instanceof Error ? err.message : err);
+      return { okul: null, paylasimlar: kaynaklar.map(() => null) };
+    });
     const now = Date.now();
-    const oyunlar = sirali.map((o, i) => ({ ...o, ...ist[i], topluluk: topluluk[i], paylasim: paylasimUygunlugu(hesap, ist[i], now) }));
-    return NextResponse.json({ oyunlar, hesap: hesapHazirligi(hesap, now), persistent: store.persistent });
+    const oyunlar = sirali.map((o, i) => ({ ...o, ...ist[i], topluluk: topluluk[i], paylasim: paylasimUygunlugu(hesap, ist[i], now), okulPaylasimi: okul.paylasimlar[i] }));
+    return NextResponse.json({ oyunlar, hesap: hesapHazirligi(hesap, now), okul: okul.okul, persistent: store.persistent });
   } catch (err) {
     console.error("[kutuphane] listeleme hatası", err);
     return NextResponse.json({ error: "Kütüphane okunamadı" }, { status: 503 });

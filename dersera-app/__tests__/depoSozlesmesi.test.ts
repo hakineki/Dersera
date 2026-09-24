@@ -8,6 +8,7 @@ import { kayitOlustur } from "@/lib/library";
 import { createMemoryLibraryStore, createRedisLibraryStore, type LibraryStore } from "@/lib/libraryStore";
 import { createMemoryModerasyonStore, createRedisModerasyonStore, type ModerasyonStore } from "@/lib/moderasyonStore";
 import { createMemoryYoneticiStore, createRedisYoneticiStore, type YoneticiStore } from "@/lib/yonetici";
+import { createMemoryOkulStore, createRedisOkulStore, type OkulStore } from "@/lib/okulStore";
 import { createRedisCommand, type RedisCommand } from "@/lib/redis";
 import { icerikOzetiOf, yeniToplulukKaydi } from "@/lib/toplulukService";
 import { createMemoryToplulukStore, createRedisToplulukStore, type ToplulukStore } from "@/lib/toplulukStore";
@@ -36,6 +37,7 @@ interface Depolar {
   yz: YzDenetimStore;
   moderasyon: ModerasyonStore;
   yonetici: YoneticiStore;
+  okul: OkulStore;
 }
 
 // Yazılan her "dersera:" anahtarını kaydeden komut: temizlik yalnız bunları siler.
@@ -60,6 +62,7 @@ const uygulamalar: [string, () => Depolar][] = [
       yz: createMemoryYzDenetimStore(),
       moderasyon: createMemoryModerasyonStore(),
       yonetici: createMemoryYoneticiStore(),
+      okul: createMemoryOkulStore(),
     }),
   ],
 ];
@@ -80,6 +83,7 @@ if (REDIS_ISTENDI) {
       yz: createRedisYzDenetimStore(c),
       moderasyon: createRedisModerasyonStore(c),
       yonetici: createRedisYoneticiStore(c),
+      okul: createRedisOkulStore(c),
     }),
   ]);
 }
@@ -254,6 +258,42 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
 
     expect(await d.yonetici.bagla(`ad${run}`, "h1")).toBe("h1");
     expect(await d.yonetici.bagla(`ad${run}`, "h2")).toBe("h1");
+  });
+
+  it("okul: tek okul, katılma, çıkarma CAS, davet yenileme, paylaşım yer değiştirme ve okul yalıtımı", async () => {
+    const okul = { id: `o-${run}`, ad: "Okul", olusturma: 1, olusturan: `y-${run}`, davetKodu: `D${run}`.slice(0, 8) };
+    expect(await d.okul.olustur(okul, { hesapId: okul.olusturan, rol: "yonetici", katilma: 1 })).toBe(true);
+    expect(await d.okul.olustur({ ...okul, id: `o2-${run}`, davetKodu: `E${run}`.slice(0, 8) }, { hesapId: okul.olusturan, rol: "yonetici", katilma: 1 })).toBe(false);
+    expect(await d.okul.get(okul.id)).toEqual(okul);
+    expect(await d.okul.davettenOkul(okul.davetKodu)).toBe(okul.id);
+    const ogr = `g-${run}`;
+    expect(await d.okul.katil(okul.id, { hesapId: ogr, rol: "ogretmen", katilma: 2 })).toBe("ok");
+    expect(await d.okul.katil(okul.id, { hesapId: ogr, rol: "ogretmen", katilma: 2 })).toBe("zaten-uye");
+    expect(await d.okul.okulOf(ogr)).toBe(okul.id);
+    expect((await d.okul.uyeler(okul.id)).map((u) => u.rol).sort()).toEqual(["ogretmen", "yonetici"]);
+    expect(await d.okul.uyeCikar("baska-okul", ogr)).toBe(false);
+    expect(await d.okul.uyeCikar(okul.id, ogr)).toBe(true);
+    expect(await d.okul.uyeCikar(okul.id, ogr)).toBe(false);
+    expect(await d.okul.okulOf(ogr)).toBeNull();
+
+    const yeniKod = `F${run}`.slice(0, 8);
+    expect(await d.okul.davetYenile(okul, yeniKod)).toBe(true);
+    expect(await d.okul.davettenOkul(okul.davetKodu)).toBeNull();
+    expect(await d.okul.davettenOkul(yeniKod)).toBe(okul.id);
+    expect((await d.okul.get(okul.id))?.davetKodu).toBe(yeniKod);
+
+    const p = { id: `p-${run}`, kaynak: `hesap:${ogr}:k1`, paylasan: ogr, baslik: "B", sinif: 6, ders: "Fen", konu: "K", sure_dk: 40, tarih: 1, definition: makeDefinition(girdi, 6), dersler };
+    expect(await d.okul.paylas(okul.id, p)).toBe("ok");
+    expect(await d.okul.kaynakPaylasimlari(okul.id, [p.kaynak, "yok"])).toEqual([p.id, null]);
+    const p2 = { ...p, id: `p2-${run}`, tarih: 2 };
+    expect(await d.okul.paylas(okul.id, p2)).toBe("ok");
+    expect((await d.okul.paylasimlar(okul.id)).map((x) => x.id)).toEqual([p2.id]);
+    expect(await d.okul.paylasim(okul.id, p.id)).toBeNull();
+    expect((await d.okul.paylasim(okul.id, p2.id))?.definition.meta.baslik).toBe(p.definition.meta.baslik);
+    expect(await d.okul.paylasim(`baska-${run}`, p2.id)).toBeNull();
+    expect(await d.okul.paylasimKaldir(okul.id, p2)).toBe(true);
+    expect(await d.okul.paylasimKaldir(okul.id, p2)).toBe(false);
+    expect(await d.okul.kaynakPaylasimlari(okul.id, [p.kaynak])).toEqual([null]);
   });
 
   it("oran sınırı sayacı ve yapay zekâ denetim önbelleği", async () => {
