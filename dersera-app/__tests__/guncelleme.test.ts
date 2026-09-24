@@ -93,6 +93,18 @@ describe("yapayZekaylaGuncelle (servis)", () => {
     expect(create.mock.calls[0][0].messages[0].content).toContain("Soruları zorlaştır");
   });
 
+  it("seçilmeyen duraklar ve önceki düzenlemeler otomatik onarılmaz (hatalı rota olduğu gibi kalır, doğrulama gösterir)", async () => {
+    const { yapayZekaylaGuncelle } = await import("@/lib/composer/service");
+    const d = oyun();
+    d.duraklar[6].varsayilan_sonraki_durak_id = "yok";
+    const r = await yapayZekaylaGuncelle(d, girdi, ["d3"], "Soruları zorlaştır", istemci([yeniden(durakCiktisiOf(d.duraklar[2]))]).client);
+    expect(r.definition.duraklar.filter((x) => x.id !== "d3")).toEqual(d.duraklar.filter((x) => x.id !== "d3"));
+    expect(r.definition.final).toEqual(d.final);
+    expect(r.definition.envanter).toEqual(d.envanter);
+    expect(r.validation.gecerli).toBe(false);
+    expect(r.validation.uyarilar.map((u) => u.kod)).not.toContain("otomatik-duzeltme");
+  });
+
   it("istenen durak dönmezse ya da görev türü geçersizse hata (kredi iade edilebilsin)", async () => {
     const { yapayZekaylaGuncelle } = await import("@/lib/composer/service");
     const d = oyun();

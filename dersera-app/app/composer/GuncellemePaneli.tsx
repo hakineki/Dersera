@@ -54,7 +54,7 @@ export default function GuncellemePaneli({
           Seçtiğin durakları talimatına göre yeniden yazdırır. Rota, ödüller ve öğrenme hedefleri aynı kalır. Küçük değişiklikler için durağa tıklayıp elle
           düzenlemek ücretsizdir.
         </p>
-        <fieldset>
+        <fieldset disabled={calisiyor}>
           <legend className="text-sm font-semibold text-gray-700 mb-1">
             Güncellenecek duraklar <span className="font-normal text-gray-500">(en çok {GUNCELLEME.enCokDurak})</span>
           </legend>
@@ -79,6 +79,7 @@ export default function GuncellemePaneli({
             id="guncelleme-talimat"
             value={talimat}
             maxLength={GUNCELLEME.talimatEnCok}
+            disabled={calisiyor}
             onChange={(e) => setTalimat(e.target.value)}
             rows={3}
             placeholder="Ör. Soruları biraz daha zorlaştır ve günlük hayattan örnek kullan."

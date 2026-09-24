@@ -138,7 +138,8 @@ export async function composeAndValidate(input: ResolvedInput, client?: ComposeC
 
 // Yapay zekâyla güncelleme: seçili durakların içeriği öğretmen talimatıyla yeniden yazılır, oyun yeniden doğrulanır.
 // Model hiç durak döndürmezse ya da çıktı şemaya uymazsa hata (kredi iade edilir); doğrulama hatası olan sonuç döner,
-// öğretmen önizlemede görür ve düzenler.
+// öğretmen önizlemede görür ve düzenler. Otomatik onarım (onar) uygulanmaz: seçilmeyen duraklar ve öğretmenin önceki
+// düzenlemeleri hiç değişmez, elle düzenlemede olduğu gibi sıkı doğrulanır.
 export const GUNCELLEME_SURE_MS = 100_000;
 export async function yapayZekaylaGuncelle(
   def: GameDefinition,
@@ -155,10 +156,7 @@ export async function yapayZekaylaGuncelle(
   if (guncellenen.length === 0) throw new ComposeError("invalid-output", "Güncellenecek duraklar yanıtta yok");
   const parsed = GameDefinitionSchema.safeParse(definition);
   if (!parsed.success) throw new ComposeError("invalid-output", `Güncelleme oyun şemasına uymadı: ${parsed.error.issues[0]?.path.join(".")}`);
-  const { definition: onarilmis, notlar } = onar(parsed.data);
-  const validation = validateGame(onarilmis, validationContext(input));
-  validation.uyarilar.unshift(...notlar.map((mesaj) => ({ kod: "otomatik-duzeltme", mesaj })));
-  return { definition: onarilmis, validation, guncellenen };
+  return { definition: parsed.data, validation: validateGame(parsed.data, validationContext(input)), guncellenen };
 }
 
 // Yayın ve düzenleme sonrası: tanımı müfredata göre yeniden doğrular (istemciye güvenmez).
