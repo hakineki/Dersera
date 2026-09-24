@@ -20,19 +20,29 @@ export interface Parmakizi {
 
 const iz = (v: unknown) => createHash("sha256").update(JSON.stringify(v)).digest("hex").slice(0, 16);
 
-// Durak kimliği ve kimliklere işaret eden rota alanları çıkarılır; içerik (hikâye, görev, seçim metni) kalır.
-function durakIcerigi(d: Durak) {
-  const { id: _id, varsayilan_sonraki_durak_id: _s, secimler, ...icerik } = d;
-  void [_id, _s];
-  return { ...icerik, secimler: secimler.map((s) => s.metin) };
-}
-
+// Kimliklerden bağımsız iz: durak ve nesne kimlikleri yerine içerik ve sıra kullanılır. Yeniden numaralama değişiklik
+// sayılmaz; rota (hangi seçim hangi durağa gider) hedef durağın sırasıyla, ödül/final nesneleri içerikleriyle izde kalır.
+// Rota hedefi sırayla temsil edilir: bir durağın içeriğini düzenlemek ona giden durakları değişmiş göstermez.
 export function parmakizi(def: GameDefinition): Parmakizi {
+  const nesne = new Map(def.envanter.map((e) => [e.id, iz([e.tur, e.isim, e.final_icin_gerekli])]));
+  const nesneIzi = (id: string | null) => (id === null ? null : (nesne.get(id) ?? "?"));
+  const sira = new Map(def.duraklar.map((d, i) => [d.id, i]));
+  const hedef = (id: string | null) => (id === null ? null : (sira.get(id) ?? "?"));
+  const duraklar = def.duraklar.map((d: Durak) => {
+    const { id: _id, varsayilan_sonraki_durak_id: sonraki, secimler, gorev, ...icerik } = d;
+    void _id;
+    return iz({
+      ...icerik,
+      gorev: { ...gorev, odul_id: nesneIzi(gorev.odul_id) },
+      secimler: secimler.map((s) => [s.metin, hedef(s.hedef_durak_id)]),
+      sonraki: hedef(sonraki),
+    });
+  });
   return {
     giris: iz([def.meta.baslik, def.hikaye_giris, def.oyun_amaci, def.ogrenme_hedefleri]),
-    envanter: iz(def.envanter),
-    final: iz(def.final),
-    duraklar: def.duraklar.map((d) => iz(durakIcerigi(d))),
+    envanter: iz([...nesne.values()].sort()),
+    final: iz({ ...def.final, gerekli_nesneler: def.final.gerekli_nesneler.map(nesneIzi).sort() }),
+    duraklar,
   };
 }
 

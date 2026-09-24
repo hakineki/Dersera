@@ -26,9 +26,31 @@ describe("sürüm kararı (saf)", () => {
     const baslik = kopya(d);
     baslik.meta.baslik = "Yeni başlık";
     expect(oran(d, baslik)).toBeCloseTo(1 / 11);
+    // Son durak silinince bir önceki durağın rotası da değişir (finale bağlanır): 2 birim.
     const eksik = kopya(d);
     eksik.duraklar.pop();
-    expect(oran(d, eksik)).toBeCloseTo(1 / 11);
+    expect(oran(d, eksik)).toBeCloseTo(2 / 11);
+    // Bir durağın içeriğini düzenlemek ona giden durakları değişmiş göstermez.
+    const orta = kopya(d);
+    orta.duraklar[4].gorev.soru = "Orta durak yeni soru";
+    expect(oran(d, orta)).toBeCloseTo(1 / 11);
+  });
+
+  it("rota değişikliği içerik aynı kalsa da değişim sayılır; nesne kimlikleri yeniden adlandırılınca sayılmaz", () => {
+    const d = oyun();
+    const rota = kopya(d);
+    // Seçim sahnesinin iki rotası yer değiştirir: durak metinleri aynı, dallanma farklı.
+    const secim = rota.duraklar.find((x) => x.secimler.length >= 2)!;
+    [secim.secimler[0].hedef_durak_id, secim.secimler[1].hedef_durak_id] = [secim.secimler[1].hedef_durak_id, secim.secimler[0].hedef_durak_id];
+    expect(oran(d, rota)).toBeCloseTo(1 / 11);
+    const nesne = kopya(d);
+    const yeni = (id: string) => `z-${id}`;
+    nesne.envanter.forEach((e) => (e.id = yeni(e.id)));
+    nesne.duraklar.forEach((x) => {
+      if (x.gorev.odul_id) x.gorev.odul_id = yeni(x.gorev.odul_id);
+    });
+    nesne.final.gerekli_nesneler = nesne.final.gerekli_nesneler.map(yeni);
+    expect(oran(d, nesne)).toBe(0);
   });
 
   it("durak kimlikleri yeniden numaralansa da içerik aynıysa değişim sıfırdır", () => {
