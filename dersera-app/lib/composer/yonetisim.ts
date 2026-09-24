@@ -2,6 +2,7 @@ import { normalize, parseNumber } from "@/lib/composer/answers";
 import { cocukGuvenligiTara, KATEGORI_ADI, metinleriTara, type GuvenlikEslesmesi } from "@/lib/composer/cocukGuvenligi";
 import type { GameDefinition } from "@/lib/composer/definition";
 import type { ValidationResult } from "@/lib/composer/validator";
+import { YZ_KATEGORI_ADI, yzDurumMetni, type YzDenetim } from "@/lib/composer/yzDenetim";
 
 // İçerik yönetişimi: her Composer çıktısı, düzenleme ve yayın aynı 8 kapıdan geçer (docs/URUN-BAGLAMI.md §9).
 // Sonuç PASS / REVIEW / BLOCK. BLOCK yayını durdurur; REVIEW öğretmene gösterilir ve oyunu topluluğa otomatik
@@ -135,6 +136,26 @@ function guvenlikBulgusu(e: GuvenlikEslesmesi): Bulgu {
   };
 }
 
+// Yapay zekâ denetimi: engelle → BLOCK, incele → REVIEW. Denetim yapılamadıysa öğretmen gözden geçirir (REVIEW);
+// kural tabanlı engeller her durumda geçerlidir. Sağlayıcı yoksa ya da denetim henüz yapılmadıysa yalnız not düşülür.
+function yzDenetimi(def: GameDefinition, yz: YzDenetim, ekle: (b: Bulgu) => void, not: (m: string) => void) {
+  not(yzDurumMetni(yz));
+  if (yz.durum === "yapilamadi") {
+    return ekle({ kod: "yz-denetim-yok", karar: "REVIEW", mesaj: "Yapay zekâ çocuk güvenliği denetimi yapılamadı; öğrenciye görünen metinleri kendiniz gözden geçirin." });
+  }
+  if (yz.durum !== "tamam") return;
+  const durak = new Map(def.duraklar.map((d) => [d.id, d.isim]));
+  const yerAdi = (yer: string) => (durak.has(yer) ? `"${durak.get(yer)}" durağı` : yer === "giris" ? "Giriş" : yer === "amac" ? "Oyunun amacı" : yer === "final" ? "Final" : "Oyun");
+  for (const b of yz.bulgular) {
+    ekle({
+      kod: `yz-${b.kategori}`,
+      karar: b.agirlik === "engelle" ? "BLOCK" : "REVIEW",
+      ...(durak.has(b.yer) && { durakId: b.yer }),
+      mesaj: `${yerAdi(b.yer)}${b.alinti ? ` · "${b.alinti}"` : ""}: ${b.aciklama || YZ_KATEGORI_ADI[b.kategori]} (yapay zekâ denetimi, ${YZ_KATEGORI_ADI[b.kategori]})`,
+    });
+  }
+}
+
 // Composer öncesi (klasik) oyunun öğretmence yazılabilen durak adı ve hikâyesi: yalnız engelleyen ifadeler aranır.
 export function klasikDurakEngelleri(stops: { qr: number; name: string; hikaye: string }[]): Bulgu[] {
   const metinler = stops.flatMap((s) => [
@@ -150,7 +171,8 @@ export function ozetEngelli(o: { baslik: string; konu: string }): boolean {
 }
 
 // Tanım şemadan geçmiş olmalıdır (şemadan geçmeyen tanım bu noktaya gelmeden 422 ile reddedilir).
-export function yonetisimDegerlendir(def: GameDefinition, validation: ValidationResult): YonetisimSonucu {
+// yz verilmezse (ör. denetimin hiç istenmediği okuma) yapay zekâ katmanı hesaba katılmaz.
+export function yonetisimDegerlendir(def: GameDefinition, validation: ValidationResult, yz?: YzDenetim): YonetisimSonucu {
   const t = Object.fromEntries(KAPILAR.map((k) => [k.id, { bulgular: [], notlar: [] }])) as unknown as Toplayici;
   const ekle = (kapi: KapiId) => (b: Bulgu) => t[kapi].bulgular.push(b);
 
@@ -162,6 +184,7 @@ export function yonetisimDegerlendir(def: GameDefinition, validation: Validation
   bosHikayeler(def, ekle("oyun-kalitesi"));
 
   cocukGuvenligiTara(def).map(guvenlikBulgusu).forEach(ekle("cocuk-guvenligi"));
+  if (yz) yzDenetimi(def, yz, ekle("cocuk-guvenligi"), (m) => t["cocuk-guvenligi"].notlar.push(m));
 
   if (t.sema.bulgular.length === 0) t.sema.notlar.push("Oyun tanımı şemaya ve boyut sınırlarına uygun.");
   t.benzerlik.notlar.push("Sınıf yayınında uygulanmaz.");

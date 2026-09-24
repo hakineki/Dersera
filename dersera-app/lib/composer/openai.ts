@@ -44,7 +44,8 @@ export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawS
   prompt: PromptParcalari,
   maxTokens: number,
   client: OpenAIComposeClient = clientFromEnv(),
-  timeoutMs = COMPOSE_TIMEOUT_MS
+  timeoutMs = COMPOSE_TIMEOUT_MS,
+  sistem = SYSTEM_PROMPT
 ): Promise<z.infer<S>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -55,7 +56,7 @@ export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawS
         model: openAIModelFromEnv(),
         max_completion_tokens: maxTokens,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: sistem },
           { role: "user", content: `${prompt.ortak}\n\n${prompt.asama}` },
         ],
         response_format: zodResponseFormat(schema, semaAdi),

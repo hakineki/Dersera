@@ -41,13 +41,15 @@ export async function composeGame(
   return parcaliUret(input, recipe, izinliQrIdleri, (schema, _ad, prompt, maxTokens, t) => yapilandirilmisIstek(schema, prompt, maxTokens, client, t), timeoutMs);
 }
 
-// Sistem prompt'u + tek kullanıcı mesajı → şemaya uyan JSON. İskelet, görev doldurma ve durak düzeltmesi bunu kullanır.
+// Sistem prompt'u + tek kullanıcı mesajı → şemaya uyan JSON. İskelet, görev doldurma, durak düzeltmesi ve
+// çocuk güvenliği denetimi (kendi sistem prompt'uyla) bunu kullanır.
 export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>(
   schema: S,
   prompt: PromptParcalari,
   maxTokens: number,
   client: ComposeClient = clientFromEnv(),
-  timeoutMs = COMPOSE_TIMEOUT_MS
+  timeoutMs = COMPOSE_TIMEOUT_MS,
+  sistem = SYSTEM_PROMPT
 ): Promise<z.infer<S>> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -57,7 +59,7 @@ export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>
       {
         model: modelFromEnv(),
         max_tokens: maxTokens,
-        system: SYSTEM_PROMPT,
+        system: sistem,
         // Prompt önbelleği kullanılmaz: çıktı şeması aşamaya göre değiştiği için ön ek eşleşmez, yazma ücreti boşa gider.
         messages: [{ role: "user", content: `${prompt.ortak}\n\n${prompt.asama}` }],
         output_config: { format: zodOutputFormat(schema) },

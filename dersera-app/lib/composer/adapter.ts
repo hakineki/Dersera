@@ -6,6 +6,7 @@ import { z } from "zod";
 import { revalidate } from "@/lib/composer/service";
 import type { ValidationResult } from "@/lib/composer/validator";
 import { yonetisimDegerlendir, type YonetisimSonucu } from "@/lib/composer/yonetisim";
+import type { YzDenetim } from "@/lib/composer/yzDenetim";
 import { publishWindowMinutes, type GameStop, type PublishRequest } from "@/lib/games";
 
 // Game Definition → mevcut oyun kaydı. Kod üretimi, katılım, sonuçlar ve süre mevcut sistemden gelir.
@@ -29,8 +30,8 @@ export function definitionToStops(def: GameDefinition): GameStop[] {
 }
 
 export type ComposerPublishResult =
-  | { ok: true; request: PublishRequest; dersler: DersKonu[]; yonetisim: YonetisimSonucu }
-  | { ok: false; status: number; error: string; validation?: ValidationResult; yonetisim?: YonetisimSonucu };
+  | { ok: true; request: PublishRequest; dersler: DersKonu[]; yonetisim: YonetisimSonucu; guvenlik: YzDenetim }
+  | { ok: false; status: number; error: string; validation?: ValidationResult; yonetisim?: YonetisimSonucu; guvenlik?: YzDenetim };
 
 export const MAX_DEFINITION_BYTES = 64 * 1024;
 
@@ -53,23 +54,26 @@ export function parseComposerDefinition(definition: unknown, derslerGirdi: unkno
   return { ok: true, definition: parsed.data, dersler: dersler.data, validation };
 }
 
-export function parseComposerPublish(body: unknown): ComposerPublishResult {
+// Yapay zekâ denetimi yalnız doğrulamadan geçen tanım için istenir (geçersiz oyun zaten yayınlanamaz, çağrı boşa gider).
+export async function parseComposerPublish(body: unknown, denetle: (def: GameDefinition) => Promise<YzDenetim>): Promise<ComposerPublishResult> {
   const composer = (body as { composer?: { definition?: unknown; dersler?: unknown } } | null)?.composer;
   const r = parseComposerDefinition(composer?.definition, composer?.dersler);
   if (!r.ok) return r;
   const { definition, dersler, validation } = r;
   // Yayın içerik yönetişimini atlayamaz: BLOCK yayını durdurur, REVIEW öğretmene gösterilir.
-  const yonetisim = yonetisimDegerlendir(definition, validation);
   if (!validation.gecerli) {
-    return { ok: false, status: 422, error: "Oyun doğrulamadan geçmedi; yayınlanamaz", validation, yonetisim };
+    return { ok: false, status: 422, error: "Oyun doğrulamadan geçmedi; yayınlanamaz", validation, yonetisim: yonetisimDegerlendir(definition, validation) };
   }
+  const guvenlik = await denetle(definition);
+  const yonetisim = yonetisimDegerlendir(definition, validation, guvenlik);
   if (yonetisim.karar === "BLOCK") {
-    return { ok: false, status: 422, error: "Oyun içerik denetiminden geçmedi; yayınlanamaz", validation, yonetisim };
+    return { ok: false, status: 422, error: "Oyun içerik denetiminden geçmedi; yayınlanamaz", validation, yonetisim, guvenlik };
   }
   return {
     ok: true,
     dersler,
     yonetisim,
+    guvenlik,
     request: {
       durationMinutes: publishWindowMinutes(definition.meta.sure_dk),
       aylar: [],

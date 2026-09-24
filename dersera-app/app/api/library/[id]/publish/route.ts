@@ -5,7 +5,8 @@ import { getLibraryStore } from "@/lib/libraryStore";
 import { kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { istekSahibi, parseSure, yenidenYayinla } from "@/lib/libraryService";
 
-// Kayıtlı oyunu yeni oyun koduyla yayınlar; yapay zekâ çağrısı yapılmaz.
+// Kayıtlı oyunu yeni oyun koduyla yayınlar. Oyun yeniden üretilmez; çocuk güvenliği denetimi içerik değişmediyse
+// önbellekten okunur, değiştiyse model çağrılır (hesap başına saatlik sınırla).
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const koken = kokenReddi(req, false);
   if (koken) return koken;

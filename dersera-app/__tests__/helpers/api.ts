@@ -36,6 +36,7 @@ export async function buildApi() {
     inceleme: typeof import("@/app/api/topluluk/inceleme/route");
     incelemeOyun: typeof import("@/app/api/topluluk/inceleme/[id]/route");
     istatistikStore: typeof import("@/lib/istatistikStore");
+    yzDenetim: typeof import("@/lib/composer/yzDenetimService");
   };
   await jest.isolateModulesAsync(async () => {
     mods = {
@@ -69,6 +70,7 @@ export async function buildApi() {
       inceleme: await import("@/app/api/topluluk/inceleme/route"),
       incelemeOyun: await import("@/app/api/topluluk/inceleme/[id]/route"),
       istatistikStore: await import("@/lib/istatistikStore"),
+      yzDenetim: await import("@/lib/composer/yzDenetimService"),
     };
   });
   return {

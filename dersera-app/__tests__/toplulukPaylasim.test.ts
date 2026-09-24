@@ -245,6 +245,47 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     expect((await paylas(b)).status).toBe(201);
   });
 
+  describe("yapay zekâ çocuk güvenliği denetimi", () => {
+    const bulgu = { yer: "d2", kategori: "siddet" as const, agirlik: "engelle" as const, alinti: "kavga", aciklama: "Şiddet özendiriliyor." };
+    beforeEach(() => {
+      delete process.env.OPENAI_API_KEY;
+      process.env.ANTHROPIC_API_KEY = "test-key";
+    });
+    afterEach(() => delete process.env.ANTHROPIC_API_KEY);
+
+    it("yapay zekâ engeli topluluğa gönderimi durdurur; denetim hesap başına sınırlanır", async () => {
+      const spy = jest.spyOn(api.yzDenetim, "yzDenetle").mockResolvedValue({ durum: "tamam", bulgular: [bulgu] });
+      const id = await kaydet(oyun("Kavga"));
+      await esikGec(id);
+      const res = await paylas(id);
+      expect(res.status).toBe(422);
+      const json = await res.json();
+      expect(json.yonetisim.kapilar.find((k: { kapi: string }) => k.kapi === "cocuk-guvenligi")).toMatchObject({ karar: "BLOCK", bulgular: [{ kod: "yz-siddet" }] });
+      expect(spy.mock.calls[0][1]).toEqual({ sinirAnahtari: `hesap:${await sahipOf(sahip)}` });
+      expect((await kartOf(id)).topluluk).toBeNull();
+    });
+
+    it("inceleme ekranı modeli çağırmaz: gönderimdeki denetimi önbellekten gösterir, yoksa gözden geçirme ister", async () => {
+      const def = oyun("Önbellek");
+      const store = api.yzDenetim.getYzDenetimStore();
+      await store.set(api.yzDenetim.yzIcerikOzeti(def), [{ ...bulgu, agirlik: "incele" }]);
+      const id = await kaydet(def);
+      await esikGec(id);
+      expect((await paylas(id)).status).toBe(201);
+      const spy = jest.spyOn(api.yzDenetim, "yzDenetle");
+      const i1 = await eskiHesap("inceleyen1");
+      const tid = await bekleyenId(i1);
+      const kapiOf = async () => (await (await detay(tid, i1)).json()).yonetisim.kapilar.find((k: { kapi: string }) => k.kapi === "cocuk-guvenligi");
+      expect(await kapiOf()).toMatchObject({ karar: "REVIEW", bulgular: [{ kod: "yz-siddet", karar: "REVIEW" }] });
+      expect(spy).not.toHaveBeenCalled();
+
+      // Önbellek boşsa (süresi dolmuş ya da gönderimde denetim yapılamamış) inceleyen uyarılır.
+      jest.spyOn(store, "get").mockResolvedValue(null);
+      expect(await kapiOf()).toMatchObject({ karar: "REVIEW", bulgular: [{ kod: "yz-denetim-yok" }] });
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
   it("içerik denetiminden geçmeyen oyun gönderilemez", async () => {
     const id = await kaydet(oyun("Kaba", (d) => (d.duraklar[2].hikaye_metni = "Siktir git.")));
     await esikGec(id);

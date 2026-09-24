@@ -4,6 +4,7 @@ import type { OgrenmeCiktisi } from "@/data/mufredat/programlar";
 import type { GameDefinition } from "@/lib/composer/definition";
 import { summarize, type ValidationResult } from "@/lib/composer/validator";
 import { ekBulgular, rozetler, yonetisimDegerlendir, type Karar } from "@/lib/composer/yonetisim";
+import { yzDurumMetni, type YzDenetim } from "@/lib/composer/yzDenetim";
 import type { Duzenlenen } from "./DurakEditor";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI, GOREV_TUR_ADI } from "./labels";
 
@@ -25,6 +26,7 @@ function Ozet({ etiket, deger }: { etiket: string; deger: string | number }) {
 export default function ComposerPreview({
   definition,
   validation,
+  guvenlik,
   hedefler,
   onEdit,
   onPublish,
@@ -35,6 +37,8 @@ export default function ComposerPreview({
 }: {
   definition: GameDefinition;
   validation: ValidationResult;
+  // Bu tanım için yapılmış yapay zekâ denetimi; düzenlemeden sonra "bekliyor" (yayında yeniden yapılır).
+  guvenlik: YzDenetim;
   hedefler: OgrenmeCiktisi[];
   onEdit: (item: Duzenlenen) => void;
   onPublish: () => void;
@@ -48,7 +52,7 @@ export default function ComposerPreview({
   const m = definition.meta;
   const durakAdi = (id: string) => definition.duraklar.find((d) => d.id === id)?.isim ?? id;
   // Sunucu yayında aynı değerlendirmeyi yapar; burada düzenlemeyle birlikte canlı güncellenir.
-  const yonetisim = yonetisimDegerlendir(definition, validation);
+  const yonetisim = yonetisimDegerlendir(definition, validation, guvenlik);
   const ekler = ekBulgular(yonetisim, validation);
   const engeller = ekler.filter((b) => b.karar === "BLOCK");
   const incelemeler = ekler.filter((b) => b.karar === "REVIEW");
@@ -94,6 +98,7 @@ export default function ComposerPreview({
             );
           })}
         </ul>
+        <p className="text-xs text-gray-500 mt-2">{yzDurumMetni(guvenlik)}</p>
       </section>
 
       {engeller.length > 0 && (

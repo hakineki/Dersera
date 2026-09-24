@@ -10,6 +10,11 @@ import { toplulukKodunuBagla } from "@/lib/toplulukService";
 import { kodKaynagaBagla } from "@/lib/istatistikService";
 import type { DersKonu } from "@/lib/composer/input";
 import { klasikDurakEngelleri, type YonetisimSonucu } from "@/lib/composer/yonetisim";
+import { clientIp } from "@/lib/composer/rateLimit";
+import { yzDenetle } from "@/lib/composer/yzDenetimService";
+
+// Önbellekte olmayan içerik için yapay zekâ denetimi (en çok ~25 sn) yayından önce yapılır.
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -23,9 +28,13 @@ export async function POST(req: Request) {
   let dersler: DersKonu[] | null = null;
   let yonetisim: YonetisimSonucu | undefined;
   if (body && typeof body === "object" && "composer" in body) {
-    const composed = parseComposerPublish(body);
+    // Uç nokta oturumsuzdur: önbellekte olmayan içeriğin ücretli denetimi IP ve günlük sınırla korunur.
+    const composed = await parseComposerPublish(body, (def) => yzDenetle(def, { sinirAnahtari: `ip:${clientIp(req)}` }));
     if (!composed.ok) {
-      return NextResponse.json({ error: composed.error, validation: composed.validation, yonetisim: composed.yonetisim }, { status: composed.status });
+      return NextResponse.json(
+        { error: composed.error, validation: composed.validation, yonetisim: composed.yonetisim, ...(composed.guvenlik && { guvenlik: composed.guvenlik }) },
+        { status: composed.status }
+      );
     }
     request = composed.request;
     dersler = composed.dersler;
