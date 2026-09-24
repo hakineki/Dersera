@@ -12,7 +12,7 @@ describe("yaş profili", () => {
   it("sınıftan türetilir: 5–8 ortaokul, 9–12 lise (alt kademeler müfredat eklenince)", () => {
     expect([5, 6, 7, 8].map(yasProfiliOf)).toEqual(Array(4).fill("MIDDLE_11_14"));
     expect([9, 10, 11, 12].map(yasProfiliOf)).toEqual(Array(4).fill("HIGH_15_18"));
-    expect(yasProfiliOf(3)).toBe("PRIMARY_6_10");
+    expect([1, 2, 3, 4].map(yasProfiliOf)).toEqual(Array(4).fill("PRIMARY_6_10"));
     expect(yasProfiliOf(0)).toBe("PRESCHOOL_3_5");
   });
 
@@ -20,6 +20,9 @@ describe("yaş profili", () => {
     const orta = resolvedInput({ sinif: 6, ders: "fen-bilimleri", sure: 40, deneyim: "dengeli", alan: "sinif" });
     const lise = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
     const p = (i: typeof orta) => buildUserPrompt(i, buildRecipe(i.sure, i.deneyim, i.alan), []);
+    const ilk = resolvedInput({ sinif: 2, ders: "hayat-bilgisi", sure: 20, deneyim: "dengeli", alan: "sinif" });
+    expect(p(ilk)).toContain("Öğrenci profili: İlkokul (6–10 yaş)");
+    for (const k of PROFILLER.PRIMARY_6_10.istem) expect(p(ilk)).toContain(k);
     expect(p(orta)).toContain("Öğrenci profili: Ortaokul (11–14 yaş)");
     for (const k of PROFILLER.MIDDLE_11_14.istem) expect(p(orta)).toContain(k);
     expect(p(orta)).not.toContain(PROFILLER.HIGH_15_18.istem[0]);
@@ -34,13 +37,22 @@ describe("ortaokul müfredatı ile oyun", () => {
     const ok = parseComposeInput({ sinif: 7, dersler: [{ ders: "fen-bilimleri", konuId: konu.id }], sure: 40, deneyim: "dengeli", alan: "sinif" });
     expect(ok.ok).toBe(true);
     if (ok.ok) expect(ok.input.ogrenmeCiktilari).toEqual(konu.ogrenmeCiktilari);
-    for (const sinif of [4, 13]) expect(parseComposeInput({ sinif, dersler: [{ ders: "matematik", konuId: konu.id }], sure: 40, deneyim: "dengeli", alan: "sinif" }).ok).toBe(false);
+    // Kademe dışı sınıf, konusu geçerli olsa da reddedilir.
+    const mat = (sinif: number, s = sinif) => ({ sinif, dersler: [{ ders: "matematik", konuId: getUniteler(s, "matematik")[0].id }], sure: 40, deneyim: "dengeli", alan: "sinif" });
+    expect(parseComposeInput(mat(1)).ok).toBe(true);
+    for (const sinif of [0, 13]) expect(parseComposeInput(mat(sinif, 1)).ok).toBe(false);
     // Fizik ortaokulda yok; Fen Bilimleri lisede yok.
     expect(parseComposeInput({ sinif: 7, dersler: [{ ders: "fizik", konuId: getUniteler(9, "fizik")[0].id }], sure: 40, deneyim: "dengeli", alan: "sinif" }).ok).toBe(false);
     expect(parseComposeInput({ sinif: 10, dersler: [{ ders: "fen-bilimleri", konuId: konu.id }], sure: 40, deneyim: "dengeli", alan: "sinif" }).ok).toBe(false);
   });
 
   it.each([
+    [1, "turkce"],
+    [1, "matematik"],
+    [2, "hayat-bilgisi"],
+    [3, "fen-bilimleri"],
+    [4, "sosyal-bilgiler"],
+    [4, "din-kulturu"],
     [5, "turkce"],
     [6, "fen-bilimleri"],
     [7, "sosyal-bilgiler"],
@@ -64,6 +76,8 @@ describe("ortaokul müfredatı ile oyun", () => {
     const json = JSON.stringify(getKonuSecenekleri());
     expect(json).not.toContain("FB.5.2.1");
     expect(json).not.toContain("T.D.5.3");
+    expect(json).not.toContain("HB.1.1.1");
+    expect(json).toContain("Ben Ve Okulum");
     expect(json).toContain("Kuvveti Tanıyalım");
   });
 });

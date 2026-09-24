@@ -1,7 +1,9 @@
-// TYMM ortaokul (5–8. sınıf) öğretim programlarını tymm.meb.gov.tr'den çeker ve data/mufredat/tymm-ortaokul.json'a
-// yazar. Metinler sayfalardan birebir alınır; uydurma/özetleme yoktur. Yeniden çalıştırılabilir:
+// TYMM temel eğitim öğretim programlarını (ilkokul 1–4, ortaokul 5–8) tymm.meb.gov.tr'den çeker ve
+// data/mufredat/tymm-<kademe>.json'a yazar. Metinler sayfalardan birebir alınır; uydurma/özetleme yoktur.
+// Yeniden çalıştırılabilir:
 //
-//   node scripts/tymm-ortaokul.mjs
+//   node scripts/tymm-temel-egitim.mjs            (iki kademe)
+//   node scripts/tymm-temel-egitim.mjs ilkokul    (yalnız biri)
 //
 // Kaynak yapısı: /Ders/GetDerslerBySinif (dersler), /Unite/GetUnitelerByDersId (üniteler), /<ders-url>/unite/<id>
 // (ünite sayfası). Ünite alanları lise verisiyle (tymm-programlar.json) aynıdır: id, ad, amac, konular, ogrenmeCiktilari.
@@ -12,18 +14,34 @@ import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const KOK = "https://tymm.meb.gov.tr";
-const CIKTI = fileURLToPath(new URL("../data/mufredat/tymm-ortaokul.json", import.meta.url));
 // Sitenin sınıf kimlikleri (temel eğitim kademesi = 2).
-const SINIF_ID = { 5: 6, 6: 7, 7: 8, 8: 9 };
-// Oyun üretimine uygun akademik dersler (lise verisindeki seçimle aynı ölçüt).
-const DERSLER = [
-  { key: "matematik", dersId: 7, siniflar: [5, 6, 7, 8] },
-  { key: "fen-bilimleri", dersId: 3, siniflar: [5, 6, 7, 8] },
-  { key: "turkce", dersId: 6, siniflar: [5, 6, 7, 8] },
-  { key: "sosyal-bilgiler", dersId: 8, siniflar: [5, 6, 7] },
-  { key: "inkilap-tarihi", dersId: 9, siniflar: [8] },
-  { key: "din-kulturu", dersId: 10, siniflar: [5, 6, 7, 8] },
-];
+const SINIF_ID = { 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9 };
+// Oyun üretimine uygun akademik dersler (lise verisindeki seçimle aynı ölçüt). dersId sitenin ders kimliğidir;
+// ilkokul ve ortaokul Türkçe/Matematik sitede ayrı derslerdir, uygulamada aynı ders anahtarını paylaşır.
+const KADEMELER = {
+  ilkokul: {
+    ad: "ilkokul, 1–4. sınıf",
+    dersler: [
+      { key: "turkce", dersId: 1, siniflar: [1, 2, 3, 4] },
+      { key: "matematik", dersId: 2, siniflar: [1, 2, 3, 4] },
+      { key: "hayat-bilgisi", dersId: 4, siniflar: [1, 2, 3] },
+      { key: "fen-bilimleri", dersId: 3, siniflar: [3, 4] },
+      { key: "sosyal-bilgiler", dersId: 8, siniflar: [4] },
+      { key: "din-kulturu", dersId: 10, siniflar: [4] },
+    ],
+  },
+  ortaokul: {
+    ad: "ortaokul, 5–8. sınıf",
+    dersler: [
+      { key: "matematik", dersId: 7, siniflar: [5, 6, 7, 8] },
+      { key: "fen-bilimleri", dersId: 3, siniflar: [5, 6, 7, 8] },
+      { key: "turkce", dersId: 6, siniflar: [5, 6, 7, 8] },
+      { key: "sosyal-bilgiler", dersId: 8, siniflar: [5, 6, 7] },
+      { key: "inkilap-tarihi", dersId: 9, siniflar: [8] },
+      { key: "din-kulturu", dersId: 10, siniflar: [5, 6, 7, 8] },
+    ],
+  },
+};
 const BEKLE_MS = 300;
 
 const bekle = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -80,10 +98,11 @@ const satirlar = (h) =>
     .filter(Boolean);
 
 // Kod: "FB.5.2.1." (ders.sınıf.ünite.sıra) ya da Türkçe'de "T.D.5.3." (ders.beceri.sınıf.sıra). Bazı sayfalarda
-// koddan sonra boşluk yoktur ("SB.6.3.1.Türkistan’da ...").
-const KOD = /^([A-ZÇĞİÖŞÜ]{1,6}(?:\.[A-ZÇĞİÖŞÜ]{1,6})?\.(\d+)(?:\.\d+){1,2})(?:\.?:?\s+|\.(?=\p{L}))(.+)$/u;
+// koddan sonra boşluk yoktur ("SB.6.3.1.Türkistan’da ...") ya da önekten sonra boşluk vardır ("MAT. 1.3.3.");
+// kod boşluksuz resmî biçimde ("MAT.1.3.3") saklanır.
+const KOD = /^([A-ZÇĞİÖŞÜ]{1,6}(?:\.[A-ZÇĞİÖŞÜ]{1,6})?\.\s?(\d+)(?:\.\d+){1,2})(?:\.?:?\s+|\.(?=\p{L}))(.+)$/u;
 // Kod gibi başlayan her satır (kısmi kayıp denetimi: ayrıştırılamayan kod satırı uyarılır).
-const KOD_GIBI = /^[A-ZÇĞİÖŞÜ]{1,6}(?:\.[A-ZÇĞİÖŞÜ]{1,6})?\.\d+\.\d+/u;
+const KOD_GIBI = /^[A-ZÇĞİÖŞÜ]{1,6}(?:\.[A-ZÇĞİÖŞÜ]{1,6})?\.\s?\d+\.\d+/u;
 
 function uniteAyristir(html, sinif) {
   const intro = /<div class="unite-detail__intro text">([\s\S]*?)<\/div>/.exec(html);
@@ -92,7 +111,7 @@ function uniteAyristir(html, sinif) {
   const atlanan = [];
   for (const s of satirlar(cikti)) {
     const m = KOD.exec(s);
-    if (m && Number(m[2]) === sinif) ogrenmeCiktilari.push({ kod: m[1], metin: m[3].trim() });
+    if (m && Number(m[2]) === sinif) ogrenmeCiktilari.push({ kod: m[1].replace(/\s+/g, ""), metin: m[3].trim() });
     else if (KOD_GIBI.test(s)) atlanan.push(s.slice(0, 60));
   }
   const icerik = bolum(html, "İçerik Çerçevesi") ?? "";
@@ -105,10 +124,11 @@ function uniteAyristir(html, sinif) {
   };
 }
 
+async function kademeCek(kademe, { ad, dersler }) {
 const uyarilar = [];
 const programlar = {};
 let toplamUnite = 0;
-for (const ders of DERSLER) {
+for (const ders of dersler) {
   programlar[ders.key] = {};
   for (const sinif of ders.siniflar) {
     const uniteler = await al(`/Unite/GetUnitelerByDersId?dersId=${ders.dersId}&sinifId=${SINIF_ID[sinif]}`);
@@ -141,13 +161,14 @@ for (const [ders, siniflar] of Object.entries(programlar))
         gorulen.set(c.kod, yer);
       }
 
+const CIKTI = fileURLToPath(new URL(`../data/mufredat/tymm-${kademe}.json`, import.meta.url));
 writeFileSync(
   CIKTI,
   JSON.stringify(
     {
       kaynak: KOK,
       alinma: new Date().toISOString().slice(0, 10),
-      aciklama: "Türkiye Yüzyılı Maarif Modeli temel eğitim (ortaokul, 5–8. sınıf) öğretim programları; tymm.meb.gov.tr ünite sayfalarından birebir alınmıştır (scripts/tymm-ortaokul.mjs).",
+      aciklama: `Türkiye Yüzyılı Maarif Modeli temel eğitim (${ad}) öğretim programları; tymm.meb.gov.tr ünite sayfalarından birebir alınmıştır (scripts/tymm-temel-egitim.mjs).`,
       programlar,
     },
     null,
@@ -156,3 +177,10 @@ writeFileSync(
 );
 console.log(`\n${toplamUnite} ünite, ${gorulen.size} öğrenme çıktısı → ${CIKTI}`);
 if (uyarilar.length) console.log("UYARILAR:\n" + uyarilar.join("\n"));
+}
+
+const secilen = process.argv[2] ? [process.argv[2]] : Object.keys(KADEMELER);
+for (const k of secilen) {
+  if (!KADEMELER[k]) throw new Error(`Bilinmeyen kademe: ${k} (ilkokul | ortaokul)`);
+  await kademeCek(k, KADEMELER[k]);
+}

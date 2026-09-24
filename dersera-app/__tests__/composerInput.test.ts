@@ -14,6 +14,10 @@ describe("müfredat verisi", () => {
       for (const s of [5, 6, 7, 8]) expect(secenekler[`${s}:${ders}`]?.length).toBeGreaterThan(0);
     }
     for (const s of [5, 6, 7]) expect(secenekler[`${s}:sosyal-bilgiler`]?.length).toBeGreaterThan(0);
+    for (const ders of ["turkce", "matematik"]) for (const s of [1, 2, 3, 4]) expect(secenekler[`${s}:${ders}`]?.length).toBeGreaterThan(0);
+    for (const s of [1, 2, 3]) expect(secenekler[`${s}:hayat-bilgisi`]?.length).toBeGreaterThan(0);
+    for (const k of ["3:fen-bilimleri", "4:fen-bilimleri", "4:sosyal-bilgiler", "4:din-kulturu"]) expect(secenekler[k]?.length).toBeGreaterThan(0);
+    expect(secenekler["4:hayat-bilgisi"]).toBeUndefined();
     expect(secenekler["8:inkilap-tarihi"]?.length).toBeGreaterThan(0);
     // Kademe dışı ders yok: lise dersi ortaokulda, ortaokul dersi lisede görünmez.
     expect(secenekler["6:fizik"]).toBeUndefined();
@@ -33,10 +37,23 @@ describe("müfredat verisi", () => {
           // Model çıktısındaki kod bu işlevle ayıklanır: her gerçek kod aynen geçmeli (açıklamalı yazılsa da).
           expect(hedefKodu(o.kod)).toBe(o.kod);
           expect(hedefKodu(`${o.kod}: ${o.metin}`)).toBe(o.kod);
+          // Kaynaktaki gibi önekten sonra boşluklu yazım ("MAT. 1.3.3") resmî koda döner.
+          const bosluklu = o.kod.replace(/^([^\d]*\.)(\d)/, "$1 $2");
+          expect(hedefKodu(`${bosluklu}: ${o.metin}`)).toBe(o.kod);
           expect(o.metin.length).toBeGreaterThan(10);
         }));
       }
     }
+  });
+
+  it("hedef kodu ayıklama: boşluk yalnız önek noktasından sonra kabul edilir", () => {
+    expect(hedefKodu("MAT. 1.3.3")).toBe("MAT.1.3.3");
+    expect(hedefKodu("MAT. 1.3.3: Günlük yaşamdaki nesneler")).toBe("MAT.1.3.3");
+    expect(hedefKodu("T.D. 1.1 Dinleme")).toBe("T.D.1.1");
+    // Nokta olmadan boşluk önekle birleşmez (eski davranış).
+    expect(hedefKodu("Cevap A 5.2")).toBe("5.2");
+    expect(hedefKodu("FİZ.9.1.1")).toBe("FİZ.9.1.1");
+    expect(hedefKodu("TDE1.1: Türk dili")).toBe("TDE1.1");
   });
 
   it("istemciye giden seçenekler öğrenme çıktısı içermez", () => {

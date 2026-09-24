@@ -1,7 +1,7 @@
 // Program sınıfları ve dersleri: müfredat verisi (JSON) içermeyen hafif modül. İstemci paketine girebilecek
 // modüller (ör. lib/games.ts) buradan okur; ünite ve öğrenme çıktıları programlar.ts'te, yalnız sunucuda kalır.
 
-export const SINIFLAR = [5, 6, 7, 8, 9, 10, 11, 12] as const;
+export const SINIFLAR = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] as const;
 export type Sinif = (typeof SINIFLAR)[number];
 
 export const PROGRAM_DERSLERI = [
@@ -18,6 +18,7 @@ export const PROGRAM_DERSLERI = [
   "turkce",
   "sosyal-bilgiler",
   "inkilap-tarihi",
+  "hayat-bilgisi",
 ] as const;
 export type ProgramDersi = (typeof PROGRAM_DERSLERI)[number];
 
@@ -35,4 +36,5 @@ export const PROGRAM_DERS_ADI: Record<ProgramDersi, string> = {
   turkce: "Türkçe",
   "sosyal-bilgiler": "Sosyal Bilgiler",
   "inkilap-tarihi": "T.C. İnkılap Tarihi ve Atatürkçülük",
+  "hayat-bilgisi": "Hayat Bilgisi",
 };

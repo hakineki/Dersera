@@ -441,6 +441,9 @@ export default function ComposerClient({
                 1. Ders ve Konuyu Seç
               </h2>
               <Secim etiket="Sınıf" secenekler={siniflar.map((s) => ({ key: s, ad: `${s}. sınıf` }))} deger={sinif} onChange={sinifSec} />
+              {sinif <= 2 && (
+                <p className="text-xs text-gray-600 -mt-3">1. ve 2. sınıfta okuma yeni gelişir: oyun çok kısa metinlerle üretilir; metinleri öğrencilere yüksek sesle okuyabilirsiniz.</p>
+              )}
               <fieldset>
                 <legend className="text-sm font-semibold text-gray-700 mb-1">Ders</legend>
                 <p className="text-xs text-gray-400 mb-2">Birden çok ders seçebilirsiniz; oyun dersleri tek bir hikâyede birleştirir.</p>
