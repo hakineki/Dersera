@@ -21,7 +21,7 @@ import KaynakGirdisi from "./KaynakGirdisi";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI } from "./labels";
 import { maxDersSayisi } from "@/lib/composer/recipe";
 import { SERBEST_NOT_MAX } from "@/lib/composer/limits";
-import { KAYNAK } from "@/lib/composer/kaynak";
+import { KAYNAK, kaynakNormal } from "@/lib/composer/kaynak";
 import { olusturmaMaliyeti, type KrediDurumu } from "@/lib/kredi";
 import { krediDurumuGetir, krediMetni } from "@/lib/krediClient";
 
@@ -269,7 +269,8 @@ export default function ComposerClient({
   const dersAdi = (key: string) => dersler.find((d) => d.key === key)?.ad ?? key;
   const enFazlaDers = maxDersSayisi(sure);
   const cokDers = secili.length > enFazlaDers;
-  const kaynakUzunlugu = kaynak.trim().length;
+  // Sunucu en az/en çok sınırını normalleştirilmiş metne uygular; düğme de aynı ölçüye bakar.
+  const kaynakUzunlugu = kaynakNormal(kaynak).length;
   const maliyet = olusturmaMaliyeti(sure, kaynakUzunlugu > 0);
   const hazir = secili.length > 0 && !cokDers && secili.every((k) => k.konuId) && (kaynakUzunlugu === 0 || kaynakUzunlugu >= KAYNAK.enAz);
 

@@ -7,13 +7,13 @@ export const KAYNAK = {
   enCok: 15_000,
 } as const;
 
-// Kontrol, yön değiştirici ve sıfır genişlikli karakterler atılır; PDF'ten gelen fazla boşluk ve boş satırlar sıkıştırılır.
+// Kontrol, yön değiştirici ve sıfır genişlikli karakterler (satır sonu kalır). Ön not (lib/composer/input.ts) da kullanır.
+export const gorunmezleriAt = (s: string): string => s.replace(/[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "");
+
+// PDF'ten gelen fazla boşluk (bölünmez boşluk dahil) ve boş satırlar da sıkıştırılır. En az/en çok sınırı bu metne uygulanır.
 export function kaynakNormal(s: string): string {
-  return s
-    .replace(/\r\n?/g, "\n")
-    .replace(/\t/g, " ")
-    .replace(/[\u0000-\u0008\u000B-\u001F\u007F-\u009F​-‏‪-‮⁦-⁩﻿]/g, "")
-    .replace(/[  ]{2,}/g, " ")
+  return gorunmezleriAt(s.replace(/\r\n?/g, "\n").replace(/\t/g, " "))
+    .replace(/[ \u00A0]{2,}/g, " ")
     .replace(/ *\n */g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

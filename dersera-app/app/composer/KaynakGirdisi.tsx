@@ -1,14 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { KAYNAK } from "@/lib/composer/kaynak";
+import { KAYNAK, kaynakNormal } from "@/lib/composer/kaynak";
 import { KREDI_KURALLARI } from "@/lib/kredi";
 
 // İsteğe bağlı kaynak: öğretmen ders notunu yapıştırır ya da PDF'in metni tarayıcıda çıkarılıp bu kutuya düşer.
 // Öğretmen gönderilecek metni görür ve kişisel bilgileri silebilir. Kaynak saklanmaz (lib/composer/kaynak.ts).
 export default function KaynakGirdisi({ deger, onChange }: { deger: string; onChange: (v: string) => void }) {
   const dosya = useRef<HTMLInputElement>(null);
-  const [durum, setDurum] = useState<{ tur: "bos" } | { tur: "okunuyor"; ad: string } | { tur: "hata"; mesaj: string } | { tur: "alindi"; bilgi: string }>({ tur: "bos" });
+  const [durum, setDurum] = useState<{ tur: "bos" } | { tur: "okunuyor"; ad: string } | { tur: "hata"; mesaj: string } | { tur: "alindi"; bilgi: string } | { tur: "kirpildi" }>({ tur: "bos" });
 
   async function pdfSecildi(f: File | undefined) {
     if (!f) return;
@@ -31,7 +31,8 @@ export default function KaynakGirdisi({ deger, onChange }: { deger: string; onCh
     }
   }
 
-  const uzunluk = deger.trim().length;
+  // Sunucunun ölçtüğü uzunluk (fazla boşluklar sayılmaz).
+  const uzunluk = kaynakNormal(deger).length;
   return (
     <div>
       <label htmlFor="kaynak" className="text-sm font-semibold text-gray-700 mb-1 block">
@@ -75,6 +76,11 @@ export default function KaynakGirdisi({ deger, onChange }: { deger: string; onCh
           {durum.mesaj}
         </p>
       )}
+      {durum.tur === "kirpildi" && (
+        <p role="status" className="text-xs text-amber-700 mb-2">
+          Yapıştırılan metin {KAYNAK.enCok.toLocaleString("tr-TR")} karakter sınırını aşıyor; sonu alınmadı. Gerekirse önemli bölümü bırakıp metni kısalt.
+        </p>
+      )}
       {durum.tur === "alindi" && (
         <p role="status" className="text-xs text-green-700 mb-2">
           {durum.bilgi}
@@ -84,6 +90,12 @@ export default function KaynakGirdisi({ deger, onChange }: { deger: string; onCh
         id="kaynak"
         value={deger}
         onChange={(e) => onChange(e.target.value.slice(0, KAYNAK.enCok))}
+        // maxLength yapıştırmayı sessizce kırpar: sınırı aşan yapıştırma öğretmene söylenir.
+        onPaste={(e) => {
+          const t = e.currentTarget;
+          const sonraki = t.value.length - (t.selectionEnd - t.selectionStart) + e.clipboardData.getData("text").length;
+          if (sonraki > KAYNAK.enCok) setDurum({ tur: "kirpildi" });
+        }}
         maxLength={KAYNAK.enCok}
         rows={deger ? 8 : 3}
         aria-describedby="kaynak-aciklama kaynak-sayac"

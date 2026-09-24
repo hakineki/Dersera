@@ -22,7 +22,7 @@ describe("kaynak kuralları", () => {
   });
 
   it("kaynak metni: kontrol ve görünmez karakterler atılır, PDF boşlukları sıkıştırılır", () => {
-    expect(kaynakNormal("  Birinci​   satır\t\tburada \r\n\r\n\r\n\r\n İkinci‮ satır\u0007  ")).toBe("Birinci satır burada\n\nİkinci satır");
+    expect(kaynakNormal("  Birinci\u200B   satır\t\tburada \r\n\r\n\r\n\r\n İkinci\u202E satır\u0007  ")).toBe("Birinci satır burada\n\nİkinci satır");
   });
 
   it("PDF sayfaları sırayla birleşir; sınır aşılınca kalan sayfalar alınmaz", () => {
@@ -35,11 +35,20 @@ describe("kaynak kuralları", () => {
   it("girdi: kaynak isteğe bağlıdır; en az ve en çok uzunluk denetlenir; normalleştirilmiş metin çözümlenen girdiye geçer", () => {
     const yok = parseComposeInput(secim);
     expect(yok.ok ? yok.input.kaynak : "hata").toBeUndefined();
-    const var_ = parseComposeInput({ ...secim, kaynak: `  ${NOT}​  ` });
+    const var_ = parseComposeInput({ ...secim, kaynak: `  ${NOT}\u200B  ` });
     expect(var_.ok && var_.input.kaynak).toBe(NOT);
     expect(parseComposeInput({ ...secim, kaynak: "kısa" })).toEqual({ ok: false, error: `Kaynak metni en az ${KAYNAK.enAz} karakter olmalı.` });
     expect(parseComposeInput({ ...secim, kaynak: "x".repeat(KAYNAK.enCok + 1) })).toEqual({ ok: false, error: "Kaynak metni en çok 15.000 karakter olabilir." });
     expect(parseComposeInput({ ...secim, kaynak: 42 })).toEqual({ ok: false, error: "Geçersiz seçim." });
+    // Sınır normalleştirilmiş metne uygulanır (istemci de aynı ölçüyü kullanır): fazla boşluk sayılmaz.
+    const boslukluKisa = `${"kelime  ".repeat(10)}\n\n\n\n\t\t${"ve  ".repeat(5)}`;
+    expect(boslukluKisa.trim().length).toBeGreaterThanOrEqual(KAYNAK.enAz);
+    expect(kaynakNormal(boslukluKisa).length).toBeLessThan(KAYNAK.enAz);
+    expect(parseComposeInput({ ...secim, kaynak: boslukluKisa })).toEqual({ ok: false, error: `Kaynak metni en az ${KAYNAK.enAz} karakter olmalı.` });
+    // Ön not aynı görünmez karakter temizliğini kullanır.
+    const [sifirGenislik, yonDegistirici] = [String.fromCharCode(0x200b), String.fromCharCode(0x202e)];
+    const not = parseComposeInput({ ...secim, serbest_not: `${sifirGenislik}Laboratuvarda${yonDegistirici} bir kaza\t olsun ` });
+    expect(not.ok && not.input.serbest_not).toBe("Laboratuvarda bir kaza  olsun");
     // Boş kaynak yok sayılır (ücretli kaynak yolu açılmaz).
     const bos = parseComposeInput({ ...secim, kaynak: "   " });
     expect(bos.ok ? bos.input.kaynak : "hata").toBeUndefined();

@@ -24,7 +24,7 @@ export const DersKonuSchema = z.object({
 export type DersKonu = z.infer<typeof DersKonuSchema>;
 
 import { SERBEST_NOT_MAX } from "@/lib/composer/limits";
-import { KAYNAK, kaynakNormal } from "@/lib/composer/kaynak";
+import { gorunmezleriAt, KAYNAK, kaynakNormal } from "@/lib/composer/kaynak";
 
 export { SERBEST_NOT_MAX };
 
@@ -42,7 +42,7 @@ export const ComposeInputSchema = z
       .string()
       .max(SERBEST_NOT_MAX)
       // Sekme boşluğa döner; kontrol, yön değiştirici ve sıfır genişlikli karakterler atılır (satır sonu kalır).
-      .transform((s) => s.replace(/\t/g, " ").replace(/[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "").trim())
+      .transform((s) => gorunmezleriAt(s.replace(/\t/g, " ")).trim())
       .optional(),
     kaynak: z.string().max(KAYNAK.enCok).transform(kaynakNormal).optional(),
   })
