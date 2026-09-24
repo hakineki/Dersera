@@ -33,6 +33,8 @@ export interface KutuphaneOzeti {
   surum?: number;
   // Varyantın türetildiği oyun.
   turetildigi?: { id: string; baslik: string } | null;
+  // "Oyunu Kullan" ile topluluktan alınan oyunun topluluk kimliği (öğretmen puanı için).
+  topluluk_kaynagi?: string | null;
 }
 
 // Sürüm tabanı: oyunun ilk sürümünün içerik izi (lib/surum.ts). Liste yanıtına girmez.

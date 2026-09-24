@@ -40,7 +40,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
     }
     await getResultsStore().save(code, entry);
-    await bitirisSay(code, entry.nickname, await istekSahibi(req), game.expiresAt);
+    await bitirisSay(code, entry.nickname, await istekSahibi(req), game.expiresAt, game.definition?.meta.sure_dk ?? null);
   } catch (err) {
     console.error("[results] kayıt hatası", err);
     return NextResponse.json({ error: "Sonuç kaydedilemedi" }, { status: 503 });

@@ -31,6 +31,7 @@ export async function buildApi() {
     puan: typeof import("@/app/api/games/[code]/puan/route");
     libraryTopluluk: typeof import("@/app/api/library/[id]/topluluk/route");
     kredi: typeof import("@/app/api/kredi/route");
+    toplulukOgretmenPuani: typeof import("@/app/api/topluluk/[id]/ogretmen-puani/route");
     krediStore: typeof import("@/lib/krediStore");
     inceleme: typeof import("@/app/api/topluluk/inceleme/route");
     incelemeOyun: typeof import("@/app/api/topluluk/inceleme/[id]/route");
@@ -63,6 +64,7 @@ export async function buildApi() {
       puan: await import("@/app/api/games/[code]/puan/route"),
       libraryTopluluk: await import("@/app/api/library/[id]/topluluk/route"),
       kredi: await import("@/app/api/kredi/route"),
+      toplulukOgretmenPuani: await import("@/app/api/topluluk/[id]/ogretmen-puani/route"),
       krediStore: await import("@/lib/krediStore"),
       inceleme: await import("@/app/api/topluluk/inceleme/route"),
       incelemeOyun: await import("@/app/api/topluluk/inceleme/[id]/route"),

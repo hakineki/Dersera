@@ -60,6 +60,25 @@ export async function incelemeOyunu(id: string): Promise<IncelemeDetayi | { erro
   return r.ok ? (r.json as unknown as IncelemeDetayi) : { error: hataMetni(r.json, "Oyun açılamadı.") };
 }
 
+export interface OgretmenPuaniDurumu {
+  ortalama: number | null;
+  sayi: number;
+  benim: number | null;
+  uygun: boolean;
+  neden?: string;
+}
+
+export async function ogretmenPuaniGetir(toplulukId: string): Promise<OgretmenPuaniDurumu | null> {
+  const r = await istek(`/api/topluluk/${encodeURIComponent(toplulukId)}/ogretmen-puani`);
+  return r?.ok ? (r.json as unknown as OgretmenPuaniDurumu) : null;
+}
+
+export async function ogretmenPuaniVer(toplulukId: string, puan: number): Promise<OgretmenPuaniDurumu | { error: string }> {
+  const r = await istek(`/api/topluluk/${encodeURIComponent(toplulukId)}/ogretmen-puani`, { method: "POST", body: JSON.stringify({ puan }) });
+  if (!r) return { error: "Bağlantı kurulamadı." };
+  return r.ok ? (r.json as unknown as OgretmenPuaniDurumu) : { error: hataMetni(r.json, "Puan kaydedilemedi.") };
+}
+
 export async function incelemeGonder(id: string, karar: "kabul" | "ret", not: string): Promise<{ durum: ToplulukDurumu } | { error: string }> {
   const r = await istek(`/api/topluluk/inceleme/${encodeURIComponent(id)}`, { method: "POST", body: JSON.stringify({ karar, not }) });
   if (!r) return { error: "Bağlantı kurulamadı." };

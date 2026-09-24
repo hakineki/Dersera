@@ -1,5 +1,5 @@
 import { redisFromEnv, type RedisCommand } from "@/lib/redis";
-import { durumOf, type Inceleme, type ToplulukDurumu, type ToplulukKaydi, type ToplulukOzeti } from "@/lib/topluluk";
+import { durumOf, ogretmenOrtalamasi, type Inceleme, type ToplulukDurumu, type ToplulukKaydi, type ToplulukOzeti } from "@/lib/topluluk";
 import { BOS_PUAN_SAYACI, gosterilecekOrtalama, kovaliPuanEkle, kovaliPuanLua, PUAN_KOVASI, type PuanSayaci } from "@/lib/istatistik";
 
 // Anahtarlar: özet (liste), tam kayıt (Oyunu Kullan), yayın zamanına göre sıralı küme, içerik özeti → id
@@ -39,6 +39,15 @@ export interface ToplulukStore {
   kodBagla(kod: string, id: string, ttlMs: number): Promise<void>;
   kodunOyunu(kod: string): Promise<string | null>;
   oynanmaArtir(id: string): Promise<void>;
+  // Oyun kodunu yayınlayan öğretmen (öğretmen puanı uygunluğu için) ve öğretmen başına bitiren öğrenci sayısı.
+  kodYayinlayanBagla(kod: string, sahip: string, ttlMs: number): Promise<void>;
+  kodYayinlayani(kod: string): Promise<string | null>;
+  ogretmenKullanimArtir(id: string, sahip: string): Promise<void>;
+  ogretmenKullanimi(id: string, sahip: string): Promise<number>;
+  // Öğretmen başına tek puan (güncellenebilir); toplam ve sayı aynı betikte güncellenir.
+  ogretmenPuanla(id: string, sahip: string, puan: number): Promise<void>;
+  ogretmenPuani(id: string, sahip: string): Promise<number | null>;
+  ogretmenPuanOzeti(id: string): Promise<{ toplam: number; sayi: number }>;
   // Öğrenci puanı: özette yalnız son kova anlık görüntüsü puan_ortalama/puan_sayisi olarak görünür.
   puanEkle(id: string, puan: number): Promise<void>;
   // Kaydı açan hesap (tam kaydı okumadan); sayımda sahibi ayırmak için.
@@ -53,6 +62,21 @@ const puanSayisiKey = (id: string) => `dersera:topluluk:puan-sayisi:${id}`;
 const puanToplamGosterKey = (id: string) => `dersera:topluluk:puan-toplam-goster:${id}`;
 const puanSayisiGosterKey = (id: string) => `dersera:topluluk:puan-sayisi-goster:${id}`;
 const olusturanKey = (id: string) => `dersera:topluluk:olusturan:${id}`;
+const kodYayinlayanKey = (kod: string) => `dersera:topluluk:kod-yayinlayan:${kod}`;
+const ogretmenKullanimKey = (id: string) => `dersera:topluluk:ogretmen-kullanim:${id}`;
+const ogretmenPuanKey = (id: string) => `dersera:topluluk:ogretmen-puan:${id}`;
+const ogretmenToplamKey = (id: string) => `dersera:topluluk:ogretmen-puan-toplam:${id}`;
+const ogretmenSayiKey = (id: string) => `dersera:topluluk:ogretmen-puan-sayi:${id}`;
+// KEYS: puan hash, toplam, sayı. ARGV: öğretmen, puan. Güncellemede fark eklenir, sayı artmaz.
+const OGRETMEN_PUANLA = `local eski = redis.call('HGET', KEYS[1], ARGV[1])
+redis.call('HSET', KEYS[1], ARGV[1], ARGV[2])
+if eski then
+  redis.call('INCRBY', KEYS[2], tonumber(ARGV[2]) - tonumber(eski))
+else
+  redis.call('INCRBY', KEYS[2], ARGV[2])
+  redis.call('INCR', KEYS[3])
+end
+return 1`;
 const PUAN_EKLE = `${kovaliPuanLua(1, 1)}
 return 1`;
 
@@ -94,6 +118,9 @@ const ozetOf = (k: ToplulukKaydi, oynanma: number): ToplulukOzeti => ({
   oynanma_sayisi: oynanma,
   puan_ortalama: k.puan_ortalama,
   puan_sayisi: k.puan_sayisi,
+  // Öğretmen puanı sayaçlardan okunur (sirali); yazılan özette boş.
+  ogretmen_puan_ortalama: null,
+  ogretmen_puan_sayisi: 0,
   aktif: k.aktif,
 });
 
@@ -112,6 +139,13 @@ export function createMemoryToplulukStore(): ToplulukStore {
   const oynanma = new Map<string, number>();
   const puanlar = new Map<string, PuanSayaci>();
   const kuyrukSkor = new Map<string, number>();
+  const kodYayinlayan = new Map<string, string>();
+  const ogretmenKullanim = new Map<string, number>();
+  const ogretmenPuan = new Map<string, Map<string, number>>();
+  const ogretmenOzet = (id: string) => {
+    const p = [...(ogretmenPuan.get(id)?.values() ?? [])];
+    return { toplam: p.reduce((a, b) => a + b, 0), sayi: p.length };
+  };
   const durumlar = new Map<string, ToplulukDurumu>();
   const incelemeler = new Map<string, Map<string, Inceleme>>();
   return {
@@ -142,7 +176,17 @@ export function createMemoryToplulukStore(): ToplulukStore {
         .map((x) => {
           const p = puanlar.get(x.k.oyun_id) ?? BOS_PUAN_SAYACI;
           const ozet = ozetOf(x.k, oynanma.get(x.k.oyun_id) ?? 0);
-          return { skor: x.skor, ozet: { ...ozet, puan_ortalama: gosterilecekOrtalama(p.gosterToplam, p.gosterSayi), puan_sayisi: p.gosterSayi } };
+          const o = ogretmenOzet(x.k.oyun_id);
+          return {
+            skor: x.skor,
+            ozet: {
+              ...ozet,
+              puan_ortalama: gosterilecekOrtalama(p.gosterToplam, p.gosterSayi),
+              puan_sayisi: p.gosterSayi,
+              ogretmen_puan_ortalama: ogretmenOrtalamasi(o.toplam, o.sayi),
+              ogretmen_puan_sayisi: o.sayi,
+            },
+          };
         });
     },
     async kaynakGuncelle(kaynak, id) {
@@ -189,6 +233,27 @@ export function createMemoryToplulukStore(): ToplulukStore {
     },
     async oynanmaArtir(id) {
       oynanma.set(id, (oynanma.get(id) ?? 0) + 1);
+    },
+    async kodYayinlayanBagla(kod, sahip) {
+      kodYayinlayan.set(kod, sahip);
+    },
+    async kodYayinlayani(kod) {
+      return kodYayinlayan.get(kod) ?? null;
+    },
+    async ogretmenKullanimArtir(id, sahip) {
+      ogretmenKullanim.set(`${id}|${sahip}`, (ogretmenKullanim.get(`${id}|${sahip}`) ?? 0) + 1);
+    },
+    async ogretmenKullanimi(id, sahip) {
+      return ogretmenKullanim.get(`${id}|${sahip}`) ?? 0;
+    },
+    async ogretmenPuanla(id, sahip, puan) {
+      (ogretmenPuan.get(id) ?? ogretmenPuan.set(id, new Map()).get(id)!).set(sahip, puan);
+    },
+    async ogretmenPuani(id, sahip) {
+      return ogretmenPuan.get(id)?.get(sahip) ?? null;
+    },
+    async ogretmenPuanOzeti(id) {
+      return ogretmenOzet(id);
     },
     async puanEkle(id, puan) {
       puanlar.set(id, kovaliPuanEkle(puanlar.get(id) ?? BOS_PUAN_SAYACI, puan));
@@ -250,17 +315,22 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
       }
       if (idler.length === 0) return [];
       const ozetler = ((await command(["MGET", ...idler.map(ozetKey)])) as (string | null)[] | null) ?? [];
-      const sayilar = ((await command(["MGET", ...idler.flatMap((id) => [oynanmaKey(id), puanToplamGosterKey(id), puanSayisiGosterKey(id)])])) as (string | null)[] | null) ?? [];
+      const S = 5;
+      const sayilar =
+        ((await command(["MGET", ...idler.flatMap((id) => [oynanmaKey(id), puanToplamGosterKey(id), puanSayisiGosterKey(id), ogretmenToplamKey(id), ogretmenSayiKey(id)])])) as (string | null)[] | null) ?? [];
       return idler.map((_, i) => {
-        const sayi = Number(sayilar[i * 3 + 2] ?? 0);
+        const sayi = Number(sayilar[i * S + 2] ?? 0);
+        const oSayi = Number(sayilar[i * S + 4] ?? 0);
         return {
           skor: skorlar[i],
           ozet: ozetler[i]
             ? {
                 ...(JSON.parse(ozetler[i]!) as ToplulukOzeti),
-                oynanma_sayisi: Number(sayilar[i * 3] ?? 0),
-                puan_ortalama: gosterilecekOrtalama(Number(sayilar[i * 3 + 1] ?? 0), sayi),
+                oynanma_sayisi: Number(sayilar[i * S] ?? 0),
+                puan_ortalama: gosterilecekOrtalama(Number(sayilar[i * S + 1] ?? 0), sayi),
                 puan_sayisi: sayi,
+                ogretmen_puan_ortalama: ogretmenOrtalamasi(Number(sayilar[i * S + 3] ?? 0), oSayi),
+                ogretmen_puan_sayisi: oSayi,
               }
             : null,
         };
@@ -310,6 +380,29 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
     },
     async oynanmaArtir(id) {
       await command(["INCR", oynanmaKey(id)]);
+    },
+    async kodYayinlayanBagla(kod, sahip, ttlMs) {
+      await command(["SET", kodYayinlayanKey(kod), sahip, "PX", Math.max(1000, ttlMs)]);
+    },
+    async kodYayinlayani(kod) {
+      return ((await command(["GET", kodYayinlayanKey(kod)])) as string | null) ?? null;
+    },
+    async ogretmenKullanimArtir(id, sahip) {
+      await command(["HINCRBY", ogretmenKullanimKey(id), sahip, 1]);
+    },
+    async ogretmenKullanimi(id, sahip) {
+      return Number((await command(["HGET", ogretmenKullanimKey(id), sahip])) ?? 0);
+    },
+    async ogretmenPuanla(id, sahip, puan) {
+      await command(["EVAL", OGRETMEN_PUANLA, 3, ogretmenPuanKey(id), ogretmenToplamKey(id), ogretmenSayiKey(id), sahip, puan]);
+    },
+    async ogretmenPuani(id, sahip) {
+      const v = (await command(["HGET", ogretmenPuanKey(id), sahip])) as string | null;
+      return v === null || v === undefined ? null : Number(v);
+    },
+    async ogretmenPuanOzeti(id) {
+      const [t, s] = ((await command(["MGET", ogretmenToplamKey(id), ogretmenSayiKey(id)])) as (string | null)[] | null) ?? [];
+      return { toplam: Number(t ?? 0), sayi: Number(s ?? 0) };
     },
     async puanEkle(id, puan) {
       // Canlı sayaçlar ve kova anlık görüntüsü tek betikte (yarım yazılmış ortalama olmaz).

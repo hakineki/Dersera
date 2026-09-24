@@ -17,9 +17,12 @@ export interface ToplulukOzeti {
   deneyim: GameDefinition["meta"]["deneyim"];
   yayin_tarihi: number;
   oynanma_sayisi: number;
-  // Puanlama sonraki turda; alanlar şimdiden sözleşmede.
+  // Öğrenci puanı (kovalı anlık görüntü).
   puan_ortalama: number | null;
   puan_sayisi: number;
+  // Oyunu sınıfında oynatan öğretmenlerin puanı (en az ogretmenPuaniGosterim öğretmen puanlayınca görünür).
+  ogretmen_puan_ortalama: number | null;
+  ogretmen_puan_sayisi: number;
   aktif: boolean;
 }
 
@@ -34,7 +37,13 @@ export const TOPLULUK_KURALLARI = {
   redEsigi: 2,
   notEnAz: 10,
   notEnCok: 300,
+  // Öğretmen puanı: yalnız oyunu kendi sınıfında oynatan (yayınladığı kodlarda en az bu kadar öğrenci bitiren) öğretmen.
+  ogretmenPuaniEnAzOgrenci: 5,
+  ogretmenPuaniGosterim: 3,
 } as const;
+
+export const ogretmenOrtalamasi = (toplam: number, sayi: number): number | null =>
+  sayi >= TOPLULUK_KURALLARI.ogretmenPuaniGosterim ? Math.round((toplam / sayi) * 10) / 10 : null;
 
 // "inceleme": kuyrukta; "yayinda": listede; "reddedildi": iki ret; "geri-cekildi": sahibi kaldırdı.
 export type ToplulukDurumu = "inceleme" | "yayinda" | "reddedildi" | "geri-cekildi";
@@ -48,7 +57,7 @@ export interface Inceleme {
 }
 
 // Depodaki tam kayıt. Gizli alanlar (olusturan, kaynak, onceki_id) herkese açık yanıtlara girmez.
-export interface ToplulukKaydi extends Omit<ToplulukOzeti, "oynanma_sayisi"> {
+export interface ToplulukKaydi extends Omit<ToplulukOzeti, "oynanma_sayisi" | "ogretmen_puan_ortalama" | "ogretmen_puan_sayisi"> {
   olusturan: string;
   definition: GameDefinition;
   dersler: DersKonu[];
