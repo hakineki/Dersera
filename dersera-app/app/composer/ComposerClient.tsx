@@ -20,6 +20,10 @@ import { SERBEST_NOT_MAX } from "@/lib/composer/limits";
 import { olusturmaMaliyeti, type KrediDurumu } from "@/lib/kredi";
 import { krediDurumuGetir, krediMetni } from "@/lib/krediClient";
 
+// Oluşturma formu üç bölüm (docs/URUN-BAGLAMI.md §4): tek sayfa, belge benzeri.
+const BOLUM = "bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 space-y-5";
+const BOLUM_BASLIK = "text-base font-bold text-indigo-900";
+
 const CLIENT_TIMEOUT_MS = 285_000; // sunucu en geç maxDuration'da (280 sn) kesilir; istemci ondan sonra vazgeçer
 // Yükleme adımları (docs/URUN-BAGLAMI.md §11) ve yaklaşık başlama saniyeleri; üretim 1,5–3 dakika sürer.
 const MESAJLAR = [
@@ -399,97 +403,134 @@ export default function ComposerClient({
           >
             <div>
               <h1 className="text-xl font-bold text-gray-900">Oyununuzu tanımlayın</h1>
-              <p className="text-sm text-gray-500">Altı seçim yeterli; gerisini Dersera tasarlar.</p>
+              <p className="text-sm text-gray-500">Üç adımda seçin; gerisini Dersera tasarlar.</p>
             </div>
-            <Secim etiket="1. Sınıf" secenekler={siniflar.map((s) => ({ key: s, ad: `${s}. sınıf` }))} deger={sinif} onChange={sinifSec} />
-            <fieldset>
-              <legend className="text-sm font-semibold text-gray-700 mb-1">2. Ders</legend>
-              <p className="text-xs text-gray-400 mb-2">Birden çok ders seçebilirsiniz; oyun dersleri tek bir hikâyede birleştirir.</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {dersler.map((d) => {
-                  const secildi = secili.some((k) => k.ders === d.key);
-                  return (
-                    <button
-                      key={d.key}
-                      type="button"
-                      aria-pressed={secildi}
-                      disabled={!konular[`${sinif}:${d.key}`]?.length}
-                      onClick={() => dersDegistir(d.key)}
-                      className={`text-left rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors disabled:opacity-40 ${
-                        secildi ? "border-indigo-600 bg-indigo-50 text-indigo-900 ring-1 ring-indigo-600" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
-                      }`}
+            <section aria-labelledby="bolum-1" className={BOLUM}>
+              <h2 id="bolum-1" className={BOLUM_BASLIK}>
+                1. Ders ve Konuyu Seç
+              </h2>
+              <Secim etiket="Sınıf" secenekler={siniflar.map((s) => ({ key: s, ad: `${s}. sınıf` }))} deger={sinif} onChange={sinifSec} />
+              <fieldset>
+                <legend className="text-sm font-semibold text-gray-700 mb-1">Ders</legend>
+                <p className="text-xs text-gray-400 mb-2">Birden çok ders seçebilirsiniz; oyun dersleri tek bir hikâyede birleştirir.</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {dersler.map((d) => {
+                    const secildi = secili.some((k) => k.ders === d.key);
+                    return (
+                      <button
+                        key={d.key}
+                        type="button"
+                        aria-pressed={secildi}
+                        disabled={!konular[`${sinif}:${d.key}`]?.length}
+                        onClick={() => dersDegistir(d.key)}
+                        className={`text-left rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors disabled:opacity-40 ${
+                          secildi ? "border-indigo-600 bg-indigo-50 text-indigo-900 ring-1 ring-indigo-600" : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                        }`}
+                      >
+                        {secildi && <span aria-hidden="true">✓ </span>}
+                        {d.ad}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+              <fieldset className="space-y-3">
+                <legend className="text-sm font-semibold text-gray-700 mb-2">Konu</legend>
+                {secili.length === 0 && <p className="text-xs text-gray-400">Önce en az bir ders seçin.</p>}
+                {secili.map((k) => (
+                  <label key={k.ders} className="block">
+                    {secili.length > 1 && <span className="block text-xs font-semibold text-gray-500 mb-1">{dersAdi(k.ders)}</span>}
+                    <select
+                      aria-label={`${dersAdi(k.ders)} konusu`}
+                      value={k.konuId}
+                      onChange={(e) => konuSec(k.ders, e.target.value)}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white"
                     >
-                      {secildi && <span aria-hidden="true">✓ </span>}
-                      {d.ad}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-            <fieldset className="space-y-3">
-              <legend className="text-sm font-semibold text-gray-700 mb-2">3. Konu</legend>
-              {secili.length === 0 && <p className="text-xs text-gray-400">Önce en az bir ders seçin.</p>}
-              {secili.map((k) => (
-                <label key={k.ders} className="block">
-                  {secili.length > 1 && <span className="block text-xs font-semibold text-gray-500 mb-1">{dersAdi(k.ders)}</span>}
-                  <select
-                    aria-label={`${dersAdi(k.ders)} konusu`}
-                    value={k.konuId}
-                    onChange={(e) => konuSec(k.ders, e.target.value)}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white"
-                  >
-                    {(konular[`${sinif}:${k.ders}`] ?? []).map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.ad}
-                      </option>
-                    ))}
-                  </select>
+                      {(konular[`${sinif}:${k.ders}`] ?? []).map((u) => (
+                        <option key={u.id} value={u.id}>
+                          {u.ad}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </fieldset>
+            </section>
+            <section aria-labelledby="bolum-2" className={BOLUM}>
+              <h2 id="bolum-2" className={BOLUM_BASLIK}>
+                2. Oyunun Tarzını Seç
+              </h2>
+              <Secim etiket="Süre" secenekler={[20, 40, 60].map((s) => ({ key: s as 20 | 40 | 60, ad: `${s} dk` }))} deger={sure} onChange={setSure} />
+              {cokDers && (
+                <p role="alert" className="text-sm text-red-600 -mt-3">
+                  {sure} dakikalık oyunda en fazla {enFazlaDers} ders seçilebilir. Ders sayısını azaltın ya da süreyi uzatın.
+                </p>
+              )}
+              <Secim etiket="Deneyim biçimi" secenekler={[...DENEYIM_SECENEKLERI]} deger={deneyim} onChange={setDeneyim} />
+              <Secim etiket="Oyun alanı" secenekler={[...ALAN_SECENEKLERI]} deger={alan} onChange={setAlan} />
+              <div>
+                <label htmlFor="on-not" className="text-sm font-semibold text-gray-700 mb-2 block">
+                  Ön Not <span className="font-normal text-gray-500">(isteğe bağlı)</span>
                 </label>
-              ))}
-            </fieldset>
-            <Secim etiket="4. Süre" secenekler={[20, 40, 60].map((s) => ({ key: s as 20 | 40 | 60, ad: `${s} dk` }))} deger={sure} onChange={setSure} />
-            {cokDers && (
-              <p role="alert" className="text-sm text-red-600 -mt-3">
-                {sure} dakikalık oyunda en fazla {enFazlaDers} ders seçilebilir. Ders sayısını azaltın ya da süreyi uzatın.
+                <textarea
+                  id="on-not"
+                  value={onNot}
+                  onChange={(e) => setOnNot(e.target.value.slice(0, SERBEST_NOT_MAX))}
+                  maxLength={SERBEST_NOT_MAX}
+                  rows={3}
+                  aria-describedby="on-not-aciklama"
+                  placeholder="Örn: Okul laboratuvarında bir kaza olsun, öğrenciler QR ile kanıt toplasın..."
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-xs text-gray-500 mt-1 flex justify-between gap-3">
+                  <span id="on-not-aciklama">Kafandaki mekân, sahne, karakter ya da kurgu fikrini yaz; oyun bu çerçevede kurulur.</span>
+                  {/* Sayaç ekran okuyucuya yalnız sınıra yaklaşınca okunur; her tuşta okunması gürültü olur. */}
+                  <span aria-live={onNot.length >= SERBEST_NOT_MAX - 50 ? "polite" : "off"} className="shrink-0">
+                    {onNot.length}/{SERBEST_NOT_MAX}
+                  </span>
+                </p>
+              </div>
+            </section>
+            <section aria-labelledby="bolum-3" className={BOLUM}>
+              <h2 id="bolum-3" className={BOLUM_BASLIK}>
+                3. Kontrol Et ve Oluştur
+              </h2>
+              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                <dt className="text-gray-500">Sınıf</dt>
+                <dd className="text-gray-900">{sinif}. sınıf</dd>
+                <dt className="text-gray-500">Ders ve konu</dt>
+                <dd className="text-gray-900">
+                  {secili.length === 0
+                    ? "—"
+                    : secili.map((k) => `${dersAdi(k.ders)}: ${(konular[`${sinif}:${k.ders}`] ?? []).find((u) => u.id === k.konuId)?.ad ?? "—"}`).join(" · ")}
+                </dd>
+                <dt className="text-gray-500">Tarz</dt>
+                <dd className="text-gray-900">
+                  {sure} dk · {DENEYIM_SECENEKLERI.find((d) => d.key === deneyim)?.ad} · {ALAN_SECENEKLERI.find((a) => a.key === alan)?.ad}
+                  {onNot.trim() && " · Ön not var"}
+                </dd>
+                <dt className="text-gray-500">Kredi</dt>
+                <dd className={kredi && kredi.toplam < olusturmaMaliyeti(sure) ? "text-red-700" : "text-gray-900"}>
+                  <span role="status">
+                    Bu oyun <strong>{olusturmaMaliyeti(sure)} kredi</strong>
+                    {kredi && <> · Bakiyen: {krediMetni(kredi)}</>}
+                    {kredi && kredi.toplam < olusturmaMaliyeti(sure) && ". Bakiyen yetmiyor; aylık hakkın ay başında yenilenir."}
+                  </span>
+                </dd>
+              </dl>
+              <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-xl p-3">
+                <span aria-hidden="true">🛡 </span>
+                Oluşturulan oyun otomatik olarak denetlenir: müfredat uyumu, oyun mantığı, öğrenme kalitesi ve çocuk güvenliği. Sonucu önizlemede görür,
+                gerekirse düzenlersin; engelleyen içerik yayınlanamaz. Oyun oluşturulamazsa kredin iade edilir.
               </p>
-            )}
-            <Secim etiket="5. Deneyim biçimi" secenekler={[...DENEYIM_SECENEKLERI]} deger={deneyim} onChange={setDeneyim} />
-            <Secim etiket="6. Oyun alanı" secenekler={[...ALAN_SECENEKLERI]} deger={alan} onChange={setAlan} />
-            <div>
-              <label htmlFor="on-not" className="text-sm font-semibold text-gray-700 mb-2 block">
-                7. Ön Not <span className="font-normal text-gray-500">(isteğe bağlı)</span>
-              </label>
-              <textarea
-                id="on-not"
-                value={onNot}
-                onChange={(e) => setOnNot(e.target.value.slice(0, SERBEST_NOT_MAX))}
-                maxLength={SERBEST_NOT_MAX}
-                rows={3}
-                aria-describedby="on-not-aciklama"
-                placeholder="Örn: Okul laboratuvarında bir kaza olsun, öğrenciler QR ile kanıt toplasın..."
-                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-              <p className="text-xs text-gray-500 mt-1 flex justify-between gap-3">
-                <span id="on-not-aciklama">Kafandaki mekân, sahne, karakter ya da kurgu fikrini yaz; oyun bu çerçevede kurulur.</span>
-                {/* Sayaç ekran okuyucuya yalnız sınıra yaklaşınca okunur; her tuşta okunması gürültü olur. */}
-                <span aria-live={onNot.length >= SERBEST_NOT_MAX - 50 ? "polite" : "off"} className="shrink-0">
-                  {onNot.length}/{SERBEST_NOT_MAX}
-                </span>
-              </p>
-            </div>
-            {kredi && (
-              <p className={`text-sm ${kredi.toplam < olusturmaMaliyeti(sure) ? "text-red-700" : "text-gray-700"}`} role="status">
-                Bu oyun <strong>{olusturmaMaliyeti(sure)} kredi</strong> · Bakiyen: {krediMetni(kredi)}
-                {kredi.toplam < olusturmaMaliyeti(sure) && ". Bakiyen yetmiyor; aylık hakkın ay başında yenilenir."}
-              </p>
-            )}
-            <button
-              type="submit"
-              disabled={!hazir || ogretmen !== true || (!!kredi && kredi.toplam < olusturmaMaliyeti(sure))}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold py-3.5 rounded-xl text-base"
-            >
-              Oyunu Oluştur
-            </button>
+              <button
+                type="submit"
+                disabled={!hazir || ogretmen !== true || (!!kredi && kredi.toplam < olusturmaMaliyeti(sure))}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold py-3.5 rounded-xl text-base"
+              >
+                Oyunu Oluştur
+              </button>
+            </section>
           </form>
         )}
 
