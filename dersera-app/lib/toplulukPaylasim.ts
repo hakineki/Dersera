@@ -136,6 +136,7 @@ export async function topluluktaPaylas(
   }
 
   // Tüm denetimlerden sonra, kayıt açılmadan hemen önce: atomik sayaç (eşzamanlı iki gönderim sınırı delemez).
+  // Bilinen sınır: aynı içerik tam bu anda başkasınca eklenirse (aşağıdaki 409) o günün hakkı harcanmış olur.
   if (!(await checkLimit(`dersera:topluluk:gonderim:${sahip}`, GUN, K.gunlukGonderim))) {
     return { ok: false, status: 429, error: `Günde en fazla ${K.gunlukGonderim} oyun gönderebilirsin. Yarın tekrar dene.` };
   }

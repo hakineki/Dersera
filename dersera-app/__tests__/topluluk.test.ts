@@ -6,6 +6,8 @@ import type { GameDefinition } from "@/lib/composer/definition";
 import { createRedisToplulukStore, siraSkoru } from "@/lib/toplulukStore";
 import { EN_COK_TARAMA, listeSorgusu } from "@/lib/toplulukService";
 import { durumOf, type ToplulukKaydi } from "@/lib/topluluk";
+import { incelemeKuyrugu, toplulukDurumlari } from "@/lib/toplulukPaylasim";
+import type { Hesap } from "@/lib/authStore";
 
 const fizik = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const matematik = resolvedInput({ sinif: 11, ders: "matematik", sure: 60, deneyim: "macera", alan: "okul" });
@@ -360,6 +362,35 @@ describe("Redis topluluk deposu", () => {
     expect((await s.getMany([A, B])).map((k) => k?.oyun_id ?? null)).toEqual([A, null]);
     expect(r.calls.slice(once).map((c) => c[0])).toEqual(["MGET", "MGET"]);
     expect(await s.getMany([])).toEqual([]);
+  });
+
+  it("kütüphane listesi durumları toplu okunur: kayıt sayısından bağımsız MGET'ler, HVALS yalnız incelemedeki kayıt için", async () => {
+    const r = sahteRedis();
+    const s = createRedisToplulukStore(r.command);
+    await s.ekle({ ...kayit(A, 1000), olusturan: "hesap:x" }, "a");
+    await s.ekle({ ...kayit(B, 2000, false), olusturan: "hesap:x", durum: "inceleme", onceki_id: A }, "b");
+    await s.kaynakGuncelle("hesap:x:k1", A);
+    await s.kaynakGuncelle("hesap:x:k2", B);
+    const kaynaklar = ["hesap:x:k1", "hesap:x:k2", "hesap:x:k3", "hesap:x:k4", "hesap:x:k5"];
+    const once = r.calls.length;
+    const d = await toplulukDurumlari(s, kaynaklar);
+    expect(d.map((x) => x?.durum ?? null)).toEqual(["yayinda", "inceleme", null, null, null]);
+    expect(d[1]).toMatchObject({ oncekiYayinda: true });
+    expect(r.calls.slice(once).map((c) => c[0])).toEqual(["MGET", "MGET", "MGET", "HVALS"]);
+  });
+
+  it("inceleme kuyruğu: kayıtlar tek MGET, incelemeler aday başına bir HVALS (sıralı değil)", async () => {
+    const r = sahteRedis();
+    const s = createRedisToplulukStore(r.command);
+    for (const [id, t] of [[A, 1000], [B, 2000]] as const) {
+      await s.ekle({ ...kayit(id, t, false), olusturan: "hesap:x", durum: "inceleme" }, id);
+      await s.kuyrugaEkle(id, t);
+    }
+    const hesap: Hesap = { id: "y", kullaniciAdi: "y", sifreOzeti: "", surum: 1, olusturma: 0 };
+    const once = r.calls.length;
+    const k = await incelemeKuyrugu(s, hesap, 10 * 24 * 60 * 60 * 1000);
+    expect(k.oyunlar.map((o) => o.oyun_id)).toEqual([A, B]);
+    expect(r.calls.slice(once).map((c) => c[0])).toEqual(["ZRANGE", "MGET", "HVALS", "HVALS"]);
   });
 
   it("inceleme kuyruğu gönderim sırasıyla; inceleme hesap başına bir kez yazılır", async () => {
