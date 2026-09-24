@@ -9,6 +9,7 @@ import { getLibraryStore } from "@/lib/libraryStore";
 import { topluluguEkleGuvenli } from "@/lib/toplulukService";
 import { kodKaynagaBagla } from "@/lib/istatistikService";
 import type { DersKonu } from "@/lib/composer/input";
+import type { YonetisimSonucu } from "@/lib/composer/yonetisim";
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -20,13 +21,15 @@ export async function POST(req: Request) {
 
   let request: PublishRequest | null;
   let dersler: DersKonu[] | null = null;
+  let yonetisim: YonetisimSonucu | undefined;
   if (body && typeof body === "object" && "composer" in body) {
     const composed = parseComposerPublish(body);
     if (!composed.ok) {
-      return NextResponse.json({ error: composed.error, validation: composed.validation }, { status: composed.status });
+      return NextResponse.json({ error: composed.error, validation: composed.validation, yonetisim: composed.yonetisim }, { status: composed.status });
     }
     request = composed.request;
     dersler = composed.dersler;
+    yonetisim = composed.yonetisim;
   } else {
     request = parsePublishRequest(body);
   }
@@ -44,9 +47,10 @@ export async function POST(req: Request) {
       const sahip = await istekSahibi(req);
       const kaynak = await kutuphaneKaynagi(body, sahip);
       await kodKaynagaBagla(published.game.code, kaynak, published.game.expiresAt);
-      await topluluguEkleGuvenli(request.definition, dersler, sahip, published.game.code, published.game.expiresAt, { kaynak });
+      // Gözden geçirme gerektiren (REVIEW) oyun topluluğa otomatik gitmez.
+      if (yonetisim?.karar === "PASS") await topluluguEkleGuvenli(request.definition, dersler, sahip, published.game.code, published.game.expiresAt, { kaynak });
     }
-    return NextResponse.json({ ...published, persistent: store.persistent }, { status: 201 });
+    return NextResponse.json({ ...published, persistent: store.persistent, ...(yonetisim && { yonetisim }) }, { status: 201 });
   } catch (err) {
     console.error("[games] yayınlama hatası", err);
     return NextResponse.json({ error: "Oyun yayınlanamadı" }, { status: 503 });

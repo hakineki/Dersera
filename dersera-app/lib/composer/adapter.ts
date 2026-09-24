@@ -5,6 +5,7 @@ import { DersKonuSchema, type DersKonu } from "@/lib/composer/input";
 import { z } from "zod";
 import { revalidate } from "@/lib/composer/service";
 import type { ValidationResult } from "@/lib/composer/validator";
+import { yonetisimDegerlendir, type YonetisimSonucu } from "@/lib/composer/yonetisim";
 import { publishWindowMinutes, type GameStop, type PublishRequest } from "@/lib/games";
 
 // Game Definition → mevcut oyun kaydı. Kod üretimi, katılım, sonuçlar ve süre mevcut sistemden gelir.
@@ -28,8 +29,8 @@ export function definitionToStops(def: GameDefinition): GameStop[] {
 }
 
 export type ComposerPublishResult =
-  | { ok: true; request: PublishRequest; dersler: DersKonu[] }
-  | { ok: false; status: number; error: string; validation?: ValidationResult };
+  | { ok: true; request: PublishRequest; dersler: DersKonu[]; yonetisim: YonetisimSonucu }
+  | { ok: false; status: number; error: string; validation?: ValidationResult; yonetisim?: YonetisimSonucu };
 
 export const MAX_DEFINITION_BYTES = 64 * 1024;
 
@@ -57,12 +58,18 @@ export function parseComposerPublish(body: unknown): ComposerPublishResult {
   const r = parseComposerDefinition(composer?.definition, composer?.dersler);
   if (!r.ok) return r;
   const { definition, dersler, validation } = r;
+  // Yayın içerik yönetişimini atlayamaz: BLOCK yayını durdurur, REVIEW öğretmene gösterilir.
+  const yonetisim = yonetisimDegerlendir(definition, validation);
   if (!validation.gecerli) {
-    return { ok: false, status: 422, error: "Oyun doğrulamadan geçmedi; yayınlanamaz", validation };
+    return { ok: false, status: 422, error: "Oyun doğrulamadan geçmedi; yayınlanamaz", validation, yonetisim };
+  }
+  if (yonetisim.karar === "BLOCK") {
+    return { ok: false, status: 422, error: "Oyun içerik denetiminden geçmedi; yayınlanamaz", validation, yonetisim };
   }
   return {
     ok: true,
     dersler,
+    yonetisim,
     request: {
       durationMinutes: publishWindowMinutes(definition.meta.sure_dk),
       aylar: [],

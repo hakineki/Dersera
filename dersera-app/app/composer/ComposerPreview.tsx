@@ -3,8 +3,15 @@
 import type { OgrenmeCiktisi } from "@/data/mufredat/programlar";
 import type { GameDefinition } from "@/lib/composer/definition";
 import { summarize, type ValidationResult } from "@/lib/composer/validator";
+import { ekBulgular, rozetler, yonetisimDegerlendir, type Karar } from "@/lib/composer/yonetisim";
 import type { Duzenlenen } from "./DurakEditor";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI, GOREV_TUR_ADI } from "./labels";
+
+const ROZET_GORUNUMU: Record<Karar, { simge: string; metin: string; sinif: string }> = {
+  PASS: { simge: "✓", metin: "Uygun", sinif: "bg-green-50 border-green-200 text-green-800" },
+  REVIEW: { simge: "!", metin: "Gözden geçirin", sinif: "bg-amber-50 border-amber-200 text-amber-800" },
+  BLOCK: { simge: "✕", metin: "Engel", sinif: "bg-red-50 border-red-200 text-red-800" },
+};
 
 function Ozet({ etiket, deger }: { etiket: string; deger: string | number }) {
   return (
@@ -40,6 +47,13 @@ export default function ComposerPreview({
   const hedefMetni = (kod: string) => hedefler.find((h) => h.kod === kod)?.metin ?? "";
   const m = definition.meta;
   const durakAdi = (id: string) => definition.duraklar.find((d) => d.id === id)?.isim ?? id;
+  // Sunucu yayında aynı değerlendirmeyi yapar; burada düzenlemeyle birlikte canlı güncellenir.
+  const yonetisim = yonetisimDegerlendir(definition, validation);
+  const ekler = ekBulgular(yonetisim, validation);
+  const engeller = ekler.filter((b) => b.karar === "BLOCK");
+  const incelemeler = ekler.filter((b) => b.karar === "REVIEW");
+  const durakDurumu = (id: string): Karar =>
+    validation.hatalar.some((h) => h.durakId === id) || engeller.some((b) => b.durakId === id) ? "BLOCK" : incelemeler.some((b) => b.durakId === id) ? "REVIEW" : "PASS";
 
   return (
     <div className="space-y-5">
@@ -61,6 +75,48 @@ export default function ComposerPreview({
         <Ozet etiket="Deneyim" deger={DENEYIM_SECENEKLERI.find((d) => d.key === m.deneyim)!.ad} />
         <Ozet etiket="Oyun alanı" deger={ALAN_SECENEKLERI.find((a) => a.key === m.alan)!.ad} />
       </section>
+
+      <section aria-labelledby="icerik-denetimi">
+        <h2 id="icerik-denetimi" className="font-semibold text-gray-800 text-sm mb-2">
+          İçerik denetimi
+        </h2>
+        <ul className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {rozetler(yonetisim).map((r) => {
+            const g = ROZET_GORUNUMU[r.karar];
+            return (
+              <li key={r.ad} className={`border rounded-xl px-3 py-2 ${g.sinif}`}>
+                <p className="text-[11px] opacity-80">{r.ad}</p>
+                <p className="font-bold text-sm">
+                  <span aria-hidden="true">{g.simge} </span>
+                  {g.metin}
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
+
+      {engeller.length > 0 && (
+        <div role="alert" className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <p className="font-semibold text-red-800 text-sm mb-2">Bu oyun içerik denetiminden geçmedi; yayınlanamaz:</p>
+          <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+            {engeller.map((b, i) => (
+              <li key={i}>{b.mesaj}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {incelemeler.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <p className="font-semibold text-amber-900 text-sm mb-2">Yayınlamadan önce gözden geçirin:</p>
+          <ul className="list-disc list-inside text-sm text-amber-800 space-y-1">
+            {incelemeler.map((b, i) => (
+              <li key={i}>{b.mesaj}</li>
+            ))}
+          </ul>
+          <p className="text-xs text-amber-700 mt-2">Sınıfınızda yayınlayabilirsiniz; gözden geçirme gerektiren oyunlar topluluğa otomatik eklenmez.</p>
+        </div>
+      )}
 
       {!validation.gecerli && (
         <div role="alert" className="bg-red-50 border border-red-200 rounded-xl p-4">
@@ -84,12 +140,12 @@ export default function ComposerPreview({
       <section aria-label="Duraklar" className="space-y-2">
         <h2 className="font-semibold text-gray-800">Duraklar</h2>
         {definition.duraklar.map((d, i) => {
-          const hatali = validation.hatalar.some((h) => h.durakId === d.id);
+          const durum = durakDurumu(d.id);
           return (
             <button
               key={d.id}
               onClick={() => onEdit({ tur: "durak", durak: d })}
-              className={`w-full text-left bg-white border rounded-xl p-4 hover:border-indigo-300 transition-colors ${hatali ? "border-red-300" : "border-gray-200"}`}
+              className={`w-full text-left bg-white border rounded-xl p-4 hover:border-indigo-300 transition-colors ${durum === "BLOCK" ? "border-red-300" : durum === "REVIEW" ? "border-amber-300" : "border-gray-200"}`}
             >
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="text-xs text-gray-400">{i + 1}.</span>
@@ -156,7 +212,7 @@ export default function ComposerPreview({
         </button>
         <button
           onClick={onPublish}
-          disabled={!validation.gecerli || publishing}
+          disabled={yonetisim.karar === "BLOCK" || publishing}
           className="flex-[2] bg-green-600 hover:bg-green-700 disabled:bg-green-300 text-white font-bold py-3 rounded-xl"
         >
           {publishing ? "Yayınlanıyor…" : "🚀 Yayınla"}
