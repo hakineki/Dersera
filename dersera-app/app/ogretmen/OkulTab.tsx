@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { davetYenile, okulaKatil, okulBilgisi, okuldanAyril, okulOlustur, okulPanosu, okulPaylasimKaldir, okulPaylasimlari, uyeCikar } from "@/lib/okulClient";
 import type { OkulumYaniti, PanoOgretmeni, PaylasimListesiOgesi } from "@/lib/okulService";
@@ -221,6 +221,8 @@ export default function OkulTab() {
   const [hata, setHata] = useState("");
   const [kopyalandi, setKopyalandi] = useState(false);
   const [yenileniyor, setYenileniyor] = useState(false);
+  // Durum yeniden çizilmeden gelen ikinci tıklamayı da engeller (her yenileme eski kodu geçersiz kılar).
+  const yenilemeKilidi = useRef(false);
 
   const yukle = useCallback(async () => {
     const r = await okulBilgisi();
@@ -237,9 +239,11 @@ export default function OkulTab() {
   }, [yukle]);
 
   async function yenile() {
-    if (!window.confirm("Yeni davet kodu oluşturulsun mu? Eski kod artık çalışmaz.")) return;
+    if (yenilemeKilidi.current || !window.confirm("Yeni davet kodu oluşturulsun mu? Eski kod artık çalışmaz.")) return;
+    yenilemeKilidi.current = true;
     setYenileniyor(true);
     const r = await davetYenile();
+    yenilemeKilidi.current = false;
     setYenileniyor(false);
     if ("error" in r) setHata(r.error);
     else setBilgi((b) => (b?.okul ? { ...b, okul: { ...b.okul, davetKodu: r.davetKodu } } : b));
