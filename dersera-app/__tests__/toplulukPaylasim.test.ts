@@ -1,5 +1,5 @@
 import { clearRedisEnv } from "./helpers/fakeRedis";
-import { buildApi, hesapAc, jsonRequest, toplulugaKoy } from "./helpers/api";
+import { buildApi, hesapAc, jsonRequest, toplulugaKoy, toplulukListesi } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 import type { GameDefinition } from "@/lib/composer/definition";
@@ -80,7 +80,7 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
   const detay = (id: string, c: string) => api.incelemeOyun.GET(cerezli(new Request(`http://localhost/api/topluluk/inceleme/${id}`), c), api.idParams(id));
   const incele = (id: string, c: string, karar: string, not = "") =>
     api.incelemeOyun.POST(cerezli(jsonRequest(`/api/topluluk/inceleme/${id}`, { karar, not }), c), api.idParams(id));
-  const liste = async () => (await (await api.topluluk.GET(new Request("http://localhost/api/topluluk"))).json()).oyunlar as { baslik: string; oyun_id: string }[];
+  const liste = async () => (await (await toplulukListesi(api)).json()).oyunlar as { baslik: string; oyun_id: string }[];
   const kutuphane = async (c = sahip) => (await (await api.library.GET(cerezli(new Request("http://localhost/api/library"), c))).json()).oyunlar;
   const kartOf = async (id: string, c = sahip) => (await kutuphane(c)).find((o: { id: string }) => o.id === id);
   const bekleyenId = async (c: string) => (await kuyruk(c)).oyunlar[0]?.oyun_id as string;

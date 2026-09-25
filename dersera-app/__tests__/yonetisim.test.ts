@@ -1,5 +1,5 @@
 import { clearRedisEnv } from "./helpers/fakeRedis";
-import { buildApi, hesapAc, jsonRequest, samplePublish, toplulugaKoy } from "./helpers/api";
+import { buildApi, hesapAc, jsonRequest, samplePublish, toplulugaKoy, toplulukListesi } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 import { validationContext } from "@/lib/composer/context";
@@ -198,7 +198,7 @@ describe("yayın yönetişimi atlayamaz", () => {
   });
   const cerezli = (req: Request) => (req.headers.set("cookie", ogretmen), req);
   const yayinla = (definition: GameDefinition) => api.games.POST(cerezli(jsonRequest("/api/games", { composer: { definition, dersler } })));
-  const topluluk = async () => (await (await api.topluluk.GET(new Request("http://localhost/api/topluluk"))).json()).oyunlar as { baslik: string; oyun_id: string }[];
+  const topluluk = async () => (await (await toplulukListesi(api)).json()).oyunlar as { baslik: string; oyun_id: string }[];
 
   it("BLOCK: yayın 422, oyun kodu üretilmez, yanıtta gerekçeli yönetişim sonucu var", async () => {
     const res = await yayinla(oyun((d) => (d.duraklar[2].hikaye_metni = "Orospu çocuğu!")));
