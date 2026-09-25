@@ -65,6 +65,8 @@ export default function GameWrapper() {
   const [joining, setJoining] = useState(false);
   // Takma ad formu onConfirm'u beklemeden yeniden etkinleşir; çift dokunuş öğrencinin kendi adı için 409 üretmesin.
   const joiningRef = useRef(false);
+  // İçeriği yüklenemeyen son katılım denemesinin adı: yanıtı kaybolan katılım adı sunucuda ayırmış olabilir.
+  const yarimKalanAd = useRef<string | null>(null);
 
   const resolve = useCallback(
     (g: PublicGame) => {
@@ -173,24 +175,36 @@ export default function GameWrapper() {
     joiningRef.current = true;
     setJoining(true);
     const joined = await joinGameRequest(game.code, nick);
+    // Anahtar içerikten önce saklanır: içerik alınamazsa aynı adla yeniden denemede 409 gelir, ama bu cihazın saklı
+    // anahtarı sunucuda doğrulanınca içerik yine açılır (öğrenci kendi adından kilitlenmez).
+    if (joined.status === "joined") savePlayerToken(joined.playerToken);
+    const anahtar = joined.status === "joined" ? joined.playerToken : joined.status === "taken" ? loadPlayerToken() : null;
     // Composer oyununun soruları katılımdan sonra, oyuncu anahtarıyla alınır (kod bilen herkese gönderilmez).
-    const icerik =
-      game.icerikKilitli && joined.status === "joined" ? await fetchGame(game.code, 5000, { ad: nick, anahtar: joined.playerToken }) : null;
+    const icerik = game.icerikKilitli && anahtar ? await fetchGame(game.code, 5000, { ad: nick, anahtar }) : null;
+    const tanim = icerik?.status === "ok" && icerik.game.definition ? icerik.game : null;
     joiningRef.current = false;
     setJoining(false);
-    if (joined.status === "taken") {
-      setView({ kind: "nickname", notice: `“${nick}” bu oyunda başka bir öğrencide. Farklı bir takma ad seç.` });
+    if (icerik?.status === "ok" && !isGameActive(icerik.game)) {
+      setView({ kind: "code", notice: "Bu oyun sona erdi. Öğretmeninden yeni kodu iste." });
+      return;
+    }
+    if (joined.status === "taken" && !tanim) {
+      const notice =
+        yarimKalanAd.current === nick
+          ? `“${nick}” az önceki yarım kalan denemede alınmış olabilir. Farklı bir takma ad seç.`
+          : `“${nick}” bu oyunda başka bir öğrencide. Farklı bir takma ad seç.`;
+      setView({ kind: "nickname", notice });
       return;
     }
     if (game.icerikKilitli) {
-      if (!icerik || icerik.status !== "ok" || !icerik.game.definition) {
+      if (!tanim) {
+        yarimKalanAd.current = nick;
         setView({ kind: "nickname", notice: "Oyun yüklenemedi. Bağlantını kontrol edip tekrar dene." });
         return;
       }
-      setGame(icerik.game);
-      saveGameSnapshot(icerik.game);
+      setGame(tanim);
+      saveGameSnapshot(tanim);
     }
-    if (joined.status === "joined") savePlayerToken(joined.playerToken);
     const now = Date.now();
     saveNickname(nick);
     saveStartTime(now);

@@ -165,8 +165,11 @@ describe("okul: uç noktalar", () => {
     expect(JSON.stringify(l)).not.toMatch(/definition|kaynak|hesap:/);
     const d = await detay(pId, yonetici);
     expect(d.status).toBe(200);
-    expect((await d.json()).oyun.definition.meta.baslik).toBe("Kuvvet Avı");
-    // Tam içeriğin açılması kopya kaydına geçer (sızan içeriğin kaynağı bulunabilsin).
+    const govde = await d.json();
+    expect(govde.oyun.definition.meta.baslik).toBe("Kuvvet Avı");
+    expect(govde).not.toHaveProperty("kendiPaylasimi");
+    // Başkasının paylaştığı oyunun tam içeriğinin açılması kopya kaydına geçer; paylaşanın kendi açışı geçmez.
+    expect((await detay(pId, ogretmen)).status).toBe(200);
     expect(await api.denetimKaydi.getDenetimKaydiStore().kopyalar(5)).toEqual([expect.objectContaining({ kullaniciAdi: "yonetici1", tur: "okul", oyunId: pId, baslik: "Kuvvet Avı" })]);
 
     // Başka okul: aynı kimlikle bile göremez.

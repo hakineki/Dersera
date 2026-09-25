@@ -10,9 +10,11 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   return okulIslemi(req, async (hesap, d) => {
     if (!UUID.test(id)) return { ok: false as const, status: 404, error: "Oyun bulunamadı." };
     const r = await okulPaylasimDetayi(d, hesap, id);
-    // Tam içeriğin açılması kayda geçer (sızan içeriğin kaynağı bulunabilsin).
-    if (r.ok) await kopyaKaydet({ tarih: Date.now(), hesapId: hesap.id, kullaniciAdi: hesap.kullaniciAdi, tur: "okul", oyunId: id, baslik: r.oyun.baslik });
-    return r;
+    if (!r.ok) return r;
+    // Başkasının paylaştığı oyunun tam içeriğinin açılması kayda geçer (sızan içeriğin kaynağı bulunabilsin).
+    const { kendiPaylasimi, ...cevap } = r;
+    if (!kendiPaylasimi) await kopyaKaydet({ tarih: Date.now(), hesapId: hesap.id, kullaniciAdi: hesap.kullaniciAdi, tur: "okul", oyunId: id, baslik: r.oyun.baslik });
+    return cevap;
   });
 }
 

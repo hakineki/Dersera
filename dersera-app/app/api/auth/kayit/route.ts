@@ -15,7 +15,14 @@ export async function POST(req: Request) {
     const store = getAuthStore();
     const r = await kayitOl(store, b.kullaniciAdi, b.sifre, b.davetKodu);
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
-    await getDenetimKaydiStore().kosulOnayiYaz(r.value.id, { surum: KOSUL_SURUMU, tarih: Date.now() });
+    // Onay bu istekte verildi; hesap açıldıktan sonra kayıt yazılamazsa bir kez daha denenir, yine olmazsa loglanır.
+    // Hesap artık var: burada hata dönmek, öğretmenin açılmış hesabını "başarısız" gösterip adını kilitlerdi.
+    const onay = { surum: KOSUL_SURUMU, tarih: Date.now() };
+    const denetim = getDenetimKaydiStore();
+    await denetim
+      .kosulOnayiYaz(r.value.id, onay)
+      .catch(() => denetim.kosulOnayiYaz(r.value.id, onay))
+      .catch((err) => console.error("[auth] koşul onayı yazılamadı", r.value.id, onay, err instanceof Error ? err.message : err));
     // Bu tarayıcıda açık önceki oturum kapatılır.
     await oturumKapat(store, oturumBelirteci(req));
     return oturumCereziYaz(NextResponse.json({ hesap: hesapOzeti(r.value) }, { status: 201 }), await oturumAc(store, r.value));

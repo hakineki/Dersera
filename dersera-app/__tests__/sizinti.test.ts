@@ -110,6 +110,23 @@ describe("öğretmen tarafı: koşul onayı, topluluk açma sınırı, kopya kay
     expect(await api.denetimKaydi.getDenetimKaydiStore().kosulOnayi(id)).toMatchObject({ surum: KOSUL_SURUMU });
   });
 
+  it("hesap açıldıktan sonra onay kaydı yazılamazsa bir kez yeniden denenir; yine olmazsa hesap başarısız gösterilmez", async () => {
+    const depo = api.denetimKaydi.getDenetimKaydiStore();
+    const yaz = depo.kosulOnayiYaz.bind(depo);
+    const hata = jest.spyOn(console, "error").mockImplementation(() => {});
+    const bozuk = jest.spyOn(depo, "kosulOnayiYaz").mockRejectedValueOnce(new Error("anlık")).mockImplementation(yaz);
+    const kaydol = (ad: string) => api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi: ad, sifre: "gizli-sifre-1", kosulOnayi: true }));
+    expect((await kaydol("ogretmen7")).status).toBe(201);
+    expect(await depo.kosulOnayi((await api.authStore.getAuthStore().idByAd("ogretmen7"))!)).toMatchObject({ surum: KOSUL_SURUMU });
+
+    bozuk.mockRejectedValue(new Error("kesinti"));
+    const r = await kaydol("ogretmen8");
+    expect(r.status).toBe(201);
+    expect(r.headers.get("set-cookie")).toBeTruthy();
+    expect(hata).toHaveBeenCalledWith("[auth] koşul onayı yazılamadı", expect.any(String), expect.objectContaining({ surum: KOSUL_SURUMU }), "kesinti");
+    jest.restoreAllMocks();
+  });
+
   it(`başkasının topluluk oyunu günde en çok ${GUNLUK_ACMA} kez açılır ve her açılış kayda geçer; kendi oyunu sayılmaz`, async () => {
     const c = await hesapAc(api, "ogretmen1");
     const benimId = (await api.authStore.getAuthStore().idByAd("ogretmen1"))!;
