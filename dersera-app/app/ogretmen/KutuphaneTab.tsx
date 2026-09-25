@@ -365,7 +365,7 @@ export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: Teac
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-gray-900">Oyun Kütüphanesi</h2>
-          <p className="text-sm text-gray-500">Composer&apos;da “Kütüphaneye kaydet” dediğin oyunlar burada saklanır; düzenleyip yeniden yayınlayabilirsin. Tekrar yayınlamak yeni oyun kodu üretir.</p>
+          <p className="text-sm text-gray-500">Composer&apos;da “Kütüphaneye kaydet” dediğin oyunlar burada saklanır; düzenleyip yeniden yayınlayabilirsin. Tekrar yayınlamak yeni oyun kodu üretir; kredi harcanmaz.</p>
         </div>
         <Link href="/composer" className="shrink-0 text-sm bg-indigo-600 text-white font-semibold px-3 py-2 rounded-lg">
           + Yeni Oyun
