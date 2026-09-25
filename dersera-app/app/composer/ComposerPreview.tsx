@@ -76,6 +76,7 @@ export default function ComposerPreview({
   onEdit,
   onPublish,
   onNew,
+  onDemo,
   publishing,
   publishError,
   kutuphane,
@@ -90,6 +91,8 @@ export default function ComposerPreview({
   onEdit: (item: Duzenlenen) => void;
   onPublish: () => void;
   onNew: () => void;
+  // Öğrenci gözüyle demo (sonuç kaydedilmez).
+  onDemo: () => void;
   publishing: boolean;
   publishError: string;
   kutuphane: { durum: "kayitsiz" | "degisti" | "kaydedildi" | "kaydediliyor"; hata: string; bilgi?: string; onSave: () => void };
@@ -262,6 +265,17 @@ export default function ComposerPreview({
           {kutuphane.hata}
         </p>
       )}
+
+      <button
+        onClick={onDemo}
+        disabled={!validation.gecerli}
+        className="w-full border-2 border-dashed border-indigo-300 text-indigo-700 font-semibold py-3 rounded-xl hover:bg-indigo-50 disabled:opacity-50"
+      >
+        👁 Öğrenci gözüyle dene
+        <span className="block text-xs font-normal text-gray-500">
+          {validation.gecerli ? "Oyunu öğrencinin göreceği ekranla oyna; sonuç kaydedilmez. Bitince buraya dönersin." : "Önce hataları düzelt; demo geçerli oyunla açılır."}
+        </span>
+      </button>
 
       <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur py-3 flex gap-2">
         <button onClick={() => onEdit({ tur: "durak", durak: definition.duraklar[0] })} className="flex-1 border border-indigo-300 text-indigo-700 font-semibold py-3 rounded-xl">

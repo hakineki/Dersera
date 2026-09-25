@@ -16,6 +16,7 @@ import { kutuphaneOyunu, kutuphaneyeKaydet, toplulukOyunu } from "@/lib/libraryC
 import { okulOyunu } from "@/lib/okulClient";
 import type { PublishResponse } from "@/lib/gamesClient";
 import ComposerPreview, { type GorselIlerleme } from "./ComposerPreview";
+import OgrenciDemo from "@/app/game/composer/OgrenciDemo";
 import { gorselleriBirlestir } from "@/lib/gorsel";
 import { gorselDurumuGetir, gorselTetikle, type GorselDurumuYaniti } from "@/lib/gorselClient";
 import DurakEditor, { type Duzenlenen } from "./DurakEditor";
@@ -180,6 +181,8 @@ export default function ComposerClient({
   const [mesajNo, setMesajNo] = useState(0);
   const [sonuc, setSonuc] = useState<ComposeResponse | null>(null);
   const [duzenlenen, setDuzenlenen] = useState<Duzenlenen | null>(null);
+  // Öğrenci gözüyle demo açık mı (önizlemedeki güncel tanımla, tam ekran).
+  const [demo, setDemo] = useState(false);
   const [yayinlaniyor, setYayinlaniyor] = useState(false);
   const [yayinHatasi, setYayinHatasi] = useState("");
   // Kütüphane kaydı: id yoksa henüz kaydedilmedi; degisti, kayıttan sonra düzenlendi demektir.
@@ -712,6 +715,7 @@ export default function ComposerClient({
             guvenlik={sonuc.guvenlik && sonuc.guvenlikTanimi === sonuc.definition ? sonuc.guvenlik : { durum: "bekliyor" }}
             hedefler={sonuc.hedefler}
             onEdit={setDuzenlenen}
+            onDemo={() => setDemo(true)}
             onPublish={yayinla}
             onNew={() => {
               aktifGorselIsi.current = null;
@@ -737,6 +741,11 @@ export default function ComposerClient({
         )}
       </main>
       {duzenlenen && <DurakEditor value={duzenlenen} onSave={kaydet} onClose={() => setDuzenlenen(null)} />}
+      {demo && sonuc && (
+        <div role="dialog" aria-modal="true" aria-label="Öğrenci gözüyle demo" className="fixed inset-0 z-50 overflow-y-auto">
+          <OgrenciDemo def={sonuc.definition} onCik={() => setDemo(false)} />
+        </div>
+      )}
     </div>
   );
 }

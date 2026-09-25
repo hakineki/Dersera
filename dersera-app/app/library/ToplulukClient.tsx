@@ -90,6 +90,9 @@ function Kart({ oyun }: { oyun: ToplulukOzeti }) {
       <Link href={`/composer?topluluk=${oyun.oyun_id}`} aria-label={`${oyun.baslik} oyununu kullan`} className="mt-4 text-center text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3 py-2 rounded-lg">
         Oyunu Kullan
       </Link>
+      <Link href={`/demo?topluluk=${oyun.oyun_id}`} aria-label={`${oyun.baslik} oyununu öğrenci gözüyle dene`} className="mt-2 text-center text-sm border border-indigo-300 text-indigo-700 font-semibold px-3 py-2 rounded-lg">
+        👁 Öğrenci gözüyle dene
+      </Link>
     </li>
   );
 }

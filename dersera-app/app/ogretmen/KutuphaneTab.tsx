@@ -302,6 +302,9 @@ function OyunKarti({
         <button onClick={onizle} disabled={yukleniyor !== null} className="text-sm border border-gray-300 text-gray-700 font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50">
           {yukleniyor === "onizle" ? "Yükleniyor…" : onizleme ? "Önizlemeyi kapat" : "Önizle"}
         </button>
+        <Link href={`/demo?kutuphane=${oyun.id}`} title="Öğrenci gözüyle dene (sonuç kaydedilmez)" className="text-sm border border-gray-300 text-gray-700 font-semibold px-3 py-1.5 rounded-lg">
+          👁 Demo
+        </Link>
         <label className="text-sm text-gray-600 flex items-center gap-1">
           <span className="sr-only">Oyun süresi</span>
           <select value={sure} onChange={(e) => setSure(Number(e.target.value))} className="border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
