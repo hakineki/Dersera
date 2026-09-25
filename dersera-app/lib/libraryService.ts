@@ -157,7 +157,7 @@ export async function yenidenYayinla(
     if (composed.yonetisim && composed.definition) await moderasyonaEkle({ tur: "engellenen", yonetisim: composed.yonetisim, definition: composed.definition, sahip, now });
     return composed;
   }
-  const published = await publishGame(games, { ...composed.request, durationMinutes: sure ?? composed.request.durationMinutes }, now);
+  const published = await publishGame(games, { ...composed.request, durationMinutes: sure ?? composed.request.durationMinutes, sahip }, now);
   if (!published) return { ok: false, status: 503, error: "Benzersiz oyun kodu üretilemedi" };
   // Yayın sırasında gelen bir düzenleme ezilmesin: kaydın en güncel hâli okunup yalnız son kod/tarih yazılır.
   const guncel = (await library.get(sahip, id)) ?? kayit;

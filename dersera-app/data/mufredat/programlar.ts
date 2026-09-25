@@ -60,3 +60,27 @@ export function getKonuSecenekleri(): Record<string, KonuSecenegi[]> {
   }
   return out;
 }
+
+export interface KazanimBilgisi {
+  kod: string;
+  metin: string;
+  ders: ProgramDersi;
+  sinif: number;
+  uniteId: string;
+  uniteAd: string;
+}
+
+// Öğrenme çıktısı kodundan (ör. FİZ.10.1.1) program bilgisine: öğretmen öğrenme takibi ve pekiştirme oyunu için.
+// Composer oyunları yalnız programdaki kodları kullanır (doğrulayıcı), bu yüzden birebir eşleşme yeterlidir.
+let kazanimDizini: Map<string, KazanimBilgisi> | null = null;
+export function kazanimBul(kod: string): KazanimBilgisi | null {
+  if (!kazanimDizini) {
+    kazanimDizini = new Map();
+    for (const ders of PROGRAM_DERSLERI)
+      for (const sinif of SINIFLAR)
+        for (const u of getUniteler(sinif, ders))
+          for (const c of u.ogrenmeCiktilari)
+            if (!kazanimDizini.has(c.kod)) kazanimDizini.set(c.kod, { kod: c.kod, metin: c.metin, ders, sinif, uniteId: u.id, uniteAd: u.ad });
+  }
+  return kazanimDizini.get(kod) ?? null;
+}

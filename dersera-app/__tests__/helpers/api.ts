@@ -63,6 +63,8 @@ export async function buildApi() {
     okulKredi: typeof import("@/app/api/okul/kredi/route");
     yonetimHavuzu: typeof import("@/app/api/yonetim/okul-havuzu/route");
     krediService: typeof import("@/lib/krediService");
+    ogrenmeTakibi: typeof import("@/app/api/ogrenme-takibi/route");
+    ogrenmeTakibiStore: typeof import("@/lib/ogrenmeTakibiStore");
   };
   await jest.isolateModulesAsync(async () => {
     mods = {
@@ -123,6 +125,8 @@ export async function buildApi() {
       okulKredi: await import("@/app/api/okul/kredi/route"),
       yonetimHavuzu: await import("@/app/api/yonetim/okul-havuzu/route"),
       krediService: await import("@/lib/krediService"),
+      ogrenmeTakibi: await import("@/app/api/ogrenme-takibi/route"),
+      ogrenmeTakibiStore: await import("@/lib/ogrenmeTakibiStore"),
     };
   });
   return {

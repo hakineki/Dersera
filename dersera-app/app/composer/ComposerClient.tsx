@@ -208,6 +208,23 @@ export default function ComposerClient({
     return () => clearTimeout(t);
   }, []);
 
+  // /composer?sinif=<n>&ders=<anahtar>&konu=<ünite>&not=<metin>: form bu seçimlerle açılır (öğrenme takibinden pekiştirme
+  // oyunu). Programda olmayan seçim yok sayılır; öğretmen oluşturmadan önce her şeyi değiştirebilir.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const s = Number(params.get("sinif"));
+    const ders = params.get("ders") ?? "";
+    const konu = params.get("konu");
+    if (!konu || !siniflar.includes(s) || !konular[`${s}:${ders}`]?.some((u) => u.id === konu)) return;
+    const not = (params.get("not") ?? "").slice(0, SERBEST_NOT_MAX);
+    const t = setTimeout(() => {
+      setSinif(s);
+      setSecili([{ ders, konuId: konu }]);
+      if (not) setOnNot(not);
+    });
+    return () => clearTimeout(t);
+  }, [siniflar, konular]);
+
   // /composer?kutuphane=<id>: kütüphanedeki oyun aynı düzenleyiciyle açılır.
   // /composer?topluluk=<id>: topluluk oyunu kopya olarak açılır (kaydedilince öğretmenin kendi kütüphanesine girer).
   // /composer?okul=<id>: okul kütüphanesindeki oyun aynı biçimde kopya olarak açılır.

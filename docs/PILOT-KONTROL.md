@@ -31,7 +31,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
    DERSERA_REDIS_DUMAN=1 KV_REST_API_URL="<duman-db-url>" KV_REST_API_TOKEN="<duman-db-token>" npx jest __tests__/depoSozlesmesi.test.ts
    ```
 
-3. Beklenen: `bellek depoları` ve `redis depoları` altında 11'er test geçer. Test bitince yazdığı anahtarları siler.
+3. Beklenen: `bellek depoları` ve `redis depoları` altında 12'şer test geçer. Test bitince yazdığı anahtarları siler.
 
 ## 3. Uçtan uca akış (gizli sekmede, canlı adreste)
 
@@ -75,6 +75,8 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 34 | Yönetici: `/yonetim/ogrenme` (adım 3–33'teki oyunlardan sonra) | Bu ayın üretim, düzenleme, yapay zekâ güncellemesi ve öğrenci sonuçları görev türü ve ders kırılımında görünür; az örnekli oranlar "—". Sayfada öğretmen ya da öğrenci adı yok. Yönetici olmayan hesap 403 görür. |
 | 35 | Yönetici: aynı sayfada "Öneri iste" (bu ay en az 10 oyun ya da 30 öğrenci denemesi) | Yapay zekâ en çok 5 öneri yazar; her birinin gerekçesinde rapordaki bir sayı var, kural tek cümle. Eşik altında net uyarı. Hiçbir öneri onaylanmadan oyun üretimine girmez. |
 | 36 | Yönetici: bir öneriyi onayla, A yeni oyun oluştursun; sonra kuralı "Geri al" | Onaylı kural kapsamındaki (ders/sınıf) yeni oyunlarda uygulanır; geri alınınca sonraki oluşturmalarda yok. Kararı veren yönetici ve zaman kayıtlı. |
+| 37 | A: girişliyken Composer oyunu yayınla, 5+ öğrenci bitirsin; Öğretmen paneli → Öğrenme | Oyunun öğrenme çıktıları metni, dersi ve ünitesiyle görünür; oranlar 5 denemeden sonra; öğrenci adı yok. A'nın kendi deneme oynayışı ve B'nin oyunları A'nın raporunda yok. |
+| 38 | A: zorlanılan bir çıktıda "Pekiştirme oyunu oluştur" | Composer aynı sınıf, ders ve üniteyle, çıktıyı anlatan ön notla açılır; kredi yalnız "Oyunu Oluştur"da düşer. |
 
 ## 4. Dağıtım doğrulaması
 

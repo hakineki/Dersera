@@ -45,9 +45,10 @@ export function toPublicGame(game: StoredGame, icerik = true): PublicGame {
   return { code, stops, aylar, createdAt, expiresAt, endedAt, ...(definition ? (icerik ? { definition } : { icerikKilitli: true as const }) : {}) };
 }
 
+// sahip sunucuda oturumdan belirlenir; istemci gövdesinden okunmaz.
 export async function publishGame(
   store: GamesStore,
-  req: PublishRequest,
+  req: PublishRequest & { sahip?: string | null },
   now = Date.now(),
   nextCode: () => string = generateGameCode
 ): Promise<{ game: PublicGame; adminToken: string } | null> {
@@ -63,6 +64,7 @@ export async function publishGame(
       endedAt: null,
       adminTokenHash,
       ...(req.definition ? { definition: req.definition } : {}),
+      ...(req.sahip ? { sahip: req.sahip } : {}),
     };
     if (await store.create(game, now)) return { game: toPublicGame(game), adminToken };
   }

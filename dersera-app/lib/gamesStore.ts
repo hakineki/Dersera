@@ -4,6 +4,9 @@ import { redisFromEnv, type RedisCommand } from "@/lib/redis";
 
 export interface StoredGame extends PublicGame {
   adminTokenHash: string;
+  // Oturumla yayınlayan öğretmen ("hesap:<id>"): öğrenme takibi sonuçları onun sayaçlarına yazar. Herkese açık yanıta
+  // girmez (toPublicGame yalnız belirli alanları verir); oturumsuz yayında yoktur.
+  sahip?: string;
 }
 
 // Oyun kaydı süre dolduktan sonra bir gün daha tutulur: geç gelen sonuçlar ve öğretmen raporu için.
