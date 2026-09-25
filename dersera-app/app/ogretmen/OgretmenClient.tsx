@@ -26,7 +26,8 @@ import {
 const SIFRE_MIN_ISTEMCI = 8;
 // "Benim değil" seçimi bu tarayıcı oturumu boyunca hatırlanır.
 const ESKI_KUTUPHANE_RED = "dersera:eski-kutuphane-red";
-// Telefonda başlık düğmeleri logonun altındaki satırı paylaşır, sığmayan alta geçer; sm ve üstünde tek satır görünümü korunur.
+// Telefonda başlık düğmeleri logonun altındaki satırı paylaşır, sığmayan alta geçer. sm ve üstünde eski görünüm korunur;
+// başlık tek satıra sığmadığında (yönetici hesabında ~830px altı) düğmeler logonun altına iner.
 const BASLIK_DUGMESI =
   "flex-1 sm:flex-initial text-center text-xs sm:text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg transition-colors whitespace-nowrap";
 
