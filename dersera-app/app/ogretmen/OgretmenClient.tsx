@@ -15,6 +15,7 @@ import KutuphaneTab from "./KutuphaneTab";
 import OkulTab from "./OkulTab";
 import OgrenmeTakibiTab from "./OgrenmeTakibiTab";
 import OgretmenMenusu, { type MenuBaglantisi } from "./OgretmenMenusu";
+import Ikon, { type IkonAdi } from "@/components/Ikon";
 import { cikisYap, eskiYerelGirisiTemizle, girisYap, kayitOl, kullaniciAdiDegistir, oturumBilgisi, sifreDegistir, type HesapOzeti } from "@/lib/authClient";
 import { eskiKutuphaneSayisi, eskiKutuphaneyiTasi } from "@/lib/libraryClient";
 import {
@@ -26,18 +27,18 @@ import {
 const SIFRE_MIN_ISTEMCI = 8;
 // "Benim değil" seçimi bu tarayıcı oturumu boyunca hatırlanır.
 const ESKI_KUTUPHANE_RED = "dersera:eski-kutuphane-red";
-const BASLIK_DUGMESI = "text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap";
+const BASLIK_DUGMESI = "inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap";
 
 export type Tab = "oyun" | "kutuphane" | "takip" | "okul" | "siralama" | "ayarlar";
 
 // Masaüstünde hepsi üst sekme çubuğunda; telefonda "altta" olanlar ekranın altındaki sabit çubukta, diğerleri başlıktaki ⋮ menüsünde.
-const SEKMELER: { id: Tab; label: string; icon: string; altta: boolean }[] = [
-  { id: "oyun", label: "Oyun", icon: "🎮", altta: true },
-  { id: "kutuphane", label: "Kütüphane", icon: "📚", altta: true },
-  { id: "takip", label: "Öğrenme", icon: "📈", altta: false },
-  { id: "okul", label: "Okulum", icon: "🏫", altta: false },
-  { id: "siralama", label: "Sınıf", icon: "🏆", altta: true },
-  { id: "ayarlar", label: "Ayarlar", icon: "⚙️", altta: false },
+const SEKMELER: { id: Tab; label: string; icon: IkonAdi; altta: boolean }[] = [
+  { id: "oyun", label: "Oyun", icon: "oyun", altta: true },
+  { id: "kutuphane", label: "Kütüphane", icon: "kutuphane", altta: true },
+  { id: "takip", label: "Öğrenme", icon: "ogrenme", altta: false },
+  { id: "okul", label: "Okulum", icon: "okul", altta: false },
+  { id: "siralama", label: "Sınıf", icon: "sinif", altta: true },
+  { id: "ayarlar", label: "Ayarlar", icon: "ayarlar", altta: false },
 ];
 
 // ── Giriş / kayıt ekranı ─────────────────────────────────────────────────────
@@ -443,7 +444,7 @@ function Mesaj({ msg }: { msg: { type: "ok" | "err"; text: string } | null }) {
   );
 }
 
-function AyarlarTab({ hesap, onHesap, onLogout }: { hesap: HesapOzeti; onHesap: (h: HesapOzeti) => void; onLogout: () => void }) {
+function AyarlarTab({ hesap, onHesap, onCikis }: { hesap: HesapOzeti; onHesap: (h: HesapOzeti) => void; onCikis: () => void }) {
   const [yeniAd, setYeniAd] = useState("");
   const [adSifre, setAdSifre] = useState("");
   const [adMsg, setAdMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -600,10 +601,7 @@ function AyarlarTab({ hesap, onHesap, onLogout }: { hesap: HesapOzeti; onHesap: 
 
       <div className="pt-6 border-t border-gray-200">
         <button
-          onClick={async () => {
-            await cikisYap();
-            onLogout();
-          }}
+          onClick={onCikis}
           className="w-full border border-red-200 text-red-600 font-semibold py-2 rounded-lg text-sm hover:bg-red-50 transition-colors"
         >
           Çıkış Yap
@@ -756,9 +754,9 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   }
 
   const baglantilar: MenuBaglantisi[] = [
-    ...(yonetici && loggedIn ? [{ href: "/moderasyon", label: "Moderasyon", icon: "🛡" }] : []),
-    { href: "/library", label: "Topluluk", icon: "📚" },
-    { href: "/qr-kutuphane", label: "QR Kütüphanesi", icon: "▦" },
+    ...(yonetici && loggedIn ? [{ href: "/moderasyon", label: "Moderasyon", icon: "moderasyon" as const }] : []),
+    { href: "/library", label: "Topluluk", icon: "topluluk" },
+    { href: "/qr-kutuphane", label: "QR Kütüphanesi", icon: "qr" },
   ];
   // Telefonda ⋮ menüsünden açılan bölümü alt çubuk göstermez; adı içeriğin başında yazar.
   const menuSekmesi = SEKMELER.find((t) => t.id === activeTab && !t.altta);
@@ -766,6 +764,11 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   function telefondaSec(id: Tab) {
     setActiveTab(id);
     window.scrollTo({ top: 0 });
+  }
+  // Ayarlar sekmesi ve telefondaki ⋮ menüsü aynı çıkışı kullanır.
+  async function cikis() {
+    await cikisYap();
+    setHesap(null);
   }
 
   return (
@@ -782,7 +785,8 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
           <div className="hidden sm:flex items-center gap-4">
             {baglantilar.map((b) => (
               <Link key={b.href} href={b.href} className={BASLIK_DUGMESI}>
-                {`${b.icon} ${b.label}`}
+                <Ikon ad={b.icon} className="w-4 h-4" />
+                {b.label}
               </Link>
             ))}
             <Link href="/" className="text-indigo-300 hover:text-white text-sm transition-colors">
@@ -793,7 +797,8 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
             sekmeler={SEKMELER.filter((t) => !t.altta)}
             aktif={activeTab}
             onSekme={telefondaSec}
-            baglantilar={[...baglantilar, { href: "/", label: "Ana sayfa", icon: "←" }]}
+            baglantilar={[...baglantilar, { href: "/", label: "Ana sayfa", icon: "ana-sayfa" }]}
+            onCikis={cikis}
           />
         </div>
       </div>
@@ -812,7 +817,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
                   : "border-transparent text-gray-500 hover:text-gray-700"
               }`}
             >
-              <span>{t.icon}</span>
+              <Ikon ad={t.icon} />
               <span>{t.label}</span>
             </button>
           ))}
@@ -822,8 +827,11 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
       {/* İçerik — telefonda alt çubuğun altında kalmaması için alt boşluk */}
       <div className="max-w-4xl mx-auto px-4 pt-6 pb-24 sm:pb-6 print:px-0">
         {menuSekmesi && (
-          <h2 className="sm:hidden text-lg font-bold text-gray-900 mb-4">
-            {menuSekmesi.icon} {menuSekmesi.label}
+          <h2 className="sm:hidden flex items-center gap-2 text-lg font-bold text-gray-900 mb-4">
+            <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center">
+              <Ikon ad={menuSekmesi.icon} />
+            </span>
+            {menuSekmesi.label}
           </h2>
         )}
         {activeTab === "oyun" && (
@@ -894,7 +902,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
             </div>
           ))}
         {activeTab === "ayarlar" && (
-          <AyarlarTab hesap={hesap} onHesap={setHesap} onLogout={() => setHesap(null)} />
+          <AyarlarTab hesap={hesap} onHesap={setHesap} onCikis={cikis} />
         )}
       </div>
 
@@ -910,11 +918,18 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
               type="button"
               onClick={() => telefondaSec(t.id)}
               aria-current={activeTab === t.id ? "page" : undefined}
-              className={`flex flex-col items-center gap-1 pt-2 pb-2.5 text-xs font-medium border-t-2 transition-colors ${
-                activeTab === t.id ? "border-indigo-600 text-indigo-600" : "border-transparent text-gray-500"
+              className={`flex flex-col items-center gap-1 pt-2 pb-2.5 text-xs transition-colors ${
+                activeTab === t.id ? "font-semibold text-indigo-700" : "font-medium text-gray-500"
               }`}
             >
-              <span className="text-xl leading-none">{t.icon}</span>
+              {/* Seçili bölüm dolgulu mor hapla belli olur */}
+              <span
+                className={`w-14 h-8 rounded-full flex items-center justify-center transition-colors ${
+                  activeTab === t.id ? "bg-indigo-600 text-white" : ""
+                }`}
+              >
+                <Ikon ad={t.icon} />
+              </span>
               <span>{t.label}</span>
             </button>
           ))}
