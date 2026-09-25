@@ -1,4 +1,5 @@
 import { nicknameKey } from "@/lib/gameState";
+import type { DersKonu } from "@/lib/composer/input";
 import type { PublicGame } from "@/lib/games";
 import { redisFromEnv, type RedisCommand } from "@/lib/redis";
 
@@ -7,6 +8,8 @@ export interface StoredGame extends PublicGame {
   // Oturumla yayınlayan öğretmen ("hesap:<id>"): öğrenme takibi sonuçları onun sayaçlarına yazar. Herkese açık yanıta
   // girmez (toPublicGame yalnız belirli alanları verir); oturumsuz yayında yoktur.
   sahip?: string;
+  // Composer oyununun ders ve konuları: öğrenme takibi çıktının ünitesini buradan bulur (aynı kod başka ünitede de olur).
+  dersler?: DersKonu[];
 }
 
 // Oyun kaydı süre dolduktan sonra bir gün daha tutulur: geç gelen sonuçlar ve öğretmen raporu için.

@@ -70,17 +70,14 @@ export interface KazanimBilgisi {
   uniteAd: string;
 }
 
-// Öğrenme çıktısı kodundan (ör. FİZ.10.1.1) program bilgisine: öğretmen öğrenme takibi ve pekiştirme oyunu için.
-// Composer oyunları yalnız programdaki kodları kullanır (doğrulayıcı), bu yüzden birebir eşleşme yeterlidir.
-let kazanimDizini: Map<string, KazanimBilgisi> | null = null;
-export function kazanimBul(kod: string): KazanimBilgisi | null {
-  if (!kazanimDizini) {
-    kazanimDizini = new Map();
-    for (const ders of PROGRAM_DERSLERI)
-      for (const sinif of SINIFLAR)
-        for (const u of getUniteler(sinif, ders))
-          for (const c of u.ogrenmeCiktilari)
-            if (!kazanimDizini.has(c.kod)) kazanimDizini.set(c.kod, { kod: c.kod, metin: c.metin, ders, sinif, uniteId: u.id, uniteAd: u.ad });
+// Oyunun konularından (ders + ünite) çıktı koduna: öğretmen öğrenme takibi ve pekiştirme oyunu için. Kod tek başına
+// yetmez: aynı kod farklı sınıf ve ünitelerde farklı metinle tekrar eder (ör. Türk Dili ve Edebiyatı, Türkçe). Bir
+// sınıfta farklı derslerin kodları çakışmaz; oyun her derste tek ünite seçer, bu yüzden eşleşme tektir.
+export function kazanimBul(sinif: number, konular: { ders: string; konuId: string }[], kod: string): KazanimBilgisi | null {
+  for (const k of konular) {
+    const u = getUnite(sinif, k.ders, k.konuId);
+    const c = u?.ogrenmeCiktilari.find((o) => o.kod === kod);
+    if (u && c) return { kod, metin: c.metin, ders: k.ders as ProgramDersi, sinif, uniteId: u.id, uniteAd: u.ad };
   }
-  return kazanimDizini.get(kod) ?? null;
+  return null;
 }

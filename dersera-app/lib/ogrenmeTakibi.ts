@@ -17,24 +17,45 @@ export const TAKIP = {
   gidisatFarki: 0.1,
 } as const;
 
-// Öğrenci başına (oyun başına bir kez) sayılan alanlar: bitiren; çıktı (k) ve görev türü (t) için d = durak denemesi,
-// i = ilk denemede doğru, s = destek görevi açıldı. Final görevi sayılmaz (tek oyunluk raporla aynı).
-export function takipAlanlari(def: GameDefinition, durakYanlislari: Record<string, number>): string[] {
+// Çıktının programdaki yeri. Kod tek başına çıktıyı belirlemez (aynı kod farklı sınıf ve ünitelerde farklı metinle
+// tekrar eder): sayaç ve rapor satırı ders + sınıf + ünite + koddur.
+export interface KazanimYeri {
+  ders: string;
+  sinif: number;
+  uniteId: string;
+}
+// Oyunun konularından çıktının yeri (sunucu müfredattan bulur); bulunamazsa o durak çıktı sayacına yazılmaz.
+export type YerBulucu = (kod: string) => KazanimYeri | null;
+
+const ciktiOnEki = (y: KazanimYeri, kod: string) => alan("k", y.ders, y.sinif, y.uniteId, kod);
+
+// Öğrenci başına (oyun başına bir kez) sayılan alanlar: bitiren; çıktı (k|ders|sınıf|ünite|kod) ve görev türü (t|tür)
+// için d = durak denemesi, i = ilk denemede doğru, s = destek görevi açıldı. Final görevi sayılmaz (tek oyunluk raporla
+// aynı).
+export function takipAlanlari(def: GameDefinition, durakYanlislari: Record<string, number>, yerOf: YerBulucu): string[] {
   const out = ["bitiren"];
   for (const d of def.duraklar) {
     const y = durakYanlislari[d.id];
     if (typeof y !== "number" || !Number.isFinite(y) || y < 0) continue;
-    for (const [on, anahtar] of [["k", d.gorev.ogrenme_hedefi], ["t", d.gorev.tur]] as const) {
-      out.push(alan(on, anahtar, "d"));
-      if (y === 0) out.push(alan(on, anahtar, "i"));
-      if (y >= RAPOR_KURALLARI.destekYanlis) out.push(alan(on, anahtar, "s"));
+    const yer = yerOf(d.gorev.ogrenme_hedefi);
+    const onEkler = [alan("t", d.gorev.tur), ...(yer ? [ciktiOnEki(yer, d.gorev.ogrenme_hedefi)] : [])];
+    for (const on of onEkler) {
+      out.push(`${on}|d`);
+      if (y === 0) out.push(`${on}|i`);
+      if (y >= RAPOR_KURALLARI.destekYanlis) out.push(`${on}|s`);
     }
   }
   return out;
 }
 
 // Oyun başına bir kez (oyunun ilk sayılan öğrencisinde): oyun ve oyunun çalıştırdığı her çıktı.
-export const oyunAlanlari = (def: GameDefinition): string[] => ["oyun", ...new Set(def.duraklar.map((d) => alan("k", d.gorev.ogrenme_hedefi, "o")))];
+export function oyunAlanlari(def: GameDefinition, yerOf: YerBulucu): string[] {
+  const ciktilar = def.duraklar.flatMap((d) => {
+    const yer = yerOf(d.gorev.ogrenme_hedefi);
+    return yer ? [`${ciktiOnEki(yer, d.gorev.ogrenme_hedefi)}|o`] : [];
+  });
+  return ["oyun", ...new Set(ciktilar)];
+}
 
 export type Gidisat = "yukseliyor" | "dusuyor" | "sabit";
 
@@ -55,6 +76,8 @@ export interface Oranlar {
 }
 
 export interface KazanimSatiri extends Oranlar {
+  // Satırın tekil kimliği (ders|sınıf|ünite|kod).
+  anahtar: string;
   kod: string;
   // Programda bulunamazsa null (yalnız kod gösterilir, pekiştirme önerilmez).
   tanim: KazanimTanimi | null;
@@ -82,6 +105,10 @@ export const oncekiAy = (ay: string) => {
   const [y, m] = ay.split("-").map(Number);
   return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
 };
+export const sonrakiAy = (ay: string) => {
+  const [y, m] = ay.split("-").map(Number);
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+};
 
 // Eskiden yeniye: seçilen ay ve önceki aylar.
 export function takipPenceresi(ay: string): string[] {
@@ -90,8 +117,9 @@ export function takipPenceresi(ay: string): string[] {
   return aylar;
 }
 
-function oranlarOf(tablolar: Record<string, number>[], on: string, anahtar: string): Oranlar {
-  const topla = (x: string) => tablolar.reduce((a, t) => a + (t[alan(on, anahtar, x)] ?? 0), 0);
+// onEk: "k|ders|sınıf|ünite|kod" ya da "t|tür"; alanlar onEk|d, onEk|i, onEk|s.
+function oranlarOf(tablolar: Record<string, number>[], onEk: string): Oranlar {
+  const topla = (x: string) => tablolar.reduce((a, t) => a + (t[`${onEk}|${x}`] ?? 0), 0);
   const deneme = topla("d");
   const yeterli = deneme >= TAKIP.enAzDeneme;
   return { deneme, ilkDenemeOrani: yeterli ? topla("i") / deneme : null, destekOrani: yeterli ? topla("s") / deneme : null };
@@ -113,37 +141,42 @@ function gidisatOf(aylik: (number | null)[]): Gidisat | null {
 const SIRA: Record<Zorluk, number> = { zor: 0, orta: 1, iyi: 2, "az-veri": 3 };
 
 // tablolar[i], aylar[i] ayının sayaçlarıdır.
-export function takipRaporuHesapla(aylar: string[], tablolar: Record<string, number>[], tanimOf: (kod: string) => KazanimTanimi | null): TakipRaporu {
-  const kodlar = new Set<string>();
+export function takipRaporuHesapla(
+  aylar: string[],
+  tablolar: Record<string, number>[],
+  tanimOf: (yer: KazanimYeri, kod: string) => KazanimTanimi | null
+): TakipRaporu {
+  const ciktilar = new Map<string, { yer: KazanimYeri; kod: string }>();
   const turler = new Set<string>();
   for (const t of tablolar)
     for (const a of Object.keys(t)) {
       const p = a.split("|");
-      if (p.length !== 3) continue;
-      if (p[0] === "k") kodlar.add(p[1]);
-      else if (p[0] === "t") turler.add(p[1]);
+      if (p[0] === "k" && p.length === 6) ciktilar.set(p.slice(1, 5).join("|"), { yer: { ders: p[1], sinif: Number(p[2]), uniteId: p[3] }, kod: p[4] });
+      else if (p[0] === "t" && p.length === 3) turler.add(p[1]);
     }
-  const kazanimlar: KazanimSatiri[] = [...kodlar]
-    .map((kod) => {
-      const o = oranlarOf(tablolar, "k", kod);
-      const aylik = tablolar.map((t) => oranlarOf([t], "k", kod).ilkDenemeOrani);
+  const kazanimlar: KazanimSatiri[] = [...ciktilar]
+    .map(([anahtar, { yer, kod }]) => {
+      const onEk = `k|${anahtar}`;
+      const o = oranlarOf(tablolar, onEk);
+      const aylik = tablolar.map((t) => oranlarOf([t], onEk).ilkDenemeOrani);
       return {
+        anahtar,
         kod,
-        tanim: tanimOf(kod),
-        oyun: tablolar.reduce((a, t) => a + (t[alan("k", kod, "o")] ?? 0), 0),
+        tanim: tanimOf(yer, kod),
+        oyun: tablolar.reduce((a, t) => a + (t[`${onEk}|o`] ?? 0), 0),
         ...o,
         aylar: aylik,
         gidisat: gidisatOf(aylik),
         zorluk: zorlukOf(o.ilkDenemeOrani),
       };
     })
-    .sort((a, b) => SIRA[a.zorluk] - SIRA[b.zorluk] || (a.ilkDenemeOrani ?? 1) - (b.ilkDenemeOrani ?? 1) || b.deneme - a.deneme || a.kod.localeCompare(b.kod));
+    .sort((a, b) => SIRA[a.zorluk] - SIRA[b.zorluk] || (a.ilkDenemeOrani ?? 1) - (b.ilkDenemeOrani ?? 1) || b.deneme - a.deneme || a.anahtar.localeCompare(b.anahtar));
   return {
     aylar,
     bitiren: tablolar.map((t) => t.bitiren ?? 0),
     oyun: tablolar.map((t) => t.oyun ?? 0),
     kazanimlar,
-    turler: [...turler].map((tur) => ({ tur, ...oranlarOf(tablolar, "t", tur) })).sort((a, b) => b.deneme - a.deneme || a.tur.localeCompare(b.tur)),
+    turler: [...turler].map((tur) => ({ tur, ...oranlarOf(tablolar, alan("t", tur)) })).sort((a, b) => b.deneme - a.deneme || a.tur.localeCompare(b.tur)),
   };
 }
 

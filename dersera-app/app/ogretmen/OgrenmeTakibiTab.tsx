@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { GOREV_TUR_ADI } from "@/app/composer/labels";
-import { oncekiAy, pekistirmeAdresi, TAKIP, type Gidisat, type KazanimSatiri, type TakipRaporu } from "@/lib/ogrenmeTakibi";
+import { oncekiAy, pekistirmeAdresi, sonrakiAy, TAKIP, type Gidisat, type KazanimSatiri, type TakipRaporu } from "@/lib/ogrenmeTakibi";
 import { takipRaporuGetir } from "@/lib/ogrenmeTakibiClient";
 import { yuzde, ZORLUK } from "./OgrenmeRaporu";
 
@@ -15,10 +15,6 @@ const GIDISAT: Record<Gidisat, { ok: string; ad: string; sinif: string }> = {
 
 const ayAdi = (ay: string, month: "short" | "long") =>
   new Date(`${ay}-15T12:00:00Z`).toLocaleDateString("tr-TR", month === "long" ? { month: "long", year: "numeric" } : { month: "short" });
-const sonrakiAy = (ay: string) => {
-  const [y, m] = ay.split("-").map(Number);
-  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
-};
 const turAdi = (t: string) => (GOREV_TUR_ADI as Record<string, string>)[t] ?? t;
 const toplam = (x: number[]) => x.reduce((a, b) => a + b, 0);
 
@@ -122,7 +118,7 @@ export default function OgrenmeTakibiTab() {
             </h2>
             <p className="text-xs text-gray-500 mt-1">
               Yayınladığın oyunlardaki öğrenci sonuçları, öğrenme çıktısı bazında son {TAKIP.aySayisi} ay. Öğrenci adı tutulmaz; oranlar en az {TAKIP.enAzDeneme} durak
-              denemesiyle gösterilir. Giriş yapmadan yayınlanan, bu özellikten önceki oyunlar ve kendi deneme oynayışların sayılmaz.
+              denemesiyle gösterilir. Giriş yapmadan yayınlanan ve bu özellikten önceki oyunlar sayılmaz. Kendi oyununu denerken giriş yapmış ol: giriş yapmadan oynadığın deneme öğrenci sonucu gibi sayılır.
             </p>
           </div>
           {son && (
@@ -196,7 +192,7 @@ export default function OgrenmeTakibiTab() {
                   </thead>
                   <tbody>
                     {rapor.kazanimlar.map((s) => (
-                      <CiktiSatiri key={s.kod} s={s} aylar={rapor.aylar} />
+                      <CiktiSatiri key={s.anahtar} s={s} aylar={rapor.aylar} />
                     ))}
                   </tbody>
                 </table>

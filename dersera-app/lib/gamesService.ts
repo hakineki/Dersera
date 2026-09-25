@@ -1,3 +1,4 @@
+import type { DersKonu } from "@/lib/composer/input";
 import type { PublicGame, PublishRequest } from "@/lib/games";
 import type { GamesStore, StoredGame } from "@/lib/gamesStore";
 
@@ -45,10 +46,10 @@ export function toPublicGame(game: StoredGame, icerik = true): PublicGame {
   return { code, stops, aylar, createdAt, expiresAt, endedAt, ...(definition ? (icerik ? { definition } : { icerikKilitli: true as const }) : {}) };
 }
 
-// sahip sunucuda oturumdan belirlenir; istemci gövdesinden okunmaz.
+// sahip sunucuda oturumdan, dersler doğrulanmış yayın isteğinden belirlenir; istemci gövdesinden doğrudan okunmaz.
 export async function publishGame(
   store: GamesStore,
-  req: PublishRequest & { sahip?: string | null },
+  req: PublishRequest & { sahip?: string | null; dersler?: DersKonu[] | null },
   now = Date.now(),
   nextCode: () => string = generateGameCode
 ): Promise<{ game: PublicGame; adminToken: string } | null> {
@@ -65,6 +66,7 @@ export async function publishGame(
       adminTokenHash,
       ...(req.definition ? { definition: req.definition } : {}),
       ...(req.sahip ? { sahip: req.sahip } : {}),
+      ...(req.definition && req.dersler ? { dersler: req.dersler } : {}),
     };
     if (await store.create(game, now)) return { game: toPublicGame(game), adminToken };
   }

@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     const store = getGamesStore();
     // Composer oyununu oturumla yayınlayan öğretmen: kütüphane, topluluk ve öğrenme takibi bağları.
     const sahip = request.definition && dersler ? await istekSahibi(req) : null;
-    const published = await publishGame(store, { ...request, sahip });
+    const published = await publishGame(store, { ...request, sahip, dersler });
     if (!published) {
       return NextResponse.json({ error: "Benzersiz oyun kodu üretilemedi" }, { status: 503 });
     }
