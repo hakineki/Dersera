@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { yasProfiliOf, type YasProfili } from "@/lib/yasProfili";
 import { arrive, choose, currentStep, durakById, FINAL_ID, inventory, needsScan, qrOf } from "@/lib/composer/scene";
 import type { GameDefinition } from "@/lib/composer/definition";
+import { gorselAdresi, KAPAK } from "@/lib/gorsel";
+import GorselResim from "@/components/GorselResim";
 import {
   addLeaderboardEntry,
   addPenalty,
@@ -230,6 +232,7 @@ export default function ComposerPlayer({
           <div className="space-y-4">
             {step.onceki === null ? (
               <div className={kart}>
+                {gorselAdresi(def, KAPAK) && <GorselResim src={gorselAdresi(def, KAPAK)!} alt={`${def.meta.baslik} kapak görseli`} className="mb-4" />}
                 <h1 className="text-xl font-bold text-white mb-2">{def.meta.baslik}</h1>
                 <p className="text-white/85 text-sm leading-relaxed mb-3">{def.hikaye_giris}</p>
                 <p className="text-yellow-200 text-sm font-semibold">🎯 {def.oyun_amaci}</p>
@@ -271,6 +274,7 @@ export default function ComposerPlayer({
         {step.tur === "gorev" && (
           <div className="space-y-4">
             <div className={kart}>
+              {gorselAdresi(def, step.durak.id) && <GorselResim src={gorselAdresi(def, step.durak.id)!} alt={`${step.durak.isim} sahnesi`} className="mb-3" />}
               <h2 className="text-lg font-bold text-white mb-1">{step.durak.isim}</h2>
               <p className="text-white/80 text-sm leading-relaxed italic">📖 {step.durak.hikaye_metni}</p>
             </div>
@@ -294,6 +298,7 @@ export default function ComposerPlayer({
         {step.tur === "secim" && (
           <div className="space-y-3">
             <div className={kart}>
+              {gorselAdresi(def, step.durak.id) && <GorselResim src={gorselAdresi(def, step.durak.id)!} alt={`${step.durak.isim} sahnesi`} className="mb-3" />}
               <p className="text-yellow-200 text-xs font-semibold uppercase tracking-wide mb-1">Karar zamanı</p>
               <p className="text-white text-sm leading-relaxed">{step.durak.hikaye_metni}</p>
             </div>

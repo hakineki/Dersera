@@ -5,8 +5,12 @@ import { checkComposeLimit, clientIp, LimiterUnavailableError } from "@/lib/comp
 import { composeAndValidate } from "@/lib/composer/service";
 import { YZ_DENETIM, yzDenetle } from "@/lib/composer/yzDenetimService";
 import type { YzDenetim } from "@/lib/composer/yzDenetim";
+import type { GameDefinition } from "@/lib/composer/definition";
 import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
-import { olusturmaMaliyeti } from "@/lib/kredi";
+import { KREDI_KURALLARI, olusturmaMaliyeti } from "@/lib/kredi";
+import { gorselIsiBaslat } from "@/lib/gorselService";
+import { getGorselStore } from "@/lib/gorselStore";
+import { gorselEtkin } from "@/lib/gorselUretici";
 import { krediDurumu, krediHarca, krediIade, krediTamamla, type Harcama } from "@/lib/krediService";
 
 // Üretim (iskelet + paralel görevler) 190 sn, düzeltmeyle birlikte en çok ~245 sn; platform sınırı bunun üstünde kalmalı.
@@ -16,6 +20,23 @@ const GENEL_HATA = "Oyun şu anda oluşturulamadı. Tekrar deneyin.";
 // Çocuk güvenliği denetimi üretimden sonra kalan süreyle yapılır; süre yetmezse yayında yapılır.
 const DENETIM_SONU_MS = (maxDuration - 8) * 1000;
 const DENETIM_EN_AZ_MS = 8_000;
+
+// Görsel işi yalnız engelli içerik yoksa kurulur. Kredi ya da iş kurulamazsa oyun yine döner; öğretmene not düşülür.
+async function gorselBaslat(hesapId: string, definition: GameDefinition, guvenlik: YzDenetim) {
+  if (guvenlik.durum === "tamam" && guvenlik.bulgular.some((b) => b.agirlik === "engelle")) {
+    return { gorselNotu: "İçerik denetimi engelleyen bir bulgu verdiği için görseller oluşturulmadı; görsel kredisi düşülmedi." };
+  }
+  let h: Harcama | null = null;
+  try {
+    h = await krediHarca(hesapId, KREDI_KURALLARI.gorsel, "Görsel zenginleştirme (kapak + 3 sahne)");
+    if (!h) return { gorselNotu: "Görseller için bakiye kalmadı; oyun görselsiz oluşturuldu." };
+    return { gorselIsi: await gorselIsiBaslat({ store: getGorselStore() }, hesapId, definition, h) };
+  } catch (err) {
+    console.error("[compose] görsel işi başlatılamadı", err instanceof Error ? err.message : err);
+    if (h) await krediIade(hesapId, h, "Görseller başlatılamadı: kredi iadesi");
+    return { gorselNotu: "Görseller şu anda başlatılamadı; görsel kredisi iade edildi." };
+  }
+}
 
 export async function POST(req: Request) {
   const basla = Date.now();
@@ -51,16 +72,22 @@ export async function POST(req: Request) {
   // Kaynaktan oluşturma +1 kredi. Kaynak metni hiçbir yerde saklanmaz ya da loglanmaz; yalnız isteme girer.
   const kaynakli = !!parsed.input.kaynak;
   const maliyet = olusturmaMaliyeti(parsed.input.sure, kaynakli);
+  // Görsel kredisi oyun oluştuktan sonra ayrı düşer (askısı üretimle aynı anda başlasın); bakiyesi baştan denetlenir.
+  const gorselIstendi = parsed.input.gorsel === true;
+  if (gorselIstendi && !gorselEtkin()) return NextResponse.json({ error: "Görsel zenginleştirme şu anda kullanılamıyor. Görselsiz oluşturabilirsin." }, { status: 422 });
+  const toplamMaliyet = maliyet + (gorselIstendi ? KREDI_KURALLARI.gorsel : 0);
   let harcama: Harcama | null;
   try {
-    harcama = await krediHarca(hesap.id, maliyet, `Oyun oluşturma (${parsed.input.sure} dk${kaynakli ? ", kaynaktan" : ""})`);
+    const yetmez = gorselIstendi && (await krediDurumu(hesap.id)).toplam < toplamMaliyet;
+    harcama = yetmez ? null : await krediHarca(hesap.id, maliyet, `Oyun oluşturma (${parsed.input.sure} dk${kaynakli ? ", kaynaktan" : ""})`);
   } catch (err) {
     console.error("[compose] kredi okunamadı", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: GENEL_HATA }, { status: 503 });
   }
   if (!harcama) {
     const kredi = await krediDurumu(hesap.id).catch(() => null);
-    return NextResponse.json({ error: `Bu oyun ${maliyet} kredi; bakiyen yetmiyor. Aylık hakkın ay başında yenilenir.`, kredi }, { status: 402 });
+    const tutar = gorselIstendi ? `${toplamMaliyet} kredi (görseller dahil)` : `${maliyet} kredi`;
+    return NextResponse.json({ error: `Bu oyun ${tutar}; bakiyen yetmiyor. Aylık hakkın ay başında yenilenir.`, kredi }, { status: 402 });
   }
 
   try {
@@ -68,7 +95,9 @@ export async function POST(req: Request) {
     await krediTamamla(hesap.id, harcama);
     const kalan = Math.min(DENETIM_SONU_MS - (Date.now() - basla), YZ_DENETIM.sureMs);
     const guvenlik: YzDenetim = !validation.gecerli || kalan < DENETIM_EN_AZ_MS ? { durum: "bekliyor" } : await yzDenetle(definition, { timeoutMs: kalan });
+    const gorsel = gorselIstendi ? await gorselBaslat(hesap.id, definition, guvenlik) : null;
     return NextResponse.json({
+      ...(gorsel ?? {}),
       kredi: await krediDurumu(hesap.id).catch(() => null),
       definition,
       validation,

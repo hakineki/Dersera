@@ -9,6 +9,7 @@ import { createMemoryLibraryStore, createRedisLibraryStore, type LibraryStore } 
 import { createMemoryModerasyonStore, createRedisModerasyonStore, type ModerasyonStore } from "@/lib/moderasyonStore";
 import { createMemoryYoneticiStore, createRedisYoneticiStore, type YoneticiStore } from "@/lib/yonetici";
 import { createMemoryOkulStore, createRedisOkulStore, type OkulStore } from "@/lib/okulStore";
+import { createMemoryGorselStore, createRedisGorselStore, type GorselStore } from "@/lib/gorselStore";
 import { createRedisCommand, type RedisCommand } from "@/lib/redis";
 import { icerikOzetiOf, yeniToplulukKaydi } from "@/lib/toplulukService";
 import { createMemoryToplulukStore, createRedisToplulukStore, type ToplulukStore } from "@/lib/toplulukStore";
@@ -38,6 +39,7 @@ interface Depolar {
   moderasyon: ModerasyonStore;
   yonetici: YoneticiStore;
   okul: OkulStore;
+  gorsel: GorselStore;
 }
 
 // Yazılan her "dersera:" anahtarını kaydeden komut: temizlik yalnız bunları siler.
@@ -63,6 +65,7 @@ const uygulamalar: [string, () => Depolar][] = [
       moderasyon: createMemoryModerasyonStore(),
       yonetici: createMemoryYoneticiStore(),
       okul: createMemoryOkulStore(),
+      gorsel: createMemoryGorselStore(),
     }),
   ],
 ];
@@ -84,6 +87,7 @@ if (REDIS_ISTENDI) {
       moderasyon: createRedisModerasyonStore(c),
       yonetici: createRedisYoneticiStore(c),
       okul: createRedisOkulStore(c),
+      gorsel: createRedisGorselStore(c),
     }),
   ]);
 }
@@ -349,6 +353,32 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     expect(await d.okul.paylasimKaldir(okul.id, p2)).toBe(true);
     expect(await d.okul.paylasimKaldir(okul.id, p2)).toBe(false);
     expect(await d.okul.kaynakPaylasimlari(okul.id, [p.kaynak])).toEqual([null]);
+  });
+
+  it("görsel işi: sırayla ve tek sahiplenme, bayat yeniden sahiplenme, sonuç ve dosya, kredi kararı tek sefer", async () => {
+    const isId = randomUUID();
+    const harcama = { id: `h-${run}`, ay: "2026-09", aylik: 1, okul: 0, kazanilan: 0 };
+    const hedefler = ["kapak", "d1", "d4"];
+    await d.gorsel.olustur({ isId, sahip: `s-${run}`, olusturma: 5, harcama, hedefler: hedefler.map((h) => ({ hedef: h, istem: `istem ${h} "tırnak"` })) }, SAAT);
+    expect(await d.gorsel.get(isId)).toEqual({ isId, sahip: `s-${run}`, olusturma: 5, harcama, hedefler: hedefler.map((h) => ({ hedef: h, istem: `istem ${h} "tırnak"` })) });
+    expect(await d.gorsel.get(randomUUID())).toBeNull();
+    expect(await d.gorsel.durumlar(isId)).toEqual({ kapak: "bekliyor", d1: "bekliyor", d4: "bekliyor" });
+    const t = 1_700_000_000_000;
+    const sahipler = await Promise.all([1, 2, 3, 4].map(() => d.gorsel.sahiplen(isId, hedefler, t, 70_000)));
+    expect(sahipler.filter(Boolean).sort()).toEqual([...hedefler].sort());
+    expect(sahipler.filter((x) => x === null)).toHaveLength(1);
+    expect(await d.gorsel.durumlar(isId)).toEqual({ kapak: "calisiyor", d1: "calisiyor", d4: "calisiyor" });
+    expect(await d.gorsel.sahiplen(isId, hedefler, t + 70_000, 70_000)).toBeNull();
+    expect(await d.gorsel.sahiplen(isId, hedefler, t + 70_001, 70_000)).toBe("kapak");
+    await d.gorsel.bitir(isId, "kapak", `https://depo.example/${run}.webp`);
+    await d.gorsel.bitir(isId, "d1", null);
+    expect(await d.gorsel.durumlar(isId)).toEqual({ kapak: "hazir", d1: "hata", d4: "calisiyor" });
+    expect(await d.gorsel.dosya(isId, "kapak")).toBe(`https://depo.example/${run}.webp`);
+    expect(await d.gorsel.dosya(isId, "d1")).toBeNull();
+    // d4 henüz bayat değil (tam sınırda); hazır ve hatalı hedefler yeniden sahiplenilmez.
+    expect(await d.gorsel.sahiplen(isId, hedefler, t + 70_000, 70_000)).toBeNull();
+    const kararlar = await Promise.all([1, 2, 3].map(() => d.gorsel.sonuclandir(isId, SAAT)));
+    expect(kararlar.filter(Boolean)).toHaveLength(1);
   });
 
   it("oran sınırı sayacı ve yapay zekâ denetim önbelleği", async () => {

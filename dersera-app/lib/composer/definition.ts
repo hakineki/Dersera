@@ -86,6 +86,15 @@ export const FinalSchema = z.object({
   basari_metni: z.string(),
 });
 
+// Görsel zenginleştirme (lib/gorsel.ts): iş kimliği ve görseli hazır hedefler (kapak ya da durak id'si). Adres taşımaz.
+export const GorsellerSchema = z.object({
+  isId: z.string().regex(/^[0-9a-f-]{36}$/),
+  hedefler: z
+    .array(z.string().regex(/^[a-z0-9_-]{1,24}$/))
+    .max(4)
+    .refine((h) => new Set(h).size === h.length),
+});
+
 export const GameDefinitionSchema = z.object({
   meta: z.object({
     baslik: z.string(),
@@ -102,6 +111,7 @@ export const GameDefinitionSchema = z.object({
   envanter: z.array(EnvanterSchema),
   duraklar: z.array(DurakSchema).describe("İlk eleman başlangıç durağıdır"),
   final: FinalSchema,
+  gorseller: GorsellerSchema.optional(),
 });
 
 export type GameDefinition = z.infer<typeof GameDefinitionSchema>;

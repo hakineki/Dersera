@@ -45,6 +45,8 @@ export const ComposeInputSchema = z
       .transform((s) => gorunmezleriAt(s.replace(/\t/g, " ")).trim())
       .optional(),
     kaynak: z.string().max(KAYNAK.enCok).transform(kaynakNormal).optional(),
+    // Görsel zenginleştirme (lib/gorsel.ts); yalnız true anlamlıdır.
+    gorsel: z.boolean().optional(),
   })
   .strict();
 
@@ -105,6 +107,9 @@ export function parseComposeInput(body: unknown): InputResult {
   }
   const r = resolveKonular(parsed.data.sinif, parsed.data.dersler);
   if (!r.ok) return r;
-  const { serbest_not, kaynak, ...secimler } = parsed.data;
-  return { ok: true, input: { ...secimler, ...(serbest_not ? { serbest_not } : {}), ...(kaynak ? { kaynak } : {}), dersler: r.konular, ...describeKonular(r.konular) } };
+  const { serbest_not, kaynak, gorsel, ...secimler } = parsed.data;
+  return {
+    ok: true,
+    input: { ...secimler, ...(serbest_not ? { serbest_not } : {}), ...(kaynak ? { kaynak } : {}), ...(gorsel ? { gorsel } : {}), dersler: r.konular, ...describeKonular(r.konular) },
+  };
 }

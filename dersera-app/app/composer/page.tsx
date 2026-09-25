@@ -1,4 +1,5 @@
 import { getKonuSecenekleri, PROGRAM_DERS_ADI, PROGRAM_DERSLERI, SINIFLAR } from "@/data/mufredat/programlar";
+import { gorselEtkin } from "@/lib/gorselUretici";
 import ComposerClient from "./ComposerClient";
 
 export const metadata = {
@@ -12,6 +13,7 @@ export default function ComposerPage() {
       siniflar={[...SINIFLAR]}
       dersler={PROGRAM_DERSLERI.map((key) => ({ key, ad: PROGRAM_DERS_ADI[key] }))}
       konular={getKonuSecenekleri()}
+      gorselEtkin={gorselEtkin()}
     />
   );
 }

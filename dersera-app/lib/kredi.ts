@@ -11,6 +11,8 @@ export const KREDI_KURALLARI = {
   toplulukKabulOdulu: 5,
   // Öğretmenin kaynağından (PDF ya da yapıştırılan metin) oluşturma: süre maliyetine eklenir.
   kaynakEki: 1,
+  // Görsel zenginleştirme (kapak + 3 sahne): oyun oluştuktan sonra ayrı düşer; hiç görsel üretilemezse iade edilir.
+  gorsel: 1,
 } as const;
 
 // Okul kredi havuzu: platform yöneticisi okula aylık havuz atar; okul yöneticisi öğretmen başına aylık sınır koyabilir.
