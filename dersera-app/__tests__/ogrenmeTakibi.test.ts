@@ -1,4 +1,4 @@
-import { getUniteler, kazanimBul } from "@/data/mufredat/programlar";
+import { getUniteler, kazanimBul, PROGRAM_DERSLERI, SINIFLAR } from "@/data/mufredat/programlar";
 import type { GameDefinition } from "@/lib/composer/definition";
 import type { DersKonu } from "@/lib/composer/input";
 import { SERBEST_NOT_MAX } from "@/lib/composer/limits";
@@ -142,6 +142,21 @@ describe("öğrenme takibi kuralları", () => {
     expect(bul(9, td9b)).toMatchObject({ uniteId: td9b.id, sinif: 9 });
     // Çok dersli oyun: kod kendi dersinin ünitesinde bulunur.
     expect(kazanimBul(10, [{ ders: "turk-dili", konuId: td10.id }, ...dersler], c.kod)).toMatchObject({ ders: "fizik", uniteId: u.id });
+  });
+
+  it("müfredat sağlamlığı: bir sınıfta aynı çıktı kodu iki farklı derste geçmez (kazanimBul ilk eşleşmeyi alır)", () => {
+    const sahibi = new Map<string, string>();
+    const cakisan: string[] = [];
+    for (const ders of PROGRAM_DERSLERI)
+      for (const sinif of SINIFLAR)
+        for (const u of getUniteler(sinif, ders))
+          for (const c of u.ogrenmeCiktilari) {
+            const k = `${sinif}|${c.kod}`;
+            const onceki = sahibi.get(k);
+            if (onceki && onceki !== ders) cakisan.push(`${k}: ${onceki}, ${ders}`);
+            sahibi.set(k, ders);
+          }
+    expect(cakisan).toEqual([]);
   });
 
   it("konuları bilinmeyen oyun (bu özellikten önceki yayın) sayılmaz", async () => {
