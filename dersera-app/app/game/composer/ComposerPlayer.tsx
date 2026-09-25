@@ -7,23 +7,8 @@ import type { GameDefinition } from "@/lib/composer/definition";
 import { gorselAdresi, KAPAK } from "@/lib/gorsel";
 import GorselResim from "@/components/GorselResim";
 import { secenekleriKaristir } from "@/lib/karistir";
-import {
-  addLeaderboardEntry,
-  addPenalty,
-  buildResultCode,
-  formatElapsed,
-  loadEndTime,
-  loadPenaltySeconds,
-  loadProgress,
-  loadSceneState,
-  markStopComplete,
-  nicknameKey,
-  saveEndTime,
-  saveSceneState,
-  type GameProgress,
-  type LeaderboardEntry,
-  type SceneState,
-} from "@/lib/gameState";
+import { buildResultCode, formatElapsed, nicknameKey, type GameProgress, type LeaderboardEntry, type SceneState } from "@/lib/gameState";
+import { yerelOyunKaydi, type OyunKaydi } from "@/lib/oyunKaydi";
 import { buildLeaderboardEntry, sendPlayerRating, sendPlayerResult } from "@/lib/playerResult";
 import TaskView from "./TaskView";
 
@@ -149,24 +134,35 @@ function OyunPuani({ gameCode, nickname }: { gameCode: string; nickname: string 
   );
 }
 
+// Öğretmenin "öğrenci gözüyle" demosu: bellek deposuyla oynar, sonuç ve puan göndermez; üst şeritten baştan başlatılır
+// ya da çıkılır, okul macerasında QR durağı düğmeyle geçilir.
+export interface DemoKontrolu {
+  bastan: () => void;
+  cik: () => void;
+}
+
 export default function ComposerPlayer({
   def,
   gameCode,
   nickname,
   startTime,
   qr,
+  kayit = yerelOyunKaydi,
+  demo,
 }: {
   def: GameDefinition;
   gameCode: string;
   nickname: string;
   startTime: number;
   qr: number | null;
+  kayit?: OyunKaydi;
+  demo?: DemoKontrolu;
 }) {
   useKokYazi(def.meta.sinif);
-  const [scene, setScene] = useState<SceneState>(() => loadSceneState());
-  const [progress, setProgress] = useState<GameProgress>(() => loadProgress());
-  const [ceza, setCeza] = useState(() => loadPenaltySeconds());
-  const [bitis, setBitis] = useState<number | null>(() => loadEndTime());
+  const [scene, setScene] = useState<SceneState>(() => kayit.sahne());
+  const [progress, setProgress] = useState<GameProgress>(() => kayit.ilerleme());
+  const [ceza, setCeza] = useState(() => kayit.ceza());
+  const [bitis, setBitis] = useState<number | null>(() => kayit.bitis());
   const [simdi, setSimdi] = useState(() => Date.now());
   const [yeniNesne, setYeniNesne] = useState<string | null>(null);
   const [gonderim, setGonderim] = useState<"gonderiliyor" | "gonderildi" | "hata">("gonderiliyor");
@@ -175,10 +171,13 @@ export default function ComposerPlayer({
   const step = currentStep(def, scene, progress, bitis !== null);
   const esyalar = inventory(def, progress);
 
-  const guncelle = useCallback((s: SceneState) => {
-    saveSceneState(s);
-    setScene(s);
-  }, []);
+  const guncelle = useCallback(
+    (s: SceneState) => {
+      kayit.sahneYaz(s);
+      setScene(s);
+    },
+    [kayit]
+  );
 
   useEffect(() => {
     if (bitis) return;
@@ -197,7 +196,7 @@ export default function ComposerPlayer({
   const entry: LeaderboardEntry | null = bitis ? buildLeaderboardEntry(nickname, startTime, bitis, ceza, progress) : null;
 
   useEffect(() => {
-    if (!entry) return;
+    if (!entry || demo) return;
     let iptal = false;
     sendPlayerResult(gameCode, entry).then((ok) => !iptal && setGonderim(ok ? "gonderildi" : "hata"));
     return () => {
@@ -208,21 +207,20 @@ export default function ComposerPlayer({
   }, [bitis, deneme, gameCode]);
 
   function yanlis() {
-    addPenalty(15);
+    kayit.cezaEkle(15);
     setCeza((c) => c + 15);
   }
 
   function gorevBitti(durakId: string, yanlisSayisi: number, odul: string | null) {
-    markStopComplete(durakId, yanlisSayisi);
-    setProgress(loadProgress());
+    kayit.durakBitti(durakId, yanlisSayisi);
+    setProgress(kayit.ilerleme());
     if (odul && !esyalar.includes(odul)) setYeniNesne(def.envanter.find((e) => e.id === odul)?.isim ?? null);
   }
 
   function finalBitti() {
     const t = Date.now();
-    saveEndTime(t);
-    const son = buildLeaderboardEntry(nickname, startTime, t, loadPenaltySeconds(), loadProgress());
-    addLeaderboardEntry(son);
+    kayit.bitisYaz(t);
+    kayit.sonucEkle(buildLeaderboardEntry(nickname, startTime, t, kayit.ceza(), kayit.ilerleme()));
     setBitis(t);
   }
 
@@ -243,7 +241,20 @@ export default function ComposerPlayer({
 
   return (
     <div className={shellOf(def.meta.sinif)}>
-      <Filigran metin={`${nickname} · ${gameCode}`} />
+      <Filigran metin={demo ? "Demo · öğretmen önizlemesi" : `${nickname} · ${gameCode}`} />
+      {demo && (
+        <div className="sticky top-0 z-20 -mx-4 -mt-6 mb-4 bg-amber-300 text-gray-900 px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+          <span className="font-semibold">👁 Öğrenci gözüyle demo · sonuç kaydedilmez</span>
+          <span className="flex gap-2">
+            <button type="button" onClick={demo.bastan} className="font-semibold px-3 py-1 rounded-lg hover:bg-amber-200">
+              Baştan
+            </button>
+            <button type="button" onClick={demo.cik} className="font-semibold bg-gray-900 text-white px-3 py-1 rounded-lg">
+              Demodan çık
+            </button>
+          </span>
+        </div>
+      )}
       <div className="relative z-10 w-full max-w-md mx-auto">
         {ustBar}
 
@@ -290,6 +301,11 @@ export default function ComposerPlayer({
               <div className={`${kart} text-center`}>
                 <p className="text-4xl mb-2" aria-hidden="true">📱</p>
                 <p className="text-white font-bold">{qrOf(def, step.hedef)} numaralı QR kodu bul ve tara</p>
+                {demo && (
+                  <button onClick={() => guncelle(arrive(scene, step.hedef))} className={`${devam} mt-4`}>
+                    QR&apos;ı taradım say (demo)
+                  </button>
+                )}
               </div>
             ) : (
               <button onClick={() => guncelle(arrive(scene, step.hedef))} className={devam}>
@@ -364,27 +380,43 @@ export default function ComposerPlayer({
               <p className="font-mono text-4xl text-white font-bold">{formatElapsed(entry.netSeconds + entry.penaltySeconds)}</p>
               {entry.penaltySeconds > 0 && <p className="text-red-200 text-xs">+{formatElapsed(entry.penaltySeconds)} ceza dahil</p>}
             </div>
-            <div role="status" className={`${kart} ${gonderim === "hata" ? "border-red-300/50" : ""}`}>
-              {gonderim === "gonderiliyor" && <p className="text-white/80 text-sm">Sonucun iletiliyor…</p>}
-              {gonderim === "gonderildi" && <p className="text-green-200 text-sm font-semibold">✅ Sonucun iletildi</p>}
-              {gonderim === "hata" && (
-                <>
-                  <p className="text-red-200 text-sm mb-2">Sonucun iletilemedi. Kodu öğretmenine göster.</p>
-                  <button
-                    onClick={() => {
-                      setGonderim("gonderiliyor");
-                      setDeneme((n) => n + 1);
-                    }}
-                    className="text-xs font-semibold text-white bg-white/20 px-3 py-1.5 rounded-lg"
-                  >
-                    Tekrar dene
+            {demo ? (
+              <div className={kart}>
+                <p className="text-white/85 text-sm">Demo bitti. Sonuç ve puan kaydedilmedi.</p>
+                <div className="mt-3 flex justify-center gap-2">
+                  <button type="button" onClick={demo.bastan} className="text-sm font-semibold text-white bg-white/20 px-4 py-2 rounded-lg">
+                    Baştan oyna
                   </button>
-                </>
-              )}
-              <p className="text-indigo-200 text-xs mt-3">Sonuç kodun</p>
-              <p className="font-mono font-bold text-2xl text-white tracking-widest">{buildResultCode(nickname, entry.netSeconds + entry.penaltySeconds)}</p>
-            </div>
-            {gonderim === "gonderildi" && <OyunPuani gameCode={gameCode} nickname={nickname} />}
+                  <button type="button" onClick={demo.cik} className="text-sm font-semibold text-indigo-900 bg-white px-4 py-2 rounded-lg">
+                    Demodan çık
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div role="status" className={`${kart} ${gonderim === "hata" ? "border-red-300/50" : ""}`}>
+                  {gonderim === "gonderiliyor" && <p className="text-white/80 text-sm">Sonucun iletiliyor…</p>}
+                  {gonderim === "gonderildi" && <p className="text-green-200 text-sm font-semibold">✅ Sonucun iletildi</p>}
+                  {gonderim === "hata" && (
+                    <>
+                      <p className="text-red-200 text-sm mb-2">Sonucun iletilemedi. Kodu öğretmenine göster.</p>
+                      <button
+                        onClick={() => {
+                          setGonderim("gonderiliyor");
+                          setDeneme((n) => n + 1);
+                        }}
+                        className="text-xs font-semibold text-white bg-white/20 px-3 py-1.5 rounded-lg"
+                      >
+                        Tekrar dene
+                      </button>
+                    </>
+                  )}
+                  <p className="text-indigo-200 text-xs mt-3">Sonuç kodun</p>
+                  <p className="font-mono font-bold text-2xl text-white tracking-widest">{buildResultCode(nickname, entry.netSeconds + entry.penaltySeconds)}</p>
+                </div>
+                {gonderim === "gonderildi" && <OyunPuani gameCode={gameCode} nickname={nickname} />}
+              </>
+            )}
           </div>
         )}
       </div>

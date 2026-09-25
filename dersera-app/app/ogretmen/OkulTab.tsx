@@ -111,6 +111,9 @@ function OkulKutuphanesi({ oyunlar, onYenile }: { oyunlar: PaylasimListesiOgesi[
                   {o.paylasanAd} · {tarih(o.tarih)}
                 </p>
               </div>
+              <Link href={`/demo?okul=${o.id}`} title="Öğrenci gözüyle dene (sonuç kaydedilmez)" className="text-sm border border-gray-300 text-gray-700 font-semibold px-3 py-1.5 rounded-lg">
+                👁 Demo
+              </Link>
               <Link href={`/composer?okul=${o.id}`} className="text-sm bg-indigo-600 text-white font-semibold px-3 py-1.5 rounded-lg">
                 Kullan
               </Link>

@@ -90,6 +90,9 @@ function Kart({ oyun }: { oyun: ToplulukOzeti }) {
       <Link href={`/composer?topluluk=${oyun.oyun_id}`} aria-label={`${oyun.baslik} oyununu kullan`} className="mt-4 text-center text-sm bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-3 py-2 rounded-lg">
         Oyunu Kullan
       </Link>
+      <Link href={`/demo?topluluk=${oyun.oyun_id}`} aria-label={`${oyun.baslik} oyununu öğrenci gözüyle dene`} title="Sonuç kaydedilmez; günlük açma hakkından sayılır" className="mt-2 text-center text-sm border border-indigo-300 text-indigo-700 font-semibold px-3 py-2 rounded-lg">
+        👁 Öğrenci gözüyle dene
+      </Link>
     </li>
   );
 }
@@ -168,7 +171,7 @@ export default function ToplulukClient({ dersler, siniflar }: { dersler: { key: 
 
       <main className="max-w-6xl mx-auto px-4 py-6">
         <h1 className="text-xl font-bold text-gray-900">Topluluk Kütüphanesi</h1>
-        <p className="text-sm text-gray-500">Öğretmenlerin paylaştığı ve iki öğretmenin incelediği oyunlar. Bir oyunu kendi sınıfın için kopyalayıp düzenleyebilirsin.</p>
+        <p className="text-sm text-gray-500">Öğretmenlerin paylaştığı ve iki öğretmenin incelediği oyunlar. Bir oyunu kendi sınıfın için kopyalayıp düzenleyebilirsin. “Oyunu Kullan” da “Öğrenci gözüyle dene” de oyunun tamamını açtığı için günlük açma hakkından sayılır.</p>
         <p className="text-sm mb-5 mt-1">
           <Link href="/library/inceleme" className="text-indigo-700 font-semibold underline">
             İnceleme bekleyen oyunlar
