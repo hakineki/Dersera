@@ -10,6 +10,7 @@ import { cocukGuvenligiTara } from "@/lib/composer/cocukGuvenligi";
 import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { KREDI_KURALLARI, olusturmaMaliyeti } from "@/lib/kredi";
 import { gorselIsiBaslat } from "@/lib/gorselService";
+import { aktifKurallar, uretimSinyali } from "@/lib/ogrenmeService";
 import { getGorselStore } from "@/lib/gorselStore";
 import { gorselEtkin } from "@/lib/gorselUretici";
 import { krediDurumu, krediHarca, krediIade, krediTamamla, type Harcama } from "@/lib/krediService";
@@ -94,10 +95,13 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { definition, validation } = await composeAndValidate(parsed.input);
+    // Öğrenme döngüsünün onaylı kuralları (okunamazsa kuralsız sürer).
+    const ekKurallar = await aktifKurallar(parsed.input.dersAdi.split(" + "), parsed.input.sinif);
+    const { definition, validation } = await composeAndValidate({ ...parsed.input, ...(ekKurallar.length ? { ekKurallar } : {}) });
     await krediTamamla(hesap.id, harcama);
     const kalan = Math.min(DENETIM_SONU_MS - (Date.now() - basla), YZ_DENETIM.sureMs);
     const guvenlik: YzDenetim = !validation.gecerli || kalan < DENETIM_EN_AZ_MS ? { durum: "bekliyor" } : await yzDenetle(definition, { timeoutMs: kalan });
+    await uretimSinyali(definition, validation, guvenlik);
     const gorsel = gorselIstendi ? await gorselBaslat(hesap.id, definition, guvenlik) : null;
     return NextResponse.json({
       ...(gorsel ?? {}),

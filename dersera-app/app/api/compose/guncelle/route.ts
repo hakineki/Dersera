@@ -10,6 +10,7 @@ import { YZ_DENETIM, yzDenetle } from "@/lib/composer/yzDenetimService";
 import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { KREDI_KURALLARI } from "@/lib/kredi";
 import { krediDurumu, krediHarca, krediIade, krediTamamla, type Harcama } from "@/lib/krediService";
+import { yzGuncellemeSinyali } from "@/lib/ogrenmeService";
 
 // Güncelleme en çok ~100 sn, ardından kalan süreyle çocuk güvenliği denetimi.
 export const maxDuration = 150;
@@ -67,6 +68,8 @@ export async function POST(req: Request) {
     await krediTamamla(hesap.id, harcama);
     const kalan = Math.min(DENETIM_SONU_MS - (Date.now() - basla), YZ_DENETIM.sureMs);
     const guvenlik: YzDenetim = !validation.gecerli || kalan < DENETIM_EN_AZ_MS ? { durum: "bekliyor" } : await yzDenetle(definition, { timeoutMs: kalan });
+    // Sayaç güncellenmiş tanımdaki görev türüne yazılır (model türü değiştirebilir).
+    await yzGuncellemeSinyali(definition, guncellenen, talimat);
     return NextResponse.json({ kredi: await krediDurumu(hesap.id).catch(() => null), definition, validation, guvenlik, guncellenen });
   } catch (err) {
     const iadeEdildi = await krediIade(hesap.id, harcama, "Oyun güncellenemedi: kredi iadesi");

@@ -40,6 +40,9 @@ export default function KopyaKaydiClient() {
             <Link href="/moderasyon" className="text-indigo-300 hover:text-white">
               Moderasyon
             </Link>
+            <Link href="/yonetim/ogrenme" className="text-indigo-300 hover:text-white">
+              Öğrenme
+            </Link>
             <Link href="/ogretmen" className="text-indigo-300 hover:text-white">
               ← Panel
             </Link>

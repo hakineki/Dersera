@@ -15,6 +15,7 @@ import type { YonetisimSonucu } from "@/lib/composer/yonetisim";
 import { IZ_SURUMU, parmakizi, surumKarari, type Parmakizi } from "@/lib/surum";
 import { yzDenetle } from "@/lib/composer/yzDenetimService";
 import { moderasyonaEkle } from "@/lib/moderasyonService";
+import { duzenlemeSinyali } from "@/lib/ogrenmeService";
 
 // Eski (hesap öncesi) kütüphaneler tarayıcı anahtarının özetine bağlıydı; yalnız hesaba taşımada kullanılır.
 export const eskiSahipOf = (anahtar: string) => hashToken(anahtar);
@@ -102,6 +103,8 @@ export async function kutuphaneKaydiniGuncelle(store: LibraryStore, sahip: strin
       taban: parmakizi(r.definition),
     };
     await store.put(sahip, varyant);
+    // Öğrenme döngüsü: yalnız gerçekten yazılan yeni sürümde değişen duraklar sayılır (hangi görev türleri düzeltiliyor).
+    await duzenlemeSinyali(kayit.definition, r.definition, now);
     return { ok: true, id: varyant.id, validation: r.validation, surum: { tur: "varyant", surum: 1, oran: karar.oran, neden: karar.neden } };
   }
 
@@ -116,6 +119,7 @@ export async function kutuphaneKaydiniGuncelle(store: LibraryStore, sahip: strin
   };
   const y = await store.replaceIfSurum(sahip, guncel, surum);
   if (y !== "ok") return y === "yok" ? BULUNAMADI : CATISMA;
+  await duzenlemeSinyali(kayit.definition, r.definition, now);
   return { ok: true, id, validation: r.validation, surum: { tur: "surum", surum: surum + 1, oran: karar.oran } };
 }
 
