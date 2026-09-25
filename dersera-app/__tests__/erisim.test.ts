@@ -1,4 +1,6 @@
-import { execFileSync } from "child_process";
+import { execFile, execFileSync } from "child_process";
+import { createServer } from "http";
+import type { AddressInfo } from "net";
 import { mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
@@ -121,6 +123,21 @@ describe("gece yedeği", () => {
     expect(calls.every((c) => c[0] === "SCAN" || c[0] === "EVAL")).toBe(true);
   });
 
+  it("okunamayan parça anahtar anahtar yeniden okunur; yine okunamayan atlanır, yedeğin kalanı kaybolmaz", async () => {
+    const tumu = Array.from({ length: 12 }, (_, i) => `dersera:k${String(i).padStart(2, "0")}`);
+    const { command } = recordingCommand((a) => {
+      if (a[0] === "SCAN") return ["0", tumu];
+      const n = Number(a[2]);
+      const ks = a.slice(3, 3 + n);
+      // Büyük kayıt: tek başına da okunamaz; onu içeren parça da hata verir.
+      if (ks.includes("dersera:k03")) throw new Error("yanıt çok büyük");
+      return ks.map((k) => ["string", -1, k]);
+    });
+    const icerik = await yedekIcerigi(command, 1);
+    expect(icerik.atlanan).toEqual(["dersera:k03"]);
+    expect(icerik.kayitlar.map((k) => k.k)).toEqual(tumu.filter((k) => k !== "dersera:k03"));
+  });
+
   it("şifreli dosya yalnız doğru anahtarla açılır; bozulan dosya reddedilir; anahtar 32 bayt olmalı", () => {
     const icerik: YedekIcerigi = { bicim: "DRSY1", tarih: 1, kayitlar: [{ k: "dersera:x", t: "string", pttl: -1, v: "gizli öğretmen verisi" }] };
     const dosya = yedekSifrele(icerik, anahtar);
@@ -165,6 +182,76 @@ describe("gece yedeği", () => {
     ).toThrow();
   });
 
+  it("geri yükleme --uygula: boş olmayan veritabanında durur; boşa ya da --uzerine-yaz ile türüne göre yazar ve ömrü korur", async () => {
+    const icerik: YedekIcerigi = {
+      bicim: "DRSY1",
+      tarih: 1,
+      kayitlar: [
+        { k: "dersera:s", t: "string", pttl: -1, v: "deger" },
+        { k: "dersera:h", t: "hash", pttl: 5000, v: ["a", "1", "b", "2"] },
+        { k: "dersera:l", t: "list", pttl: -1, v: ["x", "y"] },
+        { k: "dersera:t", t: "set", pttl: -1, v: ["u"] },
+        { k: "dersera:z", t: "zset", pttl: -1, v: ["uye1", "3", "uye2", "7"] },
+      ],
+    };
+    const dizin = mkdtempSync(join(tmpdir(), "dersera-yedek-"));
+    const dosya = join(dizin, "yedek.bin");
+    writeFileSync(dosya, yedekSifrele(icerik, anahtar));
+    // Upstash REST benzeri sahte sunucu: gövde komut dizisi, yanıt { result }.
+    const komutlar: string[][] = [];
+    let dbsize = 3;
+    const sunucu = createServer((req, res) => {
+      let govde = "";
+      req.on("data", (c) => (govde += c));
+      req.on("end", () => {
+        const k = JSON.parse(govde).map(String) as string[];
+        komutlar.push(k);
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ result: k[0] === "DBSIZE" ? dbsize : k[0] === "DEL" ? 0 : "OK" }));
+      });
+    });
+    await new Promise<void>((r) => sunucu.listen(0, "127.0.0.1", () => r()));
+    const url = `http://127.0.0.1:${(sunucu.address() as AddressInfo).port}`;
+    const calistir = (ek: string[]) =>
+      new Promise<{ kod: number; hata: string }>((r) =>
+        execFile(
+          process.execPath,
+          ["scripts/yedek-geri-yukle.mjs", dosya, "--uygula", ...ek],
+          { env: { PATH: process.env.PATH, NODE_ENV: "test", YEDEK_ANAHTARI: anahtar.toString("base64"), KV_REST_API_URL: url, KV_REST_API_TOKEN: "t" } },
+          (err, _out, stderr) => r({ kod: err ? 1 : 0, hata: String(stderr) })
+        )
+      );
+    try {
+      const dolu = await calistir([]);
+      expect(dolu.kod).toBe(1);
+      expect(dolu.hata).toMatch(/boş değil/);
+      expect(komutlar.filter((k) => k[0] !== "DBSIZE")).toEqual([]);
+
+      const ust = await calistir(["--uzerine-yaz"]);
+      expect(ust.kod).toBe(0);
+      const yazma = komutlar.filter((k) => k[0] !== "DBSIZE");
+      expect(yazma).toEqual([
+        ["DEL", "dersera:s"],
+        ["SET", "dersera:s", "deger"],
+        ["DEL", "dersera:h"],
+        ["HSET", "dersera:h", "a", "1", "b", "2"],
+        ["PEXPIRE", "dersera:h", "5000"],
+        ["DEL", "dersera:l"],
+        ["RPUSH", "dersera:l", "x", "y"],
+        ["DEL", "dersera:t"],
+        ["SADD", "dersera:t", "u"],
+        ["DEL", "dersera:z"],
+        ["ZADD", "dersera:z", "3", "uye1", "7", "uye2"],
+      ]);
+      dbsize = 0;
+      komutlar.length = 0;
+      expect((await calistir([])).kod).toBe(0);
+      expect(komutlar.filter((k) => k[0] === "SET")).toEqual([["SET", "dersera:s", "deger"]]);
+    } finally {
+      sunucu.close();
+    }
+  });
+
   it("yedek alma: şifreli dosya yedek/ altına yazılır, 14 günden eskiler silinir; anahtar yoksa alınmaz", async () => {
     const geri = ortamiKoru();
     const now = Date.UTC(2026, 8, 25, 1);
@@ -177,7 +264,11 @@ describe("gece yedeği", () => {
       ],
       hasMore: false,
     }));
-    const { command } = recordingCommand((a) => (a[0] === "SCAN" ? ["0", ["dersera:x"]] : a[0] === "EVAL" ? [["string", -1, "v"]] : "OK"));
+    const durumlar: string[] = [];
+    const { command } = recordingCommand((a) => {
+      if (a[0] === "SET" && a[1] === "dersera:yedek:durum") durumlar.push(a[2]);
+      return a[0] === "SCAN" ? ["0", ["dersera:x"]] : a[0] === "EVAL" ? [["string", -1, "v"]] : "OK";
+    });
     let yedekDepo!: typeof import("@/lib/yedekDepo");
     await jest.isolateModulesAsync(async () => {
       jest.doMock("@vercel/blob", () => ({ put, list, del }));
@@ -188,9 +279,12 @@ describe("gece yedeği", () => {
     delete env.YEDEK_ANAHTARI;
     await expect(yedekDepo.yedekAl(now)).rejects.toBeInstanceOf(yedekDepo.YedekYapilandirmaHatasi);
     expect(put).not.toHaveBeenCalled();
+    // Başarısızlık da kaydedilir (yönetici sayfasında kırmızı görünür).
+    expect(JSON.parse(durumlar.at(-1)!)).toMatchObject({ basarili: false, hata: expect.stringMatching(/YEDEK_ANAHTARI/) });
 
     env.YEDEK_ANAHTARI = anahtar.toString("base64");
-    expect(await yedekDepo.yedekAl(now)).toMatchObject({ anahtarSayisi: 1, silinen: 1 });
+    expect(await yedekDepo.yedekAl(now)).toMatchObject({ anahtarSayisi: 1, atlanan: 0, silinen: 1 });
+    expect(JSON.parse(durumlar.at(-1)!)).toEqual({ tarih: now, basarili: true, anahtarSayisi: 1, atlanan: 0 });
     const [yol, veri] = put.mock.calls[0] as unknown as [string, Buffer];
     expect(yol).toBe("yedek/dersera-2026-09-25-01-00.bin");
     expect(yedekCoz(veri, anahtar).kayitlar).toEqual([{ k: "dersera:x", t: "string", pttl: -1, v: "v" }]);

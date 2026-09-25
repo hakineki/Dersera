@@ -63,19 +63,38 @@ export async function anahtarlariTopla(command: RedisCommand): Promise<string[]>
   return [...bulunan].sort();
 }
 
-export async function yedekIcerigi(command: RedisCommand, now = Date.now()): Promise<YedekIcerigi> {
+type Okunan = [string, number, string | string[]][];
+
+async function parcaOku(command: RedisCommand, parca: string[]): Promise<Okunan> {
+  return ((await command(["EVAL", OKU, parca.length, ...parca])) as Okunan | null) ?? [];
+}
+
+// Bir parça okunamazsa (ör. yanıt sınırı) anahtarları tek tek dener; yine okunamayan anahtar atlanır ve sayılır.
+// Böylece tek büyük kayıt yüzünden o gecenin yedeğinin tamamı kaybolmaz.
+export async function yedekIcerigi(command: RedisCommand, now = Date.now()): Promise<YedekIcerigi & { atlanan: string[] }> {
   const anahtarlar = await anahtarlariTopla(command);
   const kayitlar: YedekKaydi[] = [];
+  const atlanan: string[] = [];
+  const ekle = (k: string, [t, pttl, v]: Okunan[number] | [] = []) => {
+    // Okuma sırasında silinen anahtar (tür "none" ya da değer yok) atlanır.
+    if (t && TURLER.has(t) && v !== undefined && v !== null) kayitlar.push({ k, t: t as AnahtarTuru, pttl: Number(pttl), v });
+  };
   for (let i = 0; i < anahtarlar.length; i += OKUMA_PARCASI) {
     const parca = anahtarlar.slice(i, i + OKUMA_PARCASI);
-    const r = ((await command(["EVAL", OKU, parca.length, ...parca])) as [string, number, string | string[]][] | null) ?? [];
-    parca.forEach((k, j) => {
-      const [t, pttl, v] = r[j] ?? [];
-      // Okuma sırasında silinen anahtar (tür "none" ya da değer yok) atlanır.
-      if (TURLER.has(t) && v !== undefined && v !== null) kayitlar.push({ k, t: t as AnahtarTuru, pttl: Number(pttl), v });
-    });
+    try {
+      const r = await parcaOku(command, parca);
+      parca.forEach((k, j) => ekle(k, r[j]));
+    } catch {
+      for (const k of parca) {
+        try {
+          ekle(k, (await parcaOku(command, [k]))[0]);
+        } catch {
+          atlanan.push(k);
+        }
+      }
+    }
   }
-  return { bicim: YEDEK_BICIMI, tarih: now, kayitlar };
+  return { bicim: YEDEK_BICIMI, tarih: now, kayitlar, atlanan };
 }
 
 // Biçim: "DRSY1" + iv(12) + etiket(16) + AES-256-GCM(gzip(JSON)).

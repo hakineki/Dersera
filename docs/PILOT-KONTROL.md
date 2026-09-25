@@ -83,6 +83,9 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 
 ## 6. Bilinen sınırlar (pilotta izlenecek)
 
+- QR durak adresleri tahmin edilebilir (`/game?qr=1…20`): bir QR'ı gören öğrenci diğer numaraları deneyerek durakları dolaşmadan ilerleyebilir. Sabit (bir kez basılan) QR tasarımının bedelidir; oyuna özel QR ileride.
+- Yerel geliştirmede (Redis'siz) bellek deposu sayfa ve API paketleri arasında paylaşılmaz: giriş yapmış öğretmen yerelde `/library` ve `/qr-kutuphane` sayfalarında "giriş gerekli" görebilir. Canlıda Redis ortak olduğundan sorun yoktur.
+- Gece yedeğinde okunamayan (çok büyük) kayıt atlanır ve yönetici sayfasında "BAŞARISIZ · N kayıt okunamadı" olarak görünür.
 - Oturumsuz sahte "bitirdim" gönderimi öğrenci sayısını şişirebilir (doğrulanmış öğrenci V2).
 - Üç günden eski birden çok hesapla topluluk onayı toplanabilir.
 - Yapay zekâ denetimi yapılamazsa yayın durmaz ("gözden geçirin"); kural tabanlı engel her zaman geçerli.
