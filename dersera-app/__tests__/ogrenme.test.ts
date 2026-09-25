@@ -168,16 +168,37 @@ describe("öğrenme döngüsü akışı", () => {
     expect(put.status).toBe(200);
     say = await s.sayaclar(ay());
     expect(say[`tur-duzenlenen|${definition.duraklar[2].gorev.tur}`]).toBe(1);
+
+    // Kaydedilmeyen düzenleme (yazma anında başka sekmeyle çakışma) sayılmaz.
+    jest.spyOn(api.libraryStore.getLibraryStore(), "replaceIfSurum").mockResolvedValueOnce("catisma");
+    const cakisan = await api.libraryItem.PUT(
+      cerezli(new Request(`http://localhost/api/library/${kayit.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ definition: { ...degisik, duraklar: degisik.duraklar.map((d: GameDefinition["duraklar"][number], i: number) => (i === 3 ? { ...d, gorev: { ...d.gorev, soru: "Başka soru?" } } : d)) }, surum: 2 }) }), ogretmen),
+      api.idParams(kayit.id)
+    );
+    expect(cakisan.status).toBe(409);
+    expect(await s.sayaclar(ay())).toEqual(say);
   });
 
   it("yapay zekâ güncellemesi: güncellenen görev türleri sayılır ve talimat kimliksiz saklanır", async () => {
     const { definition, dersler } = await (await olustur()).json();
-    jest.spyOn(api.composerService, "yapayZekaylaGuncelle").mockImplementation(async (def: GameDefinition) => ({ definition: def, validation: { gecerli: true, hatalar: [], uyarilar: [] }, guncellenen: [def.duraklar[0].id] }) as never);
+    // Model güncellenen durağın görev türünü değiştirir: sayaç yeni türe yazılır.
+    const eskiTur = definition.duraklar[0].gorev.tur;
+    const yeniTur: GameDefinition["duraklar"][number]["gorev"]["tur"] = eskiTur === "sayisal" ? "siralama" : "sayisal";
+    jest.spyOn(api.composerService, "yapayZekaylaGuncelle").mockImplementation(
+      async (def: GameDefinition) =>
+        ({
+          definition: { ...def, duraklar: def.duraklar.map((d, i) => (i === 0 ? { ...d, gorev: { ...d.gorev, tur: yeniTur } } : d)) },
+          validation: { gecerli: true, hatalar: [], uyarilar: [] },
+          guncellenen: [def.duraklar[0].id],
+        }) as never
+    );
     const req = cerezli(jsonRequest("/api/compose/guncelle", { definition, dersler, duraklar: [definition.duraklar[0].id], talimat: "Soruyu\u200b daha somut yap" }), ogretmen);
     req.headers.set("x-forwarded-for", "9.9.9.9");
     expect((await api.composeGuncelle.POST(req)).status).toBe(200);
     const s = api.ogrenmeStore.getOgrenmeStore();
-    expect((await s.sayaclar(ay()))[`tur-yz-guncellenen|${definition.duraklar[0].gorev.tur}`]).toBe(1);
+    const say = await s.sayaclar(ay());
+    expect(say[`tur-yz-guncellenen|${yeniTur}`]).toBe(1);
+    expect(say[`tur-yz-guncellenen|${eskiTur}`]).toBeUndefined();
     expect(await s.talimatlar(5)).toEqual([`10. sınıf ${definition.meta.ders}: Soruyu daha somut yap`]);
   });
 

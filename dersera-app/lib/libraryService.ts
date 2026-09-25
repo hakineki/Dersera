@@ -91,9 +91,6 @@ export async function kutuphaneKaydiniGuncelle(store: LibraryStore, sahip: strin
   }
 
   // Anlamlı içeriğin %30'undan fazlası ya da oyunun kimliği değiştiyse: yeni varyant, özgün oyun yerinde kalır.
-  // Öğrenme döngüsü: kaydedilen yeni sürümde değişen duraklar (hangi görev türleri düzeltiliyor).
-  await duzenlemeSinyali(kayit.definition, r.definition, now);
-
   if (karar.tur === "varyant") {
     if ((await store.count(sahip)) >= KUTUPHANE_LIMIT) {
       return { ok: false, status: 409, error: `Bu değişiklik yeni bir varyant oluşturuyor ama kütüphane dolu (en fazla ${KUTUPHANE_LIMIT} oyun). Yer açmak için eski bir oyunu silin.` };
@@ -106,6 +103,8 @@ export async function kutuphaneKaydiniGuncelle(store: LibraryStore, sahip: strin
       taban: parmakizi(r.definition),
     };
     await store.put(sahip, varyant);
+    // Öğrenme döngüsü: yalnız gerçekten yazılan yeni sürümde değişen duraklar sayılır (hangi görev türleri düzeltiliyor).
+    await duzenlemeSinyali(kayit.definition, r.definition, now);
     return { ok: true, id: varyant.id, validation: r.validation, surum: { tur: "varyant", surum: 1, oran: karar.oran, neden: karar.neden } };
   }
 
@@ -120,6 +119,7 @@ export async function kutuphaneKaydiniGuncelle(store: LibraryStore, sahip: strin
   };
   const y = await store.replaceIfSurum(sahip, guncel, surum);
   if (y !== "ok") return y === "yok" ? BULUNAMADI : CATISMA;
+  await duzenlemeSinyali(kayit.definition, r.definition, now);
   return { ok: true, id, validation: r.validation, surum: { tur: "surum", surum: surum + 1, oran: karar.oran } };
 }
 

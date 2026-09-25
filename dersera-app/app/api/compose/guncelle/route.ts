@@ -68,7 +68,8 @@ export async function POST(req: Request) {
     await krediTamamla(hesap.id, harcama);
     const kalan = Math.min(DENETIM_SONU_MS - (Date.now() - basla), YZ_DENETIM.sureMs);
     const guvenlik: YzDenetim = !validation.gecerli || kalan < DENETIM_EN_AZ_MS ? { durum: "bekliyor" } : await yzDenetle(definition, { timeoutMs: kalan });
-    await yzGuncellemeSinyali(def, guncellenen, talimat);
+    // Sayaç güncellenmiş tanımdaki görev türüne yazılır (model türü değiştirebilir).
+    await yzGuncellemeSinyali(definition, guncellenen, talimat);
     return NextResponse.json({ kredi: await krediDurumu(hesap.id).catch(() => null), definition, validation, guvenlik, guncellenen });
   } catch (err) {
     const iadeEdildi = await krediIade(hesap.id, harcama, "Oyun güncellenemedi: kredi iadesi");
