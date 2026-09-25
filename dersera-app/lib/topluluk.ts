@@ -35,6 +35,10 @@ export const TOPLULUK_KURALLARI = {
   gunlukGonderim: 1,
   gerekliKabul: 2,
   redEsigi: 2,
+  // Başlangıç dönemi: toplulukta yayındaki oyun bu sayıya ulaşana kadar gönderim incelemesiz yayına girer; öğrenci/puan
+  // eşiği, hesap yaşı ve günlük sınır uygulanmaz, topluluk kredi ödülü verilmez. Otomatik içerik kapıları her zaman
+  // geçerlidir; kayıt yöneticinin moderasyon kuyruğuna "incelemesiz" olarak düşer.
+  baslangicYayinSayisi: 100,
   notEnAz: 10,
   notEnCok: 300,
   // Öğretmen puanı: yalnız oyunu kendi sınıfında oynatan (yayınladığı kodlarda en az bu kadar öğrenci bitiren) öğretmen.
@@ -67,6 +71,8 @@ export interface ToplulukKaydi extends Omit<ToplulukOzeti, "oynanma_sayisi" | "o
   kaynak?: string;
   onceki_id?: string | null;
   gonderim_tarihi?: number;
+  // Başlangıç döneminde incelemesiz yayına girdi (topluluk ödülü verilmedi).
+  onaysiz?: true;
 }
 
 // Durumu olmayan eski kayıt: aktifse yayında, değilse (eski sürüm olarak pasife alınmış) geri çekilmiş sayılır.

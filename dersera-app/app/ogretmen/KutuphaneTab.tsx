@@ -158,8 +158,9 @@ export function ToplulukBolumu({ oyun, onYenile }: { oyun: KutuphaneListeOgesi; 
   }
 
   const paylasEtiketi = t?.durum === "yayinda" ? "Güncel sürümü gönder" : t?.durum === "reddedildi" ? "Düzeltip yeniden gönder" : "🌐 Toplulukta paylaş";
-  // Hiç oynanmamış ve hiç gönderilmemiş oyunda kapalı düğme ve eksik listesi yerine kısa bir not.
-  if (!t && oyun.ogrenci_sayisi === 0) {
+  // Hiç oynanmamış ve hiç gönderilmemiş oyunda kapalı düğme ve eksik listesi yerine kısa bir not (başlangıç döneminde
+  // oynanmamış oyun da gönderilebilir).
+  if (!t && oyun.ogrenci_sayisi === 0 && !oyun.paylasim.uygun) {
     return <p className="mt-3 border-t border-gray-100 pt-3 text-xs text-gray-500">Sınıfta oynatıldıkça topluluğa gönderebilirsin.</p>;
   }
   return (
@@ -334,6 +335,7 @@ function OyunKarti({
 export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: TeacherGame) => void }) {
   const [oyunlar, setOyunlar] = useState<KutuphaneListeOgesi[] | null>(null);
   const [hesap, setHesap] = useState<{ toplulukHazir: boolean; kalanGun: number } | null>(null);
+  const [baslangic, setBaslangic] = useState<{ kalan: number } | null>(null);
   const [okulAdi, setOkulAdi] = useState<string | null>(null);
   const [kredi, setKredi] = useState<KrediDurumu | null>(null);
   const [hata, setHata] = useState(false);
@@ -345,6 +347,7 @@ export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: Teac
     if (liste) {
       setOyunlar(liste.oyunlar);
       setHesap(liste.hesap);
+      setBaslangic(liste.toplulukBaslangic);
       setOkulAdi(liste.okul?.ad ?? null);
     } else setHata(true);
   }, []);
@@ -368,6 +371,12 @@ export default function KutuphaneTab({ onYayinlandi }: { onYayinlandi: (tg: Teac
       {kredi && (
         <p className="text-sm text-gray-700">
           <span aria-hidden="true">💳 </span>Kredin: <strong>{krediMetni(kredi)}</strong>. Oyun oluşturmak 2–4 kredi; yayınlamak, düzenlemek ve öğrencilerin oynaması ücretsiz.
+        </p>
+      )}
+      {baslangic && (
+        <p className="bg-green-50 border border-green-100 rounded-xl p-3 text-sm text-green-900">
+          <span aria-hidden="true">🌱 </span>Topluluk başlangıç dönemi: ilk {TOPLULUK_KURALLARI.baslangicYayinSayisi} oyun öğretmen incelemesi beklemeden hemen
+          toplulukta yayına girer ({baslangic.kalan} yer kaldı). Çocuk güvenliği ve içerik denetimi yine yapılır; bu dönemde topluluk kredi ödülü verilmez.
         </p>
       )}
       {hesap && !hesap.toplulukHazir && (

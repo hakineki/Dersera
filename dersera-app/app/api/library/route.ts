@@ -7,7 +7,7 @@ import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { kutuphaneSahibi } from "@/lib/auth";
 import { istekSahibi, kutuphaneyeEkle } from "@/lib/libraryService";
 import { kutuphaneIstatistikleri } from "@/lib/istatistikService";
-import { hesapHazirligi, paylasimUygunlugu, toplulukDurumlari } from "@/lib/toplulukPaylasim";
+import { baslangicDurumu, hesapHazirligi, paylasimUygunlugu, toplulukDurumlari } from "@/lib/toplulukPaylasim";
 import { getToplulukStore } from "@/lib/toplulukStore";
 
 export async function GET(req: Request) {
@@ -21,14 +21,15 @@ export async function GET(req: Request) {
     const kaynaklar = sirali.map((o) => `${sahip}:${o.id}`);
     const ist = await kutuphaneIstatistikleri(kaynaklar);
     const topluluk = await toplulukDurumlari(getToplulukStore(), kaynaklar);
+    const baslangic = await baslangicDurumu(getToplulukStore());
     // Okul okunamazsa kütüphane yine gelir (okul bilgisi boş).
     const okul = await kutuphaneOkulDurumu({ okul: getOkulStore() }, hesap, kaynaklar).catch((err: unknown) => {
       console.error("[kutuphane] okul durumu okunamadı", err instanceof Error ? err.message : err);
       return { okul: null, paylasimlar: kaynaklar.map(() => null) };
     });
     const now = Date.now();
-    const oyunlar = sirali.map((o, i) => ({ ...o, ...ist[i], topluluk: topluluk[i], paylasim: paylasimUygunlugu(hesap, ist[i], now), okulPaylasimi: okul.paylasimlar[i] }));
-    return NextResponse.json({ oyunlar, hesap: hesapHazirligi(hesap, now), okul: okul.okul, persistent: store.persistent });
+    const oyunlar = sirali.map((o, i) => ({ ...o, ...ist[i], topluluk: topluluk[i], paylasim: paylasimUygunlugu(hesap, ist[i], now, !!baslangic), okulPaylasimi: okul.paylasimlar[i] }));
+    return NextResponse.json({ oyunlar, hesap: hesapHazirligi(hesap, now, !!baslangic), toplulukBaslangic: baslangic, okul: okul.okul, persistent: store.persistent });
   } catch (err) {
     console.error("[kutuphane] listeleme hatası", err);
     return NextResponse.json({ error: "Kütüphane okunamadı" }, { status: 503 });

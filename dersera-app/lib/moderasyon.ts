@@ -4,7 +4,8 @@ import type { Bulgu, KapiId, YonetisimSonucu } from "@/lib/composer/yonetisim";
 // Moderasyon kuyruğu (docs/URUN-BAGLAMI.md V2): içerik kapılarından (çocuk güvenliği, benzerlik) uyarı ya da engel
 // alan yayınlar yöneticinin önüne gelir. Pedagojik uyarılar (ör. ipucu cevabı söylüyor) kuyruğa girmez.
 // "sinif-yayini": uyarıyla yayınlanmış sınıf oyunu (kaldırılırsa oyun biter).
-// "topluluk": uyarıyla topluluğa gönderilmiş oyun (kaldırılırsa reddedilir).
+// "topluluk": uyarıyla topluluğa gönderilmiş oyun (kaldırılırsa reddedilir). Başlangıç döneminde incelemesiz yayına
+// giren topluluk oyunu uyarı olmasa da gelir (onaysiz): öğretmen incelemesi yerine yönetici sonradan bakar.
 // "engellenen": yayını engellenmiş içerik (yalnız bilgi; kötüye kullanımı görmek için).
 
 export const MODERASYON = {
@@ -46,6 +47,7 @@ export interface ModerasyonKaydi {
   sahip: string | null;
   kod?: string;
   toplulukId?: string;
+  onaysiz?: true;
   bulgular: ModerasyonBulgusu[];
   definition?: GameDefinition;
   durum: "bekliyor" | "kapatildi";

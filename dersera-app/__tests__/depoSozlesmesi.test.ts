@@ -228,7 +228,7 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     expect(await d.library.count(sahip)).toBe(0);
   });
 
-  it("topluluk: içerik tekilliği, atomik durum geçişi, özet okuma, kuyruk, öğretmen puanı güncellemesi", async () => {
+  it("topluluk: içerik tekilliği, atomik durum geçişi, özet okuma, kuyruk, öğretmen puanı güncellemesi, yayındaki oyun sayısı", async () => {
     const def = makeDefinition(girdi, 6);
     def.meta.baslik = `Duman ${run}`;
     const k = yeniToplulukKaydi(def, dersler, `hesap:o-${run}`, 1_000, { durum: "inceleme", aktif: false });
@@ -241,7 +241,10 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     await d.topluluk.kuyrugaEkle(k.oyun_id, 1_000);
     expect(await d.topluluk.kuyruk(1_000)).toContain(k.oyun_id);
     expect(await d.topluluk.durumGecis(k.oyun_id, ["yayinda"], "reddedildi", "inceleme")).toBe(false);
+    // Başlangıç dönemi yayındaki oyun sayısına bakar (duman veritabanında başka testlerin kayıtları olabilir: fark ölçülür).
+    const yayinda = await d.topluluk.yayindaSayisi();
     expect(await d.topluluk.durumGecis(k.oyun_id, ["inceleme"], "yayinda", "inceleme", 3_000)).toBe(true);
+    expect(await d.topluluk.yayindaSayisi()).toBe(yayinda + 1);
     expect(await d.topluluk.durumGecis(k.oyun_id, ["inceleme"], "reddedildi", "inceleme")).toBe(false);
     await d.topluluk.kuyruktanCikar(k.oyun_id);
     expect(await d.topluluk.kuyruk(1_000)).not.toContain(k.oyun_id);
@@ -260,6 +263,17 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     expect(await ozetOf()).toMatchObject({ puan_sayisi: 5, puan_ortalama: 3.6 });
     expect(await d.topluluk.incelemeEkle(k.oyun_id, { inceleyen: "i1", karar: "kabul", not: "", tarih: 1 })).toBe(true);
     expect(await d.topluluk.incelemeEkle(k.oyun_id, { inceleyen: "i1", karar: "ret", not: "tekrar", tarih: 2 })).toBe(false);
+
+    // Başlangıç döneminde doğrudan yayında açılan kayıt sayıya girer; geri çekilen çıkar.
+    const def2 = makeDefinition(girdi, 6);
+    def2.meta.baslik = `Duman başlangıç ${run}`;
+    const b = yeniToplulukKaydi(def2, dersler, `hesap:o-${run}`, 4_000, { durum: "yayinda", aktif: true, onaysiz: true });
+    expect(await d.topluluk.ekle(b, icerikOzetiOf(def2))).toBe(b.oyun_id);
+    expect(await d.topluluk.get(b.oyun_id)).toMatchObject({ onaysiz: true, durum: "yayinda" });
+    expect(await d.topluluk.yayindaSayisi()).toBe(yayinda + 2);
+    expect(await d.topluluk.durumGecis(k.oyun_id, ["yayinda"], "geri-cekildi", "yayinda")).toBe(true);
+    expect(await d.topluluk.durumGecis(b.oyun_id, ["yayinda"], "reddedildi", "yayinda")).toBe(true);
+    expect(await d.topluluk.yayindaSayisi()).toBe(yayinda);
   });
 
   // Kod sınırı koddaki tüm bitirişleri (sayılmayanlar dahil) sayar.

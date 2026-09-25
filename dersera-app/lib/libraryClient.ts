@@ -50,6 +50,8 @@ export async function eskiKutuphaneyiTasi(): Promise<{ tasinan: number; kalan: n
 export interface KutuphaneListesi {
   oyunlar: KutuphaneListeOgesi[];
   hesap: { toplulukHazir: boolean; kalanGun: number };
+  // Topluluk başlangıç dönemi (incelemesiz yayın) sürüyorsa kalan yer; bittiyse null.
+  toplulukBaslangic: { kalan: number } | null;
   // Öğretmenin okulu (üye değilse null).
   okul?: { ad: string } | null;
 }

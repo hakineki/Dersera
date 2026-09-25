@@ -24,7 +24,7 @@ function Satir({ k, onAc }: { k: ModerasyonOzeti; onAc: () => void }) {
       <div className="min-w-0">
         <p className="flex flex-wrap items-center gap-2">
           <span className={`text-xs border rounded-full px-2 py-0.5 ${t.sinif}`}>{t.ad}</span>
-          <span className={`text-xs font-semibold ${k.karar === "BLOCK" ? "text-red-700" : "text-amber-700"}`}>{k.karar === "BLOCK" ? "Engel" : "Uyarı"}</span>
+          <span className={`text-xs font-semibold ${k.karar === "BLOCK" ? "text-red-700" : "text-amber-700"}`}>{k.karar === "BLOCK" ? "Engel" : k.onaysiz && k.bulgular.length === 0 ? "İncelemesiz" : "Uyarı"}</span>
           <span className="text-xs text-gray-500">{zaman(k.tarih)}</span>
         </p>
         <h2 className="font-bold text-gray-900 mt-1 truncate">{k.baslik}</h2>
@@ -33,7 +33,8 @@ function Satir({ k, onAc }: { k: ModerasyonOzeti; onAc: () => void }) {
           {k.ders}
           {k.kod ? ` · kod ${k.kod}` : ""}
         </p>
-        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{k.bulgular[0]?.mesaj}</p>
+        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{k.bulgular[0]?.mesaj ?? (k.onaysiz ? "İçerik denetiminde bulgu yok." : "")}</p>
+        {k.onaysiz && <p className="text-xs text-green-800 mt-1">Başlangıç dönemi: öğretmen incelemesi olmadan yayına girdi; sen bak.</p>}
         {k.sonuc && (
           <p className="text-xs text-gray-700 mt-1">
             Karar: <strong>{k.sonuc.karar === "temiz" ? "Temiz" : "Kaldırıldı"}</strong> · {k.sonuc.yonetici} · {zaman(k.sonuc.tarih)}
