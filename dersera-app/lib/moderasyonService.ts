@@ -46,7 +46,10 @@ export async function moderasyonaEkle(g: ModerasyonGirdisi, store: ModerasyonSto
       ozet = createHash("sha256").update(JSON.stringify(g.klasik.stops.map((s) => [s.name, s.hikaye]))).digest("hex");
       kayit = { karar: "BLOCK", baslik: g.klasik.stops[0]?.name ?? "Klasik oyun", sinif: null, ders: "Klasik oyun", bulgular: klasikBulgulari(g.klasik.bulgular) };
     }
-    const tekil = g.tur === "sinif-yayini" ? `kod:${g.kod}` : g.tur === "topluluk" ? `topluluk:${g.toplulukId}` : `icerik:${ozet}`;
+    // İncelemesiz (başlangıç dönemi) yayında aynı kayıt geri çekilip yeniden yayınlanırsa ertesi günden itibaren yeniden
+    // kuyruğa girer; aynı gün içinde yöneticinin az önce gördüğü birebir aynı içeriktir (kuyruk tekrarla da dolmaz).
+    const topluluk = `topluluk:${g.toplulukId}${g.onaysiz ? `:${new Date(now).toISOString().slice(0, 10)}` : ""}`;
+    const tekil = g.tur === "sinif-yayini" ? `kod:${g.kod}` : g.tur === "topluluk" ? topluluk : `icerik:${ozet}`;
     // IP sınırı yalnız engellenen denemelere: aynı okul IP'sinden gelen engel denemeleri, gerçekten yayınlanmış
     // uyarılı oyunun kuyruğa girmesini engelleyemez.
     if (g.tur === "engellenen" && g.ip && !(await checkLimit(`moderasyon:ip:${g.ip}`, 60 * 60 * 1000, MODERASYON.ipSaatlik))) return false;

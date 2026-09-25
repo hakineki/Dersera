@@ -568,18 +568,32 @@ describe(`topluluk başlangıç dönemi (ilk ${K.baslangicYayinSayisi} oyun ince
     expect((await liste()).map((o) => o.baslik)).toEqual(["Kopya"]);
   });
 
-  it("geri çekilen aynı içerik yeniden paylaşılınca incelemesiz yayına döner", async () => {
+  it("geri çekilen aynı içerik yeniden paylaşılınca incelemesiz yayına döner; yönetici temiz dediyse ertesi gün yeniden kuyruğa girer", async () => {
     const id = await kaydet(oyun("Geri Gelen"));
     expect((await paylas(id)).status).toBe(201);
+    const { y, kayitlar } = await moderasyon();
+    expect(kayitlar).toHaveLength(1);
+    expect((await api.moderasyonOge.POST(cerezli(jsonRequest(`/api/moderasyon/${kayitlar[0].id}`, { karar: "temiz" }), y), api.idParams(kayitlar[0].id))).status).toBe(200);
+    const bekleyen = async () => (await (await api.moderasyon.GET(cerezli(new Request("http://localhost/api/moderasyon"), y))).json()).kayitlar as { toplulukId: string; onaysiz?: true }[];
+    expect(await bekleyen()).toEqual([]);
+
+    // Aynı gün: yöneticinin az önce temiz dediği birebir aynı içerik, kuyruğa yeniden girmez.
     expect((await geriCek(id)).status).toBe(200);
     expect(await liste()).toEqual([]);
     const res = await paylas(id);
     expect(res.status).toBe(201);
     expect((await res.json()).durum).toBe("yayinda");
     expect((await liste()).map((o) => o.baslik)).toEqual(["Geri Gelen"]);
+    expect(await bekleyen()).toEqual([]);
+
+    // Ertesi gün yeniden yayınlanırsa yönetici yine görür.
+    expect((await geriCek(id)).status).toBe(200);
+    jest.spyOn(Date, "now").mockReturnValue(Date.now() + 24 * 60 * 60 * 1000 + 1000);
+    expect((await paylas(id)).status).toBe(201);
+    expect(await bekleyen()).toEqual([expect.objectContaining({ toplulukId: kayitlar[0].toplulukId, onaysiz: true })]);
   });
 
-  it(`yayında ${"$"}{K.baslangicYayinSayisi} oyuna ulaşınca normal akış döner (hesap yaşı, eşik, inceleme); sayı okunamazsa da normal akış`, async () => {
+  it(`yayında ${K.baslangicYayinSayisi} oyuna ulaşınca normal akış döner (hesap yaşı, eşik, inceleme); sayı okunamazsa da normal akış`, async () => {
     const id = await kaydet(oyun("Son Yer"));
     yayindaSay(K.baslangicYayinSayisi - 1);
     expect((await kutuphane()).toplulukBaslangic).toEqual({ kalan: 1 });
