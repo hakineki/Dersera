@@ -110,6 +110,9 @@ export default function OkulHavuzuClient() {
             <Link href="/moderasyon" className="text-indigo-300 hover:text-white">
               Moderasyon
             </Link>
+            <Link href="/yonetim/kopya-kaydi" className="text-indigo-300 hover:text-white">
+              Kopya kaydı
+            </Link>
             <Link href="/ogretmen" className="text-indigo-300 hover:text-white">
               ← Öğretmen paneli
             </Link>

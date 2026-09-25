@@ -34,6 +34,9 @@ export interface PublicGame {
   endedAt: number | null;
   // Game Composer ile üretilmiş oyunlar sahne tanımını taşır; yoksa klasik soru bankası oyunudur.
   definition?: GameDefinition;
+  // Composer oyununun içeriği (sorular ve cevaplar) yalnız katılmış oyuncuya ve oyun sürerken verilir; aksi hâlde
+  // tanım gönderilmez, yalnız bu işaret döner.
+  icerikKilitli?: true;
 }
 
 // Composer oyununun yayında açık kalacağı süre: oyun süresinin iki katı, en az bir saat.

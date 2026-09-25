@@ -39,9 +39,10 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-export function toPublicGame(game: StoredGame): PublicGame {
+// icerik false: Composer oyununun tanımı gönderilmez (kod bilen ama katılmamış biri ya da bitmiş oyun).
+export function toPublicGame(game: StoredGame, icerik = true): PublicGame {
   const { code, stops, aylar, createdAt, expiresAt, endedAt, definition } = game;
-  return { code, stops, aylar, createdAt, expiresAt, endedAt, ...(definition ? { definition } : {}) };
+  return { code, stops, aylar, createdAt, expiresAt, endedAt, ...(definition ? (icerik ? { definition } : { icerikKilitli: true as const }) : {}) };
 }
 
 export async function publishGame(

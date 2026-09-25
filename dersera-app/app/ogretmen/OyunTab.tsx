@@ -47,9 +47,12 @@ function ActiveGame({
   const [error, setError] = useState("");
   const [missing, setMissing] = useState(false);
   const onGameChangeRef = useRef(onGameChange);
+  // Yerel oyun (tanımıyla): sunucu tanımı yalnız katılan öğrenciye verdiğinden durum yenilenince yerel tanım korunur.
+  const oyunRef = useRef(game);
 
   useEffect(() => {
     onGameChangeRef.current = onGameChange;
+    oyunRef.current = game;
   });
 
   useEffect(() => {
@@ -66,7 +69,7 @@ function ActiveGame({
         if (r.status !== "ok") return;
         setMissing(false);
         setPlayers(r.players);
-        if (r.game.endedAt !== game.endedAt) onGameChangeRef.current(r.game);
+        if (r.game.endedAt !== game.endedAt) onGameChangeRef.current({ ...oyunRef.current, endedAt: r.game.endedAt });
       });
     const first = setTimeout(load, 0);
     const id = setInterval(load, GAME_REFRESH_MS);

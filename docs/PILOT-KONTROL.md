@@ -69,6 +69,9 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 28 | Gizli sekmede ana sayfa; sonra `/library` ve `/qr-kutuphane` | Ana sayfada yalnız Öğrenci ve Öğretmen. Girişsiz iki sayfa da "Bu sayfa yalnız öğretmenlere açık" der, içerik (QR kodları, oyun listesi) gelmez. Öğretmen girişiyle açılır. |
 | 29 | Davet koduyla ve kodsuz kayıt dene | Kodsuz ya da yanlış kodla 403; doğru kodla hesap açılır. |
 | 30 | Yönetici: Vercel → Cron Jobs → yedek görevini elle çalıştır | Yanıt anahtar sayısını verir; Blob'da `yedek/` altında dosya belirir. Dosyayı indirip `YEDEK_ANAHTARI=… node scripts/yedek-geri-yukle.mjs <dosya>` ile özetin açıldığını görün (kuru çalışma, hiçbir şey yazılmaz). |
+| 31 | Oyun yayınla; gizli sekmede `/api/games/<KOD>` adresini aç | Yanıtta soru ve cevap yok (`icerikKilitli: true`). Öğrenci takma adla katılınca oyun açılır; ekranda silik "takma ad · kod" filigranı görünür. Oyun bitince aynı adres içerik vermez. |
+| 32 | İki farklı öğrenci aynı oyunda ilk soruya bak | Çoktan seçmeli seçeneklerin sırası öğrenciye göre farklı; sayfa yenilense de aynı öğrencide değişmez. |
+| 33 | Öğretmen: başka öğretmenin 21 topluluk oyununu aç; yönetici `/yonetim/kopya-kaydi` | 21.'de "Günde en çok 20…" uyarısı; kopya kaydında öğretmen, oyun ve zaman görünür. Kayıtta kullanım koşulları onayı olmadan hesap açılmaz. |
 
 ## 4. Dağıtım doğrulaması
 

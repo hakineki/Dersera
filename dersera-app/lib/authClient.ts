@@ -41,7 +41,8 @@ export async function oturumBilgisi(): Promise<{ hesap: HesapOzeti | null; davet
 }
 
 export const girisYap = (kullaniciAdi: string, sifre: string) => gonder("/api/auth/giris", { kullaniciAdi, sifre });
-export const kayitOl = (kullaniciAdi: string, sifre: string, davetKodu: string) => gonder("/api/auth/kayit", { kullaniciAdi, sifre, davetKodu });
+export const kayitOl = (kullaniciAdi: string, sifre: string, davetKodu: string, kosulOnayi: boolean) =>
+  gonder("/api/auth/kayit", { kullaniciAdi, sifre, davetKodu, kosulOnayi });
 export const sifreDegistir = (mevcutSifre: string, yeniSifre: string) => gonder("/api/auth/sifre", { mevcutSifre, yeniSifre });
 export const kullaniciAdiDegistir = (yeniKullaniciAdi: string, sifre: string) => gonder("/api/auth/ad", { yeniKullaniciAdi, sifre });
 

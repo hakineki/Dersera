@@ -5,11 +5,13 @@ export type FetchGameResult =
   | { status: "not-found" }
   | { status: "error" };
 
-export async function fetchGame(code: string, timeoutMs = 5000): Promise<FetchGameResult> {
+// oyuncu: bu oyuna katılmış öğrencinin takma adı ve anahtarı; yalnız onunla Composer oyununun içeriği gelir.
+export async function fetchGame(code: string, timeoutMs = 5000, oyuncu?: { ad: string; anahtar: string } | null): Promise<FetchGameResult> {
   try {
     const res = await fetch(`/api/games/${encodeURIComponent(code)}`, {
       cache: "no-store",
       signal: AbortSignal.timeout(timeoutMs),
+      ...(oyuncu ? { headers: { "x-oyuncu-adi": encodeURIComponent(oyuncu.ad), "x-oyuncu-anahtari": oyuncu.anahtar } } : {}),
     });
     if (res.status === 404) return { status: "not-found" };
     if (!res.ok) return { status: "error" };

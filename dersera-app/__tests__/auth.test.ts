@@ -18,7 +18,7 @@ describe("öğretmen hesabı", () => {
     return route.POST(req);
   };
   const kayit = (kullaniciAdi: string, sifre = "gizli-sifre-1", extra: Record<string, unknown> = {}, ip?: string) =>
-    post(api.kayit, "/api/auth/kayit", { kullaniciAdi, sifre, ...extra }, null, ip);
+    post(api.kayit, "/api/auth/kayit", { kullaniciAdi, sifre, kosulOnayi: true, ...extra }, null, ip);
   const giris = (kullaniciAdi: string, sifre: string, ip?: string) => post(api.giris, "/api/auth/giris", { kullaniciAdi, sifre }, null, ip);
   const ben = async (cerez: string | null) => (await (await api.ben.GET(cerezli(new Request("http://localhost/api/auth/ben"), cerez))).json()).hesap;
 
@@ -55,7 +55,7 @@ describe("öğretmen hesabı", () => {
     ["eski varsayılan şifre", "ayse", "Dersera2025"],
     ["tek karakter tekrarı", "ayse", "aaaaaaaaaa"],
   ])("geçersiz kayıt reddedilir: %s", async (_l, ad, sifre) => {
-    const res = await post(api.kayit, "/api/auth/kayit", { kullaniciAdi: ad, sifre });
+    const res = await post(api.kayit, "/api/auth/kayit", { kullaniciAdi: ad, sifre, kosulOnayi: true });
     expect(res.status).toBe(422);
     expect(res.headers.get("set-cookie")).toBeNull();
   });

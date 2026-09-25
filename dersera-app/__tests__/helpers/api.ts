@@ -48,6 +48,8 @@ export async function buildApi() {
     okulUye: typeof import("@/app/api/okul/uyeler/[hesapId]/route");
     okulPaylasim: typeof import("@/app/api/okul/paylasim/route");
     okulPaylasimOge: typeof import("@/app/api/okul/paylasim/[id]/route");
+    kopyaKaydi: typeof import("@/app/api/yonetim/kopya-kaydi/route");
+    denetimKaydi: typeof import("@/lib/denetimKaydi");
     okulStore: typeof import("@/lib/okulStore");
     okulKredi: typeof import("@/app/api/okul/kredi/route");
     yonetimHavuzu: typeof import("@/app/api/yonetim/okul-havuzu/route");
@@ -97,6 +99,8 @@ export async function buildApi() {
       okulUye: await import("@/app/api/okul/uyeler/[hesapId]/route"),
       okulPaylasim: await import("@/app/api/okul/paylasim/route"),
       okulPaylasimOge: await import("@/app/api/okul/paylasim/[id]/route"),
+      kopyaKaydi: await import("@/app/api/yonetim/kopya-kaydi/route"),
+      denetimKaydi: await import("@/lib/denetimKaydi"),
       okulStore: await import("@/lib/okulStore"),
       okulKredi: await import("@/app/api/okul/kredi/route"),
       yonetimHavuzu: await import("@/app/api/yonetim/okul-havuzu/route"),
@@ -140,7 +144,7 @@ export function cerezli(req: Request, cerez: string | null): Request {
 
 // Yeni hesap açar ve oturum çerezini döndürür.
 export async function hesapAc(api: Awaited<ReturnType<typeof buildApi>>, kullaniciAdi: string, sifre = "gizli-sifre-1"): Promise<string> {
-  const res = await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi, sifre }));
+  const res = await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi, sifre, kosulOnayi: true }));
   if (res.status !== 201) throw new Error(`hesap açılamadı: ${res.status}`);
   return oturumCerezi(res)!;
 }

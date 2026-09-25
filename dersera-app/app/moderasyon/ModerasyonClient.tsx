@@ -186,6 +186,9 @@ export default function ModerasyonClient() {
             <Link href="/yonetim/okul-havuzu" className="text-indigo-300 hover:text-white">
               Okul havuzları
             </Link>
+            <Link href="/yonetim/kopya-kaydi" className="text-indigo-300 hover:text-white">
+              Kopya kaydı
+            </Link>
             <Link href="/ogretmen" className="text-indigo-300 hover:text-white">
               ← Öğretmen paneli
             </Link>

@@ -190,6 +190,7 @@ export async function okulPaylasimDetayi(d: OkulDeps, hesap: Hesap, id: string) 
     ok: true as const,
     oyun: { baslik: ozet.baslik, sinif: ozet.sinif, ders: ozet.ders, konu: ozet.konu, sure_dk: ozet.sure_dk, definition, dersler },
     ...duzenlemeBaglami(p.sinif, dersler, definition),
+    kendiPaylasimi: p.paylasan === hesap.id,
   };
 }
 
