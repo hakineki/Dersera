@@ -42,7 +42,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 1 | A kayıt olur / giriş yapar | Kütüphane ve kredi görünür: 30 aylık kredi. |
 | 2 | Oluşturma formu: sınıf, ders, konu → tarz → kontrol | Üç bölüm; özet ve "Bu oyun 3 kredi" (40 dk). |
 | 3 | Oyunu oluştur | Yükleme adımları ilerler; önizleme açılır. Kredi 27. |
-| 4 | Önizleme rozetleri | Beş rozet; "Otomatik içerik denetimi yapıldı…" notu. |
+| 4 | Önizleme rozetleri | Beş rozet; "Bağlam denetimi yapıldı…" notu. |
 | 5 | Bir durağı elle düzenle | Kredi değişmez; rozetler canlı güncellenir; not "yayın sırasında yapılacak" olur. |
 | 6 | Dersera'yla güncelle: 1 durak + talimat | Seçili durak değişir, diğerleri aynı kalır. Kredi 26. |
 | 7 | Kütüphaneye kaydet | "Sürüm 1" kartı. Küçük düzenleme sonrası kaydet → "Sürüm 2"; büyük değişiklik → varyant. |
