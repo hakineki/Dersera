@@ -9,7 +9,7 @@ import { formatElapsed, buildResultCode, type LeaderboardEntry } from "@/lib/gam
 import { toStops } from "@/lib/games";
 import { definitionPanelStops } from "@/lib/composer/scene";
 import OgrenmeRaporuKarti from "./OgrenmeRaporu";
-import { loadTeacherGame, saveTeacherGame, type TeacherGame } from "@/lib/teacherGame";
+import { ayniHesap, clearTeacherGame, loadTeacherGame, saveTeacherGame, type TeacherGame } from "@/lib/teacherGame";
 import OyunTab from "./OyunTab";
 import KutuphaneTab from "./KutuphaneTab";
 import OkulTab from "./OkulTab";
@@ -167,6 +167,8 @@ interface ResultsSync {
   persistent: boolean;
   lastUpdated: number | null;
 }
+
+const ILK_SYNC: ResultsSync = { status: "loading", persistent: true, lastUpdated: null };
 
 // ── CSV indirme ───────────────────────────────────────────────────────────────
 function downloadCSV(leaderboard: LeaderboardEntry[], stops: Stop[], gameCode: string) {
@@ -627,22 +629,21 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   const [selectedAylar, setSelectedAylar] = useState<string[]>(["eylul"]);
   const [teacherGame, setTeacherGame] = useState<TeacherGame | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [sync, setSync] = useState<ResultsSync>({ status: "loading", persistent: true, lastUpdated: null });
+  const [sync, setSync] = useState<ResultsSync>(ILK_SYNC);
 
   useEffect(() => {
     eskiYerelGirisiTemizle();
-    // Kayıtlı oyun tarayıcıdan ilk render'dan sonra okunur (sunucuda localStorage yok).
-    const t = setTimeout(() => setTeacherGame(loadTeacherGame()));
     oturumBilgisi().then((o) => {
       if (o) {
         setHesap(o.hesap);
+        // Kayıtlı oyun ancak giriş bilinince ve yalnız bu hesabınsa okunur (sunucuda localStorage yok).
+        setTeacherGame(o.hesap ? loadTeacherGame(o.hesap) : null);
         setDavetGerekli(o.davetGerekli);
         setKayitKapali(o.kayitKapali);
         setYonetici(o.yonetici);
       } else setBaglantiHatasi(true);
       setReady(true);
     });
-    return () => clearTimeout(t);
   }, []);
 
   // Hesap öncesinde bu tarayıcıda kaydedilmiş kütüphane varsa öğretmene sorulur (ortak bilgisayarda başkasına ait olabilir).
@@ -691,10 +692,22 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
     });
   }, [gameCode]);
 
-  const handleTeacherGameChange = useCallback((tg: TeacherGame) => {
-    saveTeacherGame(tg);
-    setTeacherGame(tg);
-  }, []);
+  // Şu an girişli hesap: çıkıştan sonra dönen eski istek (yayın, oyunu bitirme) kaydı geri yazmaz, oyunu sonraki
+  // öğretmene göstermez. Çıkış bunu ağ beklenmeden boşaltır.
+  const girisliHesap = useRef<HesapOzeti | null>(null);
+  useEffect(() => {
+    girisliHesap.current = hesap;
+  }, [hesap]);
+
+  const handleTeacherGameChange = useCallback(
+    (tg: TeacherGame) => {
+      if (!hesap || !ayniHesap(girisliHesap.current, hesap)) return false;
+      saveTeacherGame(tg, hesap);
+      setTeacherGame(tg);
+      return true;
+    },
+    [hesap]
+  );
 
   useEffect(() => {
     if (!loggedIn) return;
@@ -744,6 +757,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
       <LoginScreen
         onLogin={(h) => {
           setHesap(h);
+          setTeacherGame(loadTeacherGame(h));
           // Yönetici bilgisi giriş yanıtında yok; oturumdan okunur.
           oturumBilgisi().then((o) => setYonetici(!!o?.yonetici));
         }}
@@ -766,12 +780,19 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
     window.scrollTo({ top: 0 });
   }
   // Ayarlar sekmesi ve telefondaki ⋮ menüsü aynı çıkışı kullanır. Ortak bilgisayarda sonraki öğretmen
-  // öncekinin son sekmesinde ya da yönetici görünümünde açılmasın.
+  // öncekinin son sekmesinde, yönetici görünümünde ya da oyununda açılmasın: oyun kaydı (yönetim belirteciyle) ağ
+  // beklenmeden silinir, sonuçlar ve taşıma mesajı bellekten atılır.
   async function cikis() {
+    girisliHesap.current = null;
+    clearTeacherGame();
     await cikisYap();
     setHesap(null);
     setYonetici(false);
     setActiveTab(baslangicSekmesi);
+    setTeacherGame(null);
+    setLeaderboard([]);
+    setSync(ILK_SYNC);
+    setTasimaMesaji("");
   }
 
   return (
@@ -880,8 +901,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
           <KutuphaneTab
             key={tasinanOyun}
             onYayinlandi={(tg) => {
-              handleTeacherGameChange(tg);
-              setActiveTab("oyun");
+              if (handleTeacherGameChange(tg)) setActiveTab("oyun");
             }}
           />
         )}
