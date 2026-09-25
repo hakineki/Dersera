@@ -19,6 +19,8 @@ import {
 import { endGameRequest, fetchGame, publishGameRequest } from "@/lib/gamesClient";
 import type { TeacherGame } from "@/lib/teacherGame";
 import AySecici from "./AySecici";
+import Ikon from "@/components/Ikon";
+import { IKON_KUTUSU } from "./OgretmenMenusu";
 
 const ALL_DERSLER = Object.keys(DERS_ADI) as Ders[];
 const GAME_REFRESH_MS = 30_000;
@@ -236,18 +238,6 @@ function PublishForm({
 
   return (
     <div>
-      <Link
-        href="/composer"
-        className="flex items-center gap-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl p-4 mb-4 hover:opacity-95 transition-opacity"
-      >
-        <span className="text-2xl" aria-hidden="true">✨</span>
-        <span className="flex-1">
-          <span className="block font-bold">Yeni Oyun Oluştur</span>
-          <span className="block text-xs text-indigo-100">Sınıf, ders ve konuyu seçin; Dersera hikâyeli oyunu tasarlasın.</span>
-        </span>
-        <span aria-hidden="true">›</span>
-      </Link>
-      <p className="text-xs text-gray-400 mb-3">ya da soru bankasıyla klasik oyun yayınlayın:</p>
       <AySecici selectedAylar={selectedAylar} toggleAy={toggleAy} />
 
       <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
@@ -381,25 +371,89 @@ function PublishForm({
   );
 }
 
+// ── Yeni oyun: giriş ekranı ───────────────────────────────────────────────────
+const KART = "flex items-center gap-3 rounded-xl p-4 text-left transition-colors";
+
+function YeniOyun({
+  selectedAylar,
+  toggleAy,
+  onPublished,
+  onKutuphane,
+}: {
+  selectedAylar: string[];
+  toggleAy: (slug: string) => void;
+  onPublished: (tg: TeacherGame, persistent: boolean) => void;
+  onKutuphane: () => void;
+}) {
+  const [klasik, setKlasik] = useState(false);
+  return (
+    <div className="space-y-3">
+      <h2 className="text-lg font-bold text-gray-900">Yeni oyun</h2>
+      <Link href="/composer" className={`${KART} bg-indigo-600 hover:bg-indigo-700 text-white`}>
+        <span className={`${IKON_KUTUSU} bg-white/15`}>
+          <Ikon ad="pusula" />
+        </span>
+        <span className="flex-1">
+          <span className="block font-bold">Dersera&apos;yla oluştur</span>
+          <span className="block text-xs text-indigo-100">Sınıf, ders ve konuyu seç; taslağı Dersera hazırlar, sen düzenler ve onaylarsın. Kredili.</span>
+        </span>
+        <span aria-hidden="true">›</span>
+      </Link>
+      <button type="button" onClick={onKutuphane} className={`${KART} w-full bg-white border border-gray-200 hover:border-indigo-300`}>
+        <span className={`${IKON_KUTUSU} bg-indigo-50 text-indigo-700`}>
+          <Ikon ad="kutuphane" />
+        </span>
+        <span className="flex-1">
+          <span className="block font-bold text-gray-900">Kütüphanemden yayınla</span>
+          <span className="block text-xs text-gray-500">Kaydettiğin oyunları yeniden yayınla. Kredisiz.</span>
+        </span>
+        <span aria-hidden="true" className="text-gray-400">
+          ›
+        </span>
+      </button>
+      <Link href="/composer?sablon=1" className={`${KART} bg-white border border-dashed border-gray-300 hover:border-teal-400`}>
+        <span className={`${IKON_KUTUSU} bg-teal-50 text-teal-700`}>
+          <Ikon ad="sablon" />
+        </span>
+        <span className="flex-1">
+          <span className="block font-bold text-gray-900">Boş şablondan kur</span>
+          <span className="block text-xs text-gray-500">Rota ve öğrenme hedefleri hazır; soruları ve metinleri sen yazarsın. Kredisiz.</span>
+        </span>
+        <span aria-hidden="true" className="text-gray-400">
+          ›
+        </span>
+      </Link>
+      <div className="pt-2 text-center">
+        <button type="button" aria-expanded={klasik} onClick={() => setKlasik((k) => !k)} className="text-sm text-gray-500 hover:text-gray-800 underline">
+          {klasik ? "Hazır soru bankasını gizle" : "Hazır soru bankasıyla hızlı oyun"}
+        </button>
+      </div>
+      {klasik && <PublishForm selectedAylar={selectedAylar} toggleAy={toggleAy} onPublished={onPublished} />}
+    </div>
+  );
+}
+
 export default function OyunTab({
   teacherGame,
   finishedCount,
   selectedAylar,
   toggleAy,
   onTeacherGameChange,
+  onKutuphane,
 }: {
   teacherGame: TeacherGame | null;
   finishedCount: number;
   selectedAylar: string[];
   toggleAy: (slug: string) => void;
   onTeacherGameChange: (tg: TeacherGame) => void;
+  onKutuphane: () => void;
 }) {
   const [showForm, setShowForm] = useState(false);
   const [notPersistent, setNotPersistent] = useState(false);
 
   if (!teacherGame || showForm) {
     return (
-      <PublishForm
+      <YeniOyun
         selectedAylar={selectedAylar}
         toggleAy={toggleAy}
         onPublished={(tg, persistent) => {
@@ -407,6 +461,7 @@ export default function OyunTab({
           setNotPersistent(!persistent);
           setShowForm(false);
         }}
+        onKutuphane={onKutuphane}
       />
     );
   }

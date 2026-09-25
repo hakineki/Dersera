@@ -121,7 +121,22 @@ export default function ComposerPreview({
           {m.sinif}. sınıf · {m.ders} · {m.konu}
         </p>
         <p className="text-gray-700 text-sm leading-relaxed mt-3">{definition.hikaye_giris}</p>
+        <button
+          type="button"
+          onClick={() => onEdit({ tur: "genel", genel: { baslik: m.baslik, hikaye_giris: definition.hikaye_giris, oyun_amaci: definition.oyun_amaci } })}
+          className="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+        >
+          Oyun bilgilerini düzenle ›
+        </button>
       </header>
+
+      {m.kaynak === "sablon" && (
+        <p role="note" className="text-sm bg-teal-50 border border-teal-200 text-teal-900 rounded-xl p-3">
+          Bu oyunu sen yazıyorsun: rota, öğrenme hedefleri ve kanıtlar hazır. Her durağa ve finale dokunup hikâyeyi, soruyu, seçenekleri, doğru
+          cevabı, iki ipucunu ve destek görevini yaz; oyunun adı ve girişi için yukarıdaki bağlantıyı kullan. Eksikler aşağıda listelenir,
+          tamamlanmadan yayınlanamaz.
+        </p>
+      )}
 
       <Gorseller definition={definition} ilerleme={gorsel ?? null} />
 
