@@ -1,4 +1,7 @@
-// Görsel üretimi: Google Gemini görsel modeli (generateContent REST) → WebP'ye sıkıştırma (sharp) → Vercel Blob.
+import OpenAI from "openai";
+import type { ImageGenerateParamsNonStreaming } from "openai/resources/images";
+
+// Görsel üretimi: OpenAI GPT Image (oyun üretimiyle aynı OpenAI hesabı) → WebP'ye sıkıştırma (sharp) → Vercel Blob.
 // Yapay zekâ çağrıları tek servis sınırı arkasındadır; bu dosya görselin tek sağlayıcı noktasıdır.
 
 export type GorselHataNedeni = "yapilandirma" | "guvenlik" | "saglayici" | "zaman";
@@ -12,48 +15,49 @@ export class GorselHatasi extends Error {
   }
 }
 
-// En ucuz ve hızlı Nano Banana modeli (1K görsel). GORSEL_MODEL ile değiştirilebilir.
-export const VARSAYILAN_GORSEL_MODELI = "gemini-3.1-flash-lite-image";
+// Düşük kalite çocuk kitabı çizimi için yeterli ve en ucuzudur. GORSEL_MODEL / GORSEL_KALITE ile değiştirilebilir.
+export const VARSAYILAN_GORSEL_MODELI = "gpt-image-2";
 export const gorselModeli = () => process.env.GORSEL_MODEL?.trim() || VARSAYILAN_GORSEL_MODELI;
+const KALITELER = ["low", "medium", "high"] as const;
+type Kalite = (typeof KALITELER)[number];
+export const gorselKalitesi = (): Kalite => {
+  const k = process.env.GORSEL_KALITE?.trim();
+  return (KALITELER as readonly string[]).includes(k ?? "") ? (k as Kalite) : "low";
+};
 
 // Görsel zenginleştirme yalnız sağlayıcı ve depo anahtarları tanımlıyken sunulur.
-export const gorselEtkin = () => !!process.env.GEMINI_API_KEY?.trim() && !!process.env.BLOB_READ_WRITE_TOKEN?.trim();
+export const gorselEtkin = () => !!process.env.OPENAI_API_KEY?.trim() && !!process.env.BLOB_READ_WRITE_TOKEN?.trim();
 
 // Route sınırı 60 sn: sağlayıcı 40 sn, tüm üretim (sıkıştırma ve yükleme dahil) 50 sn içinde biter ya da hata sayılır.
 export const GORSEL_TIMEOUT_MS = 40_000;
 export const URETIM_SURESI_MS = 50_000;
-const GUVENLIK_NEDENLERI = new Set(["SAFETY", "IMAGE_SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "RECITATION"]);
 
-interface GeminiYaniti {
-  promptFeedback?: { blockReason?: string };
-  candidates?: { finishReason?: string; content?: { parts?: { inlineData?: { mimeType?: string; data?: string } }[] } }[];
+// Yalnız test için enjekte edilebilir; üretimde env'den kurulur.
+export interface GorselIstemcisi {
+  images: { generate: (body: ImageGenerateParamsNonStreaming, opts?: { timeout?: number }) => Promise<{ data?: { b64_json?: string }[] }> };
 }
 
-export async function geminiGorsel(istem: string, fetchFn: typeof fetch = fetch, timeoutMs = GORSEL_TIMEOUT_MS): Promise<Buffer> {
-  const anahtar = process.env.GEMINI_API_KEY?.trim();
-  if (!anahtar) throw new GorselHatasi("yapilandirma", "GEMINI_API_KEY tanımlı değil");
-  let res: Response;
+// İçerik politikası reddi (istem ya da görsel sağlayıcının güvenlik süzgecine takıldı).
+const guvenlikReddi = (err: InstanceType<typeof OpenAI.APIError>) =>
+  err.status === 400 && /moderation|content_policy|safety/i.test(`${err.code ?? ""} ${err.message}`);
+
+export async function openaiGorsel(istem: string, istemci?: GorselIstemcisi, timeoutMs = GORSEL_TIMEOUT_MS): Promise<Buffer> {
+  if (!istemci && !process.env.OPENAI_API_KEY?.trim()) throw new GorselHatasi("yapilandirma", "OPENAI_API_KEY tanımlı değil");
+  const c: GorselIstemcisi = istemci ?? new OpenAI({ maxRetries: 0 });
+  let r: { data?: { b64_json?: string }[] };
   try {
-    res = await fetchFn(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(gorselModeli())}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": anahtar },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: istem }] }],
-        generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: "4:3" } },
-      }),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+    // Yatay kadraj; sağlayıcının varsayılan (sıkı) içerik süzgeci açık kalır.
+    r = await c.images.generate({ model: gorselModeli(), prompt: istem, n: 1, size: "1536x1024", quality: gorselKalitesi(), output_format: "webp", moderation: "auto" }, { timeout: timeoutMs });
   } catch (err) {
-    const zaman = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
-    throw new GorselHatasi(zaman ? "zaman" : "saglayici", err instanceof Error ? err.message : String(err));
+    if (err instanceof OpenAI.APIConnectionTimeoutError) throw new GorselHatasi("zaman", err.message);
+    if (err instanceof OpenAI.APIError) {
+      if (guvenlikReddi(err)) throw new GorselHatasi("guvenlik", `görsel engellendi: ${err.code ?? err.status}`);
+      throw new GorselHatasi(err.status === 401 || err.status === 403 ? "yapilandirma" : "saglayici", `OpenAI ${err.status ?? ""}`);
+    }
+    throw new GorselHatasi("saglayici", err instanceof Error ? err.message : String(err));
   }
-  if (!res.ok) throw new GorselHatasi(res.status === 401 || res.status === 403 ? "yapilandirma" : "saglayici", `Gemini ${res.status}`);
-  const json = (await res.json().catch(() => ({}))) as GeminiYaniti;
-  if (json.promptFeedback?.blockReason) throw new GorselHatasi("guvenlik", `istem engellendi: ${json.promptFeedback.blockReason}`);
-  const aday = json.candidates?.[0];
-  if (aday?.finishReason && GUVENLIK_NEDENLERI.has(aday.finishReason)) throw new GorselHatasi("guvenlik", `görsel engellendi: ${aday.finishReason}`);
-  const veri = aday?.content?.parts?.find((p) => p.inlineData?.data)?.inlineData?.data;
-  if (!veri) throw new GorselHatasi("saglayici", `görsel dönmedi (${aday?.finishReason ?? "aday yok"})`);
+  const veri = r.data?.[0]?.b64_json;
+  if (!veri) throw new GorselHatasi("saglayici", "görsel dönmedi");
   return Buffer.from(veri, "base64");
 }
 
@@ -80,6 +84,6 @@ export async function blobaYaz(yol: string, veri: Buffer): Promise<string> {
 
 // Tek görselin tüm yolu: üret → sıkıştır → depola; depodaki adresi döner.
 export async function gorselUretVeYaz(isId: string, hedef: string, istem: string): Promise<string> {
-  const ham = await geminiGorsel(istem);
+  const ham = await openaiGorsel(istem);
   return blobaYaz(`gorsel/${isId}/${hedef}.webp`, await webpYap(ham));
 }

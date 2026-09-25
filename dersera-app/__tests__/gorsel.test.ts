@@ -5,7 +5,8 @@ import type { ResolvedInput } from "@/lib/composer/input";
 import { gorselAdresi, gorselleriBirlestir, KAPAK } from "@/lib/gorsel";
 import { gorselIstemleri, sahneDuraklari } from "@/lib/gorselIstem";
 import { createMemoryGorselStore } from "@/lib/gorselStore";
-import { geminiGorsel, GorselHatasi, URETIM_SURESI_MS, webpYap } from "@/lib/gorselUretici";
+import OpenAI from "openai";
+import { GorselHatasi, gorselKalitesi, openaiGorsel, URETIM_SURESI_MS, webpYap } from "@/lib/gorselUretici";
 import { gorselUret } from "@/lib/gorselService";
 import { kayitOlustur } from "@/lib/library";
 import { kutuphaneKaydiniGuncelle } from "@/lib/libraryService";
@@ -121,16 +122,8 @@ describe("görseller içeriği değiştirmez", () => {
   });
 });
 
-describe("Gemini görsel sağlayıcısı", () => {
-  const eski = process.env.GEMINI_API_KEY;
-  beforeEach(() => {
-    process.env.GEMINI_API_KEY = "gemini-test";
-  });
-  afterAll(() => {
-    if (eski === undefined) delete process.env.GEMINI_API_KEY;
-    else process.env.GEMINI_API_KEY = eski;
-  });
-  const yanit = (body: unknown, status = 200) => jest.fn(async () => new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+describe("OpenAI görsel sağlayıcısı", () => {
+  const istemci = (davranis: () => Promise<{ data?: { b64_json?: string }[] }>) => ({ images: { generate: jest.fn(davranis) } });
   const neden = async (p: Promise<unknown>) => {
     try {
       await p;
@@ -139,41 +132,47 @@ describe("Gemini görsel sağlayıcısı", () => {
       return err instanceof GorselHatasi ? err.neden : "beklenmeyen";
     }
   };
+  const apiHatasi = (status: number, code: string, mesaj: string) => OpenAI.APIError.generate(status, { error: { code, message: mesaj } }, mesaj, new Headers());
 
-  it("istek biçimi: model, anahtar başlığı, yalnız görsel çıktısı ve 4:3; yanıttaki görsel çözülür", async () => {
-    const f = yanit({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: "not" }, { inlineData: { mimeType: "image/png", data: Buffer.from("PNG!").toString("base64") } }] } }] });
-    expect((await geminiGorsel("istem", f)).toString()).toBe("PNG!");
-    const [url, init] = (f as unknown as jest.Mock).mock.calls[0];
-    expect(url).toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-image:generateContent");
-    expect(init.headers["x-goog-api-key"]).toBe("gemini-test");
-    expect(JSON.parse(init.body)).toEqual({
-      contents: [{ role: "user", parts: [{ text: "istem" }] }],
-      generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: "4:3" } },
-    });
+  it("istek: gpt-image-2, düşük kalite, yatay, WebP, varsayılan içerik süzgeci; yanıttaki görsel çözülür", async () => {
+    const c = istemci(async () => ({ data: [{ b64_json: Buffer.from("WEBP!").toString("base64") }] }));
+    expect((await openaiGorsel("istem", c)).toString()).toBe("WEBP!");
+    const [govde, secenek] = c.images.generate.mock.calls[0] as unknown as [Record<string, unknown>, { timeout: number }];
+    expect(govde).toEqual({ model: "gpt-image-2", prompt: "istem", n: 1, size: "1536x1024", quality: "low", output_format: "webp", moderation: "auto" });
+    expect(secenek.timeout).toBe(40_000);
   });
 
-  it("güvenlik engeli, boş yanıt, yetki ve zaman aşımı ayrı nedenlerle bildirilir", async () => {
-    expect(await neden(geminiGorsel("x", yanit({ promptFeedback: { blockReason: "SAFETY" } })))).toBe("guvenlik");
-    expect(await neden(geminiGorsel("x", yanit({ candidates: [{ finishReason: "IMAGE_SAFETY" }] })))).toBe("guvenlik");
-    expect(await neden(geminiGorsel("x", yanit({ candidates: [{ finishReason: "STOP", content: { parts: [{ text: "yalnız metin" }] } }] })))).toBe("saglayici");
-    expect(await neden(geminiGorsel("x", yanit({ error: {} }, 403)))).toBe("yapilandirma");
-    expect(await neden(geminiGorsel("x", yanit({ error: {} }, 500)))).toBe("saglayici");
-    const zaman = jest.fn(async () => {
-      throw Object.assign(new Error("zaman"), { name: "TimeoutError" });
-    }) as unknown as typeof fetch;
-    expect(await neden(geminiGorsel("x", zaman))).toBe("zaman");
-    delete process.env.GEMINI_API_KEY;
-    expect(await neden(geminiGorsel("x", yanit({})))).toBe("yapilandirma");
+  it("içerik politikası reddi güvenlik, yetki yapılandırma, zaman aşımı zaman, boş yanıt sağlayıcı sayılır", async () => {
+    expect(await neden(openaiGorsel("x", istemci(async () => Promise.reject(apiHatasi(400, "moderation_blocked", "Your request was rejected by the safety system")))))).toBe("guvenlik");
+    expect(await neden(openaiGorsel("x", istemci(async () => Promise.reject(apiHatasi(400, "invalid_value", "size geçersiz")))))).toBe("saglayici");
+    expect(await neden(openaiGorsel("x", istemci(async () => Promise.reject(apiHatasi(401, "invalid_api_key", "anahtar")))))).toBe("yapilandirma");
+    expect(await neden(openaiGorsel("x", istemci(async () => Promise.reject(apiHatasi(500, "server_error", "hata")))))).toBe("saglayici");
+    expect(await neden(openaiGorsel("x", istemci(async () => Promise.reject(new OpenAI.APIConnectionTimeoutError()))))).toBe("zaman");
+    expect(await neden(openaiGorsel("x", istemci(async () => ({ data: [] }))))).toBe("saglayici");
+    const eski = process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    expect(await neden(openaiGorsel("x"))).toBe("yapilandirma");
+    if (eski !== undefined) process.env.OPENAI_API_KEY = eski;
+  });
+
+  it("kalite ortam değişkeniyle seçilebilir; geçersiz değer düşük kaliteye döner", async () => {
+    const eski = process.env.GORSEL_KALITE;
+    process.env.GORSEL_KALITE = "medium";
+    expect(gorselKalitesi()).toBe("medium");
+    process.env.GORSEL_KALITE = "ultra";
+    expect(gorselKalitesi()).toBe("low");
+    if (eski === undefined) delete process.env.GORSEL_KALITE;
+    else process.env.GORSEL_KALITE = eski;
   });
 
   it("görsel 1024 piksele sığdırılıp WebP'ye sıkıştırılır", async () => {
     const sharp = (await import("sharp")).default;
-    const png = await sharp({ create: { width: 1536, height: 1152, channels: 3, background: { r: 200, g: 120, b: 40 } } }).png().toBuffer();
+    const png = await sharp({ create: { width: 1536, height: 1024, channels: 3, background: { r: 200, g: 120, b: 40 } } }).png().toBuffer();
     const webp = await webpYap(png);
     expect(webp.subarray(0, 4).toString()).toBe("RIFF");
     expect(webp.subarray(8, 12).toString()).toBe("WEBP");
     const meta = await sharp(webp).metadata();
-    expect([meta.width, meta.height]).toEqual([1024, 768]);
+    expect([meta.width, meta.height]).toEqual([1024, 683]);
     expect(webp.length).toBeLessThan(png.length);
   });
 });
@@ -203,7 +202,7 @@ describe("görsel zenginleştirme uçları", () => {
   let compose: typeof import("@/app/api/compose/route");
   let gorselRoute: typeof import("@/app/api/gorsel/[isId]/route");
   let dosyaRoute: typeof import("@/app/api/gorsel/dosya/[isId]/[hedef]/route");
-  let anthropic: typeof import("@/lib/composer/anthropic");
+  let openaiUretim: typeof import("@/lib/composer/openai");
   let uretici: typeof import("@/lib/gorselUretici");
   let yz: typeof import("@/lib/composer/yzDenetimService");
   let krediStore: typeof import("@/lib/krediStore");
@@ -214,13 +213,12 @@ describe("görsel zenginleştirme uçları", () => {
 
   beforeEach(async () => {
     clearRedisEnv();
-    process.env.ANTHROPIC_API_KEY = "test-key";
-    process.env.GEMINI_API_KEY = "gemini-test";
+    process.env.OPENAI_API_KEY = "openai-test";
     process.env.BLOB_READ_WRITE_TOKEN = "blob-test";
     let auth!: typeof import("@/lib/auth");
     let authStore!: typeof import("@/lib/authStore");
     await jest.isolateModulesAsync(async () => {
-      anthropic = await import("@/lib/composer/anthropic");
+      openaiUretim = await import("@/lib/composer/openai");
       uretici = await import("@/lib/gorselUretici");
       yz = await import("@/lib/composer/yzDenetimService");
       compose = await import("@/app/api/compose/route");
@@ -240,7 +238,7 @@ describe("görsel zenginleştirme uçları", () => {
       hesapIdler[ad] = h.value.id;
       cerezler[ad] = `${auth.OTURUM_CEREZI}=${await auth.oturumAc(store, h.value)}`;
     }
-    jest.spyOn(anthropic, "composeGame").mockImplementation(async (input: ResolvedInput) => toModelOutput(makeDefinition(input, 7)));
+    jest.spyOn(openaiUretim, "composeGameOpenAI").mockImplementation(async (input: ResolvedInput) => toModelOutput(makeDefinition(input, 7)));
     jest.spyOn(yz, "yzDenetle").mockResolvedValue({ durum: "tamam", bulgular: [] });
     jest.spyOn(uretici, "gorselUretVeYaz").mockImplementation(async (isId, hedef) => `https://depo.example/gorsel/${isId}/${hedef}-abc.webp`);
     jest.spyOn(console, "error").mockImplementation(() => {});
@@ -333,12 +331,12 @@ describe("görsel zenginleştirme uçları", () => {
     const r = await olustur({ gorsel: true });
     expect(r.status).toBe(402);
     expect((await r.json()).error).toMatch(/4 kredi \(görseller dahil\)/);
-    expect(anthropic.composeGame).not.toHaveBeenCalled();
+    expect(openaiUretim.composeGameOpenAI).not.toHaveBeenCalled();
     expect((await krediOku()).toplam).toBe(3);
     // Görselsiz aynı oyun olur.
     expect((await olustur({})).status).toBe(200);
 
-    delete process.env.GEMINI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
     const y = await olustur({ gorsel: true });
     expect(y.status).toBe(422);
     expect((await y.json()).error).toMatch(/Görsel zenginleştirme şu anda kullanılamıyor/);
@@ -346,7 +344,7 @@ describe("görsel zenginleştirme uçları", () => {
 
   it("kural tabanlı çocuk güvenliği taraması engellerse (yapay zekâ denetimi yapılmamış olsa da) görsel işi kurulmaz", async () => {
     (yz.yzDenetle as jest.Mock).mockResolvedValue({ durum: "yapilamadi" });
-    (anthropic.composeGame as jest.Mock).mockImplementation(async (input: ResolvedInput) => {
+    (openaiUretim.composeGameOpenAI as jest.Mock).mockImplementation(async (input: ResolvedInput) => {
       const d = makeDefinition(input, 7);
       d.duraklar[2].hikaye_metni = "Porno sitesinden kaçan kahramanlar yola çıkar.";
       return toModelOutput(d);
