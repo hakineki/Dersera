@@ -43,9 +43,9 @@
 - Gizli sekmede doğrula
 
 ### ADIM 6 — TEMİZLE (/worktree-temizle)
-- Merge edilip canlıda doğrulanan işin worktree'si kaldırılır (node_modules + .next her biri ~1 GB)
+- Merge edilip canlıda doğrulanan işin worktree'si kaldırılır
 - Ajan merge durumunu ve kaybolacak dosyaları denetler, kaldırma komutunu kullanıcıya verir; silmeyi kullanıcı yapar
-- İzlenmeyen dosya varsa önce kullanıcıya sorulur
+- İzlenmeyen ya da değişmiş dosya varsa önce kullanıcıya sorulur
 
 ### ADIM 7 — KAPAT (/kapanis)
 - Oturum sonu devir notu üret
