@@ -12,6 +12,7 @@ import { createMemoryOkulStore, createRedisOkulStore, type OkulStore } from "@/l
 import { createMemoryGorselStore, createRedisGorselStore, type GorselStore } from "@/lib/gorselStore";
 import { createRedisCommand, type RedisCommand } from "@/lib/redis";
 import { createMemoryOgrenmeStore, createRedisOgrenmeStore, type OgrenmeStore } from "@/lib/ogrenmeStore";
+import { createMemoryOgrenmeTakibiStore, createRedisOgrenmeTakibiStore, type OgrenmeTakibiStore } from "@/lib/ogrenmeTakibiStore";
 import type { Oneri } from "@/lib/ogrenme";
 import { icerikOzetiOf, yeniToplulukKaydi } from "@/lib/toplulukService";
 import { createMemoryToplulukStore, createRedisToplulukStore, type ToplulukStore } from "@/lib/toplulukStore";
@@ -43,6 +44,7 @@ interface Depolar {
   okul: OkulStore;
   gorsel: GorselStore;
   ogrenme: OgrenmeStore;
+  takip: OgrenmeTakibiStore;
 }
 
 // Yazılan her "dersera:" anahtarını kaydeden komut: temizlik yalnız bunları siler.
@@ -70,6 +72,7 @@ const uygulamalar: [string, () => Depolar][] = [
       okul: createMemoryOkulStore(),
       gorsel: createMemoryGorselStore(),
       ogrenme: createMemoryOgrenmeStore(),
+      takip: createMemoryOgrenmeTakibiStore(),
     }),
   ],
 ];
@@ -93,6 +96,7 @@ if (REDIS_ISTENDI) {
       okul: createRedisOkulStore(c),
       gorsel: createRedisGorselStore(c),
       ogrenme: createRedisOgrenmeStore(c),
+      takip: createRedisOgrenmeTakibiStore(c),
     }),
   ]);
 }
@@ -411,6 +415,19 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     expect(await d.ogrenme.oneriGecis(o.id, ["aktif"], { durum: "pasif", karar: { yonetici: "z", tarih: 4 } })).toMatchObject({ durum: "pasif", kural: o.kural });
     expect(await d.ogrenme.oneriGecis(`yok-${run}`, ["bekliyor"], { durum: "aktif" })).toBeNull();
     expect((await d.ogrenme.oneriler()).find((x) => x.id === o.id)).toMatchObject({ durum: "pasif", karar: { yonetici: "z", tarih: 4 } });
+  });
+
+  it("öğrenme takibi: öğrenci oyun başına bir kez (eşzamanlı da), oyun alanları oyun başına bir kez, öğretmen ve ay ayrı", async () => {
+    const sahip = `hesap:duman-${run}`;
+    const kod = `T${run}`;
+    const ay = `duman-${run}`;
+    const ilk = await Promise.all([1, 2, 3].map(() => d.takip.ogrenciSay(sahip, ay, kod, "kartal", ["bitiren", "k|A|d", "k|A|d", "k|A|i"], ["oyun", "k|A|o"], SAAT)));
+    expect(ilk.filter(Boolean)).toHaveLength(1);
+    const ikinci = await Promise.all(["sahin", "atmaca"].map((o) => d.takip.ogrenciSay(sahip, ay, kod, o, ["bitiren", "k|A|d"], ["oyun", "k|A|o"], SAAT)));
+    expect(ikinci).toEqual([true, true]);
+    expect(await d.takip.ogrenciSay(sahip, `${ay}-2`, `U${run}`, "kartal", ["bitiren"], ["oyun"], SAAT)).toBe(true);
+    expect(await d.takip.sayaclar(sahip, [ay, `${ay}-2`, `${ay}-bos`])).toEqual([{ bitiren: 3, "k|A|d": 4, "k|A|i": 1, oyun: 1, "k|A|o": 1 }, { bitiren: 1, oyun: 1 }, {}]);
+    expect(await d.takip.sayaclar(`hesap:baska-${run}`, [ay])).toEqual([{}]);
   });
 
   it("oran sınırı sayacı ve yapay zekâ denetim önbelleği", async () => {

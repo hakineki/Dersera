@@ -8,6 +8,7 @@ import { bitirisSay, oyuncuOf } from "@/lib/istatistikService";
 import { ogrenciSinyali } from "@/lib/ogrenmeService";
 import { GAME_RETENTION_MS } from "@/lib/gamesStore";
 import { istekSahibi } from "@/lib/libraryService";
+import { takipSinyali } from "@/lib/ogrenmeTakibiService";
 
 export async function POST(req: Request) {
   let body: unknown;
@@ -42,11 +43,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
     }
     await getResultsStore().save(code, entry);
-    await bitirisSay(code, entry.nickname, await istekSahibi(req), game.expiresAt, game.definition?.meta.sure_dk ?? null);
-    // Öğrenme döngüsü: durak başına yanlış sayısı (kimliksiz, öğrenci oyun başına bir kez).
+    const gonderen = await istekSahibi(req);
+    await bitirisSay(code, entry.nickname, gonderen, game.expiresAt, game.definition?.meta.sure_dk ?? null);
+    // Öğrenme döngüsü ve yayınlayan öğretmenin öğrenme takibi: durak başına yanlış sayısı (kimliksiz, öğrenci oyun
+    // başına bir kez).
     if (game.definition && entry.stopDetails) {
       const yanlislar = Object.fromEntries(Object.entries(entry.stopDetails).map(([id, d]) => [id, d.hintsUsed]));
-      await ogrenciSinyali(code, oyuncuOf(code, entry.nickname), game.definition, yanlislar, game.expiresAt + GAME_RETENTION_MS - Date.now());
+      const oyuncu = oyuncuOf(code, entry.nickname);
+      const ttl = game.expiresAt + GAME_RETENTION_MS - Date.now();
+      await ogrenciSinyali(code, oyuncu, game.definition, yanlislar, ttl);
+      await takipSinyali(game, code, oyuncu, yanlislar, gonderen, ttl);
     }
   } catch (err) {
     console.error("[results] kayıt hatası", err);

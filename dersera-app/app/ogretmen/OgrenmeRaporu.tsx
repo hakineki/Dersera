@@ -6,14 +6,14 @@ import type { LeaderboardEntry } from "@/lib/gameState";
 import { fetchGame } from "@/lib/gamesClient";
 import { ogrenmeRaporu, RAPOR_KURALLARI, type OgrenmeRaporu, type Zorluk } from "@/lib/ogrenmeRaporu";
 
-const ZORLUK: Record<Zorluk, { ad: string; sinif: string }> = {
+export const ZORLUK: Record<Zorluk, { ad: string; sinif: string }> = {
   zor: { ad: "Zorlanıldı", sinif: "bg-red-50 text-red-800 border-red-200" },
   orta: { ad: "Orta", sinif: "bg-amber-50 text-amber-800 border-amber-200" },
   iyi: { ad: "İyi", sinif: "bg-green-50 text-green-800 border-green-200" },
   "az-veri": { ad: "Az veri", sinif: "bg-gray-50 text-gray-600 border-gray-200" },
 };
 
-const yuzde = (x: number | null) => (x === null ? "—" : `%${Math.round(x * 100)}`);
+export const yuzde = (x: number | null) => (x === null ? "—" : `%${Math.round(x * 100)}`);
 
 function Kutu({ etiket, deger }: { etiket: string; deger: string }) {
   return (

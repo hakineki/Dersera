@@ -60,3 +60,24 @@ export function getKonuSecenekleri(): Record<string, KonuSecenegi[]> {
   }
   return out;
 }
+
+export interface KazanimBilgisi {
+  kod: string;
+  metin: string;
+  ders: ProgramDersi;
+  sinif: number;
+  uniteId: string;
+  uniteAd: string;
+}
+
+// Oyunun konularından (ders + ünite) çıktı koduna: öğretmen öğrenme takibi ve pekiştirme oyunu için. Kod tek başına
+// yetmez: aynı kod farklı sınıf ve ünitelerde farklı metinle tekrar eder (ör. Türk Dili ve Edebiyatı, Türkçe). Bir
+// sınıfta farklı derslerin kodları çakışmaz; oyun her derste tek ünite seçer, bu yüzden eşleşme tektir.
+export function kazanimBul(sinif: number, konular: { ders: string; konuId: string }[], kod: string): KazanimBilgisi | null {
+  for (const k of konular) {
+    const u = getUnite(sinif, k.ders, k.konuId);
+    const c = u?.ogrenmeCiktilari.find((o) => o.kod === kod);
+    if (u && c) return { kod, metin: c.metin, ders: k.ders as ProgramDersi, sinif, uniteId: u.id, uniteAd: u.ad };
+  }
+  return null;
+}

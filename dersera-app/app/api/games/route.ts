@@ -61,12 +61,13 @@ export async function POST(req: Request) {
 
   try {
     const store = getGamesStore();
-    const published = await publishGame(store, request);
+    // Composer oyununu oturumla yayınlayan öğretmen: kütüphane, topluluk ve öğrenme takibi bağları.
+    const sahip = request.definition && dersler ? await istekSahibi(req) : null;
+    const published = await publishGame(store, { ...request, sahip, dersler });
     if (!published) {
       return NextResponse.json({ error: "Benzersiz oyun kodu üretilemedi" }, { status: 503 });
     }
     if (request.definition && dersler) {
-      const sahip = await istekSahibi(req);
       const kaynak = await kutuphaneKaynagi(body, sahip);
       await kodKaynagaBagla(published.game.code, kaynak, published.game.expiresAt);
       await toplulukKodunuBagla(request.definition, published.game.code, published.game.expiresAt, Date.now(), sahip);
