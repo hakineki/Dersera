@@ -162,7 +162,7 @@ export default function ComposerClient({
 }) {
   const router = useRouter();
   const [ogretmen, setOgretmen] = useState<boolean | null>(null);
-  // Yayınlanan oyun, panelde açılsın diye yayınlayan hesaba bağlı kaydedilir.
+  // Sayfayı açan hesap; yayınlanan oyun panelde açılsın diye yayınlayan hesaba bağlı kaydedilir.
   const oturumHesabi = useRef<HesapOzeti | null>(null);
   const [sinif, setSinif] = useState(10);
   // Seçim sırası korunur; her seçili dersin kendi konusu vardır.
@@ -496,7 +496,10 @@ export default function ComposerClient({
         return;
       }
       const pub = json as PublishResponse;
-      if (oturumHesabi.current) saveTeacherGame({ game: pub.game, adminToken: pub.adminToken }, oturumHesabi.current);
+      // Başka sekmede hesap değişmiş olabilir: kayıt yayını yapan oturumun hesabına bağlanır; oturum okunamazsa ya da
+      // kapanmışsa sayfayı açan hesaba.
+      const yayinlayan = (await oturumBilgisi())?.hesap ?? oturumHesabi.current;
+      if (yayinlayan) saveTeacherGame({ game: pub.game, adminToken: pub.adminToken }, yayinlayan);
       router.push("/ogretmen");
     } catch {
       setYayinHatasi("Oyun yayınlanamadı. Bağlantınızı kontrol edin.");

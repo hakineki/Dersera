@@ -1,4 +1,4 @@
-import { clearTeacherGame, loadTeacherGame, saveTeacherGame, TEACHER_GAME_KEY, type TeacherGame } from "../lib/teacherGame";
+import { ayniHesap, clearTeacherGame, loadTeacherGame, saveTeacherGame, TEACHER_GAME_KEY, type TeacherGame } from "../lib/teacherGame";
 import type { HesapOzeti } from "../lib/authClient";
 
 const store: Record<string, string> = {};
@@ -47,13 +47,17 @@ describe("teacherGame — kayıt yayınlayan hesaba bağlı", () => {
     expect(loadTeacherGame({ kullaniciAdi: ayse.kullaniciAdi, olusturma: ayse.olusturma + 1 })).toBeNull();
   });
 
-  it("kullanıcı adı değişince kayıt yeni ada taşınır (panelin yaptığı gibi)", () => {
+  it("kullanıcı adı (bu ya da başka cihazda) değişse de kayıt hesabında kalır", () => {
     saveTeacherGame(oyun, ayse);
-    const yeniAd: HesapOzeti = { ...ayse, kullaniciAdi: "ayse.yilmaz" };
-    const tg = loadTeacherGame(ayse);
-    if (tg) saveTeacherGame(tg, yeniAd);
-    expect(loadTeacherGame(yeniAd)).toEqual(oyun);
-    expect(loadTeacherGame(ayse)).toBeNull();
+    expect(loadTeacherGame({ ...ayse, kullaniciAdi: "ayse.yilmaz" })).toEqual(oyun);
+  });
+
+  it("ayniHesap yalnız aynı hesabı eşler: ad değişse de aynı, boşalan ada kaydolan farklı, çıkış yapılmışsa değil", () => {
+    expect(ayniHesap(ayse, { ...ayse, kullaniciAdi: "ayse.yilmaz" })).toBe(true);
+    expect(ayniHesap(ayse, { ...ayse, olusturma: ayse.olusturma + 1 })).toBe(false);
+    expect(ayniHesap(ayse, mehmet)).toBe(false);
+    expect(ayniHesap(null, ayse)).toBe(false);
+    expect(ayniHesap(ayse, null)).toBe(false);
   });
 
   it("hesaba bağlanmadan önceki sahipsiz kayıt kimseye verilmez ve silinir", () => {

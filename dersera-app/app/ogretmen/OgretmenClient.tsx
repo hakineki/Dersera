@@ -9,7 +9,7 @@ import { formatElapsed, buildResultCode, type LeaderboardEntry } from "@/lib/gam
 import { toStops } from "@/lib/games";
 import { definitionPanelStops } from "@/lib/composer/scene";
 import OgrenmeRaporuKarti from "./OgrenmeRaporu";
-import { clearTeacherGame, loadTeacherGame, saveTeacherGame, type TeacherGame } from "@/lib/teacherGame";
+import { ayniHesap, clearTeacherGame, loadTeacherGame, saveTeacherGame, type TeacherGame } from "@/lib/teacherGame";
 import OyunTab from "./OyunTab";
 import KutuphaneTab from "./KutuphaneTab";
 import OkulTab from "./OkulTab";
@@ -692,10 +692,19 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
     });
   }, [gameCode]);
 
+  // Şu an girişli hesap: çıkıştan sonra dönen eski istek (yayın, oyunu bitirme) kaydı geri yazmaz, oyunu sonraki
+  // öğretmene göstermez. Çıkış bunu ağ beklenmeden boşaltır.
+  const girisliHesap = useRef<HesapOzeti | null>(null);
+  useEffect(() => {
+    girisliHesap.current = hesap;
+  }, [hesap]);
+
   const handleTeacherGameChange = useCallback(
     (tg: TeacherGame) => {
-      if (hesap) saveTeacherGame(tg, hesap);
+      if (!hesap || !ayniHesap(girisliHesap.current, hesap)) return false;
+      saveTeacherGame(tg, hesap);
       setTeacherGame(tg);
+      return true;
     },
     [hesap]
   );
@@ -770,16 +779,11 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
     setActiveTab(id);
     window.scrollTo({ top: 0 });
   }
-  // Kullanıcı adı değişince bu hesabın oyun kaydı yeni ada taşınır.
-  function hesapGuncellendi(h: HesapOzeti) {
-    const tg = hesap && loadTeacherGame(hesap);
-    if (tg) saveTeacherGame(tg, h);
-    setHesap(h);
-  }
   // Ayarlar sekmesi ve telefondaki ⋮ menüsü aynı çıkışı kullanır. Ortak bilgisayarda sonraki öğretmen
-  // öncekinin son sekmesinde, yönetici görünümünde ya da oyununda açılmasın: bu tarayıcıdaki oyun kaydı (yönetim
-  // belirteciyle) ağ beklenmeden silinir, sonuçlar ve taşıma mesajı bellekten atılır.
+  // öncekinin son sekmesinde, yönetici görünümünde ya da oyununda açılmasın: oyun kaydı (yönetim belirteciyle) ağ
+  // beklenmeden silinir, sonuçlar ve taşıma mesajı bellekten atılır.
   async function cikis() {
+    girisliHesap.current = null;
     clearTeacherGame();
     await cikisYap();
     setHesap(null);
@@ -897,8 +901,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
           <KutuphaneTab
             key={tasinanOyun}
             onYayinlandi={(tg) => {
-              handleTeacherGameChange(tg);
-              setActiveTab("oyun");
+              if (handleTeacherGameChange(tg)) setActiveTab("oyun");
             }}
           />
         )}
@@ -922,7 +925,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
             </div>
           ))}
         {activeTab === "ayarlar" && (
-          <AyarlarTab hesap={hesap} onHesap={hesapGuncellendi} onCikis={cikis} />
+          <AyarlarTab hesap={hesap} onHesap={setHesap} onCikis={cikis} />
         )}
       </div>
 
