@@ -1,4 +1,4 @@
-import { getUniteler } from "@/data/mufredat/programlar";
+import { getUniteler, PROGRAM_DERSLERI, SINIFLAR } from "@/data/mufredat/programlar";
 import { IZINLI_QR_IDLERI, validationContext } from "@/lib/composer/context";
 import type { GameDefinition } from "@/lib/composer/definition";
 import { parseComposeInput, type ResolvedInput } from "@/lib/composer/input";
@@ -6,6 +6,7 @@ import { bosSablon } from "@/lib/composer/sablon";
 import { validateGame } from "@/lib/composer/validator";
 import { KAPILAR } from "@/lib/composer/yonetisim";
 import { ayOf, KREDI_KURALLARI } from "@/lib/kredi";
+import { maxDersSayisi } from "@/lib/composer/recipe";
 import { clearRedisEnv } from "./helpers/fakeRedis";
 import { buildApi, cerezli, hesapAc, jsonRequest } from "./helpers/api";
 
@@ -53,7 +54,7 @@ describe("boş şablon iskeleti", () => {
     (sure, deneyim, alan) => {
       const input = girdi(sure, deneyim, alan);
       const def = bosSablon(input);
-      expect(def.meta).toMatchObject({ kaynak: "sablon", baslik: input.konuAdi, sure_dk: sure, deneyim, alan });
+      expect(def.meta).toMatchObject({ olusturma: "sablon", baslik: input.konuAdi, sure_dk: sure, deneyim, alan });
       expect(def.duraklar).toHaveLength(DURAK_SAYISI[sure]);
       expect(def).toEqual(bosSablon(input));
 
@@ -63,8 +64,12 @@ describe("boş şablon iskeleti", () => {
 
       const dolu = validateGame(doldur(def), validationContext(input));
       expect(dolu.hatalar).toEqual([]);
-      // Kısa macera oyununa ikinci seçim bloğu sığmaz: yalnız bu uyarı (engel değil) kalabilir.
-      expect(dolu.uyarilar.map((u) => u.kod).filter((k) => k !== "secim-sayisi")).toEqual([]);
+      // 20 dk macerada ikinci seçim bloğu sığmaz: yalnız orada bu uyarı (engel değil) kalabilir.
+      const tolerans = sure === 20 && deneyim === "macera" ? ["secim-sayisi"] : [];
+      expect(dolu.uyarilar.map((u) => u.kod).filter((k) => !tolerans.includes(k))).toEqual([]);
+
+      // Öğrenci her durak geçişinde geçiş metnini görür: boş kart çıkmasın.
+      expect(def.duraklar.filter((d) => d.varsayilan_sonraki_durak_id !== null || d.sahne_turu === "secim").every((d) => d.mekan.sonraki_durak_tarifi.trim())).toBe(true);
 
       const qrlar = def.duraklar.map((d) => d.mekan.qr_durak_id);
       if (alan === "okul") {
@@ -73,6 +78,37 @@ describe("boş şablon iskeleti", () => {
       } else expect(qrlar.every((q) => q === null)).toBe(true);
     }
   );
+
+  it("tarama: her sınıf ve derste (1-2. sınıf ve tek çıktılı üniteler dahil) iskelet kuralları sağlar, doldurulunca geçerlidir", () => {
+    const denemeler: [number, string, string, string, string][] = [];
+    for (const sinif of SINIFLAR) {
+      for (const ders of PROGRAM_DERSLERI) {
+        const uniteler = getUniteler(sinif, ders).filter((u) => u.ogrenmeCiktilari.length);
+        const secilen = new Set([uniteler[0], uniteler.find((u) => u.ogrenmeCiktilari.length === 1)].filter(Boolean).map((u) => u!.id));
+        for (const konuId of secilen) {
+          for (const [sure, deneyim, alan] of [[20, "macera", "okul"], [40, "dengeli", "sinif"], [60, "ders", "okul"]] as const) {
+            const r = parseComposeInput({ sinif, dersler: [{ ders, konuId }], sure, deneyim, alan });
+            if (!r.ok) throw new Error(r.error);
+            const def = bosSablon(r.input);
+            const bos = validateGame(def, validationContext(r.input)).hatalar.filter((h) => !ICERIK_KODLARI.has(h.kod));
+            const dolu = validateGame(doldur(def), validationContext(r.input)).hatalar;
+            if (bos.length || dolu.length) denemeler.push([sinif, ders, konuId, bos.map((h) => h.kod).join(), dolu.map((h) => h.kod).join()]);
+          }
+        }
+      }
+    }
+    expect(denemeler).toEqual([]);
+  });
+
+  it("çok dersli en yoğun seçim: izin verilen en çok dersle her ders çalışılır", () => {
+    for (const sure of SURELER) {
+      const dersler = PROGRAM_DERSLERI.filter((ders) => getUniteler(10, ders).some((u) => u.ogrenmeCiktilari.length))
+        .slice(0, maxDersSayisi(sure))
+        .map((ders) => ({ ders, konuId: getUniteler(10, ders).find((u) => u.ogrenmeCiktilari.length)!.id }));
+      const input = girdi(sure, "macera", "okul", dersler);
+      expect(validateGame(doldur(bosSablon(input)), validationContext(input)).hatalar).toEqual([]);
+    }
+  });
 
   it("disiplinler arası: her seçili ders en az bir görevde çalışılır", () => {
     const dersler = [
@@ -121,7 +157,7 @@ describe("POST /api/compose/sablon ve şablon oyununun yayını", () => {
     const res = await sablonIste();
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.definition.meta.kaynak).toBe("sablon");
+    expect(json.definition.meta.olusturma).toBe("sablon");
     expect(json.validation.gecerli).toBe(false);
     expect(json.guvenlik).toEqual({ durum: "bekliyor" });
     expect(json.dersler).toEqual(secim.dersler);
@@ -143,7 +179,7 @@ describe("POST /api/compose/sablon ve şablon oyununun yayını", () => {
 
     // Kural tabanlı çocuk güvenliği taraması: işaretli ve işaretsiz tanım aynı kararı alır.
     const kufurlu = doldur(definition, (id) => (id === "d3" ? "Siktir git dedi." : `${id} durağında ipini bulduk.`));
-    const isaretsiz = { ...kufurlu, meta: { ...kufurlu.meta, kaynak: undefined } };
+    const isaretsiz = { ...kufurlu, meta: { ...kufurlu.meta, olusturma: undefined } };
     for (const d of [kufurlu, isaretsiz]) {
       const r = await yayinla(d, dersler);
       expect(r.status).toBe(422);
@@ -159,11 +195,11 @@ describe("POST /api/compose/sablon ve şablon oyununun yayını", () => {
     expect(ok.status).toBe(201);
     const pub = await ok.json();
     expect(denetle).toHaveBeenCalledTimes(1);
-    expect(denetle.mock.calls[0][0].meta.kaynak).toBe("sablon");
+    expect(denetle.mock.calls[0][0].meta.olusturma).toBe("sablon");
     const kapilar = pub.yonetisim.kapilar.map((k: { kapi: string; karar: string }) => k.kapi);
     expect(kapilar).toEqual(KAPILAR.map((k) => k.id));
     expect(pub.yonetisim.karar).toBe("PASS");
-    expect(pub.game.definition.meta.kaynak).toBe("sablon");
+    expect(pub.game.definition.meta.olusturma).toBe("sablon");
 
     // Kütüphaneden yayın da aynı yoldan geçer: boş şablon kütüphaneye kaydedilebilir ama yayınlanamaz.
     const kayit = await (await api.library.POST(cerezli(jsonRequest("/api/library", { definition, dersler }), ogretmen))).json();
@@ -198,5 +234,24 @@ describe("POST /api/compose/sablon ve şablon oyununun yayını", () => {
 
     expect(await sayaclar()).toEqual({});
     expect(await api.ogrenmeStore.getOgrenmeStore().talimatlar(5)).toEqual([]);
+  });
+
+  it("öğretmenin kendi öğrenme takibi şablon oyunlarını sayar; işaret kütüphanede ve kütüphaneden yayında korunur", async () => {
+    jest.spyOn(api.yzDenetim, "yzDenetle").mockResolvedValue({ durum: "tamam", bulgular: [] });
+    const { definition: bos, dersler } = await (await sablonIste()).json();
+    const definition = doldur(bos);
+
+    const pub = await (await api.games.POST(cerezli(jsonRequest("/api/games", { composer: { definition, dersler } }), ogretmen))).json();
+    const { playerToken } = await (await api.join.POST(jsonRequest("/join", { nickname: "Kartal" }), api.params(pub.game.code))).json();
+    const entry = { nickname: "Kartal", netSeconds: 100, penaltySeconds: 0, hintsUsed: 0, completedAt: Date.now(), stopDetails: { d1: { hintsUsed: 0, completedAt: 1 } } };
+    expect((await api.results.POST(jsonRequest("/api/results", { gameCode: pub.game.code, playerToken, result: entry }))).status).toBe(201);
+    const rapor = await (await api.ogrenmeTakibi.GET(cerezli(new Request("http://localhost/api/ogrenme-takibi"), ogretmen))).json();
+    expect(rapor.bitiren[rapor.aylar.indexOf(ayOf(Date.now()))]).toBe(1);
+    expect(await sayaclar()).toEqual({});
+
+    const kayit = await (await api.library.POST(cerezli(jsonRequest("/api/library", { definition, dersler }), ogretmen))).json();
+    const tekrar = await api.libraryPublish.POST(cerezli(jsonRequest(`/api/library/${kayit.id}/publish`, {}), ogretmen), api.idParams(kayit.id));
+    expect(tekrar.status).toBe(201);
+    expect((await tekrar.json()).game.definition.meta.olusturma).toBe("sablon");
   });
 });

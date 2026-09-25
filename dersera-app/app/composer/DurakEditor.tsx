@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Durak, Final } from "@/lib/composer/definition";
+import { LIMITLER } from "@/lib/composer/validator";
 import { CEVAP_BICIMI } from "./labels";
 
 export interface OyunBilgisi {
@@ -25,6 +26,8 @@ function Alan({ etiket, children }: { etiket: string; children: React.ReactNode 
 
 const input = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
 const BASLIKLAR = { durak: "Durağı düzenle", final: "Finali düzenle", genel: "Oyun bilgileri" } as const;
+// Topluluk kartı başlığı 120 karakterde kırpar; amaç tek satırlık hedeftir.
+const SINIR = { baslik: 120, amac: 200 } as const;
 
 // Görev alanları (soru, seçenekler, doğru cevap) durakta ve finalde ortaktır.
 function GorevAlanlari({ v, setV }: { v: Exclude<Duzenlenen, { tur: "genel" }>; setV: (f: (cur: Duzenlenen) => Duzenlenen) => void }) {
@@ -85,13 +88,29 @@ export default function DurakEditor({
         {v.tur === "genel" && (
           <>
             <Alan etiket="Oyunun adı">
-              <input className={input} value={v.genel.baslik} onChange={(e) => setV({ ...v, genel: { ...v.genel, baslik: e.target.value } })} />
+              <input
+                className={input}
+                maxLength={SINIR.baslik}
+                value={v.genel.baslik}
+                onChange={(e) => setV({ ...v, genel: { ...v.genel, baslik: e.target.value } })}
+              />
             </Alan>
             <Alan etiket="Giriş hikâyesi">
-              <textarea className={input} rows={4} value={v.genel.hikaye_giris} onChange={(e) => setV({ ...v, genel: { ...v.genel, hikaye_giris: e.target.value } })} />
+              <textarea
+                className={input}
+                rows={4}
+                maxLength={LIMITLER.metin}
+                value={v.genel.hikaye_giris}
+                onChange={(e) => setV({ ...v, genel: { ...v.genel, hikaye_giris: e.target.value } })}
+              />
             </Alan>
             <Alan etiket="Oyunun amacı">
-              <input className={input} value={v.genel.oyun_amaci} onChange={(e) => setV({ ...v, genel: { ...v.genel, oyun_amaci: e.target.value } })} />
+              <input
+                className={input}
+                maxLength={SINIR.amac}
+                value={v.genel.oyun_amaci}
+                onChange={(e) => setV({ ...v, genel: { ...v.genel, oyun_amaci: e.target.value } })}
+              />
             </Alan>
           </>
         )}
@@ -152,7 +171,7 @@ export default function DurakEditor({
               <fieldset className="border border-gray-200 rounded-xl p-3 space-y-3">
                 <legend className="text-xs font-semibold text-gray-600 px-1">Öğrencinin seçimleri (her biri ayrı bir yola çıkar)</legend>
                 {v.durak.secimler.map((s, i) => (
-                  <Alan key={s.hedef_durak_id} etiket={`${i + 1}. seçim`}>
+                  <Alan key={i} etiket={`${i + 1}. seçim`}>
                     <input
                       className={input}
                       value={s.metin}
@@ -162,15 +181,16 @@ export default function DurakEditor({
                 ))}
               </fieldset>
             )}
-            {v.durak.mekan.tur === "qr" && (
-              <Alan etiket="Sonraki durağın tarifi (öğrenci bir sonraki QR'ı nerede bulur)">
+            {/* Öğrenci her durak geçişinde bu metni görür; boş kalırsa boş bir kart çıkar. */}
+            {v.durak.varsayilan_sonraki_durak_id !== null || v.durak.sahne_turu === "secim" ? (
+              <Alan etiket={v.durak.mekan.tur === "qr" ? "Sonraki durağın tarifi (öğrenci bir sonraki QR'ı nerede bulur)" : "Geçiş metni (öğrenci sonraki sahneye geçerken görür)"}>
                 <input
                   className={input}
                   value={v.durak.mekan.sonraki_durak_tarifi}
                   onChange={(e) => setV({ ...v, durak: { ...v.durak, mekan: { ...v.durak.mekan, sonraki_durak_tarifi: e.target.value } } })}
                 />
               </Alan>
-            )}
+            ) : null}
           </>
         )}
 
@@ -178,7 +198,11 @@ export default function DurakEditor({
           <button onClick={onClose} className="flex-1 border border-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg">
             Vazgeç
           </button>
-          <button onClick={() => onSave(v)} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg">
+          <button
+            onClick={() => onSave(v)}
+            disabled={v.tur === "genel" && !v.genel.baslik.trim()}
+            className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-semibold py-2.5 rounded-lg"
+          >
             Kaydet ve doğrula
           </button>
         </div>

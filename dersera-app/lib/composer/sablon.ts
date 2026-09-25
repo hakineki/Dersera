@@ -8,11 +8,13 @@ import { buildRecipe } from "@/lib/composer/recipe";
 // seçenek, cevap, ipucu, destek görevi, seçim ve final metinleri boştur ve öğretmen yazar. Boş alanlar doğrulamada hata
 // olarak görünür; tamamlanmadan yayınlanamaz (yayın kapıları diğer oyunlarla aynıdır). Yapay zekâ ve kredi kullanılmaz.
 
-// Seçim bloğu: seçim sahnesi, iki alternatif durak ve birleşme; blok 4 durak kaplar. İkinci blok (macera tarzı) ancak
-// uzun oyunlarda sığar; sığmazsa doğrulayıcı "seçim sayısı" uyarısı verir (engel değildir).
+// Seçim bloğu: seçim sahnesi, iki alternatif durak ve birleşme; blok 4 durak kaplar. İlk blok 2. durakta başlar; tarzın
+// istediği blok sayısı ancak 1. duraktan başlayınca sığıyorsa (40 dk macera) oradan başlar. 20 dk macerada ikinci blok
+// hiç sığmaz; doğrulayıcı "seçim sayısı" uyarısı verir (engel değildir).
 const BLOK = 4;
-const ILK_BLOK = 2;
 const VARSAYILAN_AMAC = "Duraklardaki görevleri çöz, finale ulaş.";
+// Geçiş kartı öğrenciye her durak arasında gösterilir: boş kalmasın diye nötr bir metinle başlar, öğretmen değiştirebilir.
+const VARSAYILAN_TARIF = { sinif: "Bir sonraki sahneye geç.", okul: "Bir sonraki QR kodunu bul ve okut." } as const;
 
 // Her dersin öğrenme çıktıları sırayla harmanlanır: disiplinler arası oyunda her ders erken duraklarda çalışılır.
 function hedefSirasi(input: ResolvedInput): string[] {
@@ -24,8 +26,9 @@ function hedefSirasi(input: ResolvedInput): string[] {
 export function bosSablon(input: ResolvedInput): GameDefinition {
   const recipe = buildRecipe(input.sure, input.deneyim, input.alan);
   const n = recipe.anaGorev.max;
-  const blokSayisi = Math.max(1, Math.min(recipe.secim.min, Math.floor((n - ILK_BLOK + 1) / BLOK)));
-  const secimler = Array.from({ length: blokSayisi }, (_, b) => ILK_BLOK + b * BLOK);
+  const sigan = (ilk: number) => Math.max(1, Math.min(recipe.secim.min, Math.floor((n - ilk + 1) / BLOK)));
+  const ilkBlok = sigan(1) > sigan(2) ? 1 : 2;
+  const secimler = Array.from({ length: sigan(ilkBlok) }, (_, b) => ilkBlok + b * BLOK);
   const blokOf = (k: number) => secimler.find((s) => k >= s && k < s + BLOK);
   // Alternatif duraklar yalnız bir rotada kalır; final için gereken kanıtlar herkesin geçtiği duraklarda kazanılır.
   const alternatif = (k: number) => {
@@ -46,7 +49,7 @@ export function bosSablon(input: ResolvedInput): GameDefinition {
     const k = i + 1;
     const s = blokOf(k);
     const secimSahnesi = s === k;
-    const sonraki = s !== undefined && (k === s + 1 || k === s + 2) ? id(s + 3) : k === n ? null : id(k + 1);
+    const sonraki = alternatif(k) ? id(s! + 3) : k === n ? null : id(k + 1);
     return {
       id: id(k),
       isim: `${k}. durak`,
@@ -55,7 +58,7 @@ export function bosSablon(input: ResolvedInput): GameDefinition {
       mekan: {
         tur: input.alan === "okul" ? "qr" : "sanal",
         qr_durak_id: input.alan === "okul" ? IZINLI_QR_IDLERI[i] : null,
-        sonraki_durak_tarifi: "",
+        sonraki_durak_tarifi: VARSAYILAN_TARIF[input.alan],
       },
       gorev: {
         tur: "coktan_secmeli",
@@ -83,7 +86,7 @@ export function bosSablon(input: ResolvedInput): GameDefinition {
       sure_dk: input.sure,
       deneyim: input.deneyim,
       alan: input.alan,
-      kaynak: "sablon",
+      olusturma: "sablon",
     },
     hikaye_giris: "",
     oyun_amaci: VARSAYILAN_AMAC,

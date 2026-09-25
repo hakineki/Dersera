@@ -720,7 +720,7 @@ export default function ComposerClient({
                 <dt className="text-gray-500">Kredi</dt>
                 {sablon ? (
                   <dd className="text-gray-900">
-                    <strong>Kredisiz</strong> · yapay zekâ kullanılmaz
+                    <strong>Kredisiz</strong> · metinleri sen yazarsın
                   </dd>
                 ) : (
                   <dd className={kredi && kredi.toplam < maliyet ? "text-red-700" : "text-gray-900"}>
@@ -737,8 +737,8 @@ export default function ComposerClient({
                 <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-xl p-3">
                   <span aria-hidden="true">🛡 </span>
                   Şablonda durakların rotası, öğrenme hedefleri ve final kanıtları hazırdır; hikâyeleri, soruları, seçenekleri, ipuçlarını ve destek
-                  görevlerini sen yazarsın. Eksikler önizlemede listelenir. Yayından önce diğer oyunlarla aynı otomatik denetimlerden geçer; engelleyen
-                  içerik yayınlanamaz.
+                  görevlerini sen yazarsın. Eksikler önizlemede listelenir. İstersen yazdığın bir durağı “Dersera&apos;yla güncelle” ile tamamlatabilirsin
+                  ({KREDI_KURALLARI.guncelleme} kredi). Yayından önce diğer oyunlarla aynı otomatik denetimlerden geçer; engelleyen içerik yayınlanamaz.
                 </p>
               ) : (
                 <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-xl p-3">

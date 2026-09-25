@@ -130,7 +130,7 @@ export default function ComposerPreview({
         </button>
       </header>
 
-      {m.kaynak === "sablon" && (
+      {m.olusturma === "sablon" && !validation.gecerli && (
         <p role="note" className="text-sm bg-teal-50 border border-teal-200 text-teal-900 rounded-xl p-3">
           Bu oyunu sen yazıyorsun: rota, öğrenme hedefleri ve kanıtlar hazır. Her durağa ve finale dokunup hikâyeyi, soruyu, seçenekleri, doğru
           cevabı, iki ipucunu ve destek görevini yaz; oyunun adı ve girişi için yukarıdaki bağlantıyı kullan. Eksikler aşağıda listelenir,

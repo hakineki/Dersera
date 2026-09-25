@@ -424,11 +424,17 @@ function YeniOyun({
         </span>
       </Link>
       <div className="pt-2 text-center">
-        <button type="button" aria-expanded={klasik} onClick={() => setKlasik((k) => !k)} className="text-sm text-gray-500 hover:text-gray-800 underline">
+        <button
+          type="button"
+          aria-expanded={klasik}
+          aria-controls="hizli-oyun"
+          onClick={() => setKlasik((k) => !k)}
+          className="text-sm text-gray-500 hover:text-gray-800 underline"
+        >
           {klasik ? "Hazır soru bankasını gizle" : "Hazır soru bankasıyla hızlı oyun"}
         </button>
       </div>
-      {klasik && <PublishForm selectedAylar={selectedAylar} toggleAy={toggleAy} onPublished={onPublished} />}
+      <div id="hizli-oyun">{klasik && <PublishForm selectedAylar={selectedAylar} toggleAy={toggleAy} onPublished={onPublished} />}</div>
     </div>
   );
 }
