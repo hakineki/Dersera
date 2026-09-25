@@ -496,9 +496,10 @@ export default function ComposerClient({
         return;
       }
       const pub = json as PublishResponse;
-      // Başka sekmede hesap değişmiş olabilir: kayıt yayını yapan oturumun hesabına bağlanır; oturum okunamazsa ya da
-      // kapanmışsa sayfayı açan hesaba.
-      const yayinlayan = (await oturumBilgisi())?.hesap ?? oturumHesabi.current;
+      // Başka sekmede hesap değişmiş olabilir: kayıt yayını yapan oturumun hesabına bağlanır. Oturum okunamazsa sayfayı
+      // açan hesaba; kapanmışsa (çıkış yapılmış) kaydedilmez.
+      const oturum = await oturumBilgisi();
+      const yayinlayan = oturum === undefined ? oturumHesabi.current : oturum.hesap;
       if (yayinlayan) saveTeacherGame({ game: pub.game, adminToken: pub.adminToken }, yayinlayan);
       router.push("/ogretmen");
     } catch {
