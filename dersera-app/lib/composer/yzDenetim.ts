@@ -59,13 +59,13 @@ export type YzDenetim =
 export function yzDurumMetni(yz: YzDenetim): string {
   switch (yz.durum) {
     case "tamam":
-      return yz.bulgular.length ? "Yapay zekâ denetimi yapıldı; bulguları aşağıda." : "Yapay zekâ denetimi yapıldı; sorun bulunmadı.";
+      return yz.bulgular.length ? "Otomatik içerik denetimi yapıldı; bulguları aşağıda." : "Otomatik içerik denetimi yapıldı; sorun bulunmadı.";
     case "kapali":
-      return "Yapay zekâ denetimi yapılandırılmamış; yalnız kural tabanlı denetim uygulandı.";
+      return "Otomatik içerik denetimi yapılandırılmamış; yalnız kural tabanlı kontroller uygulandı.";
     case "bekliyor":
-      return "Yapay zekâ denetimi yayın sırasında yapılacak.";
+      return "Otomatik içerik denetimi yayın sırasında yapılacak.";
     case "yapilamadi":
-      return "Yapay zekâ denetimi şu anda yapılamadı; yayında yeniden denenir.";
+      return "Otomatik içerik denetimi şu anda yapılamadı; yayında yeniden denenir.";
   }
 }
 

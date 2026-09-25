@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Ikon from "@/components/Ikon";
 import type { GameDefinition } from "@/lib/composer/definition";
 import { GUNCELLEME } from "@/lib/composer/limits";
 import { KREDI_KURALLARI, type KrediDurumu } from "@/lib/kredi";
@@ -47,7 +48,8 @@ export default function GuncellemePaneli({
   return (
     <details className="bg-white border border-indigo-200 rounded-xl p-4 group">
       <summary className="cursor-pointer font-semibold text-indigo-900 text-sm">
-        <span aria-hidden="true">✨ </span>Dersera&apos;yla güncelle <span className="font-normal text-gray-500">({maliyet} kredi)</span>
+        <Ikon ad="guncelle" className="inline-block w-4 h-4 mr-1.5 -mt-0.5 align-middle" />
+        Dersera&apos;yla güncelle <span className="font-normal text-gray-500">({maliyet} kredi)</span>
       </summary>
       <div className="mt-3 space-y-3">
         <p className="text-xs text-gray-600">
