@@ -14,7 +14,7 @@ import OyunTab from "./OyunTab";
 import KutuphaneTab from "./KutuphaneTab";
 import OkulTab from "./OkulTab";
 import OgrenmeTakibiTab from "./OgrenmeTakibiTab";
-import OgretmenMenusu, { type MenuBaglantisi } from "./OgretmenMenusu";
+import OgretmenMenusu, { IKON_KUTUSU, type MenuBaglantisi } from "./OgretmenMenusu";
 import Ikon, { type IkonAdi } from "@/components/Ikon";
 import { cikisYap, eskiYerelGirisiTemizle, girisYap, kayitOl, kullaniciAdiDegistir, oturumBilgisi, sifreDegistir, type HesapOzeti } from "@/lib/authClient";
 import { eskiKutuphaneSayisi, eskiKutuphaneyiTasi } from "@/lib/libraryClient";
@@ -765,10 +765,13 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
     setActiveTab(id);
     window.scrollTo({ top: 0 });
   }
-  // Ayarlar sekmesi ve telefondaki ⋮ menüsü aynı çıkışı kullanır.
+  // Ayarlar sekmesi ve telefondaki ⋮ menüsü aynı çıkışı kullanır. Ortak bilgisayarda sonraki öğretmen
+  // öncekinin son sekmesinde ya da yönetici görünümünde açılmasın.
   async function cikis() {
     await cikisYap();
     setHesap(null);
+    setYonetici(false);
+    setActiveTab(baslangicSekmesi);
   }
 
   return (
@@ -828,7 +831,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
       <div className="max-w-4xl mx-auto px-4 pt-6 pb-24 sm:pb-6 print:px-0">
         {menuSekmesi && (
           <h2 className="sm:hidden flex items-center gap-2 text-lg font-bold text-gray-900 mb-4">
-            <span className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center">
+            <span className={`${IKON_KUTUSU} bg-indigo-50 text-indigo-700`}>
               <Ikon ad={menuSekmesi.icon} />
             </span>
             {menuSekmesi.label}
