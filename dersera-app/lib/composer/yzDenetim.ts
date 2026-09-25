@@ -55,17 +55,18 @@ export type YzDenetim =
   | { durum: "yapilamadi" }
   | { durum: "bekliyor" };
 
-// Öğretmene gösterilen tek satırlık durum; yönetişim notu ve önizleme aynı metni kullanır.
+// Öğretmene gösterilen tek satırlık durum; yönetişim notu ve önizleme aynı metni kullanır. "Bağlam denetimi" yalnız bu
+// katmanı anlatır: rozetler kural tabanlı taramayı da kapsadığı için "ek sorun" denir, genel bir "sorun yok" iddiası kurulmaz.
 export function yzDurumMetni(yz: YzDenetim): string {
   switch (yz.durum) {
     case "tamam":
-      return yz.bulgular.length ? "Yapay zekâ denetimi yapıldı; bulguları aşağıda." : "Yapay zekâ denetimi yapıldı; sorun bulunmadı.";
+      return yz.bulgular.length ? "Bağlam denetimi yapıldı; bulguları aşağıda." : "Bağlam denetimi yapıldı; ek sorun bulunmadı.";
     case "kapali":
-      return "Yapay zekâ denetimi yapılandırılmamış; yalnız kural tabanlı denetim uygulandı.";
+      return "Bağlam denetimi yapılandırılmamış; yalnız kural tabanlı kontroller uygulandı.";
     case "bekliyor":
-      return "Yapay zekâ denetimi yayın sırasında yapılacak.";
+      return "Bağlam denetimi yayın sırasında yapılacak.";
     case "yapilamadi":
-      return "Yapay zekâ denetimi şu anda yapılamadı; yayında yeniden denenir.";
+      return "Bağlam denetimi şu anda yapılamadı; yayında yeniden denenir.";
   }
 }
 
