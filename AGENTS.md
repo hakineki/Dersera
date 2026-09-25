@@ -20,6 +20,7 @@
 - Yeni worktree aç: feature/<isim>
 - Worktree uzak main'den dallanır
 - Ana kopyadaki dosyaya doğrudan dokunma
+- İş merge edilince worktree ADIM 6'da kaldırılır
 
 ### ADIM 2 — İNŞA ET (/code-structure)
 - Katmanlı mimariye göre yaz: sayfa → servis → repository
@@ -41,7 +42,12 @@
 - Vercel deploy gerçekten oldu mu kontrol et
 - Gizli sekmede doğrula
 
-### ADIM 6 — KAPAT (/kapanis)
+### ADIM 6 — TEMİZLE (/worktree-temizle)
+- Merge edilip canlıda doğrulanan işin worktree'si kaldırılır (node_modules + .next her biri ~1 GB)
+- Ajan merge durumunu ve kaybolacak dosyaları denetler, kaldırma komutunu kullanıcıya verir; silmeyi kullanıcı yapar
+- İzlenmeyen dosya varsa önce kullanıcıya sorulur
+
+### ADIM 7 — KAPAT (/kapanis)
 - Oturum sonu devir notu üret
 - COMPLETED / TESTS / COMMIT / OPEN / NOT VERIFIED / NEXT
 - NOT VERIFIED asla boş bırakma
