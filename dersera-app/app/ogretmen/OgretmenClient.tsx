@@ -27,6 +27,10 @@ import {
 const SIFRE_MIN_ISTEMCI = 8;
 // "Benim değil" seçimi bu tarayıcı oturumu boyunca hatırlanır.
 const ESKI_KUTUPHANE_RED = "dersera:eski-kutuphane-red";
+// Telefonda başlık düğmeleri logonun altındaki satırı paylaşır, sığmayan alta geçer. sm ve üstünde eski görünüm korunur;
+// başlık tek satıra sığmadığında (yönetici hesabında ~830px altı) düğmeler logonun altına iner.
+const BASLIK_DUGMESI =
+  "flex-1 sm:flex-initial text-center text-xs sm:text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg transition-colors whitespace-nowrap";
 
 export type Tab = "oyun" | "kutuphane" | "takip" | "okul" | "sorular" | "siralama" | "ayarlar";
 
@@ -849,24 +853,24 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-indigo-900 text-white px-6 py-4 print:hidden">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+      <div className="bg-indigo-900 text-white px-4 sm:px-6 py-3 sm:py-4 print:hidden">
+        <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
           <div className="flex items-center gap-3">
-            <DerseraLogo />
+            <DerseraLogo className="shrink-0" />
             <div className="border-l border-indigo-700 pl-3">
               <p className="text-xs font-semibold text-indigo-200 leading-tight">Öğretmen Paneli</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap sm:flex-nowrap w-full sm:w-auto items-center gap-2 sm:gap-4">
             {yonetici && loggedIn && (
-              <Link href="/moderasyon" className="text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+              <Link href="/moderasyon" className={BASLIK_DUGMESI}>
                 🛡 Moderasyon
               </Link>
             )}
-            <Link href="/library" className="text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+            <Link href="/library" className={BASLIK_DUGMESI}>
               📚 Topluluk
             </Link>
-            <Link href="/qr-kutuphane" className="text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
+            <Link href="/qr-kutuphane" className={BASLIK_DUGMESI}>
               ▦ QR Kütüphanesi
             </Link>
             <Link href="/" className="hidden sm:inline text-indigo-300 hover:text-white text-sm transition-colors">
