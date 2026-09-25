@@ -11,6 +11,8 @@ import { createMemoryYoneticiStore, createRedisYoneticiStore, type YoneticiStore
 import { createMemoryOkulStore, createRedisOkulStore, type OkulStore } from "@/lib/okulStore";
 import { createMemoryGorselStore, createRedisGorselStore, type GorselStore } from "@/lib/gorselStore";
 import { createRedisCommand, type RedisCommand } from "@/lib/redis";
+import { createMemoryOgrenmeStore, createRedisOgrenmeStore, type OgrenmeStore } from "@/lib/ogrenmeStore";
+import type { Oneri } from "@/lib/ogrenme";
 import { icerikOzetiOf, yeniToplulukKaydi } from "@/lib/toplulukService";
 import { createMemoryToplulukStore, createRedisToplulukStore, type ToplulukStore } from "@/lib/toplulukStore";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
@@ -40,6 +42,7 @@ interface Depolar {
   yonetici: YoneticiStore;
   okul: OkulStore;
   gorsel: GorselStore;
+  ogrenme: OgrenmeStore;
 }
 
 // Yazılan her "dersera:" anahtarını kaydeden komut: temizlik yalnız bunları siler.
@@ -66,6 +69,7 @@ const uygulamalar: [string, () => Depolar][] = [
       yonetici: createMemoryYoneticiStore(),
       okul: createMemoryOkulStore(),
       gorsel: createMemoryGorselStore(),
+      ogrenme: createMemoryOgrenmeStore(),
     }),
   ],
 ];
@@ -88,6 +92,7 @@ if (REDIS_ISTENDI) {
       yonetici: createRedisYoneticiStore(c),
       okul: createRedisOkulStore(c),
       gorsel: createRedisGorselStore(c),
+      ogrenme: createRedisOgrenmeStore(c),
     }),
   ]);
 }
@@ -379,6 +384,33 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     expect(await d.gorsel.sahiplen(isId, hedefler, t + 70_000, 70_000)).toBeNull();
     const kararlar = await Promise.all([1, 2, 3].map(() => d.gorsel.sonuclandir(isId, SAAT)));
     expect(kararlar.filter(Boolean)).toHaveLength(1);
+  });
+
+  it("öğrenme: sayaç artışı, öğrenci oyun başına bir kez, talimat sırası, öneri kararı tek geçiş", async () => {
+    const ay = `duman-${run}`;
+    await d.ogrenme.sayaclariArtir(ay, ["uret|Fizik|10", "tur-uretilen|eslestirme", "tur-uretilen|eslestirme"]);
+    await d.ogrenme.sayaclariArtir(ay, []);
+    const kod = `D${run}`;
+    const ilk = await Promise.all([1, 2, 3].map(() => d.ogrenme.ogrenciSay(ay, kod, "kartal", ["ogr-deneme|eslestirme", "ogr-ilk|eslestirme"], SAAT)));
+    expect(ilk.filter(Boolean)).toHaveLength(1);
+    expect(await d.ogrenme.ogrenciSay(ay, kod, "sahin", ["ogr-deneme|eslestirme"], SAAT)).toBe(true);
+    expect(await d.ogrenme.sayaclar(ay)).toEqual({ "uret|Fizik|10": 1, "tur-uretilen|eslestirme": 2, "ogr-deneme|eslestirme": 2, "ogr-ilk|eslestirme": 1 });
+    expect(await d.ogrenme.sayaclar(`bos-${run}`)).toEqual({});
+
+    for (const t of ["bir", 'iki "tırnak"', "üç"]) await d.ogrenme.talimatEkle(`${t} ${run}`);
+    expect(await d.ogrenme.talimatlar(2)).toEqual([`üç ${run}`, `iki "tırnak" ${run}`]);
+
+    // Kural metnindeki "durum" benzeri içerik geçiş kontrolünü yanıltamaz (JSON'da kaçışlıdır).
+    const o: Oneri = { id: `o-${run}`, tarih: 1, baslik: "b", gerekce: "g", kural: 'Kısa yaz "durum":"aktif"', kapsam: { ders: null, sinif: null }, durum: "bekliyor" };
+    await d.ogrenme.oneriYaz(o);
+    await d.ogrenme.oneriYaz({ ...o, id: `o2-${run}`, tarih: 2, durum: "reddedildi" });
+    expect((await d.ogrenme.oneriler()).map((x) => x.id)).toEqual([`o2-${run}`, `o-${run}`]);
+    expect(await d.ogrenme.oneriGecis(`o2-${run}`, ["aktif"], { durum: "pasif" })).toBeNull();
+    const kararlar = await Promise.all([1, 2, 3].map(() => d.ogrenme.oneriGecis(o.id, ["bekliyor"], { durum: "aktif", karar: { yonetici: "y", tarih: 3 } })));
+    expect(kararlar.filter(Boolean)).toHaveLength(1);
+    expect(await d.ogrenme.oneriGecis(o.id, ["aktif"], { durum: "pasif", karar: { yonetici: "z", tarih: 4 } })).toMatchObject({ durum: "pasif", kural: o.kural });
+    expect(await d.ogrenme.oneriGecis(`yok-${run}`, ["bekliyor"], { durum: "aktif" })).toBeNull();
+    expect((await d.ogrenme.oneriler()).find((x) => x.id === o.id)).toMatchObject({ durum: "pasif", karar: { yonetici: "z", tarih: 4 } });
   });
 
   it("oran sınırı sayacı ve yapay zekâ denetim önbelleği", async () => {

@@ -31,7 +31,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
    DERSERA_REDIS_DUMAN=1 KV_REST_API_URL="<duman-db-url>" KV_REST_API_TOKEN="<duman-db-token>" npx jest __tests__/depoSozlesmesi.test.ts
    ```
 
-3. Beklenen: `bellek depoları` ve `redis depoları` altında 10'ar test geçer. Test bitince yazdığı anahtarları siler.
+3. Beklenen: `bellek depoları` ve `redis depoları` altında 11'er test geçer. Test bitince yazdığı anahtarları siler.
 
 ## 3. Uçtan uca akış (gizli sekmede, canlı adreste)
 
@@ -72,6 +72,9 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 31 | Oyun yayınla; gizli sekmede `/api/games/<KOD>` adresini aç | Yanıtta soru ve cevap yok (`icerikKilitli: true`). Öğrenci takma adla katılınca oyun açılır; ekranda silik "takma ad · kod" filigranı görünür. Oyun bitince aynı adres içerik vermez. |
 | 32 | İki farklı öğrenci aynı oyunda ilk soruya bak | Çoktan seçmeli seçeneklerin sırası öğrenciye göre farklı; sayfa yenilense de aynı öğrencide değişmez. |
 | 33 | Öğretmen: başka öğretmenin 21 topluluk oyununu aç; yönetici `/yonetim/kopya-kaydi` | 21.'de "Günde en çok 20…" uyarısı; kopya kaydında öğretmen, oyun ve zaman görünür. Kayıtta kullanım koşulları onayı olmadan hesap açılmaz. |
+| 34 | Yönetici: `/yonetim/ogrenme` (adım 3–33'teki oyunlardan sonra) | Bu ayın üretim, düzenleme, yapay zekâ güncellemesi ve öğrenci sonuçları görev türü ve ders kırılımında görünür; az örnekli oranlar "—". Sayfada öğretmen ya da öğrenci adı yok. Yönetici olmayan hesap 403 görür. |
+| 35 | Yönetici: aynı sayfada "Öneri iste" (bu ay en az 10 oyun ya da 30 öğrenci denemesi) | Yapay zekâ en çok 5 öneri yazar; her birinin gerekçesinde rapordaki bir sayı var, kural tek cümle. Eşik altında net uyarı. Hiçbir öneri onaylanmadan oyun üretimine girmez. |
+| 36 | Yönetici: bir öneriyi onayla, A yeni oyun oluştursun; sonra kuralı "Geri al" | Onaylı kural kapsamındaki (ders/sınıf) yeni oyunlarda uygulanır; geri alınınca sonraki oluşturmalarda yok. Kararı veren yönetici ve zaman kayıtlı. |
 
 ## 4. Dağıtım doğrulaması
 
@@ -93,5 +96,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 - Üç günden eski birden çok hesapla topluluk onayı toplanabilir.
 - Yapay zekâ denetimi yapılamazsa yayın durmaz ("gözden geçirin"); kural tabanlı engel her zaman geçerli.
 - Benzerlik taraması en yeni 500 yayındaki oyunu ve inceleme kuyruğunu kapsar.
+- Öğrenme döngüsü önerileri toplu sayılara dayanır; pilotun ilk haftalarında veri azdır. Önerileri onaylamadan önce
+  gerekçedeki sayıyı rapordan doğrulayın ve etkisini birkaç oyunda gözleyin; beklenmeyen etki görülürse "Geri al".
 - Model kararlarının (çocuk güvenliği, güncelleme kalitesi) yanlış alarm oranı henüz ölçülmedi: pilotta
   engellenen/uyarılan oyunlar not edilmeli.

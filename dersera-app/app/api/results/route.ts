@@ -4,7 +4,9 @@ import { getGamesStore } from "@/lib/gamesStore";
 import { verifyPlayer } from "@/lib/gamesService";
 import { parseLeaderboardEntry } from "@/lib/results";
 import { getResultsStore } from "@/lib/resultsStore";
-import { bitirisSay } from "@/lib/istatistikService";
+import { bitirisSay, oyuncuOf } from "@/lib/istatistikService";
+import { ogrenciSinyali } from "@/lib/ogrenmeService";
+import { GAME_RETENTION_MS } from "@/lib/gamesStore";
 import { istekSahibi } from "@/lib/libraryService";
 
 export async function POST(req: Request) {
@@ -41,6 +43,11 @@ export async function POST(req: Request) {
     }
     await getResultsStore().save(code, entry);
     await bitirisSay(code, entry.nickname, await istekSahibi(req), game.expiresAt, game.definition?.meta.sure_dk ?? null);
+    // Öğrenme döngüsü: durak başına yanlış sayısı (kimliksiz, öğrenci oyun başına bir kez).
+    if (game.definition && entry.stopDetails) {
+      const yanlislar = Object.fromEntries(Object.entries(entry.stopDetails).map(([id, d]) => [id, d.hintsUsed]));
+      await ogrenciSinyali(code, oyuncuOf(code, entry.nickname), game.definition, yanlislar, game.expiresAt + GAME_RETENTION_MS - Date.now());
+    }
   } catch (err) {
     console.error("[results] kayıt hatası", err);
     return NextResponse.json({ error: "Sonuç kaydedilemedi" }, { status: 503 });

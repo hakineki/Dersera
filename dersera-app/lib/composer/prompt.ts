@@ -46,6 +46,15 @@ ${guvenli}
 `;
 }
 
+// Öğrenme döngüsünün onaylı kuralları temel kuralların altında kalır: çelişirse temel kurallar geçerlidir.
+function ekKuralBolumu(kurallar: string[] | undefined): string {
+  if (!kurallar?.length) return "";
+  return `Öğrenme döngüsünden onaylı ek kurallar (öğrenci sonuçlarından çıkarıldı, platform yöneticisi onayladı; yukarıdaki kurallarla çelişen kısmı uygulama):
+${kurallar.map((k) => `- ${k}`).join("\n")}
+
+`;
+}
+
 export function buildUserPrompt(input: ResolvedInput, recipe: Recipe, izinliQrIdleri: string[]): string {
   const dersBloklari = input.dersler
     .map((k) => {
@@ -107,7 +116,7 @@ Alan kuralları:
 - Durak sayısı yukarıdaki üst sınırı aşmaz.
 - Boş/yok değerleri için boş metin ("") kullan: odul_id, varsayilan_sonraki_durak_id (son duraklarda ve seçim sahnelerinde), qr_durak_id (tek sınıfta).
 
-Metinleri kısa tut (oyun hızlı üretilmeli): hikaye_metni en fazla 2 cümle; soru tek cümle; ipuçları, destek açıklaması ve sonraki durak tarifi tek kısa cümle; seçenekler birkaç kelime.
+${ekKuralBolumu(input.ekKurallar)}Metinleri kısa tut (oyun hızlı üretilmeli): hikaye_metni en fazla 2 cümle; soru tek cümle; ipuçları, destek açıklaması ve sonraki durak tarifi tek kısa cümle; seçenekler birkaç kelime.
 Görev türlerini konuya uygun biçimde çeşitlendir. Durak id'leri d1, d2, ...; nesne id'leri n1, n2, ... biçiminde olsun. İlk durak başlangıçtır.`;
 }
 

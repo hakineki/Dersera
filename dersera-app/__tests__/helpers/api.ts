@@ -50,6 +50,15 @@ export async function buildApi() {
     okulPaylasimOge: typeof import("@/app/api/okul/paylasim/[id]/route");
     kopyaKaydi: typeof import("@/app/api/yonetim/kopya-kaydi/route");
     denetimKaydi: typeof import("@/lib/denetimKaydi");
+    compose: typeof import("@/app/api/compose/route");
+    composeGuncelle: typeof import("@/app/api/compose/guncelle/route");
+    anthropic: typeof import("@/lib/composer/anthropic");
+    composerService: typeof import("@/lib/composer/service");
+    ogrenmeRapor: typeof import("@/app/api/yonetim/ogrenme/route");
+    ogrenmeOneri: typeof import("@/app/api/yonetim/ogrenme/oneri/route");
+    ogrenmeKarar: typeof import("@/app/api/yonetim/ogrenme/oneri/[id]/route");
+    ogrenmeStore: typeof import("@/lib/ogrenmeStore");
+    ogrenmeService: typeof import("@/lib/ogrenmeService");
     okulStore: typeof import("@/lib/okulStore");
     okulKredi: typeof import("@/app/api/okul/kredi/route");
     yonetimHavuzu: typeof import("@/app/api/yonetim/okul-havuzu/route");
@@ -101,6 +110,15 @@ export async function buildApi() {
       okulPaylasimOge: await import("@/app/api/okul/paylasim/[id]/route"),
       kopyaKaydi: await import("@/app/api/yonetim/kopya-kaydi/route"),
       denetimKaydi: await import("@/lib/denetimKaydi"),
+      compose: await import("@/app/api/compose/route"),
+      composeGuncelle: await import("@/app/api/compose/guncelle/route"),
+      anthropic: await import("@/lib/composer/anthropic"),
+      composerService: await import("@/lib/composer/service"),
+      ogrenmeRapor: await import("@/app/api/yonetim/ogrenme/route"),
+      ogrenmeOneri: await import("@/app/api/yonetim/ogrenme/oneri/route"),
+      ogrenmeKarar: await import("@/app/api/yonetim/ogrenme/oneri/[id]/route"),
+      ogrenmeStore: await import("@/lib/ogrenmeStore"),
+      ogrenmeService: await import("@/lib/ogrenmeService"),
       okulStore: await import("@/lib/okulStore"),
       okulKredi: await import("@/app/api/okul/kredi/route"),
       yonetimHavuzu: await import("@/app/api/yonetim/okul-havuzu/route"),

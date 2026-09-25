@@ -37,7 +37,7 @@ export function istatistikOzeti(i: Istatistik) {
 }
 
 // Oyuncu kimliği koda göre tuzlanmış takma ad özetidir: takma ad düz metin saklanmaz, oyunlar arasında eşleşmez.
-const oyuncuOf = (kod: string, nickname: string) => createHash("sha256").update(`${kod}:${nicknameKey(nickname)}`).digest("hex");
+export const oyuncuOf = (kod: string, nickname: string) => createHash("sha256").update(`${kod}:${nicknameKey(nickname)}`).digest("hex");
 
 // İsteği yapan oyunun sahibi mi? Öğretmen kendi oyununu kendi oturumuyla oynarsa sayılmaz.
 const sahibinKaynagi = (kaynak: string | null, istekSahibi: string | null) => !!(kaynak && istekSahibi && kaynak.startsWith(`${istekSahibi}:`));

@@ -63,6 +63,8 @@ export interface ResolvedInput extends Omit<ComposeInput, "dersler"> {
   ogrenmeCiktilari: OgrenmeCiktisi[];
   // Ders adı → o dersin öğrenme çıktısı kodları; disiplinler arası oyunda her ders en az bir görevde çalışılmalı.
   hedefDersleri: Record<string, string[]>;
+  // Öğrenme döngüsünden platform yöneticisince onaylanmış ek istem kuralları (lib/ogrenme.ts); oluşturmada eklenir.
+  ekKurallar?: string[];
   dersAdi: string;
   konuAdi: string;
 }

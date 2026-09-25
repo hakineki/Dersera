@@ -15,6 +15,7 @@ import type { YonetisimSonucu } from "@/lib/composer/yonetisim";
 import { IZ_SURUMU, parmakizi, surumKarari, type Parmakizi } from "@/lib/surum";
 import { yzDenetle } from "@/lib/composer/yzDenetimService";
 import { moderasyonaEkle } from "@/lib/moderasyonService";
+import { duzenlemeSinyali } from "@/lib/ogrenmeService";
 
 // Eski (hesap öncesi) kütüphaneler tarayıcı anahtarının özetine bağlıydı; yalnız hesaba taşımada kullanılır.
 export const eskiSahipOf = (anahtar: string) => hashToken(anahtar);
@@ -90,6 +91,9 @@ export async function kutuphaneKaydiniGuncelle(store: LibraryStore, sahip: strin
   }
 
   // Anlamlı içeriğin %30'undan fazlası ya da oyunun kimliği değiştiyse: yeni varyant, özgün oyun yerinde kalır.
+  // Öğrenme döngüsü: kaydedilen yeni sürümde değişen duraklar (hangi görev türleri düzeltiliyor).
+  await duzenlemeSinyali(kayit.definition, r.definition, now);
+
   if (karar.tur === "varyant") {
     if ((await store.count(sahip)) >= KUTUPHANE_LIMIT) {
       return { ok: false, status: 409, error: `Bu değişiklik yeni bir varyant oluşturuyor ama kütüphane dolu (en fazla ${KUTUPHANE_LIMIT} oyun). Yer açmak için eski bir oyunu silin.` };
