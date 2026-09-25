@@ -10,6 +10,7 @@ import {
   saveNickname,
   saveStartTime,
   savePlayerToken,
+  loadPlayerToken,
   loadProgress,
   isPreviousStopsComplete,
   loadGameSnapshot,
@@ -33,12 +34,22 @@ type View =
   | { kind: "nickname"; notice?: string }
   | { kind: "game" };
 
-// Son bilinen kopya varsa sunucudan tazelenir; ağ yoksa yerel kopyayla devam edilir.
+// Bu cihazda bu oyuna katılmış öğrencinin kimliği (Composer oyununun içeriği yalnız onunla gelir).
+function oyuncuKimligi(): { ad: string; anahtar: string } | null {
+  const ad = loadNickname();
+  const anahtar = loadPlayerToken();
+  return ad && anahtar ? { ad, anahtar } : null;
+}
+
+// Son bilinen kopya varsa sunucudan tazelenir; ağ yoksa yerel kopyayla devam edilir. Sunucu içeriği artık vermiyorsa
+// (oyun bitti) katılırken alınmış tanım korunur: öğrenci sonucunu görmeye devam eder.
 async function refreshSnapshot(snap: PublicGame): Promise<PublicGame | null> {
-  const r = await fetchGame(snap.code, 3000);
+  const r = await fetchGame(snap.code, 3000, oyuncuKimligi());
   if (r.status === "ok") {
-    saveGameSnapshot(r.game);
-    return r.game;
+    const { icerikKilitli, ...acik } = r.game;
+    const g: PublicGame = icerikKilitli && snap.definition ? { ...acik, definition: snap.definition } : r.game;
+    saveGameSnapshot(g);
+    return g;
   }
   return r.status === "not-found" ? null : snap;
 }
@@ -74,11 +85,15 @@ export default function GameWrapper() {
         return;
       }
 
-      // Composer oyunu: sahneleri kendi oynatıcısı yönetir; tek sınıf oyununda QR gerekmez.
-      if (g.definition) {
+      // Composer oyunu: sahneleri kendi oynatıcısı yönetir; tek sınıf oyununda QR gerekmez. İçerik katılımdan sonra gelir.
+      if (g.definition || g.icerikKilitli) {
         setGame(g);
         if (!started) {
           setView({ kind: "nickname" });
+          return;
+        }
+        if (!g.definition) {
+          setView({ kind: "message", icon: "🔒", title: "Oyun Açılamadı", text: "Bu cihazda oyunun içeriği yok. Öğretmeninden yeni oyun kodunu iste." });
           return;
         }
         setNickname(loadNickname() ?? "");
@@ -158,11 +173,22 @@ export default function GameWrapper() {
     joiningRef.current = true;
     setJoining(true);
     const joined = await joinGameRequest(game.code, nick);
+    // Composer oyununun soruları katılımdan sonra, oyuncu anahtarıyla alınır (kod bilen herkese gönderilmez).
+    const icerik =
+      game.icerikKilitli && joined.status === "joined" ? await fetchGame(game.code, 5000, { ad: nick, anahtar: joined.playerToken }) : null;
     joiningRef.current = false;
     setJoining(false);
     if (joined.status === "taken") {
       setView({ kind: "nickname", notice: `“${nick}” bu oyunda başka bir öğrencide. Farklı bir takma ad seç.` });
       return;
+    }
+    if (game.icerikKilitli) {
+      if (!icerik || icerik.status !== "ok" || !icerik.game.definition) {
+        setView({ kind: "nickname", notice: "Oyun yüklenemedi. Bağlantını kontrol edip tekrar dene." });
+        return;
+      }
+      setGame(icerik.game);
+      saveGameSnapshot(icerik.game);
     }
     if (joined.status === "joined") savePlayerToken(joined.playerToken);
     const now = Date.now();

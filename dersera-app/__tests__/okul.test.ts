@@ -166,6 +166,8 @@ describe("okul: uç noktalar", () => {
     const d = await detay(pId, yonetici);
     expect(d.status).toBe(200);
     expect((await d.json()).oyun.definition.meta.baslik).toBe("Kuvvet Avı");
+    // Tam içeriğin açılması kopya kaydına geçer (sızan içeriğin kaynağı bulunabilsin).
+    expect(await api.denetimKaydi.getDenetimKaydiStore().kopyalar(5)).toEqual([expect.objectContaining({ kullaniciAdi: "yonetici1", tur: "okul", oyunId: pId, baslik: "Kuvvet Avı" })]);
 
     // Başka okul: aynı kimlikle bile göremez.
     await post(api.okul, "/api/okul", { ad: "Başka Okul" }, yabanci);

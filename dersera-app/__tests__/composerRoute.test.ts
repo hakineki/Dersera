@@ -225,10 +225,18 @@ describe("composer yayını (/api/games)", () => {
     expect(pub.game.stops).toHaveLength(def.duraklar.length);
     expect(pub.game.definition.duraklar.map((d: { id: string }) => d.id)).toEqual(def.duraklar.map((d) => d.id));
 
+    // Kod bilen ama katılmamış biri içeriği alamaz; katılan öğrenci oyuncu anahtarıyla aynı kaydı görür.
     const got = await (await api.game.GET(new Request("http://localhost"), api.params(pub.game.code))).json();
     expect(got.active).toBe(true);
-    expect(got.game.definition.meta.baslik).toBe(def.meta.baslik);
-    expect((await api.join.POST(jsonRequest("/join", { nickname: "Kartal" }), api.params(pub.game.code))).status).toBe(201);
+    expect(got.game.definition).toBeUndefined();
+    expect(got.game.icerikKilitli).toBe(true);
+    const katil = await api.join.POST(jsonRequest("/join", { nickname: "Kartal" }), api.params(pub.game.code));
+    expect(katil.status).toBe(201);
+    const { playerToken } = await katil.json();
+    const ogrenci = await (
+      await api.game.GET(new Request("http://localhost", { headers: { "x-oyuncu-adi": "Kartal", "x-oyuncu-anahtari": playerToken } }), api.params(pub.game.code))
+    ).json();
+    expect(ogrenci.game.definition.meta.baslik).toBe(def.meta.baslik);
   });
 
   it("finale ulaşılamayan oyun yayınlanamaz (senaryo 7)", async () => {

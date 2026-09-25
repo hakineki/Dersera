@@ -36,6 +36,7 @@ function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: Hesa
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [davet, setDavet] = useState("");
+  const [kosulOnayi, setKosulOnayi] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -47,7 +48,7 @@ function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: Hesa
       return;
     }
     setLoading(true);
-    const r = mod === "giris" ? await girisYap(username, password) : await kayitOl(username, password, davet);
+    const r = mod === "giris" ? await girisYap(username, password) : await kayitOl(username, password, davet, kosulOnayi);
     setLoading(false);
     if ("error" in r) setError(r.error);
     else onLogin(r.hesap);
@@ -112,6 +113,15 @@ function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: Hesa
                   <input id="davet" type="text" value={davet} onChange={(e) => setDavet(e.target.value)} autoComplete="off" className={alan} />
                 </div>
               )}
+              <label className="flex items-start gap-2 text-sm text-purple-200">
+                <input type="checkbox" checked={kosulOnayi} onChange={(e) => setKosulOnayi(e.target.checked)} className="mt-1 h-4 w-4 accent-indigo-400" />
+                <span>
+                  <Link href="/kosullar" target="_blank" className="underline text-white">
+                    Kullanım koşullarını
+                  </Link>{" "}
+                  okudum; oyunları ve soruları platform dışında paylaşmayacağımı kabul ediyorum.
+                </span>
+              </label>
             </>
           )}
 
@@ -123,7 +133,7 @@ function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: Hesa
 
           <button
             type="submit"
-            disabled={loading || !username.trim() || !password || (mod === "kayit" && !password2)}
+            disabled={loading || !username.trim() || !password || (mod === "kayit" && (!password2 || !kosulOnayi))}
             className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:text-white/40 text-white font-semibold py-3 rounded-xl text-sm transition-colors"
           >
             {loading ? "Kontrol ediliyor..." : mod === "giris" ? "Giriş Yap" : "Hesap Oluştur"}

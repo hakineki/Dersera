@@ -6,6 +6,7 @@ import { arrive, choose, currentStep, durakById, FINAL_ID, inventory, needsScan,
 import type { GameDefinition } from "@/lib/composer/definition";
 import { gorselAdresi, KAPAK } from "@/lib/gorsel";
 import GorselResim from "@/components/GorselResim";
+import { secenekleriKaristir } from "@/lib/karistir";
 import {
   addLeaderboardEntry,
   addPenalty,
@@ -50,6 +51,23 @@ function useKokYazi(sinif: number) {
 }
 const shellOf = (sinif: number) => `min-h-screen bg-gradient-to-br ${ZEMIN[yasProfiliOf(sinif)]} px-4 py-6`;
 const kart = "bg-white/10 border border-white/20 rounded-2xl p-5";
+
+// Takma ad ve oyun kodu ekranda silik tekrar eder: paylaşılan ekran görüntüsünün kimden çıktığı belli olur (caydırıcı).
+function Filigran({ metin }: { metin: string }) {
+  return (
+    <div aria-hidden="true" className="pointer-events-none select-none fixed inset-0 overflow-hidden z-0 opacity-[0.08]">
+      {/* Ekranın ortasına oturan, her yöne taşan döndürülmüş ızgara: hangi en-boy oranında olursa olsun her yeri kaplar. */}
+      <div
+        className="absolute left-1/2 top-1/2 grid grid-cols-5 content-evenly justify-items-center text-white text-sm font-bold whitespace-nowrap"
+        style={{ width: "220vmax", height: "220vmax", transform: "translate(-50%, -50%) rotate(-24deg)" }}
+      >
+        {Array.from({ length: 5 * 28 }, (_, i) => (
+          <span key={i}>{metin}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // Görsel zenginleştirilmiş oyunda kapak ya da durak görseli; yoksa hiçbir şey.
 function SahneGorseli({ def, hedef, alt, className }: { def: GameDefinition; hedef: string; alt: string; className: string }) {
@@ -208,6 +226,9 @@ export default function ComposerPlayer({
     setBitis(t);
   }
 
+  // Seçenek sırası öğrenciye ve durağa özgü (sayfa yenilense de aynı kalır).
+  const karisik = (tur: string, secenekler: string[], dogru: string, yer: string) => secenekleriKaristir(tur, secenekler, dogru, `${gameCode}:${nickname}:${yer}`);
+
   const ustBar = (
     <div className="flex items-center justify-between mb-4 text-xs">
       <span className="text-purple-200 font-semibold">
@@ -222,7 +243,8 @@ export default function ComposerPlayer({
 
   return (
     <div className={shellOf(def.meta.sinif)}>
-      <div className="w-full max-w-md mx-auto">
+      <Filigran metin={`${nickname} · ${gameCode}`} />
+      <div className="relative z-10 w-full max-w-md mx-auto">
         {ustBar}
 
         {yeniNesne && (
@@ -289,11 +311,14 @@ export default function ComposerPlayer({
               gorev={{
                 tur: step.durak.gorev.tur,
                 soru: step.durak.gorev.soru,
-                secenekler: step.durak.gorev.secenekler,
+                secenekler: karisik(step.durak.gorev.tur, step.durak.gorev.secenekler, step.durak.gorev.dogru_cevap, step.durak.id),
                 dogru_cevap: step.durak.gorev.dogru_cevap,
                 ipucu_1: step.durak.gorev.ipucu_1,
                 ipucu_2: step.durak.gorev.ipucu_2,
-                destek: step.durak.gorev.destek_gorevi,
+                destek: {
+                  ...step.durak.gorev.destek_gorevi,
+                  secenekler: karisik("coktan_secmeli", step.durak.gorev.destek_gorevi.secenekler, step.durak.gorev.destek_gorevi.dogru_cevap, `${step.durak.id}:destek`),
+                },
               }}
               onWrong={yanlis}
               onDone={(n) => gorevBitti(step.durak.id, n, step.durak.gorev.odul_id)}
@@ -324,7 +349,7 @@ export default function ComposerPlayer({
               {esyalar.length > 0 && <p className="text-yellow-200 text-xs mt-2">Topladıkların: {esyalar.map((id) => def.envanter.find((e) => e.id === id)?.isim).join(", ")}</p>}
             </div>
             <TaskView
-              gorev={{ tur: def.final.gorev_turu, soru: def.final.soru, secenekler: def.final.secenekler, dogru_cevap: def.final.dogru_cevap }}
+              gorev={{ tur: def.final.gorev_turu, soru: def.final.soru, secenekler: karisik(def.final.gorev_turu, def.final.secenekler, def.final.dogru_cevap, "final"), dogru_cevap: def.final.dogru_cevap }}
               onWrong={yanlis}
               onDone={finalBitti}
             />

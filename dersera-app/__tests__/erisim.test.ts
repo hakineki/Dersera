@@ -50,8 +50,8 @@ describe("kayıt: canlıda davet kodu zorunlu", () => {
     env.KAYIT_DAVET_KODU = "okul-2026";
     const api = await buildApi();
     expect(await (await api.ben.GET(new Request("http://localhost/api/auth/ben"))).json()).toMatchObject({ davetGerekli: true, kayitKapali: false });
-    expect((await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi: "ogrenci1", sifre: "gizli-sifre-1", davetKodu: "tahmin" }))).status).toBe(403);
-    expect((await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi: "ogretmen1", sifre: "gizli-sifre-1", davetKodu: "okul-2026" }))).status).toBe(201);
+    expect((await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi: "ogrenci1", sifre: "gizli-sifre-1", davetKodu: "tahmin", kosulOnayi: true }))).status).toBe(403);
+    expect((await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi: "ogretmen1", sifre: "gizli-sifre-1", davetKodu: "okul-2026", kosulOnayi: true }))).status).toBe(201);
   });
 });
 
