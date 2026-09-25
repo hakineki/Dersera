@@ -3,7 +3,7 @@ import type { GameDefinition } from "@/lib/composer/definition";
 import { GORSEL_HEDEF, GORSEL_IS_ID } from "@/lib/gorsel";
 import { gorselIstemleri } from "@/lib/gorselIstem";
 import type { GorselStore, HedefDurumu } from "@/lib/gorselStore";
-import { GorselHatasi } from "@/lib/gorselUretici";
+import { GorselHatasi, URETIM_SURESI_MS } from "@/lib/gorselUretici";
 import { ASKI_SURESI_MS, krediIade, krediTamamla, type Harcama } from "@/lib/krediService";
 
 // Görsel zenginleştirme akışı. Oyun oluşunca iş kurulur; istemci /api/gorsel/{isId}'yi hedef sayısı kadar çağırır ve
@@ -70,11 +70,18 @@ export async function gorselUret(d: GorselDeps, hesapId: string, isId: string, n
   const hedef = now - is.olusturma > GORSEL_SURESI_MS ? null : await d.store.sahiplen(isId, hedefler, now, BAYAT_MS);
   if (hedef) {
     let url: string | null = null;
+    let zamanlayici: ReturnType<typeof setTimeout> | undefined;
     try {
-      url = await d.uret(isId, hedef, is.hedefler.find((h) => h.hedef === hedef)!.istem);
+      // Süre aşılırsa hedef hata olarak kapanır (işlev route sınırında kesilmeden); geç biten üretim yok sayılır.
+      const sure = new Promise<never>((_, red) => {
+        zamanlayici = setTimeout(() => red(new GorselHatasi("zaman", "üretim süresi aşıldı")), URETIM_SURESI_MS);
+      });
+      url = await Promise.race([d.uret(isId, hedef, is.hedefler.find((h) => h.hedef === hedef)!.istem), sure]);
     } catch (err) {
       // İstem ve görsel loglanmaz; yalnız neden.
       console.error(`[gorsel] ${hedef} üretilemedi: ${err instanceof GorselHatasi ? err.neden : "beklenmeyen"}`, err instanceof Error ? err.message : err);
+    } finally {
+      clearTimeout(zamanlayici);
     }
     await d.store.bitir(isId, hedef, url);
   } else if (now - is.olusturma > GORSEL_SURESI_MS) {

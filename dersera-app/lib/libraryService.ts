@@ -82,8 +82,9 @@ export async function kutuphaneKaydiniGuncelle(store: LibraryStore, sahip: strin
   const taban: Parmakizi = kayit.taban?.v === IZ_SURUMU ? (kayit.taban as Parmakizi) : parmakizi(kayit.definition);
   const karar = surumKarari(kayit.definition, r.definition, taban);
   if (karar.tur === "ayni") {
-    // İçerik değişmedi: kayıt yerinde tutulur (bu arada silindiyse geri getirilmez, 404).
-    const y = await store.replaceIfSurum(sahip, kayit, surum);
+    // İçerik değişmedi: kayıt aynı sürümde yerinde tutulur (bu arada silindiyse geri getirilmez, 404). Yalnız görseller
+    // eklendiyse yeni tanım yazılır; metin aynı olduğundan tanımdan türeyen alanlar değişmez.
+    const y = await store.replaceIfSurum(sahip, { ...kayit, definition: r.definition }, surum);
     if (y !== "ok") return y === "yok" ? BULUNAMADI : CATISMA;
     return { ok: true, id, validation: r.validation, surum: { tur: "ayni", surum, oran: 0 } };
   }

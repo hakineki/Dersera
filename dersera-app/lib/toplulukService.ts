@@ -7,10 +7,12 @@ import { GAME_RETENTION_MS } from "@/lib/gamesStore";
 import { filtredenGecer, TOPLULUK_SAYFA, type ToplulukFiltresi, type ToplulukKaydi, type ToplulukOzeti } from "@/lib/topluluk";
 import { getToplulukStore, type ToplulukStore } from "@/lib/toplulukStore";
 import { ozetEngelli } from "@/lib/composer/yonetisim";
+import { gorselsiz } from "@/lib/gorsel";
 
 const BASLIK_MAX = 120;
 
-export const icerikOzetiOf = (definition: GameDefinition) => createHash("sha256").update(JSON.stringify(definition)).digest("hex");
+// Görseller hariç: yayındaki görselli oyun topluluk kaydıyla eşleşir; yalnız görsel eklemek yeni içerik sayılmaz.
+export const icerikOzetiOf = (definition: GameDefinition) => createHash("sha256").update(JSON.stringify(gorselsiz(definition))).digest("hex");
 
 // Topluluğa gönderilen oyunun kaydı; özet alanları tanımdan gelir.
 export function yeniToplulukKaydi(

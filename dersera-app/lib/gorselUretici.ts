@@ -19,8 +19,9 @@ export const gorselModeli = () => process.env.GORSEL_MODEL?.trim() || VARSAYILAN
 // Görsel zenginleştirme yalnız sağlayıcı ve depo anahtarları tanımlıyken sunulur.
 export const gorselEtkin = () => !!process.env.GEMINI_API_KEY?.trim() && !!process.env.BLOB_READ_WRITE_TOKEN?.trim();
 
-// Route sınırı 60 sn; sıkıştırma ve yükleme için pay bırakılır.
-export const GORSEL_TIMEOUT_MS = 45_000;
+// Route sınırı 60 sn: sağlayıcı 40 sn, tüm üretim (sıkıştırma ve yükleme dahil) 50 sn içinde biter ya da hata sayılır.
+export const GORSEL_TIMEOUT_MS = 40_000;
+export const URETIM_SURESI_MS = 50_000;
 const GUVENLIK_NEDENLERI = new Set(["SAFETY", "IMAGE_SAFETY", "PROHIBITED_CONTENT", "BLOCKLIST", "SPII", "RECITATION"]);
 
 interface GeminiYaniti {
@@ -66,7 +67,13 @@ export async function webpYap(veri: Buffer): Promise<Buffer> {
 export async function blobaYaz(yol: string, veri: Buffer): Promise<string> {
   if (!process.env.BLOB_READ_WRITE_TOKEN?.trim()) throw new GorselHatasi("yapilandirma", "BLOB_READ_WRITE_TOKEN tanımlı değil");
   const { put } = await import("@vercel/blob");
-  const r = await put(yol, veri, { access: "public", addRandomSuffix: true, contentType: "image/webp", cacheControlMaxAge: 365 * 24 * 60 * 60 });
+  const r = await put(yol, veri, {
+    access: "public",
+    addRandomSuffix: true,
+    contentType: "image/webp",
+    cacheControlMaxAge: 365 * 24 * 60 * 60,
+    abortSignal: AbortSignal.timeout(15_000),
+  });
   if (!/^https:\/\//.test(r.url)) throw new GorselHatasi("saglayici", "Blob adresi beklenmedik");
   return r.url;
 }

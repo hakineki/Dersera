@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import type { Durak, GameDefinition } from "@/lib/composer/definition";
+import { gorselsiz } from "@/lib/gorsel";
 
 // Oyun sürümleme (docs/URUN-BAGLAMI.md §7): deterministik, yapay zekâ kullanmaz.
 // Oyunun ilk sürümüne (tabana) göre anlamlı içeriğin en çok %30'u değiştiyse aynı oyunun yeni sürümüdür; daha fazlası
@@ -105,6 +106,6 @@ export type SurumKarari = { tur: "ayni" } | { tur: "surum"; oran: number } | { t
 export function surumKarari(onceki: GameDefinition, yeni: GameDefinition, taban: Parmakizi): SurumKarari {
   const oran = degisimOrani(taban, parmakizi(yeni));
   if (kimlikDegisti(onceki, yeni)) return { tur: "varyant", oran, neden: "kimlik" };
-  if (JSON.stringify(onceki) === JSON.stringify(yeni)) return { tur: "ayni" };
+  if (JSON.stringify(gorselsiz(onceki)) === JSON.stringify(gorselsiz(yeni))) return { tur: "ayni" };
   return oran > VARYANT_ESIGI ? { tur: "varyant", oran, neden: "oran" } : { tur: "surum", oran };
 }

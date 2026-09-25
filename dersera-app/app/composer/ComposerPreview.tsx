@@ -10,6 +10,7 @@ import GuncellemePaneli from "./GuncellemePaneli";
 import type { KrediDurumu } from "@/lib/kredi";
 import { gorselAdresi, KAPAK } from "@/lib/gorsel";
 import GorselResim from "@/components/GorselResim";
+import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI, GOREV_TUR_ADI } from "./labels";
 
 // Görsel zenginleştirmenin istemcideki durumu (ComposerClient): not, oluşturmada görsel başlatılamadığında.
 export interface GorselIlerleme {
@@ -51,7 +52,6 @@ function Gorseller({ definition, ilerleme }: { definition: GameDefinition; ilerl
     </section>
   );
 }
-import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI, GOREV_TUR_ADI } from "./labels";
 
 const ROZET_GORUNUMU: Record<Karar, { simge: string; metin: string; sinif: string }> = {
   PASS: { simge: "✓", metin: "Uygun", sinif: "bg-green-50 border-green-200 text-green-800" },

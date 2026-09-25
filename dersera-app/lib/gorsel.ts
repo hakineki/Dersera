@@ -11,8 +11,17 @@ export const GORSEL = {
 } as const;
 
 export const KAPAK = "kapak";
-export const GORSEL_IS_ID = /^[0-9a-f-]{36}$/;
+export const GORSEL_IS_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const GORSEL_HEDEF = /^[a-z0-9_-]{1,24}$/;
+
+// Oyunun içeriği (sürüm, topluluk "aynı içerik" özeti) görsellerden bağımsızdır: görseller platformca, oyunun kendi
+// metninden üretilir; eklenmeleri yeni sürüm ya da yeni içerik sayılmaz.
+export function gorselsiz(def: GameDefinition): Omit<GameDefinition, "gorseller"> {
+  if (!def.gorseller) return def;
+  const { gorseller: _g, ...geri } = def;
+  void _g;
+  return geri;
+}
 
 export const gorselYolu = (isId: string, hedef: string) => `/api/gorsel/dosya/${isId}/${hedef}`;
 

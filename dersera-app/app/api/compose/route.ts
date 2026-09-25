@@ -6,6 +6,7 @@ import { composeAndValidate } from "@/lib/composer/service";
 import { YZ_DENETIM, yzDenetle } from "@/lib/composer/yzDenetimService";
 import type { YzDenetim } from "@/lib/composer/yzDenetim";
 import type { GameDefinition } from "@/lib/composer/definition";
+import { cocukGuvenligiTara } from "@/lib/composer/cocukGuvenligi";
 import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { KREDI_KURALLARI, olusturmaMaliyeti } from "@/lib/kredi";
 import { gorselIsiBaslat } from "@/lib/gorselService";
@@ -21,9 +22,11 @@ const GENEL_HATA = "Oyun şu anda oluşturulamadı. Tekrar deneyin.";
 const DENETIM_SONU_MS = (maxDuration - 8) * 1000;
 const DENETIM_EN_AZ_MS = 8_000;
 
-// Görsel işi yalnız engelli içerik yoksa kurulur. Kredi ya da iş kurulamazsa oyun yine döner; öğretmene not düşülür.
+// Görsel işi yalnız çocuk güvenliği engeli yoksa kurulur: kural tabanlı tarama her zaman, yapay zekâ denetimi yapıldıysa
+// o da (yayındaki yönetişimle aynı iki kaynak). Kredi ya da iş kurulamazsa oyun yine döner; öğretmene not düşülür.
 async function gorselBaslat(hesapId: string, definition: GameDefinition, guvenlik: YzDenetim) {
-  if (guvenlik.durum === "tamam" && guvenlik.bulgular.some((b) => b.agirlik === "engelle")) {
+  const yzEngeli = guvenlik.durum === "tamam" && guvenlik.bulgular.some((b) => b.agirlik === "engelle");
+  if (yzEngeli || cocukGuvenligiTara(definition).some((e) => e.engel)) {
     return { gorselNotu: "İçerik denetimi engelleyen bir bulgu verdiği için görseller oluşturulmadı; görsel kredisi düşülmedi." };
   }
   let h: Harcama | null = null;

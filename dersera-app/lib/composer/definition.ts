@@ -88,7 +88,7 @@ export const FinalSchema = z.object({
 
 // Görsel zenginleştirme (lib/gorsel.ts): iş kimliği ve görseli hazır hedefler (kapak ya da durak id'si). Adres taşımaz.
 export const GorsellerSchema = z.object({
-  isId: z.string().regex(/^[0-9a-f-]{36}$/),
+  isId: z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/),
   hedefler: z
     .array(z.string().regex(/^[a-z0-9_-]{1,24}$/))
     .max(4)

@@ -31,7 +31,9 @@ import { krediDurumuGetir, krediMetni } from "@/lib/krediClient";
 const BOLUM = "bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 space-y-5";
 const BOLUM_BASLIK = "text-base font-bold text-indigo-900";
 
-const CLIENT_TIMEOUT_MS = 285_000; // sunucu en geç maxDuration'da (280 sn) kesilir; istemci ondan sonra vazgeçer
+const CLIENT_TIMEOUT_MS = 285_000;
+// Sunucu yarıda kalan görseli 70 sn sonra yeniden sahiplenebilir (lib/gorselService.ts).
+const GORSEL_YENIDEN_DENEME_MS = 75_000; // sunucu en geç maxDuration'da (280 sn) kesilir; istemci ondan sonra vazgeçer
 // Yükleme adımları (docs/URUN-BAGLAMI.md §11) ve yaklaşık başlama saniyeleri; üretim 1,5–3 dakika sürer.
 const MESAJLAR = [
   "Müfredat hazırlanıyor",
@@ -363,7 +365,16 @@ export default function ComposerClient({
       gorselleriEkle(isId, d.hazir);
     };
     await Promise.all(Array.from({ length: toplam }, async () => isle(await gorselTetikle(isId))));
-    isle(await gorselDurumuGetir(isId));
+    let son = await gorselDurumuGetir(isId);
+    isle(son);
+    // Yarıda kalan (işlev kesilen) hedef bayatlayınca yeniden üretilebilir: bir kez daha denenir.
+    if (son && !son.bitti && aktifGorselIsi.current === isId) {
+      await new Promise((r) => setTimeout(r, GORSEL_YENIDEN_DENEME_MS));
+      const kalan = son.toplam - son.hazir.length - son.hata;
+      await Promise.all(Array.from({ length: kalan }, async () => isle(await gorselTetikle(isId))));
+      son = await gorselDurumuGetir(isId);
+      isle(son);
+    }
     if (aktifGorselIsi.current === isId) setKredi(await krediDurumuGetir());
   }
 

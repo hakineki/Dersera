@@ -12,7 +12,7 @@ Her satırın yanına sonucu (✓ / ✗ + not) yazın. ✗ olan satır pilotu du
 | `AI_MODEL` / `ANTHROPIC_MODEL` | Hayır | Varsayılan modeli değiştirmek için. |
 | `DERSERA_YONETICILER` | Moderasyon için | Virgülle ayrılmış kullanıcı adları (ör. `hakan`). Ad ilk girişte hesaba bağlanır; adı ÖNCE kendiniz alın, sonra ekleyin. Yönetici `/moderasyon` sayfasını görür. |
 | `KAYIT_DAVET_KODU` | Pilotta önerilir | Tanımlıysa yalnız kodu bilen öğretmen hesap açar. |
-| `GEMINI_API_KEY` ve `BLOB_READ_WRITE_TOKEN` | Görseller için | İkisi de tanımlıysa Composer'da "Görsellerle zenginleştir" görünür. Gemini: Google AI Studio anahtarı (görsel modeli ücretli katmanda). Blob: Vercel → Storage → Blob deposu oluşturup projeye bağlayın. Hobby'de 1 GB aşılırsa proje durur; kullanım izlenmeli. |
+| `GEMINI_API_KEY` ve `BLOB_READ_WRITE_TOKEN` | Görseller için | İkisi de tanımlıysa Composer'da "Görsellerle zenginleştir" görünür. Gemini: Google AI Studio anahtarı (görsel modeli ücretli katmanda). Blob: Vercel → Storage → Blob deposu oluşturup projeye bağlayın. Hobby'de 1 GB aşılırsa proje durur; kullanım izlenmeli. Composer sayfası derlemede oluştuğu için ikisini ekledikten sonra yeniden deploy gerekir. |
 | `GORSEL_MODEL` | Hayır | Varsayılan `gemini-3.1-flash-lite-image` (görsel başı ~3,4 sent). |
 | `DERSERA_EN_AZ_OYUN_SN` | Hayır | Öğretmen puanında sayılan en kısa oynama süresini değiştirir (varsayılan: max(120 sn, sürenin %25'i)). |
 

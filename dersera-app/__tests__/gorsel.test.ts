@@ -5,13 +5,19 @@ import type { ResolvedInput } from "@/lib/composer/input";
 import { gorselAdresi, gorselleriBirlestir, KAPAK } from "@/lib/gorsel";
 import { gorselIstemleri, sahneDuraklari } from "@/lib/gorselIstem";
 import { createMemoryGorselStore } from "@/lib/gorselStore";
-import { geminiGorsel, GorselHatasi, webpYap } from "@/lib/gorselUretici";
+import { geminiGorsel, GorselHatasi, URETIM_SURESI_MS, webpYap } from "@/lib/gorselUretici";
+import { gorselUret } from "@/lib/gorselService";
+import { kayitOlustur } from "@/lib/library";
+import { kutuphaneKaydiniGuncelle } from "@/lib/libraryService";
+import { createMemoryLibraryStore } from "@/lib/libraryStore";
+import { parmakizi, surumKarari } from "@/lib/surum";
+import { icerikOzetiOf } from "@/lib/toplulukService";
 import { jsonRequest } from "./helpers/api";
 import { makeDefinition, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 import { clearRedisEnv } from "./helpers/fakeRedis";
 
 const girdi = resolvedInput({ sinif: 6, ders: "fen-bilimleri", sure: 40, deneyim: "dengeli", alan: "sinif" });
-const dersler = [{ ders: "fen-bilimleri", konuId: getUniteler(6, "fen-bilimleri")[0].id }];
+const dersler = [{ ders: "fen-bilimleri" as const, konuId: getUniteler(6, "fen-bilimleri")[0].id }];
 const IS = "0b5e4d1c-8f7a-4c2e-9d3b-6a1f2e3d4c5b";
 const oyun = (n = 7) => makeDefinition(girdi, n);
 
@@ -70,6 +76,48 @@ describe("görsel kuralları", () => {
     // Az duraklı oyunda olan kadar sahne.
     const iki: GameDefinition = { ...d, duraklar: d.duraklar.slice(1, 3) };
     expect(gorselIstemleri(iki).map((i) => i.hedef)).toEqual([KAPAK, ...iki.duraklar.map((x) => x.id)]);
+  });
+});
+
+describe("görseller içeriği değiştirmez", () => {
+  it("sürüm: yalnız görsel eklenen tanım aynı sürümde kalır ve görseller kütüphaneye yazılır; metin değişirse yeni sürüm", async () => {
+    const d = oyun();
+    const gorselli = gorselleriBirlestir(d, IS, [KAPAK, "d1"]);
+    expect(surumKarari(d, gorselli, parmakizi(d))).toEqual({ tur: "ayni" });
+    const store = createMemoryLibraryStore();
+    await store.put("hesap:x", kayitOlustur("k1", d, dersler, null, 1));
+    const r = await kutuphaneKaydiniGuncelle(store, "hesap:x", "k1", { definition: gorselli, surum: 1 });
+    expect(r).toMatchObject({ ok: true, id: "k1", surum: { tur: "ayni", surum: 1 } });
+    const kayit = await store.get("hesap:x", "k1");
+    expect(kayit?.surum ?? 1).toBe(1);
+    expect(kayit?.definition.gorseller).toEqual({ isId: IS, hedefler: [KAPAK, "d1"] });
+    const degisik = { ...gorselli, hikaye_giris: "Bambaşka bir giriş hikâyesi." };
+    expect(surumKarari(gorselli, degisik, parmakizi(d)).tur).not.toBe("ayni");
+  });
+
+  it("topluluk içerik özeti görsellerden bağımsızdır (yayındaki görselli oyun topluluk kaydıyla eşleşir)", () => {
+    const d = oyun();
+    expect(icerikOzetiOf(gorselleriBirlestir(d, IS, [KAPAK]))).toBe(icerikOzetiOf(d));
+    expect(icerikOzetiOf({ ...d, hikaye_giris: "Başka" })).not.toBe(icerikOzetiOf(d));
+  });
+
+  it("üretim süre sınırını aşarsa hedef hata olarak kapanır (işlev kesilmeden)", async () => {
+    jest.useFakeTimers();
+    try {
+      const store = createMemoryGorselStore();
+      const harcama = { id: "h", ay: "2026-09", aylik: 1, okul: 0, kazanilan: 0 };
+      await store.olustur({ isId: IS, sahip: "a", olusturma: Date.now(), harcama, hedefler: [{ hedef: KAPAK, istem: "k" }] }, 60_000);
+      const hic = () => new Promise<string>(() => {});
+      const err = jest.spyOn(console, "error").mockImplementation(() => {});
+      const p = gorselUret({ store, uret: hic }, "a", IS);
+      await jest.advanceTimersByTimeAsync(URETIM_SURESI_MS + 1);
+      const r = await p;
+      expect(r).toMatchObject({ ok: true, hedef: KAPAK, durum: { hazir: [], hata: 1, bitti: true } });
+      expect(err.mock.calls[0][0]).toMatch(/kapak üretilemedi: zaman/);
+      err.mockRestore();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });
 
@@ -294,6 +342,19 @@ describe("görsel zenginleştirme uçları", () => {
     const y = await olustur({ gorsel: true });
     expect(y.status).toBe(422);
     expect((await y.json()).error).toMatch(/Görsel zenginleştirme şu anda kullanılamıyor/);
+  });
+
+  it("kural tabanlı çocuk güvenliği taraması engellerse (yapay zekâ denetimi yapılmamış olsa da) görsel işi kurulmaz", async () => {
+    (yz.yzDenetle as jest.Mock).mockResolvedValue({ durum: "yapilamadi" });
+    (anthropic.composeGame as jest.Mock).mockImplementation(async (input: ResolvedInput) => {
+      const d = makeDefinition(input, 7);
+      d.duraklar[2].hikaye_metni = "Porno sitesinden kaçan kahramanlar yola çıkar.";
+      return toModelOutput(d);
+    });
+    const json = await (await olustur({ gorsel: true })).json();
+    expect(json.gorselIsi).toBeUndefined();
+    expect(json.gorselNotu).toMatch(/görseller oluşturulmadı/);
+    expect(json.kredi.toplam).toBe(27);
   });
 
   it("içerik denetimi engellerse görsel işi kurulmaz ve görsel kredisi düşmez", async () => {
