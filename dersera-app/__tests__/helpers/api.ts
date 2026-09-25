@@ -52,6 +52,7 @@ export async function buildApi() {
     denetimKaydi: typeof import("@/lib/denetimKaydi");
     compose: typeof import("@/app/api/compose/route");
     composeGuncelle: typeof import("@/app/api/compose/guncelle/route");
+    composeSablon: typeof import("@/app/api/compose/sablon/route");
     anthropic: typeof import("@/lib/composer/anthropic");
     composerService: typeof import("@/lib/composer/service");
     ogrenmeRapor: typeof import("@/app/api/yonetim/ogrenme/route");
@@ -114,6 +115,7 @@ export async function buildApi() {
       denetimKaydi: await import("@/lib/denetimKaydi"),
       compose: await import("@/app/api/compose/route"),
       composeGuncelle: await import("@/app/api/compose/guncelle/route"),
+      composeSablon: await import("@/app/api/compose/sablon/route"),
       anthropic: await import("@/lib/composer/anthropic"),
       composerService: await import("@/lib/composer/service"),
       ogrenmeRapor: await import("@/app/api/yonetim/ogrenme/route"),
