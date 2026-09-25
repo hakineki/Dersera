@@ -72,6 +72,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 31 | Oyun yayınla; gizli sekmede `/api/games/<KOD>` adresini aç | Yanıtta soru ve cevap yok (`icerikKilitli: true`). Öğrenci takma adla katılınca oyun açılır; ekranda silik "takma ad · kod" filigranı görünür. Oyun bitince aynı adres içerik vermez. |
 | 32 | İki farklı öğrenci aynı oyunda ilk soruya bak | Çoktan seçmeli seçeneklerin sırası öğrenciye göre farklı; sayfa yenilense de aynı öğrencide değişmez. |
 | 33 | Öğretmen: başka öğretmenin 21 topluluk oyununu aç; yönetici `/yonetim/kopya-kaydi` | 21.'de "Günde en çok 20…" uyarısı; kopya kaydında öğretmen, oyun ve zaman görünür. Kayıtta kullanım koşulları onayı olmadan hesap açılmaz. |
+| 33a | Topluluk başlangıç dönemi (toplulukta yayında 100 oyundan az): yeni bir hesapla, hiç oynatılmamış bir oyunu Kütüphane → "Toplulukta paylaş" | Kütüphanede yeşil "Topluluk başlangıç dönemi … yer kaldı" notu; oyun incelemesiz hemen topluluk listesinde; kredi ödülü yok. Yönetici `/moderasyon`da "İncelemesiz" kaydı görür, "Topluluktan reddet" ile kaldırabilir. Uygunsuz içerik ve başkasının oyununun kopyası yine engellenir. |
 | 34 | Yönetici: `/yonetim/ogrenme` (adım 3–33'teki oyunlardan sonra) | Bu ayın üretim, düzenleme, yapay zekâ güncellemesi ve öğrenci sonuçları görev türü ve ders kırılımında görünür; az örnekli oranlar "—". Sayfada öğretmen ya da öğrenci adı yok. Yönetici olmayan hesap 403 görür. |
 | 35 | Yönetici: aynı sayfada "Öneri iste" (bu ay en az 10 oyun ya da 30 öğrenci denemesi) | Yapay zekâ en çok 5 öneri yazar; her birinin gerekçesinde rapordaki bir sayı var, kural tek cümle. Eşik altında net uyarı. Hiçbir öneri onaylanmadan oyun üretimine girmez. |
 | 36 | Yönetici: bir öneriyi onayla, A yeni oyun oluştursun; sonra kuralı "Geri al" | Onaylı kural kapsamındaki (ders/sınıf) yeni oyunlarda uygulanır; geri alınınca sonraki oluşturmalarda yok. Kararı veren yönetici ve zaman kayıtlı. |
@@ -100,3 +101,4 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
   gerekçedeki sayıyı rapordan doğrulayın ve etkisini birkaç oyunda gözleyin; beklenmeyen etki görülürse "Geri al".
 - Model kararlarının (çocuk güvenliği, güncelleme kalitesi) yanlış alarm oranı henüz ölçülmedi: pilotta
   engellenen/uyarılan oyunlar not edilmeli.
+- Topluluk başlangıç dönemi yayındaki oyun sayısına bakar: yönetici oyun kaldırınca yer açılır; eşzamanlı gönderimler 100’ü birkaç oyun aşabilir. Bu dönemde öğretmen incelemesi yoktur, içeriği yönetici `/moderasyon`dan sonradan gözden geçirir.

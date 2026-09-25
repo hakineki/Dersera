@@ -24,6 +24,8 @@ export type ModerasyonGirdisi = {
   ip?: string;
   kod?: string;
   toplulukId?: string;
+  // Başlangıç döneminde incelemesiz yayına giren topluluk oyunu: içerik kapısı uyarısı olmasa da kuyruğa girer.
+  onaysiz?: true;
   now?: number;
 } & ({ yonetisim: YonetisimSonucu; definition: GameDefinition } | { klasik: { stops: { name: string; hikaye: string }[]; bulgular: Bulgu[] } });
 
@@ -35,7 +37,7 @@ export async function moderasyonaEkle(g: ModerasyonGirdisi, store: ModerasyonSto
     let ozet: string;
     let kayit: Omit<ModerasyonKaydi, "id" | "tur" | "tarih" | "sahip" | "durum">;
     if ("yonetisim" in g) {
-      if (!moderasyonGerekli(g.yonetisim)) return false;
+      if (!moderasyonGerekli(g.yonetisim) && !g.onaysiz) return false;
       const m = g.definition.meta;
       ozet = icerikOzetiOf(g.definition);
       kayit = { karar: g.yonetisim.karar === "BLOCK" ? "BLOCK" : "REVIEW", baslik: m.baslik, sinif: m.sinif, ders: m.ders, bulgular: bulgulariOf(g.yonetisim), definition: g.definition };
@@ -49,7 +51,7 @@ export async function moderasyonaEkle(g: ModerasyonGirdisi, store: ModerasyonSto
     // uyarılı oyunun kuyruğa girmesini engelleyemez.
     if (g.tur === "engellenen" && g.ip && !(await checkLimit(`moderasyon:ip:${g.ip}`, 60 * 60 * 1000, MODERASYON.ipSaatlik))) return false;
     return await store.ekle(
-      { id: randomUUID(), tur: g.tur, tarih: now, sahip: g.sahip, durum: "bekliyor", ...(g.kod && { kod: g.kod }), ...(g.toplulukId && { toplulukId: g.toplulukId }), ...kayit },
+      { id: randomUUID(), tur: g.tur, tarih: now, sahip: g.sahip, durum: "bekliyor", ...(g.kod && { kod: g.kod }), ...(g.toplulukId && { toplulukId: g.toplulukId }), ...(g.onaysiz && { onaysiz: true as const }), ...kayit },
       `${g.tur}:${tekil}`
     );
   } catch (err) {

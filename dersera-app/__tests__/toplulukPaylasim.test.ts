@@ -45,6 +45,8 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     clearRedisEnv();
     api = await buildApi();
     sahip = await eskiHesap("sahip1");
+    // Bu testler başlangıç dönemi bittikten sonraki (incelemeli) akıştır; başlangıç dönemi aşağıda ayrı test edilir.
+    jest.spyOn(api.toplulukStore.getToplulukStore(), "yayindaSayisi").mockResolvedValue(K.baslangicYayinSayisi);
   });
   afterEach(() => jest.restoreAllMocks());
 
@@ -470,5 +472,130 @@ describe("topluluk paylaşımı ve öğretmen incelemesi", () => {
     const kart = await kartOf(id);
     expect(kart.topluluk).toBeNull();
     err.mockRestore();
+  });
+});
+
+
+describe(`topluluk başlangıç dönemi (ilk ${K.baslangicYayinSayisi} oyun incelemesiz)`, () => {
+  let api: Awaited<ReturnType<typeof buildApi>>;
+  let sahip: string;
+  const eskiYoneticiler = process.env.DERSERA_YONETICILER;
+  beforeEach(async () => {
+    clearRedisEnv();
+    process.env.DERSERA_YONETICILER = "yonetici1";
+    api = await buildApi();
+    // Yeni hesap: hesap yaşı, öğrenci/puan eşiği ve günlük sınır bu dönemde aranmaz.
+    sahip = await hesapAc(api, "yeni1");
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+    if (eskiYoneticiler === undefined) delete process.env.DERSERA_YONETICILER;
+    else process.env.DERSERA_YONETICILER = eskiYoneticiler;
+  });
+
+  const cerezli = (req: Request, c: string) => (req.headers.set("cookie", c), req);
+  const kaydet = async (definition: GameDefinition, c = sahip) =>
+    (await (await api.library.POST(cerezli(jsonRequest("/api/library", { definition, dersler }), c))).json()).id as string;
+  const paylas = (id: string, c = sahip) => api.libraryTopluluk.POST(cerezli(new Request(`http://localhost/api/library/${id}/topluluk`, { method: "POST" }), c), api.idParams(id));
+  const geriCek = (id: string, c = sahip) => api.libraryTopluluk.DELETE(cerezli(new Request(`http://localhost/api/library/${id}/topluluk`, { method: "DELETE" }), c), api.idParams(id));
+  const kutuphane = async (c = sahip) => (await api.library.GET(cerezli(new Request("http://localhost/api/library"), c))).json();
+  const liste = async () => (await (await toplulukListesi(api)).json()).oyunlar as { baslik: string; oyun_id: string }[];
+  const moderasyon = async () => {
+    const y = await hesapAc(api, "yonetici1");
+    return { y, kayitlar: (await (await api.moderasyon.GET(cerezli(new Request("http://localhost/api/moderasyon"), y))).json()).kayitlar };
+  };
+  const yayindaSay = (n: number) => jest.spyOn(api.toplulukStore.getToplulukStore(), "yayindaSayisi").mockResolvedValue(n);
+
+  it("yeni hesabın oynanmamış oyunu incelemesiz hemen yayına girer; ödül verilmez; yönetici kuyruğunda incelemesiz görünür ve kaldırabilir", async () => {
+    const id = await kaydet(oyun("Başlangıç Oyunu"));
+    const once = await kutuphane();
+    expect(once.toplulukBaslangic).toEqual({ kalan: K.baslangicYayinSayisi });
+    expect(once.hesap.toplulukHazir).toBe(true);
+    expect(once.oyunlar[0].paylasim).toEqual({ uygun: true, nedenler: [] });
+
+    const res = await paylas(id);
+    expect(res.status).toBe(201);
+    expect((await res.json()).durum).toBe("yayinda");
+    expect((await liste()).map((o) => o.baslik)).toEqual(["Başlangıç Oyunu"]);
+    const sonra = await kutuphane();
+    expect(sonra.toplulukBaslangic).toEqual({ kalan: K.baslangicYayinSayisi - 1 });
+    expect(sonra.oyunlar[0].topluluk).toMatchObject({ durum: "yayinda", kabul: 0 });
+    const tid = (await liste())[0].oyun_id;
+    expect(await api.toplulukStore.getToplulukStore().get(tid)).toMatchObject({ onaysiz: true, durum: "yayinda" });
+    // İnceleme kuyruğuna girmez; topluluk ödülü yok.
+    expect(await api.toplulukStore.getToplulukStore().kuyruk(10)).toEqual([]);
+    expect((await (await api.kredi.GET(cerezli(new Request("http://localhost/api/kredi"), sahip))).json()).kazanilan).toBe(0);
+
+    const { y, kayitlar } = await moderasyon();
+    expect(kayitlar).toHaveLength(1);
+    expect(kayitlar[0]).toMatchObject({ tur: "topluluk", toplulukId: tid, onaysiz: true, karar: "REVIEW", bulgular: [] });
+    const r = await api.moderasyonOge.POST(cerezli(jsonRequest(`/api/moderasyon/${kayitlar[0].id}`, { karar: "kaldir" }), y), api.idParams(kayitlar[0].id));
+    expect(r.status).toBe(200);
+    expect(await liste()).toEqual([]);
+  });
+
+  it("günlük sınır yok: aynı gün birden çok oyun; yeni sürüm önceki sürümün yerini hemen alır", async () => {
+    const a = await kaydet(oyun("Bir"));
+    const b = await kaydet(oyun("İki"));
+    expect((await paylas(a)).status).toBe(201);
+    expect((await paylas(b)).status).toBe(201);
+    await api.libraryItem.PUT(
+      cerezli(new Request(`http://localhost/api/library/${a}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ definition: oyun("Bir", (d) => (d.duraklar[1].gorev.soru = "Yeni soru?")) }) }), sahip),
+      api.idParams(a)
+    );
+    expect((await paylas(a)).status).toBe(201);
+    const basliklar = (await liste()).map((o) => o.baslik).sort();
+    expect(basliklar).toEqual(["Bir", "İki"]);
+  });
+
+  it("otomatik kapılar kalkmaz: içerik denetimi engeli ve başkasının oyununun aynısı reddedilir", async () => {
+    const kaba = await kaydet(oyun("Kaba", (d) => (d.duraklar[2].hikaye_metni = "Siktir git.")));
+    const r1 = await paylas(kaba);
+    expect(r1.status).toBe(422);
+    expect((await r1.json()).yonetisim.karar).toBe("BLOCK");
+
+    const d = oyun("Kopya");
+    await toplulugaKoy(api, d, dersler, { olusturan: "hesap:baskasi" });
+    expect((await paylas(await kaydet(d))).status).toBe(409);
+
+    process.env.ANTHROPIC_API_KEY = "test-key";
+    try {
+      jest.spyOn(api.yzDenetim, "yzDenetle").mockResolvedValue({ durum: "tamam", bulgular: [{ yer: "d2", kategori: "siddet", agirlik: "engelle", alinti: "kavga", aciklama: "Şiddet." }] });
+      expect((await paylas(await kaydet(oyun("Kavga")))).status).toBe(422);
+    } finally {
+      delete process.env.ANTHROPIC_API_KEY;
+    }
+    expect((await liste()).map((o) => o.baslik)).toEqual(["Kopya"]);
+  });
+
+  it("geri çekilen aynı içerik yeniden paylaşılınca incelemesiz yayına döner", async () => {
+    const id = await kaydet(oyun("Geri Gelen"));
+    expect((await paylas(id)).status).toBe(201);
+    expect((await geriCek(id)).status).toBe(200);
+    expect(await liste()).toEqual([]);
+    const res = await paylas(id);
+    expect(res.status).toBe(201);
+    expect((await res.json()).durum).toBe("yayinda");
+    expect((await liste()).map((o) => o.baslik)).toEqual(["Geri Gelen"]);
+  });
+
+  it(`yayında ${"$"}{K.baslangicYayinSayisi} oyuna ulaşınca normal akış döner (hesap yaşı, eşik, inceleme); sayı okunamazsa da normal akış`, async () => {
+    const id = await kaydet(oyun("Son Yer"));
+    yayindaSay(K.baslangicYayinSayisi - 1);
+    expect((await kutuphane()).toplulukBaslangic).toEqual({ kalan: 1 });
+
+    yayindaSay(K.baslangicYayinSayisi);
+    const k = await kutuphane();
+    expect(k.toplulukBaslangic).toBeNull();
+    expect(k.hesap.toplulukHazir).toBe(false);
+    expect(k.oyunlar[0].paylasim.uygun).toBe(false);
+    const r = await paylas(id);
+    expect(r.status).toBe(403);
+    expect((await r.json()).error).toMatch(/günlük olmalı/);
+
+    const hata = jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.spyOn(api.toplulukStore.getToplulukStore(), "yayindaSayisi").mockRejectedValue(new Error("redis kapalı"));
+    expect((await paylas(id)).status).toBe(403);
+    expect(hata).toHaveBeenCalledWith("[topluluk] yayındaki oyun sayısı okunamadı", "redis kapalı");
   });
 });

@@ -23,6 +23,8 @@ export interface ToplulukStore {
   ozetleriOku(ids: string[]): Promise<(ToplulukOzeti | null)[]>;
   // yayin_tarihi azalan; imleç: bir önceki sayfanın son skoru (hariç).
   sirali(imlec: number | null, adet: number): Promise<SiraliOge[]>;
+  // Listede (yayında) olan oyun sayısı.
+  yayindaSayisi(): Promise<number>;
   // Kaynağın (ör. hesap + kütüphane kaydı) güncel topluluk kaydını yazar; öncekini döner.
   kaynakGuncelle(kaynak: string, id: string): Promise<string | null>;
   kaynakOku(kaynak: string): Promise<string | null>;
@@ -174,6 +176,9 @@ export function createMemoryToplulukStore(): ToplulukStore {
         return k ? ozetOf(k, oynanma.get(id) ?? 0) : null;
       });
     },
+    async yayindaSayisi() {
+      return [...kayitlar.values()].filter((k) => k.aktif).length;
+    },
     async sirali(imlec, adet) {
       return [...kayitlar.values()]
         .filter((k) => k.aktif)
@@ -316,6 +321,9 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
       if (ids.length === 0) return [];
       const ham = ((await command(["MGET", ...ids.map(ozetKey)])) as (string | null)[] | null) ?? [];
       return ids.map((_, i) => (ham[i] ? (JSON.parse(ham[i]!) as ToplulukOzeti) : null));
+    },
+    async yayindaSayisi() {
+      return Number(await command(["ZCARD", SIRA]));
     },
     async sirali(imlec, adet) {
       const ust = imlec === null ? "+inf" : `(${imlec}`;

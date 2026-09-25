@@ -20,7 +20,7 @@ export function yeniToplulukKaydi(
   dersler: DersKonu[],
   olusturan: string,
   now: number,
-  ek: Pick<ToplulukKaydi, "durum" | "aktif" | "kaynak" | "onceki_id">
+  ek: Pick<ToplulukKaydi, "durum" | "aktif" | "kaynak" | "onceki_id" | "onaysiz">
 ): ToplulukKaydi {
   const m = definition.meta;
   return {

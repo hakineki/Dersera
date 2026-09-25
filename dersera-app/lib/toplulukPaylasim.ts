@@ -29,18 +29,33 @@ export interface PaylasimUygunlugu {
   nedenler: string[];
 }
 
-// Hesap yaşı koşulu oyuna değil hesaba aittir: kütüphane yanıtında bir kez döner.
-export function hesapHazirligi(hesap: Hesap, now: number): { toplulukHazir: boolean; kalanGun: number } {
-  const kalan = K.hesapYasiGun * GUN - (now - hesap.olusturma);
+// Başlangıç dönemi (TOPLULUK_KURALLARI.baslangicYayinSayisi): yayındaki oyun sayısı eşiğin altındaysa kalan yer, değilse
+// null. Okunamazsa null (normal, incelemeli akış). Bilinen sınır: eşzamanlı gönderimler eşiği birkaç oyun aşabilir.
+export async function baslangicDurumu(store: ToplulukStore): Promise<{ kalan: number } | null> {
+  try {
+    const kalan = K.baslangicYayinSayisi - (await store.yayindaSayisi());
+    return kalan > 0 ? { kalan } : null;
+  } catch (err) {
+    console.error("[topluluk] yayındaki oyun sayısı okunamadı", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+// Hesap yaşı koşulu oyuna değil hesaba aittir: kütüphane yanıtında bir kez döner. Başlangıç döneminde aranmaz.
+export function hesapHazirligi(hesap: Hesap, now: number, baslangic = false): { toplulukHazir: boolean; kalanGun: number } {
+  const kalan = baslangic ? 0 : K.hesapYasiGun * GUN - (now - hesap.olusturma);
   return { toplulukHazir: kalan <= 0, kalanGun: Math.max(0, Math.ceil(kalan / GUN)) };
 }
 
 // Kütüphane kartındaki "Toplulukta paylaş" düğmesi bu sonuca göre açılır; gönderimde aynı kural sunucuda yeniden uygulanır.
+// Başlangıç döneminde öğrenci ve puan eşiği aranmaz.
 export function paylasimUygunlugu(
   hesap: Hesap,
   ist: { ogrenci_sayisi: number; puan_ortalama: number | null },
-  now: number
+  now: number,
+  baslangic = false
 ): PaylasimUygunlugu {
+  if (baslangic) return { uygun: true, nedenler: [] };
   const nedenler: string[] = [];
   if (ist.ogrenci_sayisi < K.enAzOgrenci) nedenler.push(`${K.enAzOgrenci} öğrenci bitirmeli (şu an ${ist.ogrenci_sayisi})`);
   if (ist.puan_ortalama === null || ist.puan_ortalama < K.enAzPuan) {
@@ -135,6 +150,7 @@ export async function benzerOyunlar(store: ToplulukStore, def: GameDefinition, s
 }
 
 // Öğretmen kütüphanesindeki oyunu topluluğa gönderir: eşikler, içerik denetimi, tekrar ve günlük sınır denetlenir.
+// Başlangıç döneminde içerik denetimi ve tekrar denetimi aynen uygulanır; oyun incelemesiz yayına girer.
 export async function topluluktaPaylas(
   store: ToplulukStore,
   library: LibraryStore,
@@ -144,7 +160,8 @@ export async function topluluktaPaylas(
 ): Promise<Sonuc<{ id: string; durum: ToplulukDurumu }>> {
   const sahip = kutuphaneSahibi(hesap);
   const kaynak = `${sahip}:${kutuphaneId}`;
-  if (!hesapYeterliMi(hesap, now)) return { ok: false, status: 403, error: HESAP_GENC };
+  const baslangic = !!(await baslangicDurumu(store));
+  if (!baslangic && !hesapYeterliMi(hesap, now)) return { ok: false, status: 403, error: HESAP_GENC };
   const kutuphaneKaydi = await library.get(sahip, kutuphaneId);
   if (!kutuphaneKaydi) return { ok: false, status: 404, error: "Oyun kütüphanede bulunamadı" };
 
@@ -168,8 +185,8 @@ export async function topluluktaPaylas(
     return { ok: false, status: 422, error: ENGEL, yonetisim };
   }
 
-  const [ist] = await kutuphaneIstatistikleri([kaynak]);
-  const uygunluk = paylasimUygunlugu(hesap, ist, now);
+  const [ist] = baslangic ? [{ ogrenci_sayisi: 0, puan_ortalama: null }] : await kutuphaneIstatistikleri([kaynak]);
+  const uygunluk = paylasimUygunlugu(hesap, ist, now, baslangic);
   if (!uygunluk.uygun) return { ok: false, status: 422, error: "Oyun henüz topluluk eşiğini geçmedi.", nedenler: uygunluk.nedenler };
 
   const icerik = icerikOzetiOf(r.definition);
@@ -180,30 +197,46 @@ export async function topluluktaPaylas(
     const d = durumOf(ayni);
     if (d === "yayinda") return { ok: false, status: 409, error: "Bu oyun zaten toplulukta." };
     if (d === "reddedildi") return { ok: false, status: 409, error: "Reddedilen oyun değiştirilmeden yeniden gönderilemez." };
-    // Sahibinin geri çektiği aynı içerik: daha önce onaylandıysa doğrudan yayına, değilse incelemeye döner.
+    // Sahibinin geri çektiği aynı içerik: daha önce onaylandıysa ya da başlangıç dönemindeyse doğrudan yayına, değilse
+    // incelemeye döner.
     const onaylanmis = say(await store.incelemeler(ayniId)).kabul >= K.gerekliKabul;
-    const yeni: ToplulukDurumu = onaylanmis ? "yayinda" : "inceleme";
-    if (!(await store.durumGecis(ayniId, ["geri-cekildi"], yeni, d, onaylanmis ? now : undefined))) {
+    const yayina = onaylanmis || baslangic;
+    const yeni: ToplulukDurumu = yayina ? "yayinda" : "inceleme";
+    if (!(await store.durumGecis(ayniId, ["geri-cekildi"], yeni, d, yayina ? now : undefined))) {
       return { ok: false, status: 409, error: "Oyunun topluluk durumu az önce değişti; sayfayı yenileyip tekrar dene." };
     }
-    if (!onaylanmis) await store.kuyrugaEkle(ayniId, now);
+    if (!yayina) await store.kuyrugaEkle(ayniId, now);
     await store.kaynakGuncelle(kaynak, ayniId);
+    if (!onaylanmis && baslangic) await moderasyonaEkle({ tur: "topluluk", yonetisim, definition: r.definition, toplulukId: ayniId, sahip, onaysiz: true, now });
     return { ok: true, id: ayniId, durum: yeni };
   }
 
   // Tüm denetimlerden sonra, kayıt açılmadan hemen önce: atomik sayaç (eşzamanlı iki gönderim sınırı delemez).
   // Bilinen sınır: aynı içerik tam bu anda başkasınca eklenirse (aşağıdaki 409) o günün hakkı harcanmış olur.
-  if (!(await checkLimit(`dersera:topluluk:gonderim:${sahip}`, GUN, K.gunlukGonderim))) {
+  if (!baslangic && !(await checkLimit(`dersera:topluluk:gonderim:${sahip}`, GUN, K.gunlukGonderim))) {
     return { ok: false, status: 429, error: `Günde en fazla ${K.gunlukGonderim} oyun gönderebilirsin. Yarın tekrar dene.` };
   }
   // Onaylanınca yerini alacağı, o an yayındaki kendi önceki sürümü.
   const oncekiId = mevcut && mevcut.olusturan === sahip && durumOf(mevcut) === "yayinda" ? mevcutId : null;
-  const kayit = yeniToplulukKaydi(r.definition, r.dersler, sahip, now, { durum: "inceleme", aktif: false, kaynak, onceki_id: oncekiId });
+  const kayit = yeniToplulukKaydi(
+    r.definition,
+    r.dersler,
+    sahip,
+    now,
+    baslangic ? { durum: "yayinda", aktif: true, kaynak, onceki_id: oncekiId, onaysiz: true } : { durum: "inceleme", aktif: false, kaynak, onceki_id: oncekiId }
+  );
   const id = await store.ekle(kayit, icerik);
   // Yarışta aynı içerik başka biri tarafından eklendiyse ekle mevcut kimliği döner.
   if (id !== kayit.oyun_id) return { ok: false, status: 409, error: "Bu oyunun aynısı toplulukta zaten var." };
-  await store.kuyrugaEkle(id, now);
   await store.kaynakGuncelle(kaynak, id);
+  if (baslangic) {
+    // İnceleme yok: önceki sürüm onaylanan sürümdeki gibi hemen listeden çıkar. Topluluk ödülü verilmez (ödül yalnız
+    // inceleme onayında).
+    if (oncekiId && mevcut) await store.durumGecis(oncekiId, ["yayinda"], "geri-cekildi", durumOf(mevcut));
+    await moderasyonaEkle({ tur: "topluluk", yonetisim, definition: r.definition, toplulukId: id, sahip, onaysiz: true, now });
+    return { ok: true, id, durum: "yayinda" };
+  }
+  await store.kuyrugaEkle(id, now);
   await moderasyonaEkle({ tur: "topluluk", yonetisim, definition: r.definition, toplulukId: id, sahip, now });
   return { ok: true, id, durum: "inceleme" };
 }
