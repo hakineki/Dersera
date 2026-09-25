@@ -687,8 +687,9 @@ export default function ComposerClient({
               </dl>
               <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-xl p-3">
                 <span aria-hidden="true">🛡 </span>
-                Oluşturulan oyun otomatik olarak denetlenir: müfredat uyumu, oyun mantığı, öğrenme kalitesi ve çocuk güvenliği. Sonucu önizlemede görür,
-                gerekirse düzenlersin; engelleyen içerik yayınlanamaz. Oyun oluşturulamazsa kredin iade edilir.
+                Oyunun taslağını yapay zekâ hazırlar; müfredat uyumu, oyun mantığı, öğrenme kalitesi ve çocuk güvenliği açısından otomatik olarak denetlenir.
+                Sonucu önizlemede görür, gerekirse düzenlersin; yayından önce son onay senindir. Engelleyen içerik yayınlanamaz. Oyun oluşturulamazsa kredin
+                iade edilir.
               </p>
               <button
                 type="submit"

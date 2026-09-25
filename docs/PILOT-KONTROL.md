@@ -44,7 +44,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 3 | Oyunu oluştur | Yükleme adımları ilerler; önizleme açılır. Kredi 27. |
 | 4 | Önizleme rozetleri | Beş rozet; "Yapay zekâ denetimi yapıldı…" notu. |
 | 5 | Bir durağı elle düzenle | Kredi değişmez; rozetler canlı güncellenir; not "yayın sırasında yapılacak" olur. |
-| 6 | Yapay zekâyla güncelle: 1 durak + talimat | Seçili durak değişir, diğerleri aynı kalır. Kredi 26. |
+| 6 | Dersera'yla güncelle: 1 durak + talimat | Seçili durak değişir, diğerleri aynı kalır. Kredi 26. |
 | 7 | Kütüphaneye kaydet | "Sürüm 1" kartı. Küçük düzenleme sonrası kaydet → "Sürüm 2"; büyük değişiklik → varyant. |
 | 8 | Yayınla | Oyun kodu ve QR'lar; öğretmen paneli açılır. Kredi değişmez. |
 | 9 | 10 öğrenci koda katılır, takma ad girer, oynar, bitirir | Sıralama canlı güncellenir. |
