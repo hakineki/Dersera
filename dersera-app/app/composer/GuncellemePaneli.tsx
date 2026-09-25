@@ -47,12 +47,12 @@ export default function GuncellemePaneli({
   return (
     <details className="bg-white border border-indigo-200 rounded-xl p-4 group">
       <summary className="cursor-pointer font-semibold text-indigo-900 text-sm">
-        <span aria-hidden="true">✨ </span>Yapay zekâyla güncelle <span className="font-normal text-gray-500">({maliyet} kredi)</span>
+        <span aria-hidden="true">✨ </span>Dersera&apos;yla güncelle <span className="font-normal text-gray-500">({maliyet} kredi)</span>
       </summary>
       <div className="mt-3 space-y-3">
         <p className="text-xs text-gray-600">
-          Seçtiğin durakları talimatına göre yeniden yazdırır. Rota, ödüller ve öğrenme hedefleri aynı kalır. Küçük değişiklikler için durağa tıklayıp elle
-          düzenlemek ücretsizdir.
+          Seçtiğin durakları talimatına göre yapay zekâ yeniden yazar; yayınlamadan önce önizlemede gözden geçirirsin. Rota, ödüller ve öğrenme
+          hedefleri aynı kalır. Küçük değişiklikler için durağa tıklayıp elle düzenlemek ücretsizdir.
         </p>
         <fieldset disabled={calisiyor}>
           <legend className="text-sm font-semibold text-gray-700 mb-1">
