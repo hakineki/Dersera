@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-export interface MenuSekmesi<T extends string> {
+interface MenuSekmesi<T extends string> {
   id: T;
   label: string;
   icon: string;
@@ -17,7 +17,8 @@ export interface MenuBaglantisi {
 
 const OGE = "w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors";
 
-// Telefonda başlıktaki ⋮ düğmesi: alt çubukta olmayan sekmeler ve sayfa dışı bağlantılar. Dışarı dokunma ya da Escape kapatır.
+// Telefonda başlıktaki ⋮ düğmesi: alt çubukta olmayan sekmeler ve sayfa dışı bağlantılar.
+// Dışarı dokunma, Escape ya da odağın menü dışına geçmesi (Tab) kapatır; sekme seçilince odak ⋮ düğmesine döner.
 export default function OgretmenMenusu<T extends string>({
   sekmeler,
   aktif,
@@ -30,6 +31,7 @@ export default function OgretmenMenusu<T extends string>({
   baglantilar: MenuBaglantisi[];
 }) {
   const [acik, setAcik] = useState(false);
+  const kapsayici = useRef<HTMLDivElement>(null);
   const dugme = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
 
@@ -41,12 +43,20 @@ export default function OgretmenMenusu<T extends string>({
       setAcik(false);
       dugme.current?.focus();
     };
+    // blur yerine focusin: Safari dokunulan düğmeye odak vermez, blur menüyü tıklama gelmeden kapatırdı.
+    const disari = (e: FocusEvent) => {
+      if (!kapsayici.current?.contains(e.target as Node)) setAcik(false);
+    };
     document.addEventListener("keydown", escape);
-    return () => document.removeEventListener("keydown", escape);
+    document.addEventListener("focusin", disari);
+    return () => {
+      document.removeEventListener("keydown", escape);
+      document.removeEventListener("focusin", disari);
+    };
   }, [acik]);
 
   return (
-    <div className="relative shrink-0 sm:hidden">
+    <div ref={kapsayici} className="relative shrink-0 sm:hidden">
       <button
         ref={dugme}
         type="button"
@@ -74,6 +84,7 @@ export default function OgretmenMenusu<T extends string>({
                 onClick={() => {
                   onSekme(s.id);
                   setAcik(false);
+                  dugme.current?.focus();
                 }}
                 className={`${OGE} ${aktif === s.id ? "bg-indigo-50 text-indigo-700 font-semibold" : "hover:bg-gray-50"}`}
               >

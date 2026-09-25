@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import DerseraLogo from "@/components/DerseraLogo";
 import Link from "next/link";
 import { fetchResults } from "@/lib/resultsClient";
-import { type Stop } from "@/data/stops";
+import type { Stop } from "@/data/stops";
 import { formatElapsed, buildResultCode, type LeaderboardEntry } from "@/lib/gameState";
 import { toStops } from "@/lib/games";
 import { definitionPanelStops } from "@/lib/composer/scene";
@@ -762,10 +762,15 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   ];
   // Telefonda ⋮ menüsünden açılan bölümü alt çubuk göstermez; adı içeriğin başında yazar.
   const menuSekmesi = SEKMELER.find((t) => t.id === activeTab && !t.altta);
+  // Telefonda bölüm değişince yeni bölüm baştan açılır; ⋮ düğmesi de yeniden görünür.
+  function telefondaSec(id: Tab) {
+    setActiveTab(id);
+    window.scrollTo({ top: 0 });
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Header — telefonda tek satır (bağlantılar ⋮ menüsünde); sm ve üstünde sığmazsa düğmeler logonun altına iner */}
       <div className="bg-indigo-900 text-white px-4 sm:px-6 py-3 sm:py-4 print:hidden">
         <div className="max-w-4xl mx-auto flex sm:flex-wrap items-center justify-between gap-x-4 gap-y-3">
           <div className="flex items-center gap-3">
@@ -787,7 +792,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
           <OgretmenMenusu
             sekmeler={SEKMELER.filter((t) => !t.altta)}
             aktif={activeTab}
-            onSekme={setActiveTab}
+            onSekme={telefondaSec}
             baglantilar={[...baglantilar, { href: "/", label: "Ana sayfa", icon: "←" }]}
           />
         </div>
@@ -903,7 +908,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
             <button
               key={t.id}
               type="button"
-              onClick={() => setActiveTab(t.id)}
+              onClick={() => telefondaSec(t.id)}
               aria-current={activeTab === t.id ? "page" : undefined}
               className={`flex flex-col items-center gap-1 pt-2 pb-2.5 text-xs font-medium border-t-2 transition-colors ${
                 activeTab === t.id ? "border-indigo-600 text-indigo-600" : "border-transparent text-gray-500"
