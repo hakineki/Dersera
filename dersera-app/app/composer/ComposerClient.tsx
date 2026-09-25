@@ -10,7 +10,7 @@ import type { GameDefinition } from "@/lib/composer/definition";
 import type { YzDenetim } from "@/lib/composer/yzDenetim";
 import { guncellemeyiBirlestir } from "@/lib/composer/guncellemeBirlestir";
 import { validateGame, type ValidationResult } from "@/lib/composer/validator";
-import { oturumBilgisi } from "@/lib/authClient";
+import { oturumBilgisi, type HesapOzeti } from "@/lib/authClient";
 import { saveTeacherGame } from "@/lib/teacherGame";
 import { kutuphaneOyunu, kutuphaneyeKaydet, toplulukOyunu } from "@/lib/libraryClient";
 import { okulOyunu } from "@/lib/okulClient";
@@ -162,6 +162,8 @@ export default function ComposerClient({
 }) {
   const router = useRouter();
   const [ogretmen, setOgretmen] = useState<boolean | null>(null);
+  // Yayınlanan oyun, panelde açılsın diye yayınlayan hesaba bağlı kaydedilir.
+  const oturumHesabi = useRef<HesapOzeti | null>(null);
   const [sinif, setSinif] = useState(10);
   // Seçim sırası korunur; her seçili dersin kendi konusu vardır.
   const [secili, setSecili] = useState<DersKonu[]>([{ ders: "fizik", konuId: konular["10:fizik"]?.[0]?.id ?? "" }]);
@@ -204,7 +206,8 @@ export default function ComposerClient({
   const [kredi, setKredi] = useState<KrediDurumu | null>(null);
   useEffect(() => {
     const t = setTimeout(async () => {
-      const girisli = !!(await oturumBilgisi())?.hesap;
+      oturumHesabi.current = (await oturumBilgisi())?.hesap ?? null;
+      const girisli = !!oturumHesabi.current;
       setOgretmen(girisli);
       if (girisli) setKredi(await krediDurumuGetir());
     });
@@ -493,7 +496,7 @@ export default function ComposerClient({
         return;
       }
       const pub = json as PublishResponse;
-      saveTeacherGame({ game: pub.game, adminToken: pub.adminToken });
+      if (oturumHesabi.current) saveTeacherGame({ game: pub.game, adminToken: pub.adminToken }, oturumHesabi.current);
       router.push("/ogretmen");
     } catch {
       setYayinHatasi("Oyun yayınlanamadı. Bağlantınızı kontrol edin.");
