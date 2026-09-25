@@ -1,5 +1,5 @@
 import { clearRedisEnv, recordingCommand } from "./helpers/fakeRedis";
-import { buildApi, hesapAc, jsonRequest, katilVeBitir, toplulugaKoy } from "./helpers/api";
+import { buildApi, hesapAc, jsonRequest, katilVeBitir, toplulugaKoy, toplulukListesi } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 import type { GameDefinition } from "@/lib/composer/definition";
@@ -43,7 +43,7 @@ describe("öğretmen puanı", () => {
   };
   const durum = async (c: string, oyunId = id) => api.toplulukOgretmenPuani.GET(cerezli(new Request(`http://localhost/api/topluluk/${oyunId}/ogretmen-puani`), c), api.idParams(oyunId));
   const ver = (c: string, puan: unknown, oyunId = id) => api.toplulukOgretmenPuani.POST(cerezli(jsonRequest(`/api/topluluk/${oyunId}/ogretmen-puani`, { puan }), c), api.idParams(oyunId));
-  const liste = async () => (await (await api.topluluk.GET(new Request("http://localhost/api/topluluk"))).json()).oyunlar;
+  const liste = async () => (await (await toplulukListesi(api)).json()).oyunlar;
 
   it(`yalnız oyunu sınıfında oynatan öğretmen puanlar (en az ${K.ogretmenPuaniEnAzOgrenci} öğrenci bitirmeli)`, async () => {
     const t = await hesapAc(api, "ogretmen1");

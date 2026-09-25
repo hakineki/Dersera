@@ -30,7 +30,7 @@ const ESKI_KUTUPHANE_RED = "dersera:eski-kutuphane-red";
 export type Tab = "oyun" | "kutuphane" | "okul" | "sorular" | "siralama" | "ayarlar";
 
 // ── Giriş / kayıt ekranı ─────────────────────────────────────────────────────
-function LoginScreen({ onLogin, davetGerekli }: { onLogin: (h: HesapOzeti) => void; davetGerekli: boolean }) {
+function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: HesapOzeti) => void; davetGerekli: boolean; kayitKapali: boolean }) {
   const [mod, setMod] = useState<"giris" | "kayit">("giris");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -66,6 +66,9 @@ function LoginScreen({ onLogin, davetGerekli }: { onLogin: (h: HesapOzeti) => vo
           <p className="text-purple-300 text-sm mt-1">{mod === "giris" ? "Panele erişmek için giriş yapın" : "Kütüphanen hesabına bağlanır ve her cihazdan açılır"}</p>
         </div>
 
+        {kayitKapali ? (
+          <p className="text-center text-xs text-purple-300 mb-5">Yeni öğretmen kaydı şu anda kapalı. Hesabın yoksa okul yöneticinden davet iste.</p>
+        ) : (
         <div role="tablist" className="grid grid-cols-2 bg-white/10 rounded-xl p-1 mb-5">
           {(["giris", "kayit"] as const).map((m) => (
             <button
@@ -83,6 +86,7 @@ function LoginScreen({ onLogin, davetGerekli }: { onLogin: (h: HesapOzeti) => vo
             </button>
           ))}
         </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -684,6 +688,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   const [hesap, setHesap] = useState<HesapOzeti | null>(null);
   const loggedIn = hesap !== null;
   const [davetGerekli, setDavetGerekli] = useState(false);
+  const [kayitKapali, setKayitKapali] = useState(false);
   const [yonetici, setYonetici] = useState(false);
   const [baglantiHatasi, setBaglantiHatasi] = useState(false);
   const [bekleyenOyun, setBekleyenOyun] = useState(0);
@@ -704,6 +709,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
       if (o) {
         setHesap(o.hesap);
         setDavetGerekli(o.davetGerekli);
+        setKayitKapali(o.kayitKapali);
         setYonetici(o.yonetici);
       } else setBaglantiHatasi(true);
       setReady(true);
@@ -814,6 +820,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
           oturumBilgisi().then((o) => setYonetici(!!o?.yonetici));
         }}
         davetGerekli={davetGerekli}
+        kayitKapali={kayitKapali}
       />
     );
   }

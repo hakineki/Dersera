@@ -11,7 +11,9 @@ Her satırın yanına sonucu (✓ / ✗ + not) yazın. ✗ olan satır pilotu du
 | `OPENAI_API_KEY` ya da `ANTHROPIC_API_KEY` | Evet | OpenAI varsa o, yoksa Anthropic kullanılır. Oluşturma, güncelleme ve çocuk güvenliği denetimi aynı sağlayıcıdan gider. |
 | `AI_MODEL` / `ANTHROPIC_MODEL` | Hayır | Varsayılan modeli değiştirmek için. |
 | `DERSERA_YONETICILER` | Moderasyon için | Virgülle ayrılmış kullanıcı adları (ör. `hakan`). Ad ilk girişte hesaba bağlanır; adı ÖNCE kendiniz alın, sonra ekleyin. Yönetici `/moderasyon` sayfasını görür. |
-| `KAYIT_DAVET_KODU` | Pilotta önerilir | Tanımlıysa yalnız kodu bilen öğretmen hesap açar. |
+| `KAYIT_DAVET_KODU` | Evet | Yalnız kodu bilen öğretmen hesap açar; kodu öğretmenlere siz verirsiniz. Canlıda tanımlı değilse yeni kayıt tamamen kapalıdır (öğrenci hesap açamasın). |
+| `YEDEK_ANAHTARI` | Yedek için | 32 baytlık gizli anahtar (base64). Üretmek için: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Parola yöneticinizde de saklayın: anahtar kaybolursa yedekler açılamaz. |
+| `CRON_SECRET` | Yedek için | Uzun rastgele bir metin. Vercel gece yedeğini (`vercel.json`, her gece 04:00 TR) bu anahtarla çağırır. `BLOB_READ_WRITE_TOKEN` da gerekir. |
 | `BLOB_READ_WRITE_TOKEN` (ve `OPENAI_API_KEY`) | Görseller için | Görseller oyun üretimiyle aynı OpenAI anahtarıyla (GPT Image) üretilir; ikisi de tanımlıysa Composer'da "Görsellerle zenginleştir" görünür (yalnız Anthropic kullanılan kurulumda görsel yoktur). Blob: Vercel → Storage → Blob deposu oluşturup projeye bağlayın. Hobby'de 1 GB aşılırsa proje durur; kullanım izlenmeli. Composer sayfası derlemede oluştuğu için ekledikten sonra yeniden deploy gerekir. |
 | `GORSEL_MODEL`, `GORSEL_KALITE` | Hayır | Varsayılan `gpt-image-2`, `low` (görsel başı ~0,6 sent; `medium` ~5 sent). |
 | `DERSERA_EN_AZ_OYUN_SN` | Hayır | Öğretmen puanında sayılan en kısa oynama süresini değiştirir (varsayılan: max(120 sn, sürenin %25'i)). |
@@ -64,13 +66,26 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 25 | A: pano → öğretmen başına sınır 3; B aylık hakkını bitirip bir oyun daha oluşturur | B'nin bakiyesinde "+ okul havuzundan 3"; oluşturma havuzdan düşer, panoda B "Havuzdan 3/3". Sınır dolunca kazanılan kredi kullanılır, o da yoksa 402. |
 | 26 | A: Composer → Kaynak → "PDF'ten al" ile metinli bir ders notu PDF'i seç, oluştur | Metin kutuya düşer (PDF sunucuya gitmez); özet "4 kredi (kaynak dahil)" (40 dk). Oyunun soruları kaynaktaki bilgileri kullanır; hareket "Oyun oluşturma (40 dk, kaynaktan)". Taranmış PDF net bir hata verir. |
 | 27 | A: Composer → "Görsellerle zenginleştir" işaretli oluştur | Özet "4 kredi (görseller dahil)" (40 dk). Önizleme hemen açılır; "Görseller hazırlanıyor 1/4…4/4" ilerler, kapak ve 3 sahne görünür. Yazısız, yaşa uygun çizimler. Kaydedilip yayınlanan oyunda öğrenci kapağı girişte, sahne görsellerini duraklarda görür. Hiç görsel üretilemezse görsel kredisi iade edilir. |
+| 28 | Gizli sekmede ana sayfa; sonra `/library` ve `/qr-kutuphane` | Ana sayfada yalnız Öğrenci ve Öğretmen. Girişsiz iki sayfa da "Bu sayfa yalnız öğretmenlere açık" der, içerik (QR kodları, oyun listesi) gelmez. Öğretmen girişiyle açılır. |
+| 29 | Davet koduyla ve kodsuz kayıt dene | Kodsuz ya da yanlış kodla 403; doğru kodla hesap açılır. |
+| 30 | Yönetici: Vercel → Cron Jobs → yedek görevini elle çalıştır | Yanıt anahtar sayısını verir; Blob'da `yedek/` altında dosya belirir. Dosyayı indirip `YEDEK_ANAHTARI=… node scripts/yedek-geri-yukle.mjs <dosya>` ile özetin açıldığını görün (kuru çalışma, hiçbir şey yazılmaz). |
 
 ## 4. Dağıtım doğrulaması
 
 `/deploy-kontrol` adımları: son commit Vercel'de Ready, gizli sekmede canlı adres, değişen sayfa yeni sürümle.
 
-## 5. Bilinen sınırlar (pilotta izlenecek)
+## 5. Yedekten geri yükleme (yalnız gerektiğinde)
 
+1. Vercel → Storage → Blob → `yedek/` altından istenen günün dosyasını indirin.
+2. Önce kuru çalışma: `YEDEK_ANAHTARI=… node scripts/yedek-geri-yukle.mjs <dosya>` — tarih ve anahtar sayısını gösterir.
+3. Boş bir veritabanına: `YEDEK_ANAHTARI=… KV_REST_API_URL=… KV_REST_API_TOKEN=… node scripts/yedek-geri-yukle.mjs <dosya> --uygula`. Veritabanı doluysa betik durur; üzerine yazmak için bilerek `--uzerine-yaz` ekleyin (yedekteki anahtarlar silinip yeniden yazılır).
+4. Hesap güvenliği: GitHub, Vercel, Upstash ve OpenAI hesaplarında iki adımlı doğrulama açık olmalı; en olası saldırı yolu uygulama değil bu hesaplardır.
+
+## 6. Bilinen sınırlar (pilotta izlenecek)
+
+- QR durak adresleri tahmin edilebilir (`/game?qr=1…20`): bir QR'ı gören öğrenci diğer numaraları deneyerek durakları dolaşmadan ilerleyebilir. Sabit (bir kez basılan) QR tasarımının bedelidir; oyuna özel QR ileride.
+- Yerel geliştirmede (Redis'siz) bellek deposu sayfa ve API paketleri arasında paylaşılmaz: giriş yapmış öğretmen yerelde `/library` ve `/qr-kutuphane` sayfalarında "giriş gerekli" görebilir. Canlıda Redis ortak olduğundan sorun yoktur.
+- Gece yedeğinde okunamayan (çok büyük) kayıt atlanır ve yönetici sayfasında "BAŞARISIZ · N kayıt okunamadı" olarak görünür.
 - Oturumsuz sahte "bitirdim" gönderimi öğrenci sayısını şişirebilir (doğrulanmış öğrenci V2).
 - Üç günden eski birden çok hesapla topluluk onayı toplanabilir.
 - Yapay zekâ denetimi yapılamazsa yayın durmaz ("gözden geçirin"); kural tabanlı engel her zaman geçerli.

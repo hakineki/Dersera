@@ -1,4 +1,4 @@
-import { randomBytes, scrypt as scryptCb, timingSafeEqual, type ScryptOptions } from "crypto";
+import { createHash, randomBytes, scrypt as scryptCb, timingSafeEqual, type ScryptOptions } from "crypto";
 import { hashToken } from "@/lib/gamesService";
 import type { AuthStore, Hesap } from "@/lib/authStore";
 
@@ -59,9 +59,25 @@ const hata = (status: number, error: string) => ({ ok: false as const, status, e
 // Yanlış kullanıcı adı ile yanlış şifre aynı sürede yanıtlansın: olmayan hesapta da bir özet hesaplanır.
 let bosOzet: Promise<string> | null = null;
 
+// Davet kodu sabit sürede karşılaştırılır (özetler eşit uzunlukta; tahmin yanıt süresinden çıkarılamaz).
+function davetDogru(girilen: unknown, beklenen: string): boolean {
+  if (typeof girilen !== "string") return false;
+  const ozet = (s: string) => createHash("sha256").update(s).digest();
+  return timingSafeEqual(ozet(girilen.trim()), ozet(beklenen));
+}
+
+// Yeni öğretmen kaydı: davet kodu tanımlıysa kod ister; canlıda tanımlı değilse kapalıdır (öğrenci hesap açıp
+// öğretmen alanlarına ve krediye erişemesin; kod platform yöneticisince öğretmenlere verilir).
+export type KayitDurumu = "acik" | "davetli" | "kapali";
+export function kayitDurumu(): KayitDurumu {
+  if (process.env.KAYIT_DAVET_KODU?.trim()) return "davetli";
+  return process.env.NODE_ENV === "production" ? "kapali" : "acik";
+}
+
 export async function kayitOl(store: AuthStore, adGirdi: unknown, sifre: unknown, davetKodu: unknown, now = Date.now()): Promise<AuthSonucu<Hesap>> {
-  const beklenenDavet = process.env.KAYIT_DAVET_KODU?.trim();
-  if (beklenenDavet && davetKodu !== beklenenDavet) return hata(403, "Davet kodu geçersiz.");
+  const durum = kayitDurumu();
+  if (durum === "kapali") return hata(403, "Yeni öğretmen kaydı şu anda kapalı.");
+  if (durum === "davetli" && !davetDogru(davetKodu, process.env.KAYIT_DAVET_KODU!.trim())) return hata(403, "Davet kodu geçersiz.");
   const ad = kullaniciAdiNormal(adGirdi);
   if (!ad) return hata(422, AD_HATASI);
   const sifreSorunu = sifreHatasi(sifre);

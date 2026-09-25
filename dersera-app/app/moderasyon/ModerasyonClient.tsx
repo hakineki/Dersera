@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import DerseraLogo from "@/components/DerseraLogo";
+import YedekDurumu from "./YedekDurumu";
 import { KAPILAR } from "@/lib/composer/yonetisim";
 import { MODERASYON, type ModerasyonKarari, type ModerasyonKaydi, type ModerasyonOzeti, type ModerasyonTuru } from "@/lib/moderasyon";
 import { moderasyonKarariGonder, moderasyonKaydi, moderasyonListesi } from "@/lib/moderasyonClient";
@@ -193,6 +194,7 @@ export default function ModerasyonClient() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+        <YedekDurumu />
         {mesaj && (
           <p role="status" className="bg-green-50 border border-green-200 text-green-800 rounded-xl p-3 text-sm">
             {mesaj}

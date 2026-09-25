@@ -167,3 +167,14 @@ export async function toplulugaKoy(
   const kayit = yeniToplulukKaydi(definition, dersler as DersKonu[], olusturan, yayinTarihi, { durum: "yayinda", aktif: true });
   return api.toplulukStore.getToplulukStore().ekle(kayit, icerikOzetiOf(definition));
 }
+
+// Topluluk listesi yalnız öğretmene açık: testler listeyi ayrı bir izleyici öğretmen hesabıyla okur (api başına bir kez açılır).
+const izleyiciler = new WeakMap<object, string>();
+export async function toplulukListesi(api: Awaited<ReturnType<typeof buildApi>>, qs = ""): Promise<Response> {
+  let c = izleyiciler.get(api);
+  if (!c) {
+    c = await hesapAc(api, "liste_izleyici");
+    izleyiciler.set(api, c);
+  }
+  return api.topluluk.GET(cerezli(new Request(`http://localhost/api/topluluk${qs ? "?" + qs : ""}`), c));
+}

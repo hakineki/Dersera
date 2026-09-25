@@ -29,12 +29,12 @@ async function gonder(path: string, body: unknown): Promise<AuthYaniti> {
 }
 
 // null: giriş yok; undefined: sunucuya ulaşılamadı.
-export async function oturumBilgisi(): Promise<{ hesap: HesapOzeti | null; davetGerekli: boolean; yonetici: boolean } | undefined> {
+export async function oturumBilgisi(): Promise<{ hesap: HesapOzeti | null; davetGerekli: boolean; kayitKapali: boolean; yonetici: boolean } | undefined> {
   try {
     const res = await fetch("/api/auth/ben", { cache: "no-store" });
     if (!res.ok) return undefined;
     const json = await res.json();
-    return { hesap: json.hesap ?? null, davetGerekli: !!json.davetGerekli, yonetici: !!json.yonetici };
+    return { hesap: json.hesap ?? null, davetGerekli: !!json.davetGerekli, kayitKapali: !!json.kayitKapali, yonetici: !!json.yonetici };
   } catch {
     return undefined;
   }

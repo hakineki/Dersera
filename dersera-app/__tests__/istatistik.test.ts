@@ -1,5 +1,5 @@
 import { clearRedisEnv, recordingCommand } from "./helpers/fakeRedis";
-import { buildApi, hesapAc, jsonRequest, katilVeBitir, toplulugaKoy } from "./helpers/api";
+import { buildApi, hesapAc, jsonRequest, katilVeBitir, toplulugaKoy, toplulukListesi } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 import { createRedisIstatistikStore } from "@/lib/istatistikStore";
@@ -46,7 +46,7 @@ describe("öğrenci puanı ve kütüphane istatistikleri", () => {
   // Bitirip puan verir; durum kodunu döndürür.
   const bitirVePuanla = async (kod: string, nickname: string, puan: number) => (await puanVer(kod, { nickname, playerToken: await bitir(kod, nickname), puan })).status;
   const kutuphane = async (c = ogretmen) => (await (await api.library.GET(cerezli(new Request("http://localhost/api/library"), c))).json()).oyunlar;
-  const topluluk = async () => (await (await api.topluluk.GET(new Request("http://localhost/api/topluluk"))).json()).oyunlar;
+  const topluluk = async () => (await (await toplulukListesi(api)).json()).oyunlar;
 
   it("öğrenci sayısı katılımla değil, oyunu bitirip sonucu kaydedilen öğrenciyle artar (farklı sınıf yayınları dahil)", async () => {
     const id = await kaydet("Hareket");

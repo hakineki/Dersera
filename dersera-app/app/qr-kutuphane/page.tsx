@@ -3,13 +3,17 @@ import DerseraLogo from "@/components/DerseraLogo";
 import QrCard from "@/components/QrCard";
 import { QR_DESIGNS, QR_NUMBERS, qrUrl } from "@/lib/qr";
 import PdfButtons from "./PdfButtons";
+import OgretmenGerekli from "@/components/OgretmenGerekli";
+import { sayfaHesabi } from "@/lib/sayfaOturumu";
 
 export const metadata = {
   title: "QR Kütüphanesi — Dersera",
   description: "1–20 numaralı sabit durak QR kodları; koyu ve açık tasarım, PDF indirme.",
 };
 
-export default function QrKutuphanePage() {
+// Öğrenci QR'ları ekrandan tarayıp durakları dolaşmadan geçemesin: yalnız öğretmene.
+export default async function QrKutuphanePage() {
+  if (!(await sayfaHesabi())) return <OgretmenGerekli baslik="QR Kütüphanesi" />;
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-indigo-900 text-white px-4 py-4">

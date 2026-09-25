@@ -1,5 +1,5 @@
 import { clearRedisEnv, recordingCommand } from "./helpers/fakeRedis";
-import { buildApi, hesapAc, jsonRequest, katilVeBitir, samplePublish, toplulugaKoy } from "./helpers/api";
+import { buildApi, hesapAc, jsonRequest, katilVeBitir, samplePublish, toplulugaKoy, toplulukListesi } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 import type { GameDefinition } from "@/lib/composer/definition";
@@ -31,7 +31,7 @@ describe("topluluk kütüphanesi", () => {
     return (await res.json()) as { game: { code: string } };
   };
   const liste = async (qs = "") => {
-    const res = await api.topluluk.GET(new Request(`http://localhost/api/topluluk${qs ? "?" + qs : ""}`));
+    const res = await toplulukListesi(api, qs);
     return { res, data: await res.json() };
   };
   const baslikli = (input: typeof fizik, baslik: string, durak = 8) => {
