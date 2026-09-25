@@ -27,7 +27,10 @@ export default function DemoClient() {
       if (!id && !topluluk && !okul) return setDurum({ tur: "hata", mesaj: "Denenecek oyun seçilmedi." });
       const d = id ? await kutuphaneOyunu(id) : okul ? await okulOyunu(okul) : await toplulukOyunu(topluluk!);
       if (iptal) return;
-      if (!d) return setDurum({ tur: "hata", mesaj: "Oyun açılamadı. Öğretmen olarak giriş yaptığından emin ol." });
+      if (!d) {
+        const sinir = topluluk ? " Topluluk oyunlarında günlük açma hakkın dolduysa yarın tekrar dene." : "";
+        return setDurum({ tur: "hata", mesaj: `Oyun açılamadı. Öğretmen olarak giriş yaptığından emin ol.${sinir}` });
+      }
       if (!d.validation?.gecerli) return setDurum({ tur: "hata", mesaj: "Bu oyunda düzeltilmesi gereken hatalar var; önce Composer'da düzelt." });
       setDurum({ tur: "hazir", def: d.oyun.definition });
     });

@@ -515,8 +515,9 @@ export default function ComposerClient({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {baslik}
-      <main className="max-w-3xl mx-auto px-4 py-6">
+      {/* Demo açıkken arkadaki sayfa odak ve tıklama almaz. */}
+      <div inert={demo}>{baslik}</div>
+      <main inert={demo} className="max-w-3xl mx-auto px-4 py-6">
         {durum.tur === "form" && (
           <form
             className="space-y-6"
