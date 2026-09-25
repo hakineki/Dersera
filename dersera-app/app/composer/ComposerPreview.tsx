@@ -8,7 +8,50 @@ import { yzDurumMetni, type YzDenetim } from "@/lib/composer/yzDenetim";
 import type { Duzenlenen } from "./DurakEditor";
 import GuncellemePaneli from "./GuncellemePaneli";
 import type { KrediDurumu } from "@/lib/kredi";
+import { gorselAdresi, KAPAK } from "@/lib/gorsel";
+import GorselResim from "@/components/GorselResim";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI, GOREV_TUR_ADI } from "./labels";
+
+// Görsel zenginleştirmenin istemcideki durumu (ComposerClient): not, oluşturmada görsel başlatılamadığında.
+export interface GorselIlerleme {
+  hazir: number;
+  toplam: number;
+  bitti: boolean;
+  not?: string;
+}
+
+function Gorseller({ definition, ilerleme }: { definition: GameDefinition; ilerleme: GorselIlerleme | null }) {
+  const hazir = [KAPAK, ...definition.duraklar.map((d) => d.id)].flatMap((h) => {
+    const src = gorselAdresi(definition, h);
+    return src ? [{ h, src, ad: h === KAPAK ? "Kapak" : (definition.duraklar.find((d) => d.id === h)?.isim ?? h) }] : [];
+  });
+  if (!ilerleme && hazir.length === 0) return null;
+  return (
+    <section aria-labelledby="gorseller" className="space-y-2">
+      <h2 id="gorseller" className="font-semibold text-gray-800 text-sm">
+        Görseller
+      </h2>
+      {ilerleme && (
+        <p role="status" className={`text-sm ${ilerleme.not ? "text-amber-700" : "text-gray-600"}`}>
+          <span aria-hidden="true">🎨 </span>
+          {ilerleme.not ??
+            (ilerleme.bitti
+              ? `${ilerleme.hazir}/${ilerleme.toplam} görsel hazır.`
+              : `Görseller hazırlanıyor: ${ilerleme.hazir}/${ilerleme.toplam}. Oyunu beklemeden düzenleyebilir, kaydedebilirsin; hazır olanlar oyuna eklenir.`)}
+        </p>
+      )}
+      {hazir.length > 0 && (
+        <ul className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {hazir.map((g) => (
+            <li key={g.h}>
+              <GorselResim src={g.src} alt={`${g.ad} görseli`} altyazi={g.ad} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 const ROZET_GORUNUMU: Record<Karar, { simge: string; metin: string; sinif: string }> = {
   PASS: { simge: "✓", metin: "Uygun", sinif: "bg-green-50 border-green-200 text-green-800" },
@@ -37,6 +80,7 @@ export default function ComposerPreview({
   publishError,
   kutuphane,
   guncelleme,
+  gorsel,
 }: {
   definition: GameDefinition;
   validation: ValidationResult;
@@ -51,6 +95,7 @@ export default function ComposerPreview({
   kutuphane: { durum: "kayitsiz" | "degisti" | "kaydedildi" | "kaydediliyor"; hata: string; bilgi?: string; onSave: () => void };
   // Yalnız giriş yapmış öğretmene (ücretli).
   guncelleme?: { kredi: KrediDurumu | null; onGuncelle: (idler: string[], talimat: string) => Promise<string | null> };
+  gorsel?: GorselIlerleme | null;
 }) {
   const ozet = summarize(definition);
   const hedefMetni = (kod: string) => hedefler.find((h) => h.kod === kod)?.metin ?? "";
@@ -74,6 +119,8 @@ export default function ComposerPreview({
         </p>
         <p className="text-gray-700 text-sm leading-relaxed mt-3">{definition.hikaye_giris}</p>
       </header>
+
+      <Gorseller definition={definition} ilerleme={gorsel ?? null} />
 
       <section aria-label="Oyun özeti" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <Ozet etiket="Tahmini süre" deger={`${m.sure_dk} dk`} />

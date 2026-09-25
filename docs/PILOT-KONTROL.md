@@ -12,6 +12,8 @@ Her satırın yanına sonucu (✓ / ✗ + not) yazın. ✗ olan satır pilotu du
 | `AI_MODEL` / `ANTHROPIC_MODEL` | Hayır | Varsayılan modeli değiştirmek için. |
 | `DERSERA_YONETICILER` | Moderasyon için | Virgülle ayrılmış kullanıcı adları (ör. `hakan`). Ad ilk girişte hesaba bağlanır; adı ÖNCE kendiniz alın, sonra ekleyin. Yönetici `/moderasyon` sayfasını görür. |
 | `KAYIT_DAVET_KODU` | Pilotta önerilir | Tanımlıysa yalnız kodu bilen öğretmen hesap açar. |
+| `BLOB_READ_WRITE_TOKEN` (ve `OPENAI_API_KEY`) | Görseller için | Görseller oyun üretimiyle aynı OpenAI anahtarıyla (GPT Image) üretilir; ikisi de tanımlıysa Composer'da "Görsellerle zenginleştir" görünür (yalnız Anthropic kullanılan kurulumda görsel yoktur). Blob: Vercel → Storage → Blob deposu oluşturup projeye bağlayın. Hobby'de 1 GB aşılırsa proje durur; kullanım izlenmeli. Composer sayfası derlemede oluştuğu için ekledikten sonra yeniden deploy gerekir. |
+| `GORSEL_MODEL`, `GORSEL_KALITE` | Hayır | Varsayılan `gpt-image-2`, `low` (görsel başı ~0,6 sent; `medium` ~5 sent). |
 | `DERSERA_EN_AZ_OYUN_SN` | Hayır | Öğretmen puanında sayılan en kısa oynama süresini değiştirir (varsayılan: max(120 sn, sürenin %25'i)). |
 
 ## 2. Redis duman testi (Lua betikleri)
@@ -27,7 +29,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
    DERSERA_REDIS_DUMAN=1 KV_REST_API_URL="<duman-db-url>" KV_REST_API_TOKEN="<duman-db-token>" npx jest __tests__/depoSozlesmesi.test.ts
    ```
 
-3. Beklenen: `bellek depoları` ve `redis depoları` altında 9'ar test geçer. Test bitince yazdığı anahtarları siler.
+3. Beklenen: `bellek depoları` ve `redis depoları` altında 10'ar test geçer. Test bitince yazdığı anahtarları siler.
 
 ## 3. Uçtan uca akış (gizli sekmede, canlı adreste)
 
@@ -61,6 +63,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 24 | Yönetici: `/yonetim/okul-havuzu` → A'nın davet koduyla okulu bul, aylık 20 kredi ata | Okul "Havuzu olan okullar"da; A'nın panosunda "Okul kredi havuzu: 0/20". Yönetici olmayan hesap sayfada 403 görür. |
 | 25 | A: pano → öğretmen başına sınır 3; B aylık hakkını bitirip bir oyun daha oluşturur | B'nin bakiyesinde "+ okul havuzundan 3"; oluşturma havuzdan düşer, panoda B "Havuzdan 3/3". Sınır dolunca kazanılan kredi kullanılır, o da yoksa 402. |
 | 26 | A: Composer → Kaynak → "PDF'ten al" ile metinli bir ders notu PDF'i seç, oluştur | Metin kutuya düşer (PDF sunucuya gitmez); özet "4 kredi (kaynak dahil)" (40 dk). Oyunun soruları kaynaktaki bilgileri kullanır; hareket "Oyun oluşturma (40 dk, kaynaktan)". Taranmış PDF net bir hata verir. |
+| 27 | A: Composer → "Görsellerle zenginleştir" işaretli oluştur | Özet "4 kredi (görseller dahil)" (40 dk). Önizleme hemen açılır; "Görseller hazırlanıyor 1/4…4/4" ilerler, kapak ve 3 sahne görünür. Yazısız, yaşa uygun çizimler. Kaydedilip yayınlanan oyunda öğrenci kapağı girişte, sahne görsellerini duraklarda görür. Hiç görsel üretilemezse görsel kredisi iade edilir. |
 
 ## 4. Dağıtım doğrulaması
 

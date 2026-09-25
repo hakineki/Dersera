@@ -15,21 +15,25 @@ import { saveTeacherGame } from "@/lib/teacherGame";
 import { kutuphaneOyunu, kutuphaneyeKaydet, toplulukOyunu } from "@/lib/libraryClient";
 import { okulOyunu } from "@/lib/okulClient";
 import type { PublishResponse } from "@/lib/gamesClient";
-import ComposerPreview from "./ComposerPreview";
+import ComposerPreview, { type GorselIlerleme } from "./ComposerPreview";
+import { gorselleriBirlestir } from "@/lib/gorsel";
+import { gorselDurumuGetir, gorselTetikle, type GorselDurumuYaniti } from "@/lib/gorselClient";
 import DurakEditor, { type Duzenlenen } from "./DurakEditor";
 import KaynakGirdisi from "./KaynakGirdisi";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI } from "./labels";
 import { maxDersSayisi } from "@/lib/composer/recipe";
 import { SERBEST_NOT_MAX } from "@/lib/composer/limits";
 import { KAYNAK, kaynakNormal } from "@/lib/composer/kaynak";
-import { olusturmaMaliyeti, type KrediDurumu } from "@/lib/kredi";
+import { KREDI_KURALLARI, olusturmaMaliyeti, type KrediDurumu } from "@/lib/kredi";
 import { krediDurumuGetir, krediMetni } from "@/lib/krediClient";
 
 // Oluşturma formu üç bölüm (docs/URUN-BAGLAMI.md §4): tek sayfa, belge benzeri.
 const BOLUM = "bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 space-y-5";
 const BOLUM_BASLIK = "text-base font-bold text-indigo-900";
 
-const CLIENT_TIMEOUT_MS = 285_000; // sunucu en geç maxDuration'da (280 sn) kesilir; istemci ondan sonra vazgeçer
+const CLIENT_TIMEOUT_MS = 285_000;
+// Sunucu yarıda kalan görseli 70 sn sonra yeniden sahiplenebilir (lib/gorselService.ts).
+const GORSEL_YENIDEN_DENEME_MS = 75_000; // sunucu en geç maxDuration'da (280 sn) kesilir; istemci ondan sonra vazgeçer
 // Yükleme adımları (docs/URUN-BAGLAMI.md §11) ve yaklaşık başlama saniyeleri; üretim 1,5–3 dakika sürer.
 const MESAJLAR = [
   "Müfredat hazırlanıyor",
@@ -61,6 +65,9 @@ interface ComposeResponse {
   dersler: DersKonu[];
   hedefler: OgrenmeCiktisi[];
   hedefDersleri: Record<string, string[]>;
+  // Görsel zenginleştirme istendiyse: sunucuda kurulan iş ya da kurulamadıysa öğretmene not.
+  gorselIsi?: { isId: string; hedefler: string[] };
+  gorselNotu?: string;
 }
 
 function Secim<T extends string | number>({
@@ -144,10 +151,13 @@ export default function ComposerClient({
   siniflar,
   dersler,
   konular,
+  gorselEtkin,
 }: {
   siniflar: number[];
   dersler: { key: string; ad: string }[];
   konular: Record<string, KonuSecenegi[]>;
+  // Görsel sağlayıcı ve depo yapılandırılmışsa onay kutusu gösterilir.
+  gorselEtkin: boolean;
 }) {
   const router = useRouter();
   const [ogretmen, setOgretmen] = useState<boolean | null>(null);
@@ -160,6 +170,10 @@ export default function ComposerClient({
   const [onNot, setOnNot] = useState("");
   // Öğretmenin kaynağı yalnız bu sayfanın belleğinde tutulur (saklanmaz).
   const [kaynak, setKaynak] = useState("");
+  const [gorsel, setGorsel] = useState(false);
+  const [gorselIlerleme, setGorselIlerleme] = useState<GorselIlerleme | null>(null);
+  // Yalnız son oluşturulan oyunun görselleri tanıma eklenir (öğretmen yeni oyuna geçtiyse eski yanıtlar yok sayılır).
+  const aktifGorselIsi = useRef<string | null>(null);
 
   const [durum, setDurum] = useState<Durum>({ tur: "form" });
   const [ilerleme, setIlerleme] = useState(0);
@@ -271,7 +285,9 @@ export default function ComposerClient({
   const cokDers = secili.length > enFazlaDers;
   // Sunucu en az/en çok sınırını normalleştirilmiş metne uygular; düğme de aynı ölçüye bakar.
   const kaynakUzunlugu = kaynakNormal(kaynak).length;
-  const maliyet = olusturmaMaliyeti(sure, kaynakUzunlugu > 0);
+  const gorselli = gorselEtkin && gorsel;
+  const maliyet = olusturmaMaliyeti(sure, kaynakUzunlugu > 0) + (gorselli ? KREDI_KURALLARI.gorsel : 0);
+  const maliyetEki = [kaynakUzunlugu > 0 && "kaynak", gorselli && "görseller"].filter(Boolean).join(" ve ");
   const hazir = secili.length > 0 && !cokDers && secili.every((k) => k.konuId) && (kaynakUzunlugu === 0 || kaynakUzunlugu >= KAYNAK.enAz);
 
   async function olustur() {
@@ -293,6 +309,7 @@ export default function ComposerClient({
           alan,
           ...(onNot.trim() ? { serbest_not: onNot.trim() } : {}),
           ...(kaynakUzunlugu > 0 ? { kaynak: kaynak.trim() } : {}),
+          ...(gorselli ? { gorsel: true } : {}),
         }),
         signal: controller.signal,
       });
@@ -304,13 +321,61 @@ export default function ComposerClient({
         return;
       }
       setIlerleme(100);
-      setSonuc({ ...(json as ComposeResponse), guvenlikTanimi: (json as ComposeResponse).definition });
+      const yanit = json as ComposeResponse;
+      setSonuc({ ...yanit, guvenlikTanimi: yanit.definition });
+      aktifGorselIsi.current = yanit.gorselIsi?.isId ?? null;
+      setGorselIlerleme(
+        yanit.gorselIsi
+          ? { hazir: 0, toplam: yanit.gorselIsi.hedefler.length, bitti: false }
+          : yanit.gorselNotu
+            ? { hazir: 0, toplam: 0, bitti: true, not: yanit.gorselNotu }
+            : null
+      );
+      if (yanit.gorselIsi) gorselleriUret(yanit.gorselIsi.isId, yanit.gorselIsi.hedefler.length);
       setTimeout(() => setDurum({ tur: "onizleme" }), 250);
     } catch {
       setDurum({ tur: "hata", mesaj: "Oyun şu anda oluşturulamadı. Tekrar deneyin." });
     } finally {
       clearTimeout(timer);
     }
+  }
+
+  // Hazır görseller tanıma eklenir. Görseller metni değiştirmez: güvenlik denetimi yeni tanım için de geçerli kalır.
+  function gorselleriEkle(isId: string, hazir: string[]) {
+    const mevcut = sonTanim.current;
+    if (aktifGorselIsi.current !== isId || !mevcut || gorselleriBirlestir(mevcut, isId, hazir) === mevcut) return;
+    setSonuc((s) => {
+      if (!s) return s;
+      const def = gorselleriBirlestir(s.definition, isId, hazir);
+      return def === s.definition ? s : { ...s, definition: def, ...(s.guvenlikTanimi === s.definition ? { guvenlikTanimi: def } : {}) };
+    });
+    setKutuphaneDurumu((k) => (k === "kaydedildi" ? "degisti" : k));
+  }
+
+  // Her çağrı bir görsel üretir; hedef sayısı kadar paralel çağrılır. Oyun bu sırada kullanılabilir.
+  async function gorselleriUret(isId: string, toplam: number) {
+    const isle = (d: GorselDurumuYaniti | null) => {
+      if (!d || aktifGorselIsi.current !== isId) return;
+      setGorselIlerleme((o) => ({
+        hazir: Math.max(o?.hazir ?? 0, d.hazir.length),
+        toplam: d.toplam,
+        bitti: d.bitti,
+        ...(d.bitti && d.hazir.length === 0 ? { not: "Görseller üretilemedi; görsel kredin iade edildi. Oyun görselsiz kullanılabilir." } : {}),
+      }));
+      gorselleriEkle(isId, d.hazir);
+    };
+    await Promise.all(Array.from({ length: toplam }, async () => isle(await gorselTetikle(isId))));
+    let son = await gorselDurumuGetir(isId);
+    isle(son);
+    // Yarıda kalan (işlev kesilen) hedef bayatlayınca yeniden üretilebilir: bir kez daha denenir.
+    if (son && !son.bitti && aktifGorselIsi.current === isId) {
+      await new Promise((r) => setTimeout(r, GORSEL_YENIDEN_DENEME_MS));
+      const kalan = son.toplam - son.hazir.length - son.hata;
+      await Promise.all(Array.from({ length: kalan }, async () => isle(await gorselTetikle(isId))));
+      son = await gorselDurumuGetir(isId);
+      isle(son);
+    }
+    if (aktifGorselIsi.current === isId) setKredi(await krediDurumuGetir());
   }
 
   // Elle düzenlenen tanım istemcide yeniden doğrulanır (sunucu yayında yine doğrular).
@@ -527,6 +592,19 @@ export default function ComposerClient({
               )}
               <Secim etiket="Deneyim biçimi" secenekler={[...DENEYIM_SECENEKLERI]} deger={deneyim} onChange={setDeneyim} />
               <Secim etiket="Oyun alanı" secenekler={[...ALAN_SECENEKLERI]} deger={alan} onChange={setAlan} />
+              {gorselEtkin && (
+                <label className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer ${gorsel ? "border-indigo-600 bg-indigo-50" : "border-gray-200 bg-white"}`}>
+                  <input type="checkbox" checked={gorsel} onChange={(e) => setGorsel(e.target.checked)} className="mt-1 h-4 w-4 accent-indigo-600" aria-describedby="gorsel-aciklama" />
+                  <span>
+                    <span className="block text-sm font-semibold text-gray-800">
+                      <span aria-hidden="true">🎨 </span>Görsellerle zenginleştir <span className="font-normal text-gray-500">(+{KREDI_KURALLARI.gorsel} kredi)</span>
+                    </span>
+                    <span id="gorsel-aciklama" className="block text-xs text-gray-500 mt-0.5">
+                      Kapak ve 3 ana sahne için çizim üretilir. Oyun beklemeden hazır olur; görseller birkaç dakika içinde eklenir. Hiç görsel üretilemezse kredin iade edilir.
+                    </span>
+                  </span>
+                </label>
+              )}
               <div>
                 <label htmlFor="on-not" className="text-sm font-semibold text-gray-700 mb-2 block">
                   Ön Not <span className="font-normal text-gray-500">(isteğe bağlı)</span>
@@ -570,11 +648,17 @@ export default function ComposerClient({
                 </dd>
                 <dt className="text-gray-500">Kaynak</dt>
                 <dd className="text-gray-900">{kaynakUzunlugu > 0 ? `Öğretmen kaynağı (${kaynakUzunlugu.toLocaleString("tr-TR")} karakter)` : "Yok (müfredattan)"}</dd>
+                {gorselli && (
+                  <>
+                    <dt className="text-gray-500">Görseller</dt>
+                    <dd className="text-gray-900">Kapak + 3 sahne (oyun oluştuktan sonra eklenir)</dd>
+                  </>
+                )}
                 <dt className="text-gray-500">Kredi</dt>
                 <dd className={kredi && kredi.toplam < maliyet ? "text-red-700" : "text-gray-900"}>
                   <span role="status">
                     Bu oyun <strong>{maliyet} kredi</strong>
-                    {kaynakUzunlugu > 0 && " (kaynak dahil)"}
+                    {maliyetEki && ` (${maliyetEki} dahil)`}
                     {kredi && <> · Bakiyen: {krediMetni(kredi)}</>}
                     {kredi && kredi.toplam < maliyet && ". Bakiyen yetmiyor; aylık hakkın ay başında yenilenir."}
                   </span>
@@ -630,6 +714,8 @@ export default function ComposerClient({
             onEdit={setDuzenlenen}
             onPublish={yayinla}
             onNew={() => {
+              aktifGorselIsi.current = null;
+              setGorselIlerleme(null);
               setSonuc(null);
               setKutuphaneId(null);
               setKutuphaneDurumu("kayitsiz");
@@ -644,6 +730,7 @@ export default function ComposerClient({
             }}
             kutuphane={{ durum: kutuphaneDurumu, hata: kutuphaneHatasi, bilgi: kutuphaneBilgisi, onSave: kutuphaneyeEkle }}
             guncelleme={ogretmen ? { kredi, onGuncelle: yzGuncelle } : undefined}
+            gorsel={gorselIlerleme}
             publishing={yayinlaniyor}
             publishError={yayinHatasi}
           />
