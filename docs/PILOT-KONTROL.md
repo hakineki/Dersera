@@ -60,6 +60,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 23 | A: Okulum → pano; B'yi çıkar | Pano öğretmen/oyun/öğrenci sayılarını gösterir; çıkarılan B okulu artık görmez. |
 | 24 | Yönetici: `/yonetim/okul-havuzu` → A'nın davet koduyla okulu bul, aylık 20 kredi ata | Okul "Havuzu olan okullar"da; A'nın panosunda "Okul kredi havuzu: 0/20". Yönetici olmayan hesap sayfada 403 görür. |
 | 25 | A: pano → öğretmen başına sınır 3; B aylık hakkını bitirip bir oyun daha oluşturur | B'nin bakiyesinde "+ okul havuzundan 3"; oluşturma havuzdan düşer, panoda B "Havuzdan 3/3". Sınır dolunca kazanılan kredi kullanılır, o da yoksa 402. |
+| 26 | A: Composer → Kaynak → "PDF'ten al" ile metinli bir ders notu PDF'i seç, oluştur | Metin kutuya düşer (PDF sunucuya gitmez); özet "4 kredi (kaynak dahil)" (40 dk). Oyunun soruları kaynaktaki bilgileri kullanır; hareket "Oyun oluşturma (40 dk, kaynaktan)". Taranmış PDF net bir hata verir. |
 
 ## 4. Dağıtım doğrulaması
 

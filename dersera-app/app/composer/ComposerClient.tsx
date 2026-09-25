@@ -17,9 +17,11 @@ import { okulOyunu } from "@/lib/okulClient";
 import type { PublishResponse } from "@/lib/gamesClient";
 import ComposerPreview from "./ComposerPreview";
 import DurakEditor, { type Duzenlenen } from "./DurakEditor";
+import KaynakGirdisi from "./KaynakGirdisi";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI } from "./labels";
 import { maxDersSayisi } from "@/lib/composer/recipe";
 import { SERBEST_NOT_MAX } from "@/lib/composer/limits";
+import { KAYNAK, kaynakNormal } from "@/lib/composer/kaynak";
 import { olusturmaMaliyeti, type KrediDurumu } from "@/lib/kredi";
 import { krediDurumuGetir, krediMetni } from "@/lib/krediClient";
 
@@ -156,6 +158,8 @@ export default function ComposerClient({
   const [deneyim, setDeneyim] = useState<"macera" | "dengeli" | "ders">("dengeli");
   const [alan, setAlan] = useState<"sinif" | "okul">("sinif");
   const [onNot, setOnNot] = useState("");
+  // Öğretmenin kaynağı yalnız bu sayfanın belleğinde tutulur (saklanmaz).
+  const [kaynak, setKaynak] = useState("");
 
   const [durum, setDurum] = useState<Durum>({ tur: "form" });
   const [ilerleme, setIlerleme] = useState(0);
@@ -265,7 +269,10 @@ export default function ComposerClient({
   const dersAdi = (key: string) => dersler.find((d) => d.key === key)?.ad ?? key;
   const enFazlaDers = maxDersSayisi(sure);
   const cokDers = secili.length > enFazlaDers;
-  const hazir = secili.length > 0 && !cokDers && secili.every((k) => k.konuId);
+  // Sunucu en az/en çok sınırını normalleştirilmiş metne uygular; düğme de aynı ölçüye bakar.
+  const kaynakUzunlugu = kaynakNormal(kaynak).length;
+  const maliyet = olusturmaMaliyeti(sure, kaynakUzunlugu > 0);
+  const hazir = secili.length > 0 && !cokDers && secili.every((k) => k.konuId) && (kaynakUzunlugu === 0 || kaynakUzunlugu >= KAYNAK.enAz);
 
   async function olustur() {
     setDurum({ tur: "yukleniyor" });
@@ -278,7 +285,15 @@ export default function ComposerClient({
       const res = await fetch("/api/compose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sinif, dersler: secili, sure, deneyim, alan, ...(onNot.trim() ? { serbest_not: onNot.trim() } : {}) }),
+        body: JSON.stringify({
+          sinif,
+          dersler: secili,
+          sure,
+          deneyim,
+          alan,
+          ...(onNot.trim() ? { serbest_not: onNot.trim() } : {}),
+          ...(kaynakUzunlugu > 0 ? { kaynak: kaynak.trim() } : {}),
+        }),
         signal: controller.signal,
       });
       const json = await res.json().catch(() => ({}));
@@ -498,6 +513,7 @@ export default function ComposerClient({
                   </label>
                 ))}
               </fieldset>
+              <KaynakGirdisi deger={kaynak} onChange={setKaynak} />
             </section>
             <section aria-labelledby="bolum-2" className={BOLUM}>
               <h2 id="bolum-2" className={BOLUM_BASLIK}>
@@ -552,12 +568,15 @@ export default function ComposerClient({
                   {sure} dk · {DENEYIM_SECENEKLERI.find((d) => d.key === deneyim)?.ad} · {ALAN_SECENEKLERI.find((a) => a.key === alan)?.ad}
                   {onNot.trim() && " · Ön not var"}
                 </dd>
+                <dt className="text-gray-500">Kaynak</dt>
+                <dd className="text-gray-900">{kaynakUzunlugu > 0 ? `Öğretmen kaynağı (${kaynakUzunlugu.toLocaleString("tr-TR")} karakter)` : "Yok (müfredattan)"}</dd>
                 <dt className="text-gray-500">Kredi</dt>
-                <dd className={kredi && kredi.toplam < olusturmaMaliyeti(sure) ? "text-red-700" : "text-gray-900"}>
+                <dd className={kredi && kredi.toplam < maliyet ? "text-red-700" : "text-gray-900"}>
                   <span role="status">
-                    Bu oyun <strong>{olusturmaMaliyeti(sure)} kredi</strong>
+                    Bu oyun <strong>{maliyet} kredi</strong>
+                    {kaynakUzunlugu > 0 && " (kaynak dahil)"}
                     {kredi && <> · Bakiyen: {krediMetni(kredi)}</>}
-                    {kredi && kredi.toplam < olusturmaMaliyeti(sure) && ". Bakiyen yetmiyor; aylık hakkın ay başında yenilenir."}
+                    {kredi && kredi.toplam < maliyet && ". Bakiyen yetmiyor; aylık hakkın ay başında yenilenir."}
                   </span>
                 </dd>
               </dl>
@@ -568,7 +587,7 @@ export default function ComposerClient({
               </p>
               <button
                 type="submit"
-                disabled={!hazir || ogretmen !== true || (!!kredi && kredi.toplam < olusturmaMaliyeti(sure))}
+                disabled={!hazir || ogretmen !== true || (!!kredi && kredi.toplam < maliyet)}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold py-3.5 rounded-xl text-base"
               >
                 Oyunu Oluştur
