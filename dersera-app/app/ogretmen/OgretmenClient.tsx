@@ -4,18 +4,17 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import DerseraLogo from "@/components/DerseraLogo";
 import Link from "next/link";
 import { fetchResults } from "@/lib/resultsClient";
-import { stops as stopTemplates, type Stop } from "@/data/stops";
-import { getSorular } from "@/data/mufredat";
+import { type Stop } from "@/data/stops";
 import { formatElapsed, buildResultCode, type LeaderboardEntry } from "@/lib/gameState";
 import { toStops } from "@/lib/games";
 import { definitionPanelStops } from "@/lib/composer/scene";
 import OgrenmeRaporuKarti from "./OgrenmeRaporu";
 import { loadTeacherGame, saveTeacherGame, type TeacherGame } from "@/lib/teacherGame";
-import AySecici from "./AySecici";
 import OyunTab from "./OyunTab";
 import KutuphaneTab from "./KutuphaneTab";
 import OkulTab from "./OkulTab";
 import OgrenmeTakibiTab from "./OgrenmeTakibiTab";
+import OgretmenMenusu, { type MenuBaglantisi } from "./OgretmenMenusu";
 import { cikisYap, eskiYerelGirisiTemizle, girisYap, kayitOl, kullaniciAdiDegistir, oturumBilgisi, sifreDegistir, type HesapOzeti } from "@/lib/authClient";
 import { eskiKutuphaneSayisi, eskiKutuphaneyiTasi } from "@/lib/libraryClient";
 import {
@@ -27,12 +26,19 @@ import {
 const SIFRE_MIN_ISTEMCI = 8;
 // "Benim değil" seçimi bu tarayıcı oturumu boyunca hatırlanır.
 const ESKI_KUTUPHANE_RED = "dersera:eski-kutuphane-red";
-// Telefonda başlık düğmeleri logonun altındaki satırı paylaşır, sığmayan alta geçer. sm ve üstünde eski görünüm korunur;
-// başlık tek satıra sığmadığında (yönetici hesabında ~830px altı) düğmeler logonun altına iner.
-const BASLIK_DUGMESI =
-  "flex-1 sm:flex-initial text-center text-xs sm:text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-2 sm:px-3 py-2 sm:py-1.5 rounded-lg transition-colors whitespace-nowrap";
+const BASLIK_DUGMESI = "text-sm font-semibold text-white bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap";
 
-export type Tab = "oyun" | "kutuphane" | "takip" | "okul" | "sorular" | "siralama" | "ayarlar";
+export type Tab = "oyun" | "kutuphane" | "takip" | "okul" | "siralama" | "ayarlar";
+
+// Masaüstünde hepsi üst sekme çubuğunda; telefonda "altta" olanlar ekranın altındaki sabit çubukta, diğerleri başlıktaki ⋮ menüsünde.
+const SEKMELER: { id: Tab; label: string; icon: string; altta: boolean }[] = [
+  { id: "oyun", label: "Oyun", icon: "🎮", altta: true },
+  { id: "kutuphane", label: "Kütüphane", icon: "📚", altta: true },
+  { id: "takip", label: "Öğrenme", icon: "📈", altta: false },
+  { id: "okul", label: "Okulum", icon: "🏫", altta: false },
+  { id: "siralama", label: "Sınıf", icon: "🏆", altta: true },
+  { id: "ayarlar", label: "Ayarlar", icon: "⚙️", altta: false },
+];
 
 // ── Giriş / kayıt ekranı ─────────────────────────────────────────────────────
 function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: HesapOzeti) => void; davetGerekli: boolean; kayitKapali: boolean }) {
@@ -149,97 +155,6 @@ function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: Hesa
           ← Ana sayfaya dön
         </Link>
       </div>
-    </div>
-  );
-}
-
-// ── Soru Bankası sekmesi ──────────────────────────────────────────────────────
-function SorularTab({
-  selectedAylar,
-  toggleAy,
-}: {
-  selectedAylar: string[];
-  toggleAy: (slug: string) => void;
-}) {
-  const [selectedStopId, setSelectedStopId] = useState(stopTemplates[0]?.id ?? "");
-  const stop = stopTemplates.find((s) => s.id === selectedStopId);
-  const sorular = stop ? getSorular(stop.dersKey, selectedAylar) : [];
-
-  return (
-    <div>
-      <AySecici selectedAylar={selectedAylar} toggleAy={toggleAy} />
-      {/* Durak seçici */}
-      <div className="flex flex-wrap gap-2 mb-5">
-        {stopTemplates.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => setSelectedStopId(s.id)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              selectedStopId === s.id
-                ? "bg-indigo-600 text-white"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            <span>{s.emoji}</span>
-            <span>{s.name}</span>
-          </button>
-        ))}
-      </div>
-
-      {stop && (
-        <div className="mb-3">
-          <p className="text-sm text-gray-500 mb-1">
-            <span className="font-semibold text-gray-700">{stop.subject}</span> —{" "}
-            {sorular.length} soru
-            {selectedAylar.length > 1 ? ` (${selectedAylar.length} ay birleşimi)` : ""}
-          </p>
-        </div>
-      )}
-
-      {sorular.length === 0 ? (
-        <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 text-center">
-          <p className="text-gray-400 text-sm">Bu ders için seçili dönemde soru yok.</p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {sorular.map((s, qi) => (
-            <div key={qi} className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
-              <div className="flex items-start gap-2 mb-3">
-                <span className="flex-shrink-0 bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-0.5 rounded-full">
-                  S{qi + 1}
-                </span>
-                <p className="text-gray-900 text-sm font-medium leading-relaxed">{s.soru}</p>
-              </div>
-              <div className="grid grid-cols-1 gap-1.5 mb-3">
-                {s.secenekler.map((opt, i) => (
-                  <div
-                    key={i}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
-                      i === s.dogruIndex
-                        ? "bg-green-50 border border-green-200 text-green-800 font-semibold"
-                        : "bg-gray-50 text-gray-600"
-                    }`}
-                  >
-                    <span className={`font-bold ${i === s.dogruIndex ? "text-green-600" : "text-gray-400"}`}>
-                      {String.fromCharCode(65 + i)})
-                    </span>
-                    {opt}
-                    {i === s.dogruIndex && <span className="ml-auto text-green-500 text-xs">✓ Doğru</span>}
-                  </div>
-                ))}
-              </div>
-              <div className="bg-amber-50 border border-amber-100 rounded-lg p-2.5 space-y-1">
-                <p className="text-xs text-amber-700">
-                  <span className="font-semibold">İpucu 1:</span> {s.ipucu1}
-                </p>
-                <p className="text-xs text-amber-600">
-                  <span className="font-semibold">İpucu 2:</span> {s.ipucu2}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -840,53 +755,52 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
     );
   }
 
-  const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: "oyun", label: "Oyun", icon: "🎮" },
-    { id: "kutuphane", label: "Kütüphane", icon: "📚" },
-    { id: "takip", label: "Öğrenme", icon: "📈" },
-    { id: "okul", label: "Okulum", icon: "🏫" },
-    { id: "sorular", label: "Sorular", icon: "📝" },
-    { id: "siralama", label: "Sınıf", icon: "🏆" },
-    { id: "ayarlar", label: "Ayarlar", icon: "⚙️" },
+  const baglantilar: MenuBaglantisi[] = [
+    ...(yonetici && loggedIn ? [{ href: "/moderasyon", label: "Moderasyon", icon: "🛡" }] : []),
+    { href: "/library", label: "Topluluk", icon: "📚" },
+    { href: "/qr-kutuphane", label: "QR Kütüphanesi", icon: "▦" },
   ];
+  // Telefonda ⋮ menüsünden açılan bölümü alt çubuk göstermez; adı içeriğin başında yazar.
+  const menuSekmesi = SEKMELER.find((t) => t.id === activeTab && !t.altta);
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-indigo-900 text-white px-4 sm:px-6 py-3 sm:py-4 print:hidden">
-        <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <div className="max-w-4xl mx-auto flex sm:flex-wrap items-center justify-between gap-x-4 gap-y-3">
           <div className="flex items-center gap-3">
             <DerseraLogo className="shrink-0" />
             <div className="border-l border-indigo-700 pl-3">
               <p className="text-xs font-semibold text-indigo-200 leading-tight">Öğretmen Paneli</p>
             </div>
           </div>
-          <div className="flex flex-wrap sm:flex-nowrap w-full sm:w-auto items-center gap-2 sm:gap-4">
-            {yonetici && loggedIn && (
-              <Link href="/moderasyon" className={BASLIK_DUGMESI}>
-                🛡 Moderasyon
+          <div className="hidden sm:flex items-center gap-4">
+            {baglantilar.map((b) => (
+              <Link key={b.href} href={b.href} className={BASLIK_DUGMESI}>
+                {`${b.icon} ${b.label}`}
               </Link>
-            )}
-            <Link href="/library" className={BASLIK_DUGMESI}>
-              📚 Topluluk
-            </Link>
-            <Link href="/qr-kutuphane" className={BASLIK_DUGMESI}>
-              ▦ QR Kütüphanesi
-            </Link>
-            <Link href="/" className="hidden sm:inline text-indigo-300 hover:text-white text-sm transition-colors">
+            ))}
+            <Link href="/" className="text-indigo-300 hover:text-white text-sm transition-colors">
               ← Ana sayfa
             </Link>
           </div>
+          <OgretmenMenusu
+            sekmeler={SEKMELER.filter((t) => !t.altta)}
+            aktif={activeTab}
+            onSekme={setActiveTab}
+            baglantilar={[...baglantilar, { href: "/", label: "Ana sayfa", icon: "←" }]}
+          />
         </div>
       </div>
 
       {/* Tab bar */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10 print:hidden">
+      <div className="hidden sm:block bg-white border-b border-gray-200 sticky top-0 z-10 print:hidden">
         <div className="max-w-4xl mx-auto px-4 flex gap-0 overflow-x-auto">
-          {tabs.map((t) => (
+          {SEKMELER.map((t) => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
+              aria-current={activeTab === t.id ? "page" : undefined}
               className={`flex items-center gap-1.5 px-4 py-3.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === t.id
                   ? "border-indigo-600 text-indigo-600"
@@ -900,8 +814,13 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
         </div>
       </div>
 
-      {/* İçerik */}
-      <div className="max-w-4xl mx-auto px-4 py-6 print:px-0">
+      {/* İçerik — telefonda alt çubuğun altında kalmaması için alt boşluk */}
+      <div className="max-w-4xl mx-auto px-4 pt-6 pb-24 sm:pb-6 print:px-0">
+        {menuSekmesi && (
+          <h2 className="sm:hidden text-lg font-bold text-gray-900 mb-4">
+            {menuSekmesi.icon} {menuSekmesi.label}
+          </h2>
+        )}
         {activeTab === "oyun" && (
           <OyunTab
             teacherGame={teacherGame}
@@ -952,7 +871,6 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
         )}
         {activeTab === "takip" && <OgrenmeTakibiTab />}
         {activeTab === "okul" && <OkulTab />}
-        {activeTab === "sorular" && <SorularTab selectedAylar={selectedAylar} toggleAy={toggleAy} />}
         {activeTab === "siralama" &&
           (teacherGame ? (
             <>
@@ -974,6 +892,29 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
           <AyarlarTab hesap={hesap} onHesap={setHesap} onLogout={() => setHesap(null)} />
         )}
       </div>
+
+      {/* Telefonda alt gezinme */}
+      <nav
+        aria-label="Ana bölümler"
+        className="sm:hidden print:hidden fixed bottom-0 inset-x-0 z-20 bg-white border-t border-gray-200 pb-[env(safe-area-inset-bottom)]"
+      >
+        <div className="grid grid-cols-3">
+          {SEKMELER.filter((t) => t.altta).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setActiveTab(t.id)}
+              aria-current={activeTab === t.id ? "page" : undefined}
+              className={`flex flex-col items-center gap-1 pt-2 pb-2.5 text-xs font-medium border-t-2 transition-colors ${
+                activeTab === t.id ? "border-indigo-600 text-indigo-600" : "border-transparent text-gray-500"
+              }`}
+            >
+              <span className="text-xl leading-none">{t.icon}</span>
+              <span>{t.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
