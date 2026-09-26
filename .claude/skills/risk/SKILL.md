@@ -1,5 +1,6 @@
 ---
 description: Bir işi R0–R3 sınıflandırır ve gereken kapıyı söyler. Kod yazmadan önce.
+argument-hint: [iş tanımı]
 ---
 İş: $ARGUMENTS
 Sınıfı komplekslik değil değişikliğin TÜRÜ belirler:
