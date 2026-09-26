@@ -14,4 +14,4 @@ argument-hint: [iş tanımı]
    Sonra o worktree'nin `dersera-app/` klasöründe `npm ci` — bağımlılık yoksa testler çalışmaz.
 4. Push her zaman açık hedefle: `git push -u origin HEAD`. Düz `git push` veya `HEAD:main` kullanma.
    Rebase ya da `-B` ile yeniden kurulmuş bir dal reddedilirse: önce uzak dalda yerelde karşılığı olmayan commit olmadığını gör (`git fetch origin <dal> && git log --cherry-pick --right-only --oneline HEAD...origin/<dal>` boş olmalı ya da listelenen commit'lerin PR'ı birleşmiş olmalı), sonra `git push --force-with-lease -u origin HEAD`. Koşul sağlanmıyorsa (ör. çatışma çözülen rebase commit'in karşılığını değiştirdi ve PR birleşmedi) DUR: listeyi kullanıcıya göster, zorla push yapma. Düz `--force` kullanma; main'e hiçbir koşulda zorla push yok.
-5. Tüm çalışma bu dalda/worktree'de yapılır; main'e doğrudan yazılmaz. Merge /ship-it'te yapılır; worktree /worktree-temizle ile kaldırılır.
+5. Tüm çalışma bu dalda/worktree'de yapılır; main'e doğrudan yazılmaz. Merge /ship-it'te (HAFİF akışta /prove-it'ten sonra) yapılır; worktree /worktree-temizle ile kaldırılır.
