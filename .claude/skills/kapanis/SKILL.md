@@ -1,7 +1,6 @@
 ---
-description: Oturum sonu devir notu üretir. "bitirelim", "devir notu" dendiğinde.
+description: Oturum sonu devir notu üretir. İş bitince, /worktree-temizle'den sonra; "bitirelim", "devir notu" dendiğinde.
 allowed-tools: Bash(git *)
-disable-model-invocation: true
 ---
 Bu oturum: !`git log --oneline -20`
 Kalan: !`git status --short`
