@@ -104,6 +104,19 @@ const CIZIMLER = {
     "M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4",
     "M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4",
   ], // refresh
+  pusula: [
+    "M8 16l2 -6l6 -2l-2 6l-6 2",
+    "M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0",
+    "M12 3l0 2",
+    "M12 19l0 2",
+    "M3 12l2 0",
+    "M19 12l2 0",
+  ], // compass
+  sablon: [
+    "M9 12h6",
+    "M12 9v6",
+    "M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14",
+  ], // square-plus
 } as const;
 
 export type IkonAdi = keyof typeof CIZIMLER;

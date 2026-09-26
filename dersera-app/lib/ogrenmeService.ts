@@ -32,8 +32,13 @@ async function yanEtki(ad: string, is: () => Promise<unknown>) {
   }
 }
 
+// Öğrenme döngüsü yapay zekâ üretiminin kalitesini ölçer: öğretmenin boş şablondan kendi yazdığı oyunlar (meta.olusturma)
+// üretim, düzenleme, güncelleme ve öğrenci sinyallerine girmez. Öğretmenin kendi öğrenme takibi (takipSinyali) etkilenmez.
+const dongudeyse = (tanimlar: GameDefinition[], ad: string, is: () => Promise<unknown>) =>
+  tanimlar.some((d) => d.meta.olusturma === "sablon") ? Promise.resolve() : yanEtki(ad, is);
+
 export const uretimSinyali = (def: GameDefinition, validation: ValidationResult, guvenlik: YzDenetim, now = Date.now()) =>
-  yanEtki("üretim sinyali", () =>
+  dongudeyse([def], "üretim sinyali", () =>
     getOgrenmeStore().sayaclariArtir(
       ayOf(now),
       uretimAlanlari(def, validation.gecerli, [...validation.hatalar, ...validation.uyarilar].map((h) => h.kod), guvenlik.durum === "tamam" ? guvenlik.bulgular : [])
@@ -41,11 +46,11 @@ export const uretimSinyali = (def: GameDefinition, validation: ValidationResult,
   );
 
 export const duzenlemeSinyali = (onceki: GameDefinition, yeni: GameDefinition, now = Date.now()) =>
-  yanEtki("düzenleme sinyali", () => getOgrenmeStore().sayaclariArtir(ayOf(now), duzenlemeAlanlari(onceki, yeni)));
+  dongudeyse([onceki, yeni], "düzenleme sinyali", () => getOgrenmeStore().sayaclariArtir(ayOf(now), duzenlemeAlanlari(onceki, yeni)));
 
 // Talimat kimliksiz saklanır (yalnız yöneticiye ve öneri istemine gider); görünmez karakterler atılır, kısaltılır.
 export const yzGuncellemeSinyali = (def: GameDefinition, idler: string[], talimat: string, now = Date.now()) =>
-  yanEtki("güncelleme sinyali", async () => {
+  dongudeyse([def], "güncelleme sinyali", async () => {
     const store = getOgrenmeStore();
     await store.sayaclariArtir(ayOf(now), yzGuncellemeAlanlari(def, idler));
     const metin = gorunmezleriAt(talimat).replace(/\s+/g, " ").trim().slice(0, 300);
@@ -54,7 +59,7 @@ export const yzGuncellemeSinyali = (def: GameDefinition, idler: string[], talima
 
 // Öğrencinin durak başına yanlış sayıları (sonuç kaydındaki stopDetails.hintsUsed); öğrenci oyun başına bir kez.
 export const ogrenciSinyali = (kod: string, oyuncu: string, def: GameDefinition, durakYanlislari: Record<string, number>, ttlMs: number, now = Date.now()) =>
-  yanEtki("öğrenci sinyali", () => getOgrenmeStore().ogrenciSay(ayOf(now), kod, oyuncu, ogrenciAlanlari(def, durakYanlislari), ttlMs));
+  dongudeyse([def], "öğrenci sinyali", () => getOgrenmeStore().ogrenciSay(ayOf(now), kod, oyuncu, ogrenciAlanlari(def, durakYanlislari), ttlMs));
 
 // Oluşturma istemine girecek onaylı kurallar. Okunamazsa oluşturma ek kuralsız sürer.
 export async function aktifKurallar(dersler: string[], sinif: number, store: OgrenmeStore = getOgrenmeStore()): Promise<string[]> {

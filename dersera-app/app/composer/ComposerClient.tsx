@@ -174,6 +174,9 @@ export default function ComposerClient({
   // Öğretmenin kaynağı yalnız bu sayfanın belleğinde tutulur (saklanmaz).
   const [kaynak, setKaynak] = useState("");
   const [gorsel, setGorsel] = useState(false);
+  // /composer?sablon=1: boş şablon (yapay zekâ ve kredi yok); ön not, kaynak ve görsel seçenekleri gösterilmez.
+  const [sablon, setSablon] = useState(false);
+  const [sablonAciliyor, setSablonAciliyor] = useState(false);
   const [gorselIlerleme, setGorselIlerleme] = useState<GorselIlerleme | null>(null);
   // Yalnız son oluşturulan oyunun görselleri tanıma eklenir (öğretmen yeni oyuna geçtiyse eski yanıtlar yok sayılır).
   const aktifGorselIsi = useRef<string | null>(null);
@@ -230,6 +233,12 @@ export default function ComposerClient({
     });
     return () => clearTimeout(t);
   }, [siniflar, konular]);
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("sablon") !== "1") return;
+    const t = setTimeout(() => setSablon(true));
+    return () => clearTimeout(t);
+  }, []);
 
   // /composer?kutuphane=<id>: kütüphanedeki oyun aynı düzenleyiciyle açılır.
   // /composer?topluluk=<id>: topluluk oyunu kopya olarak açılır (kaydedilince öğretmenin kendi kütüphanesine girer).
@@ -311,7 +320,33 @@ export default function ComposerClient({
   const gorselli = gorselEtkin && gorsel;
   const maliyet = olusturmaMaliyeti(sure, kaynakUzunlugu > 0) + (gorselli ? KREDI_KURALLARI.gorsel : 0);
   const maliyetEki = [kaynakUzunlugu > 0 && "kaynak", gorselli && "görseller"].filter(Boolean).join(" ve ");
-  const hazir = secili.length > 0 && !cokDers && secili.every((k) => k.konuId) && (kaynakUzunlugu === 0 || kaynakUzunlugu >= KAYNAK.enAz);
+  const secimHazir = secili.length > 0 && !cokDers && secili.every((k) => k.konuId);
+  const hazir = secimHazir && (kaynakUzunlugu === 0 || kaynakUzunlugu >= KAYNAK.enAz);
+
+  // Boş şablon: sunucu seçimlere uygun iskeleti kurar; önizleme, düzenleme, kütüphane ve yayın aynen kullanılır.
+  async function sablonAc() {
+    setSablonAciliyor(true);
+    try {
+      const res = await fetch("/api/compose/sablon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sinif, dersler: secili, sure, deneyim, alan }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDurum({ tur: "hata", mesaj: json.error ?? "Şablon şu anda açılamadı. Tekrar deneyin." });
+        return;
+      }
+      if (json.kredi) setKredi(json.kredi);
+      const yanit = json as ComposeResponse;
+      setSonuc({ ...yanit, guvenlikTanimi: yanit.definition });
+      setDurum({ tur: "onizleme" });
+    } catch {
+      setDurum({ tur: "hata", mesaj: "Şablon şu anda açılamadı. Tekrar deneyin." });
+    } finally {
+      setSablonAciliyor(false);
+    }
+  }
 
   async function olustur() {
     setDurum({ tur: "yukleniyor" });
@@ -410,7 +445,9 @@ export default function ComposerClient({
     const def: GameDefinition =
       v.tur === "durak"
         ? { ...sonuc.definition, duraklar: sonuc.definition.duraklar.map((d) => (d.id === v.durak.id ? v.durak : d)) }
-        : { ...sonuc.definition, final: v.final };
+        : v.tur === "final"
+          ? { ...sonuc.definition, final: v.final }
+          : { ...sonuc.definition, meta: { ...sonuc.definition.meta, baslik: v.genel.baslik }, hikaye_giris: v.genel.hikaye_giris, oyun_amaci: v.genel.oyun_amaci };
     setSonuc({ ...sonuc, definition: def, validation: dogrula(sonuc, def) });
     setDuzenlenen(null);
     if (kutuphaneId) setKutuphaneDurumu("degisti");
@@ -514,7 +551,7 @@ export default function ComposerClient({
       <div className="max-w-3xl mx-auto flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <DerseraLogo />
-          <p className="text-xs font-semibold text-indigo-200 border-l border-indigo-700 pl-3">{kutuphaneId ? "Kütüphane Oyununu Düzenle" : toplulukKopyasi ? "Topluluk Oyunu (Kopya)" : okulKopyasi ? "Okul Oyunu (Kopya)" : "Yeni Oyun Oluştur"}</p>
+          <p className="text-xs font-semibold text-indigo-200 border-l border-indigo-700 pl-3">{kutuphaneId ? "Kütüphane Oyununu Düzenle" : toplulukKopyasi ? "Topluluk Oyunu (Kopya)" : okulKopyasi ? "Okul Oyunu (Kopya)" : sablon ? "Boş Şablondan Kur" : "Yeni Oyun Oluştur"}</p>
         </div>
         <Link href="/ogretmen" className="text-indigo-300 hover:text-white text-sm whitespace-nowrap">
           ← Panel
@@ -547,12 +584,15 @@ export default function ComposerClient({
             className="space-y-6"
             onSubmit={(e) => {
               e.preventDefault();
-              olustur();
+              if (sablon) sablonAc();
+              else olustur();
             }}
           >
             <div>
               <h1 className="text-xl font-bold text-gray-900">Oyununuzu tanımlayın</h1>
-              <p className="text-sm text-gray-500">Üç adımda seçin; gerisini Dersera tasarlar.</p>
+              <p className="text-sm text-gray-500">
+                {sablon ? "Seçimlerine göre boş bir şablon hazırlanır; soruları ve metinleri sen yazarsın." : "Üç adımda seçin; gerisini Dersera tasarlar."}
+              </p>
             </div>
             <section aria-labelledby="bolum-1" className={BOLUM}>
               <h2 id="bolum-1" className={BOLUM_BASLIK}>
@@ -606,7 +646,7 @@ export default function ComposerClient({
                   </label>
                 ))}
               </fieldset>
-              <KaynakGirdisi deger={kaynak} onChange={setKaynak} />
+              {!sablon && <KaynakGirdisi deger={kaynak} onChange={setKaynak} />}
             </section>
             <section aria-labelledby="bolum-2" className={BOLUM}>
               <h2 id="bolum-2" className={BOLUM_BASLIK}>
@@ -620,7 +660,7 @@ export default function ComposerClient({
               )}
               <Secim etiket="Deneyim biçimi" secenekler={[...DENEYIM_SECENEKLERI]} deger={deneyim} onChange={setDeneyim} />
               <Secim etiket="Oyun alanı" secenekler={[...ALAN_SECENEKLERI]} deger={alan} onChange={setAlan} />
-              {gorselEtkin && (
+              {gorselEtkin && !sablon && (
                 <label className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer ${gorsel ? "border-indigo-600 bg-indigo-50" : "border-gray-200 bg-white"}`}>
                   <input type="checkbox" checked={gorsel} onChange={(e) => setGorsel(e.target.checked)} className="mt-1 h-4 w-4 accent-indigo-600" aria-describedby="gorsel-aciklama" />
                   <span>
@@ -633,28 +673,30 @@ export default function ComposerClient({
                   </span>
                 </label>
               )}
-              <div>
-                <label htmlFor="on-not" className="text-sm font-semibold text-gray-700 mb-2 block">
-                  Ön Not <span className="font-normal text-gray-500">(isteğe bağlı)</span>
-                </label>
-                <textarea
-                  id="on-not"
-                  value={onNot}
-                  onChange={(e) => setOnNot(e.target.value.slice(0, SERBEST_NOT_MAX))}
-                  maxLength={SERBEST_NOT_MAX}
-                  rows={3}
-                  aria-describedby="on-not-aciklama"
-                  placeholder="Örn: Okul laboratuvarında bir kaza olsun, öğrenciler QR ile kanıt toplasın..."
-                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-                <p className="text-xs text-gray-500 mt-1 flex justify-between gap-3">
-                  <span id="on-not-aciklama">Kafandaki mekân, sahne, karakter ya da kurgu fikrini yaz; oyun bu çerçevede kurulur.</span>
-                  {/* Sayaç ekran okuyucuya yalnız sınıra yaklaşınca okunur; her tuşta okunması gürültü olur. */}
-                  <span aria-live={onNot.length >= SERBEST_NOT_MAX - 50 ? "polite" : "off"} className="shrink-0">
-                    {onNot.length}/{SERBEST_NOT_MAX}
-                  </span>
-                </p>
-              </div>
+              {!sablon && (
+                <div>
+                  <label htmlFor="on-not" className="text-sm font-semibold text-gray-700 mb-2 block">
+                    Ön Not <span className="font-normal text-gray-500">(isteğe bağlı)</span>
+                  </label>
+                  <textarea
+                    id="on-not"
+                    value={onNot}
+                    onChange={(e) => setOnNot(e.target.value.slice(0, SERBEST_NOT_MAX))}
+                    maxLength={SERBEST_NOT_MAX}
+                    rows={3}
+                    aria-describedby="on-not-aciklama"
+                    placeholder="Örn: Okul laboratuvarında bir kaza olsun, öğrenciler QR ile kanıt toplasın..."
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1 flex justify-between gap-3">
+                    <span id="on-not-aciklama">Kafandaki mekân, sahne, karakter ya da kurgu fikrini yaz; oyun bu çerçevede kurulur.</span>
+                    {/* Sayaç ekran okuyucuya yalnız sınıra yaklaşınca okunur; her tuşta okunması gürültü olur. */}
+                    <span aria-live={onNot.length >= SERBEST_NOT_MAX - 50 ? "polite" : "off"} className="shrink-0">
+                      {onNot.length}/{SERBEST_NOT_MAX}
+                    </span>
+                  </p>
+                </div>
+              )}
             </section>
             <section aria-labelledby="bolum-3" className={BOLUM}>
               <h2 id="bolum-3" className={BOLUM_BASLIK}>
@@ -674,8 +716,8 @@ export default function ComposerClient({
                   {sure} dk · {DENEYIM_SECENEKLERI.find((d) => d.key === deneyim)?.ad} · {ALAN_SECENEKLERI.find((a) => a.key === alan)?.ad}
                   {onNot.trim() && " · Ön not var"}
                 </dd>
-                <dt className="text-gray-500">Kaynak</dt>
-                <dd className="text-gray-900">{kaynakUzunlugu > 0 ? `Öğretmen kaynağı (${kaynakUzunlugu.toLocaleString("tr-TR")} karakter)` : "Yok (müfredattan)"}</dd>
+                {!sablon && <dt className="text-gray-500">Kaynak</dt>}
+                {!sablon && <dd className="text-gray-900">{kaynakUzunlugu > 0 ? `Öğretmen kaynağı (${kaynakUzunlugu.toLocaleString("tr-TR")} karakter)` : "Yok (müfredattan)"}</dd>}
                 {gorselli && (
                   <>
                     <dt className="text-gray-500">Görseller</dt>
@@ -683,27 +725,42 @@ export default function ComposerClient({
                   </>
                 )}
                 <dt className="text-gray-500">Kredi</dt>
-                <dd className={kredi && kredi.toplam < maliyet ? "text-red-700" : "text-gray-900"}>
-                  <span role="status">
-                    Bu oyun <strong>{maliyet} kredi</strong>
-                    {maliyetEki && ` (${maliyetEki} dahil)`}
-                    {kredi && <> · Bakiyen: {krediMetni(kredi)}</>}
-                    {kredi && kredi.toplam < maliyet && ". Bakiyen yetmiyor; aylık hakkın ay başında yenilenir."}
-                  </span>
-                </dd>
+                {sablon ? (
+                  <dd className="text-gray-900">
+                    <strong>Kredisiz</strong> · metinleri sen yazarsın
+                  </dd>
+                ) : (
+                  <dd className={kredi && kredi.toplam < maliyet ? "text-red-700" : "text-gray-900"}>
+                    <span role="status">
+                      Bu oyun <strong>{maliyet} kredi</strong>
+                      {maliyetEki && ` (${maliyetEki} dahil)`}
+                      {kredi && <> · Bakiyen: {krediMetni(kredi)}</>}
+                      {kredi && kredi.toplam < maliyet && ". Bakiyen yetmiyor; aylık hakkın ay başında yenilenir."}
+                    </span>
+                  </dd>
+                )}
               </dl>
-              <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-xl p-3">
-                <span aria-hidden="true">🛡 </span>
-                Oyunun taslağını yapay zekâ hazırlar; müfredat uyumu, oyun mantığı, öğrenme kalitesi ve çocuk güvenliği açısından otomatik olarak denetlenir.
-                Sonucu önizlemede görür, gerekirse düzenlersin; yayından önce son onay senindir. Engelleyen içerik yayınlanamaz. Oyun oluşturulamazsa kredin
-                iade edilir.
-              </p>
+              {sablon ? (
+                <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-xl p-3">
+                  <span aria-hidden="true">🛡 </span>
+                  Şablonda durakların rotası, öğrenme hedefleri ve final kanıtları hazırdır; hikâyeleri, soruları, seçenekleri, ipuçlarını ve destek
+                  görevlerini sen yazarsın. Eksikler önizlemede listelenir. İstersen yazdığın bir durağı “Dersera&apos;yla güncelle” ile tamamlatabilirsin
+                  ({KREDI_KURALLARI.guncelleme} kredi). Yayından önce diğer oyunlarla aynı otomatik denetimlerden geçer; engelleyen içerik yayınlanamaz.
+                </p>
+              ) : (
+                <p className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-xl p-3">
+                  <span aria-hidden="true">🛡 </span>
+                  Oyunun taslağını yapay zekâ hazırlar; müfredat uyumu, oyun mantığı, öğrenme kalitesi ve çocuk güvenliği açısından otomatik olarak denetlenir.
+                  Sonucu önizlemede görür, gerekirse düzenlersin; yayından önce son onay senindir. Engelleyen içerik yayınlanamaz. Oyun oluşturulamazsa kredin
+                  iade edilir.
+                </p>
+              )}
               <button
                 type="submit"
-                disabled={!hazir || ogretmen !== true || (!!kredi && kredi.toplam < maliyet)}
+                disabled={sablon ? !secimHazir || ogretmen !== true || sablonAciliyor : !hazir || ogretmen !== true || (!!kredi && kredi.toplam < maliyet)}
                 className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold py-3.5 rounded-xl text-base"
               >
-                Oyunu Oluştur
+                {sablon ? (sablonAciliyor ? "Şablon hazırlanıyor…" : "Boş şablonu aç") : "Oyunu Oluştur"}
               </button>
             </section>
           </form>
@@ -727,7 +784,7 @@ export default function ComposerClient({
               >
                 Seçimlere dön
               </button>
-              <button onClick={durum.kutuphane ? () => window.location.reload() : olustur} className="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg">
+              <button onClick={durum.kutuphane ? () => window.location.reload() : sablon ? sablonAc : olustur} className="bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg">
                 Tekrar dene
               </button>
             </div>
@@ -755,7 +812,7 @@ export default function ComposerClient({
               setToplulukKopyasi(false);
               setOkulKopyasi(false);
               setToplulukKaynagi(null);
-              window.history.replaceState(null, "", "/composer");
+              window.history.replaceState(null, "", sablon ? "/composer?sablon=1" : "/composer");
               setDurum({ tur: "form" });
             }}
             kutuphane={{ durum: kutuphaneDurumu, hata: kutuphaneHatasi, bilgi: kutuphaneBilgisi, onSave: kutuphaneyeEkle }}

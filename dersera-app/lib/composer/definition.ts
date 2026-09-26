@@ -104,6 +104,10 @@ export const GameDefinitionSchema = z.object({
     sure_dk: z.number(),
     deneyim: z.enum(["macera", "dengeli", "ders"]),
     alan: z.enum(["sinif", "okul"]),
+    // Oyunun nasıl oluşturulduğu: "sablon", öğretmenin boş şablondan kendi yazdığı oyun (lib/composer/sablon.ts). Model
+    // çıktısında yoktur (meta girdiden kurulur). Öğrenme döngüsü yapay zekâ üretiminin kalitesini ölçtüğü için bu oyunlar
+    // sinyallere girmez. İstemcinin beyanıdır: yalnız bu sayaçları etkiler, yayın kapılarını değiştirmez.
+    olusturma: z.literal("sablon").optional(),
   }),
   hikaye_giris: z.string(),
   oyun_amaci: z.string(),

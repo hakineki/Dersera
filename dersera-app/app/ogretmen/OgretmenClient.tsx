@@ -865,6 +865,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
             selectedAylar={selectedAylar}
             toggleAy={toggleAy}
             onTeacherGameChange={handleTeacherGameChange}
+            onKutuphane={() => telefondaSec("kutuphane")}
           />
         )}
         {activeTab === "kutuphane" && bekleyenOyun > 0 && (
