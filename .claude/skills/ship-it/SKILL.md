@@ -11,5 +11,5 @@ description: Bağımsız inceleme ve gönderim kapısı. /prove-it'ten sonra, PR
    - AYNI inceleyiciyle devam et (SendMessage) — depoyu baştan okumasın. Ulaşılamıyorsa yeni alt ajan aç ve önceki bulgu listesini ona ver.
    - İnceleme kapsamı önceki turdan bu yana TÜM diff'tir: `git diff <önceki-tur-sha>..<incelenecek-sha>` — iki SHA'yı da yazan ajan verir. `HEAD` kullanma: inceleyici ana kopyada başlayabilir, worktree modunda oradaki HEAD yazanın dalı değildir. Yalnız bulgulara bağlı satırlara bakılmaz; önceki bulgular yeniden açılmışsa söylenir.
    Üç turda 5 alınamazsa dur ve kullanıcıya neyin takıldığını söyle.
-5. Puan = 5 ve testler geçtiyse (atlanan yok) PR aç, birleştir, linki kullanıcıya ver.
+5. Puan = 5 ve testler geçtiyse (atlanan yok) PR aç, merge commit ile birleştir (deponun alışkanlığı), linki kullanıcıya ver.
 6. Ardından /deploy-kontrol; canlıda doğrulandıktan sonra worktree'yi /worktree-temizle kaldırır (silmeyi kullanıcı yapar).

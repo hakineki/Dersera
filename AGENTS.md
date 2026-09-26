@@ -25,7 +25,7 @@
 ### ADIM 2 — İNŞA ET (/code-structure)
 - Katmanlı mimariye göre yaz: sayfa → servis → repository
 - Tekrar eden fonksiyon, ölü kod bırakma
-- Senkron değişiklik varsa ve depoda /senkron-denetle varsa çalıştır
+- Senkron değişiklik varsa ve /senkron-denetle bu depoda gerçekten var olan dosyaları denetliyorsa çalıştır
 
 ### ADIM 3 — KANITLA (/prove-it)
 - Testler geçer ve hiçbiri atlanmaz
