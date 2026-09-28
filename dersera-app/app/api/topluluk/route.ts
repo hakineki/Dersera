@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const s = listeSorgusu(new URL(req.url).searchParams);
   if (!s.ok) return NextResponse.json({ error: s.error }, { status: 422 });
   try {
-    return NextResponse.json(await listele(getToplulukStore(), s.filtre, s.imlec, s.limit), { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json(await listele(getToplulukStore(), s.filtre, s.imlec, s.limit, s.siralama), { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     console.error("[topluluk] listelenemedi", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Kütüphane okunamadı" }, { status: 503 });

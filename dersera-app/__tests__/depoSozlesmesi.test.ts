@@ -10,6 +10,8 @@ import { createMemoryModerasyonStore, createRedisModerasyonStore, type Moderasyo
 import { createMemoryYoneticiStore, createRedisYoneticiStore, type YoneticiStore } from "@/lib/yonetici";
 import { createMemoryOkulStore, createRedisOkulStore, type OkulStore } from "@/lib/okulStore";
 import { createMemoryGorselStore, createRedisGorselStore, type GorselStore } from "@/lib/gorselStore";
+import { KOLEKSIYON } from "@/lib/koleksiyon";
+import { createMemoryKoleksiyonStore, createRedisKoleksiyonStore, type KoleksiyonStore } from "@/lib/koleksiyonStore";
 import { createRedisCommand, type RedisCommand } from "@/lib/redis";
 import { createMemoryOgrenmeStore, createRedisOgrenmeStore, type OgrenmeStore } from "@/lib/ogrenmeStore";
 import { createMemoryOgrenmeTakibiStore, createRedisOgrenmeTakibiStore, type OgrenmeTakibiStore } from "@/lib/ogrenmeTakibiStore";
@@ -21,7 +23,7 @@ import { getUniteler } from "@/data/mufredat/programlar";
 
 // Depo sözleşmesi: aynı davranış testleri bellek ve Redis depolarında. Bellek her zaman çalışır (testin kendisi
 // doğrulanır). Redis yalnız açıkça istenince ve BOŞ, ayrı bir veritabanında çalışır: Lua betiklerinin (kredi,
-// sürüm CAS, topluluk durumu, puanlar, bitiren sayımı, hesap açma) gerçek Redis'teki duman testidir.
+// sürüm CAS, topluluk durumu, puanlar, bitiren sayımı, hesap açma, koleksiyon sınırları) gerçek Redis'teki duman testidir.
 //
 //   DERSERA_REDIS_DUMAN=1 KV_REST_API_URL=… KV_REST_API_TOKEN=… npx jest __tests__/depoSozlesmesi.test.ts
 //
@@ -45,6 +47,7 @@ interface Depolar {
   gorsel: GorselStore;
   ogrenme: OgrenmeStore;
   takip: OgrenmeTakibiStore;
+  koleksiyon: KoleksiyonStore;
 }
 
 // Yazılan her "dersera:" anahtarını kaydeden komut: temizlik yalnız bunları siler.
@@ -73,6 +76,7 @@ const uygulamalar: [string, () => Depolar][] = [
       gorsel: createMemoryGorselStore(),
       ogrenme: createMemoryOgrenmeStore(),
       takip: createMemoryOgrenmeTakibiStore(),
+      koleksiyon: createMemoryKoleksiyonStore(),
     }),
   ],
 ];
@@ -97,6 +101,7 @@ if (REDIS_ISTENDI) {
       gorsel: createRedisGorselStore(c),
       ogrenme: createRedisOgrenmeStore(c),
       takip: createRedisOgrenmeTakibiStore(c),
+      koleksiyon: createRedisKoleksiyonStore(c),
     }),
   ]);
 }
@@ -442,6 +447,28 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     expect(await d.takip.ogrenciSay(sahip, `${ay}-2`, `U${run}`, "kartal", ["bitiren"], ["oyun"], SAAT)).toBe(true);
     expect(await d.takip.sayaclar(sahip, [ay, `${ay}-2`, `${ay}-bos`])).toEqual([{ bitiren: 3, "k|A|d": 4, "k|A|i": 1, oyun: 1, "k|A|o": 1 }, { bitiren: 1, oyun: 1 }, {}]);
     expect(await d.takip.sayaclar(`hesap:baska-${run}`, [ay])).toEqual([{}]);
+  });
+
+  it("koleksiyon: sınırda eşzamanlı oluşturma, oyun sınırı, tekrar ekleme, silinen koleksiyona eklenmez, hesap yalıtımı", async () => {
+    const h = `hesap:duman-${run}`;
+    const olustu = await Promise.all(Array.from({ length: KOLEKSIYON.enCok + 3 }, (_, i) => d.koleksiyon.olustur(h, { id: `${run}-${i}`, ad: `K${i}`, olusturma: i })));
+    expect(olustu.filter(Boolean)).toHaveLength(KOLEKSIYON.enCok);
+    const k = (await d.koleksiyon.listele(h))[0].id;
+    const eklendi = await Promise.all(Array.from({ length: KOLEKSIYON.oyunEnCok + 2 }, (_, i) => d.koleksiyon.oyunEkle(h, k, `o${i}`, i)));
+    expect(eklendi.filter((x) => x === "ok")).toHaveLength(KOLEKSIYON.oyunEnCok);
+    expect(eklendi.filter((x) => x === "dolu")).toHaveLength(2);
+    const ilk = eklendi.indexOf("ok");
+    expect(await d.koleksiyon.oyunEkle(h, k, `o${ilk}`, 999)).toBe("zaten");
+    expect(await d.koleksiyon.oyunCikar(h, k, `o${ilk}`)).toBe(true);
+    expect(await d.koleksiyon.adDegistir(h, k, "Yeni ad")).toBe(true);
+    const bu = (await d.koleksiyon.listele(h)).find((x) => x.id === k);
+    expect(bu?.ad).toBe("Yeni ad");
+    expect(bu?.oyunlar).toHaveLength(KOLEKSIYON.oyunEnCok - 1);
+    expect(await d.koleksiyon.sil(h, k)).toBe(true);
+    expect(await d.koleksiyon.oyunEkle(h, k, "yeni", 1)).toBe("yok");
+    expect(await d.koleksiyon.adDegistir(h, k, "X")).toBe(false);
+    expect(await d.koleksiyon.olustur(h, { id: `${run}-son`, ad: "Son", olusturma: 1 })).toBe(true);
+    expect(await d.koleksiyon.listele(`hesap:baska-${run}`)).toEqual([]);
   });
 
   it("oran sınırı sayacı ve yapay zekâ denetim önbelleği", async () => {
