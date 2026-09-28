@@ -126,6 +126,9 @@ const ozetOf = (k: ToplulukKaydi, oynanma: number): ToplulukOzeti => ({
   ogretmen_puan_ortalama: null,
   ogretmen_puan_sayisi: 0,
   aktif: k.aktif,
+  // Eksik alanlı eski kayıtlara karşı savunmalı okunur.
+  konular: (k.dersler ?? []).map((d) => `${d.ders}:${d.konuId}`),
+  hedefler: [...new Set((k.definition?.duraklar ?? []).map((d) => d.gorev.ogrenme_hedefi))],
 });
 
 // Aynı milisaniyede yayınlanan iki oyun sırada çakışmasın: skora kimlikten türetilen küçük bir kesir eklenir.

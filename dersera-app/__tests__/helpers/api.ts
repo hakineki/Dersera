@@ -28,6 +28,12 @@ export async function buildApi() {
     topluluk: typeof import("@/app/api/topluluk/route");
     toplulukOyun: typeof import("@/app/api/topluluk/[id]/route");
     toplulukStore: typeof import("@/lib/toplulukStore");
+    toplulukBenzer: typeof import("@/app/api/topluluk/[id]/benzer/route");
+    koleksiyon: typeof import("@/app/api/koleksiyon/route");
+    koleksiyonOge: typeof import("@/app/api/koleksiyon/[id]/route");
+    koleksiyonOyunlar: typeof import("@/app/api/koleksiyon/[id]/oyunlar/route");
+    koleksiyonOyun: typeof import("@/app/api/koleksiyon/[id]/oyunlar/[oyunId]/route");
+    koleksiyonStore: typeof import("@/lib/koleksiyonStore");
     puan: typeof import("@/app/api/games/[code]/puan/route");
     libraryTopluluk: typeof import("@/app/api/library/[id]/topluluk/route");
     kredi: typeof import("@/app/api/kredi/route");
@@ -91,6 +97,12 @@ export async function buildApi() {
       topluluk: await import("@/app/api/topluluk/route"),
       toplulukOyun: await import("@/app/api/topluluk/[id]/route"),
       toplulukStore: await import("@/lib/toplulukStore"),
+      toplulukBenzer: await import("@/app/api/topluluk/[id]/benzer/route"),
+      koleksiyon: await import("@/app/api/koleksiyon/route"),
+      koleksiyonOge: await import("@/app/api/koleksiyon/[id]/route"),
+      koleksiyonOyunlar: await import("@/app/api/koleksiyon/[id]/oyunlar/route"),
+      koleksiyonOyun: await import("@/app/api/koleksiyon/[id]/oyunlar/[oyunId]/route"),
+      koleksiyonStore: await import("@/lib/koleksiyonStore"),
       puan: await import("@/app/api/games/[code]/puan/route"),
       libraryTopluluk: await import("@/app/api/library/[id]/topluluk/route"),
       kredi: await import("@/app/api/kredi/route"),

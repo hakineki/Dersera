@@ -31,7 +31,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
    DERSERA_REDIS_DUMAN=1 KV_REST_API_URL="<duman-db-url>" KV_REST_API_TOKEN="<duman-db-token>" npx jest __tests__/depoSozlesmesi.test.ts
    ```
 
-3. Beklenen: `bellek depoları` ve `redis depoları` altında 12'şer test geçer. Test bitince yazdığı anahtarları siler.
+3. Beklenen: `bellek depoları` ve `redis depoları` altında 13'er test geçer. Test bitince yazdığı anahtarları siler.
 
 ## 3. Uçtan uca akış (gizli sekmede, canlı adreste)
 
@@ -79,6 +79,10 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 36 | Yönetici: bir öneriyi onayla, A yeni oyun oluştursun; sonra kuralı "Geri al" | Onaylı kural kapsamındaki (ders/sınıf) yeni oyunlarda uygulanır; geri alınınca sonraki oluşturmalarda yok. Kararı veren yönetici ve zaman kayıtlı. |
 | 37 | A: girişliyken Composer oyunu yayınla, 5+ öğrenci bitirsin; Öğretmen paneli → Öğrenme | Oyunun öğrenme çıktıları metni, dersi ve ünitesiyle görünür; oranlar 5 denemeden sonra; öğrenci adı yok. A'nın kendi deneme oynayışı ve B'nin oyunları A'nın raporunda yok. |
 | 38 | A: zorlanılan bir çıktıda "Pekiştirme oyunu oluştur" | Composer aynı sınıf, ders ve üniteyle, çıktıyı anlatan ön notla açılır; kredi yalnız "Oyunu Oluştur"da düşer. |
+| 39 | A: `/library` → Topluluk; ders ve sınıf seç, "Ünite (öğrenme çıktıları)"dan bir ünite seç | Yalnız o ünitenin oyunları listelenir; kartlarda öğrenme çıktısı kodları (en çok 4, fazlası "+N") görünür. |
+| 40 | A: "Sırala" → En çok oynanan / Öğretmen puanı / Öğrenci puanı; "Daha fazla" | Liste seçilen ölçüte göre büyükten küçüğe; puanı olmayanlar sonda. "Sıralama en yeni 500 oyun içinde yapılır." notu görünür. |
+| 41 | A: bir kartta "Benzer oyunlar ›" | Aynı sınıf ve ünitedeki en çok 6 oyun, ortak öğrenme çıktısı çok olan önce; oyunun kendisi yok. Başlık öğrenci gözüyle demoyu açar. |
+| 42 | A: kartta "☆ Koleksiyona ekle" → yeni koleksiyon "Favoriler"; "Koleksiyonlarım" sekmesi; yeniden adlandır, oyunu çıkar, sil | Düğme "★ 1 koleksiyonda" olur; sekmede koleksiyon ve oyunlar görünür. B, A'nın koleksiyonlarını görmez. Koleksiyon silinince oyunlar toplulukta kalır. Topluluktan kalkan oyun "Bu oyun artık toplulukta değil" satırıyla görünür. En çok 20 koleksiyon, her birinde 100 oyun. |
 
 ## 4. Dağıtım doğrulaması
 
@@ -100,6 +104,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 - Üç günden eski birden çok hesapla topluluk onayı toplanabilir.
 - Yapay zekâ denetimi yapılamazsa yayın durmaz ("gözden geçirin"); kural tabanlı engel her zaman geçerli.
 - Benzerlik taraması en yeni 500 yayındaki oyunu ve inceleme kuyruğunu kapsar.
+- Topluluk sıralaması (oynanan / puan) ve "Benzer oyunlar" en yeni 500 yayındaki oyun içinde yapılır. Ünite araması ve kartlardaki öğrenme çıktısı kodları bu sürümden sonra topluluğa gönderilen oyunlarda çalışır; daha önce yayınlanmış oyunlar ünite aramasında ve benzer oyunlarda çıkmaz.
 - Öğrenme döngüsü önerileri toplu sayılara dayanır; pilotun ilk haftalarında veri azdır. Önerileri onaylamadan önce
   gerekçedeki sayıyı rapordan doğrulayın ve etkisini birkaç oyunda gözleyin; beklenmeyen etki görülürse "Geri al".
 - Model kararlarının (çocuk güvenliği, güncelleme kalitesi) yanlış alarm oranı henüz ölçülmedi: pilotta

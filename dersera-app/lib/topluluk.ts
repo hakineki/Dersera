@@ -24,6 +24,10 @@ export interface ToplulukOzeti {
   ogretmen_puan_ortalama: number | null;
   ogretmen_puan_sayisi: number;
   aktif: boolean;
+  // Oyunun üniteleri ("ders:üniteId") ve duraklarının öğrenme çıktısı kodları: ünite araması, kartta kodlar, benzer
+  // oyunlar. Bu alanlardan önce yazılmış özetlerde yoktur; o oyunlar ünite aramasında çıkmaz.
+  konular?: string[];
+  hedefler?: string[];
 }
 
 // Topluluğa giriş (docs/URUN-BAGLAMI.md §8): kütüphanedeki oyun kalite eşiğini geçince öğretmen gönderir, iki bağımsız
@@ -81,6 +85,7 @@ export const durumOf = (k: Pick<ToplulukKaydi, "durum" | "aktif">): ToplulukDuru
 export interface ToplulukFiltresi {
   ders?: string; // ders adı, ör. "Fizik"
   sinif?: number;
+  konu?: string; // "ders:üniteId", ör. "fizik:100"
   alan?: GameDefinition["meta"]["alan"];
   deneyim?: GameDefinition["meta"]["deneyim"];
   q?: string;
@@ -92,6 +97,7 @@ export function filtredenGecer(o: ToplulukOzeti, f: ToplulukFiltresi): boolean {
   if (!o.aktif || o.oynanma_sayisi < 0) return false;
   if (f.ders && !o.ders.split(" + ").includes(f.ders)) return false;
   if (f.sinif && o.sinif !== f.sinif) return false;
+  if (f.konu && !o.konular?.includes(f.konu)) return false;
   if (f.alan && o.alan !== f.alan) return false;
   if (f.deneyim && o.deneyim !== f.deneyim) return false;
   if (f.q) {
@@ -99,4 +105,27 @@ export function filtredenGecer(o: ToplulukOzeti, f: ToplulukFiltresi): boolean {
     if (![o.baslik, o.ders, o.konu].some((alan) => norm(alan).includes(q))) return false;
   }
   return true;
+}
+
+// Liste sıralaması: en yeni yayın sırasıdır (depo); diğerleri en yeni EN_COK_TARAMA oyun içinde bellekte sıralanır.
+export const SIRALAMALAR = ["yeni", "oynanan", "ogretmen", "ogrenci"] as const;
+export type Siralama = (typeof SIRALAMALAR)[number];
+
+// Büyükten küçüğe; puanı henüz görünmeyen oyun sona, eşitlikte yeni olan önce.
+export function siralamaKarsilastir(s: Exclude<Siralama, "yeni">) {
+  const deger = (o: ToplulukOzeti) => (s === "oynanan" ? o.oynanma_sayisi : s === "ogretmen" ? o.ogretmen_puan_ortalama : o.puan_ortalama) ?? -1;
+  return (a: ToplulukOzeti, b: ToplulukOzeti) => deger(b) - deger(a) || b.yayin_tarihi - a.yayin_tarihi;
+}
+
+export const BENZER_EN_COK = 6;
+
+// Benzer oyun puanı: aynı sınıf ve ortak ünite şart; ortak öğrenme çıktısı sayısı öne geçirir. Metin benzerliği
+// kullanılmaz (o ölçü kopyayı yakalar; benzer ama farklı oyun aranıyor). Uygun değilse null.
+export function benzerlikPuani(oyun: ToplulukOzeti, aday: ToplulukOzeti): number | null {
+  if (aday.oyun_id === oyun.oyun_id || aday.sinif !== oyun.sinif) return null;
+  const konular = new Set(oyun.konular ?? []);
+  const ortakKonu = (aday.konular ?? []).filter((k) => konular.has(k)).length;
+  if (ortakKonu === 0) return null;
+  const hedefler = new Set(oyun.hedefler ?? []);
+  return (aday.hedefler ?? []).filter((h) => hedefler.has(h)).length * 10 + ortakKonu;
 }
