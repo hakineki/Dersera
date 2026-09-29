@@ -1,8 +1,8 @@
 "use client";
 
+import YonetimBasligi from "@/components/YonetimBasligi";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import DerseraLogo from "@/components/DerseraLogo";
 import { OKUL_HAVUZU } from "@/lib/kredi";
 import { havuzAta, havuzListesiGetir, havuzOkulBul } from "@/lib/okulClient";
 import type { HavuzluOkul } from "@/lib/okulService";
@@ -100,28 +100,7 @@ export default function OkulHavuzuClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-indigo-900 text-white px-4 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <DerseraLogo />
-            <p className="text-xs font-semibold text-indigo-200 border-l border-indigo-700 pl-3">Okul kredi havuzları</p>
-          </div>
-          <nav className="flex gap-4 text-sm whitespace-nowrap">
-            <Link href="/moderasyon" className="text-indigo-300 hover:text-white">
-              Moderasyon
-            </Link>
-            <Link href="/yonetim/kopya-kaydi" className="text-indigo-300 hover:text-white">
-              Kopya kaydı
-            </Link>
-            <Link href="/yonetim/ogrenme" className="text-indigo-300 hover:text-white">
-              Öğrenme
-            </Link>
-            <Link href="/ogretmen" className="text-indigo-300 hover:text-white">
-              ← Öğretmen paneli
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <YonetimBasligi baslik="Okul kredi havuzları" />
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
         <div>

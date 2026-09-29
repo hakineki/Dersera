@@ -1,8 +1,7 @@
 "use client";
 
+import YonetimBasligi from "@/components/YonetimBasligi";
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import DerseraLogo from "@/components/DerseraLogo";
 import { GOREV_TUR_ADI } from "@/app/composer/labels";
 import { OGRENME, type Oneri, type OgrenmeRaporuOzeti } from "@/lib/ogrenme";
 
@@ -115,22 +114,7 @@ export default function OgrenmeClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-indigo-900 text-white px-4 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <DerseraLogo />
-            <p className="text-xs font-semibold text-indigo-200 border-l border-indigo-700 pl-3">Öğrenme döngüsü</p>
-          </div>
-          <nav className="flex gap-4 text-sm whitespace-nowrap">
-            <Link href="/moderasyon" className="text-indigo-300 hover:text-white">
-              Moderasyon
-            </Link>
-            <Link href="/ogretmen" className="text-indigo-300 hover:text-white">
-              ← Panel
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <YonetimBasligi baslik="Öğrenme döngüsü" genislik="max-w-5xl" />
       <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>

@@ -839,7 +839,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   }
 
   const baglantilar: MenuBaglantisi[] = [
-    ...(yonetici && loggedIn ? [{ href: "/moderasyon", label: "Moderasyon", icon: "moderasyon" as const }] : []),
+    ...(yonetici && loggedIn ? [{ href: "/yonetim", label: "Yönetim", icon: "moderasyon" as const }] : []),
     { href: "/library", label: "Topluluk", icon: "topluluk" },
     { href: "/qr-kutuphane", label: "QR Kütüphanesi", icon: "qr" },
   ];

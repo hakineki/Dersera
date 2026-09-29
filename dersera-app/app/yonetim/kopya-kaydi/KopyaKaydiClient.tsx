@@ -1,8 +1,7 @@
 "use client";
 
+import YonetimBasligi from "@/components/YonetimBasligi";
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import DerseraLogo from "@/components/DerseraLogo";
 import type { KopyaKaydi } from "@/lib/denetimKaydi";
 
 const zaman = (ms: number) => new Date(ms).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -30,25 +29,7 @@ export default function KopyaKaydiClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-indigo-900 text-white px-4 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <DerseraLogo />
-            <p className="text-xs font-semibold text-indigo-200 border-l border-indigo-700 pl-3">Kopya kaydı</p>
-          </div>
-          <nav className="flex gap-4 text-sm whitespace-nowrap">
-            <Link href="/moderasyon" className="text-indigo-300 hover:text-white">
-              Moderasyon
-            </Link>
-            <Link href="/yonetim/ogrenme" className="text-indigo-300 hover:text-white">
-              Öğrenme
-            </Link>
-            <Link href="/ogretmen" className="text-indigo-300 hover:text-white">
-              ← Panel
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <YonetimBasligi baslik="Kopya kaydı" />
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Kopya kaydı</h1>
