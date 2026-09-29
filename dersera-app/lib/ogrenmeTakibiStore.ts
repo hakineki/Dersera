@@ -8,6 +8,8 @@ export interface OgrenmeTakibiStore {
   ogrenciSay(sahip: string, ay: string, kod: string, oyuncu: string, alanlar: string[], oyunAlanlari: string[], ttlMs: number): Promise<boolean>;
   // aylar sırasıyla, her ay için alan → sayı.
   sayaclar(sahip: string, aylar: string[]): Promise<Record<string, number>[]>;
+  // Hesap silme: öğretmenin verilen aylardaki tabloları.
+  tablolariSil(sahip: string, aylar: string[]): Promise<void>;
 }
 
 const say = (alanlar: string[]) => {
@@ -31,6 +33,9 @@ export function createMemoryOgrenmeTakibiStore(): OgrenmeTakibiStore {
     },
     async sayaclar(sahip, aylar) {
       return aylar.map((ay) => Object.fromEntries(tablo(`${sahip}:${ay}`)));
+    },
+    async tablolariSil(sahip, aylar) {
+      for (const ay of aylar) tablolar.delete(`${sahip}:${ay}`);
     },
   };
 }
@@ -78,6 +83,9 @@ export function createRedisOgrenmeTakibiStore(command: RedisCommand): OgrenmeTak
         for (let i = 0; ham && i + 1 < ham.length; i += 2) out[ham[i]] = Number(ham[i + 1]);
         return out;
       });
+    },
+    async tablolariSil(sahip, aylar) {
+      if (aylar.length) await command(["DEL", ...aylar.map((ay) => tabloKey(sahip, ay))]);
     },
   };
 }

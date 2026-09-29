@@ -1,4 +1,4 @@
-import { depoKomutu, type RedisCommand } from "@/lib/redis";
+import { anahtarlariTara, depoKomutu, type RedisCommand } from "@/lib/redis";
 import { durumOf, ogretmenOrtalamasi, type Inceleme, type ToplulukDurumu, type ToplulukKaydi, type ToplulukOzeti } from "@/lib/topluluk";
 import { BOS_PUAN_SAYACI, gosterilecekOrtalama, kovaliPuanEkle, kovaliPuanLua, PUAN_KOVASI, type PuanSayaci } from "@/lib/istatistik";
 
@@ -56,6 +56,8 @@ export interface ToplulukStore {
   puanEkle(id: string, puan: number): Promise<void>;
   // Kaydı açan hesap (tam kaydı okumadan); sayımda sahibi ayırmak için.
   olusturani(id: string): Promise<string | null>;
+  // Hesabın açtığı bütün kayıtlar (kütüphane kaydı silinmiş olanlar ve önceki sürümler dahil; hesap silme için, seyrek).
+  olusturanKayitlari(olusturan: string): Promise<string[]>;
 }
 
 const ozetKey = (id: string) => `dersera:topluluk:ozet:${id}`;
@@ -274,6 +276,9 @@ export function createMemoryToplulukStore(): ToplulukStore {
     async puanEkle(id, puan) {
       puanlar.set(id, kovaliPuanEkle(puanlar.get(id) ?? BOS_PUAN_SAYACI, puan));
     },
+    async olusturanKayitlari(olusturan) {
+      return [...kayitlar.values()].filter((k) => k.olusturan === olusturan).map((k) => k.oyun_id);
+    },
     async olusturani(id) {
       return kayitlar.get(id)?.olusturan ?? null;
     },
@@ -431,6 +436,19 @@ export function createRedisToplulukStore(command: RedisCommand): ToplulukStore {
     async puanEkle(id, puan) {
       // Canlı sayaçlar ve kova anlık görüntüsü tek betikte (yarım yazılmış ortalama olmaz).
       await command(["EVAL", PUAN_EKLE, 4, puanToplamKey(id), puanSayisiKey(id), puanToplamGosterKey(id), puanSayisiGosterKey(id), puan, PUAN_KOVASI]);
+    },
+    async olusturanKayitlari(olusturan) {
+      const idOf = (anahtar: string, onek: string) => anahtar.slice(onek.length);
+      const olusturanOnek = olusturanKey("");
+      const anahtarlar = await anahtarlariTara(command, olusturanKey("*"));
+      const degerler: (string | null)[] = [];
+      for (let i = 0; i < anahtarlar.length; i += 200) degerler.push(...(((await command(["MGET", ...anahtarlar.slice(i, i + 200)])) as (string | null)[] | null) ?? []));
+      const bulunan = anahtarlar.filter((_, i) => degerler[i] === olusturan).map((a) => idOf(a, olusturanOnek));
+      // Oluşturan anahtarından önce açılmış kayıtlar: yalnız onların tam kaydı okunur.
+      const bilinen = new Set(anahtarlar.map((a) => idOf(a, olusturanOnek)));
+      const eskiler = (await anahtarlariTara(command, kayitKey("*"))).map((a) => idOf(a, kayitKey(""))).filter((id) => !bilinen.has(id));
+      for (const id of eskiler) if ((await kayitOku(id))?.olusturan === olusturan) bulunan.push(id);
+      return bulunan;
     },
     async olusturani(id) {
       const o = (await command(["GET", olusturanKey(id)])) as string | null;

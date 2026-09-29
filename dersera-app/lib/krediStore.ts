@@ -55,6 +55,9 @@ export interface KrediStore {
   okulSinirYaz(okulId: string, sinir: number): Promise<void>;
   // Havuz atanmış okullar ve bu ayki kullanımları.
   okulHavuzlari(ay: string): Promise<OkulHavuzOzeti[]>;
+  // Hesap silme: kişisel kredi kayıtları (verilen aylardaki kullanım, kazanılan, hareketler, askı). Okulun havuz
+  // kullanımı (okulun kaydı) kalır.
+  hesapSil(hesapId: string, aylar: string[]): Promise<void>;
 }
 
 const aylikKey = (id: string, ay: string) => `dersera:kredi:${id}:aylik:${ay}`;
@@ -164,6 +167,12 @@ export function createMemoryKrediStore(): KrediStore {
     async okulSinirYaz(okulId, sinir) {
       if (sinir > 0) okulSinir.set(okulId, sinir);
       else okulSinir.delete(okulId);
+    },
+    async hesapSil(id, aylar) {
+      for (const ay of aylar) aylik.delete(aylikKey(id, ay));
+      kazanilan.delete(id);
+      hareketler.delete(id);
+      aski.delete(id);
     },
     async okulHavuzlari(ay) {
       return [...okulHak.entries()].map(([okulId, hak]) => ({ okulId, hak, kullanilan: okulAylik.get(okulAylikKey(okulId, ay)) ?? 0 }));
@@ -312,6 +321,9 @@ export function createRedisKrediStore(command: RedisCommand): KrediStore {
     },
     async okulSinirYaz(okulId, sinir) {
       await command(sinir > 0 ? ["SET", okulSinirKey(okulId), sinir] : ["DEL", okulSinirKey(okulId)]);
+    },
+    async hesapSil(id, aylar) {
+      await command(["DEL", ...aylar.map((ay) => aylikKey(id, ay)), kazanilanKey(id), hareketKey(id), askiKey(id)]);
     },
     async okulHavuzlari(ay) {
       const haklar = sayiTablosu((await command(["HGETALL", HAVUZLAR_KEY])) as string[] | null);

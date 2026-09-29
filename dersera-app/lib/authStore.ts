@@ -35,6 +35,9 @@ export interface AuthStore {
   oturumYaz(belirtecOzeti: string, oturum: Oturum, ttlMs: number): Promise<void>;
   oturum(belirtecOzeti: string): Promise<Oturum | null>;
   oturumSil(belirtecOzeti: string): Promise<void>;
+  // Hesabı ve ad dizinini siler (ad boşa çıkar); hesabın adı bu arada değiştiyse hiçbir şey silmez (false). Kayıt
+  // gidince bu hesabın bütün oturumları geçersizdir (oturum hesabı bulamaz).
+  hesapSil(id: string, kullaniciAdi: string): Promise<boolean>;
 }
 
 const hesapKey = (id: string) => `dersera:hesap:${id}`;
@@ -91,6 +94,13 @@ export function createMemoryAuthStore(now: () => number = Date.now): AuthStore {
     async oturumSil(ozet) {
       oturumlar.delete(ozet);
     },
+    async hesapSil(id, ad) {
+      if (hesapAdlari.get(id) !== ad) return false;
+      if (adlar.get(ad) === id) adlar.delete(ad);
+      kayitlar.delete(id);
+      hesapAdlari.delete(id);
+      return true;
+    },
   };
 }
 
@@ -104,6 +114,11 @@ const AD_TASI = `if redis.call('GET', KEYS[3]) ~= ARGV[2] then return -1 end
 if not redis.call('SET', KEYS[1], ARGV[1], 'NX') then return 0 end
 redis.call('DEL', KEYS[2])
 redis.call('SET', KEYS[3], ARGV[3])
+return 1`;
+
+const HESAP_SIL = `if redis.call('GET', KEYS[2]) ~= ARGV[2] then return 0 end
+if redis.call('GET', KEYS[3]) == ARGV[1] then redis.call('DEL', KEYS[3]) end
+redis.call('DEL', KEYS[1], KEYS[2])
 return 1`;
 
 export function createRedisAuthStore(command: RedisCommand): AuthStore {
@@ -141,6 +156,9 @@ export function createRedisAuthStore(command: RedisCommand): AuthStore {
     },
     async oturumSil(ozet) {
       await command(["DEL", oturumKey(ozet)]);
+    },
+    async hesapSil(id, ad) {
+      return Number(await command(["EVAL", HESAP_SIL, 3, hesapKey(id), hesapAdKey(id), adKey(ad), id, ad])) === 1;
     },
   };
 }

@@ -31,7 +31,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
    DERSERA_REDIS_DUMAN=1 KV_REST_API_URL="<duman-db-url>" KV_REST_API_TOKEN="<duman-db-token>" npx jest __tests__/depoSozlesmesi.test.ts
    ```
 
-3. Beklenen: `bellek depoları` ve `redis depoları` altında 13'er test geçer. Test bitince yazdığı anahtarları siler.
+3. Beklenen: `bellek depoları` ve `redis depoları` altında 15'er test geçer. Test bitince yazdığı anahtarları siler.
 
 ## 3. Uçtan uca akış (gizli sekmede, canlı adreste)
 
@@ -86,6 +86,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 43 | Oyun yayınla, bir öğrenci bitirsin; gizli sekmede `/api/results?code=<KOD>` adresini aç | Yanıt 403 "Yetkisiz"; takma ad ve süreler görünmez. Yayınlayan öğretmenin panelinde sonuç tablosu güncellenir (oyun bittikten sonraki günlerde de, 7 güne kadar). |
 | 44 | Gizli sekmede ana sayfa, `/game`, Composer (PDF'ten al) ve görselli bir oyun; tarayıcı geliştirici araçlarında Ağ → belge yanıt başlıkları ve Konsol | Yanıtta Content-Security-Policy, X-Frame-Options: DENY, Referrer-Policy, Permissions-Policy, Strict-Transport-Security ve nosniff var. Konsolda "Content Security Policy" / "Refused to" hatası yok; oyun görselleri (Vercel Blob) ve PDF metni yükleniyor. |
 | 45 | Ana sayfa alt satırında "Gizlilik ve KVKK"; öğretmen kayıt formu; öğrencinin takma ad ekranında "Gizlilik" | `/gizlilik` açılır: veri sorumlusu, işlenen veriler, amaç ve hukuki sebepler, yurt dışı hizmet sağlayıcılar, saklama süreleri, çerez, KVKK md. 11 hakları ve başvuru e-postası. Metin hukuk incelemesinden geçmeden okullarla veri işleme sözleşmesi imzalanmaz. |
+| 46 | Ayrı bir deneme öğretmeni (okul üyesi, kütüphanesinde oyun, koleksiyonu olan): Ayarlar → "Hesabımı sil…" → yanlış şifre, sonra doğru şifre + onay | Yanlış şifrede "Şifre hatalı." ve hiçbir şey silinmez. Doğru şifrede "Hesabın ve verilerin silindi.", giriş ekranı; eski şifreyle giriş yapılamaz, aynı kullanıcı adıyla yeni hesap açılabilir. Okul panosunda öğretmen ve paylaştığı oyunlar yok; toplulukta yayındaki oyunu geri çekilmiş; yönetici `/yonetim/kopya-kaydi`da "silinmiş hesap" görür. Okul yöneticisi ve platform yöneticisi için silme engellenir (e-posta yönlendirmesi). |
 
 ## 4. Dağıtım doğrulaması
 
