@@ -5,7 +5,7 @@ import { yapilandirilmisIstekOpenAI } from "@/lib/composer/openai";
 import { checkLimit } from "@/lib/composer/rateLimit";
 import { saglayiciFromEnv } from "@/lib/composer/service";
 import { metinBolumleri, yzCiktisiniTemizle, YzCiktiSchema, type YzBulgu, type YzCikti, type YzDenetim } from "@/lib/composer/yzDenetim";
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 
 // Yapay zekâ çocuk güvenliği denetimi: çağrı, önbellek ve kötüye kullanım sınırı. Sonuç öğrenciye görünen metnin
 // özetine bağlıdır; aynı içerik (oluşturma → yayın → yeniden yayın) bir kez okutulur. Denetim hiçbir zaman hata
@@ -101,7 +101,7 @@ export function createRedisYzDenetimStore(command: RedisCommand): YzDenetimStore
 let store: YzDenetimStore | null = null;
 export function getYzDenetimStore(): YzDenetimStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("yapay zekâ denetim önbelleği");
     store = command ? createRedisYzDenetimStore(command) : createMemoryYzDenetimStore();
   }
   return store;

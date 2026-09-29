@@ -1,5 +1,5 @@
 import { OKUL, paylasimOzetiOf, type Okul, type OkulPaylasimi, type OkulUyesi, type PaylasimOzeti } from "@/lib/okul";
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 
 // Anahtarlar: okul kaydı, hesap → okul (öğretmen başına tek okul; tüm üyelik değişiklikleri bu anahtarla atomik),
 // okulun üye tablosu, davet kodu → okul, paylaşım özetleri (liste), paylaşımın tam kopyası ("Kullan") ve
@@ -251,7 +251,7 @@ export function createRedisOkulStore(command: RedisCommand): OkulStore {
 let store: OkulStore | null = null;
 export function getOkulStore(): OkulStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("okullar");
     store = command ? createRedisOkulStore(command) : createMemoryOkulStore();
   }
   return store;

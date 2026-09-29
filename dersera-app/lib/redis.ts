@@ -21,12 +21,24 @@ export function createRedisCommand(
   };
 }
 
+// Ortam değişkenlerinden Redis komutu; tanımlı değilse null (çağıran ne yapacağına kendisi karar verir).
 export function redisFromEnv(): RedisCommand | null {
   const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
   if (url && token) return createRedisCommand(url, token);
-  if (process.env.NODE_ENV === "production") {
-    console.warn("[redis] Ortam değişkenleri yok; veriler bellekte tutuluyor ve kaybolabilir.");
-  }
   return null;
+}
+
+export class RedisGerekliError extends Error {}
+
+// Kalıcı depolar için: canlıda Redis yoksa belleğe DÜŞMEZ, hata verir (sunucu başına ayrı ve yeniden başlayınca
+// silinen bellek, hesaplar ve oyunlar arasında sessiz tutarsızlık demektir). Uç noktalar bunu 503'e çevirir.
+// Geliştirme ve testte null döner: depo bellek sürümünü kullanır.
+export function depoKomutu(depo: string): RedisCommand | null {
+  const command = redisFromEnv();
+  if (!command && process.env.NODE_ENV === "production") {
+    console.error(`[redis] Ortam değişkenleri yok; ${depo} deposu açılmadı.`);
+    throw new RedisGerekliError(`${depo} için Redis gerekli`);
+  }
+  return command;
 }

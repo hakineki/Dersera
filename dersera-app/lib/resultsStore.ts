@@ -4,7 +4,7 @@ import {
   sortLeaderboard,
   type LeaderboardEntry,
 } from "@/lib/gameState";
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 
 export const RESULTS_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -57,7 +57,7 @@ let store: ResultsStore | null = null;
 
 export function getResultsStore(): ResultsStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("sonuçlar");
     store = command ? createRedisStore(command) : createMemoryStore();
   }
   return store;

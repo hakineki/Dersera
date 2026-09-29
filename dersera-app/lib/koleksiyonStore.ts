@@ -1,5 +1,5 @@
 import { KOLEKSIYON, type Koleksiyon, type KoleksiyonBilgisi } from "@/lib/koleksiyon";
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 
 // Öğretmen koleksiyonları deposu: öğretmen başına koleksiyon bilgileri (hash) ve her koleksiyonun oyunları (eklenme
 // zamanına göre sıralı küme). Sınırlar ve varlık denetimi yazımla aynı adımda (Lua): eşzamanlı iki ekleme sınırı
@@ -119,7 +119,7 @@ export function createRedisKoleksiyonStore(command: RedisCommand): KoleksiyonSto
 let store: KoleksiyonStore | null = null;
 export function getKoleksiyonStore(): KoleksiyonStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("koleksiyonlar");
     store = command ? createRedisKoleksiyonStore(command) : createMemoryKoleksiyonStore();
   }
   return store;

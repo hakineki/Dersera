@@ -1,4 +1,4 @@
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 import { durumOf, ogretmenOrtalamasi, type Inceleme, type ToplulukDurumu, type ToplulukKaydi, type ToplulukOzeti } from "@/lib/topluluk";
 import { BOS_PUAN_SAYACI, gosterilecekOrtalama, kovaliPuanEkle, kovaliPuanLua, PUAN_KOVASI, type PuanSayaci } from "@/lib/istatistik";
 
@@ -447,7 +447,7 @@ let store: ToplulukStore | null = null;
 
 export function getToplulukStore(): ToplulukStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("topluluk");
     store = command ? createRedisToplulukStore(command) : createMemoryToplulukStore();
   }
   return store;

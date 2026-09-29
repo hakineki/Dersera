@@ -1,6 +1,6 @@
 import { kullaniciAdiNormal } from "@/lib/auth";
 import type { Hesap } from "@/lib/authStore";
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 
 // Yönetici rolü (moderasyon): DERSERA_YONETICILER="ad1,ad2" ortam değişkenindeki kullanıcı adları. Kodda sabit
 // yönetici yoktur. Ad ilk girişte hesap kimliğine bağlanır ve bir daha değişmez: yönetici adını değiştirir ya da ad
@@ -36,7 +36,7 @@ export function createRedisYoneticiStore(command: RedisCommand): YoneticiStore {
 let store: YoneticiStore | null = null;
 export function getYoneticiStore(): YoneticiStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("yönetici kayıtları");
     store = command ? createRedisYoneticiStore(command) : createMemoryYoneticiStore();
   }
   return store;

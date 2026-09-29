@@ -1,4 +1,4 @@
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 
 // Denetim kayıtları: öğretmenin başkasına ait oyunun tam içeriğini (topluluk ya da okul kütüphanesinden) açması ve
 // kullanım koşulları onayı. Sızan içeriğin kaynağı bulunabilsin, onay hukuki dayanak olsun diye tutulur.
@@ -73,7 +73,7 @@ export function createRedisDenetimKaydiStore(command: RedisCommand): DenetimKayd
 let store: DenetimKaydiStore | null = null;
 export function getDenetimKaydiStore(): DenetimKaydiStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("denetim kaydı");
     store = command ? createRedisDenetimKaydiStore(command) : createMemoryDenetimKaydiStore();
   }
   return store;

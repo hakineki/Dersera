@@ -1,5 +1,5 @@
 import { MODERASYON, type ModerasyonKaydi, type ModerasyonSonucu } from "@/lib/moderasyon";
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 
 // Anahtarlar: kayıt (JSON, süreli), tekillik (aynı içerik/oyun kuyruğa bir kez), bekleyen ve kapatılan sıralı
 // kümeler (tarih azalan okunur) ve karar kilidi. Karar kilidi kaydın kapalı sayılmasının tek doğruluk kaynağıdır:
@@ -151,7 +151,7 @@ export function createRedisModerasyonStore(command: RedisCommand): ModerasyonSto
 let store: ModerasyonStore | null = null;
 export function getModerasyonStore(): ModerasyonStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("moderasyon");
     store = command ? createRedisModerasyonStore(command) : createMemoryModerasyonStore();
   }
   return store;
