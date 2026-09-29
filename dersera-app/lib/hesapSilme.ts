@@ -8,15 +8,17 @@ import type { KrediStore } from "@/lib/krediStore";
 import type { LibraryStore } from "@/lib/libraryStore";
 import type { OgrenmeTakibiStore } from "@/lib/ogrenmeTakibiStore";
 import type { OkulStore } from "@/lib/okulStore";
-import { topluluktanGeriCek } from "@/lib/toplulukPaylasim";
+import { durumOf } from "@/lib/topluluk";
 import type { ToplulukStore } from "@/lib/toplulukStore";
 
-// Öğretmenin kendi hesabını silmesi (KVKK md. 7 ve 11). Silinen: hesap ve ad (ad boşa çıkar; bütün oturumlar düşer),
-// kütüphane ve istatistikleri, koleksiyonlar, okul üyeliği ve okulda paylaştığı oyunlar, kişisel kredi kayıtları,
-// koşul onayı, öğrenme takibi tabloları. Toplulukta yayındaki ya da incelemedeki oyunları geri çekilir. Kopya
-// kayıtlarında kimlik ve ad "silindi" olur. Başkalarının oyunlarına verdiği puan ve inceleme kararları kimliksiz
-// olarak toplamlarda kalır (hesap ve ad silindiği için kimseyle eşleşmez). Hesap en son silinir: arada hata olursa
-// öğretmen tekrar deneyebilir.
+// Öğretmenin kendi hesabını silmesi (KVKK md. 7 ve 11). Silinen: hesap ve ad (ad boşa çıkar), kütüphane ve
+// istatistikleri, koleksiyonlar, okul üyeliği ve bütün okullarda (ayrıldıkları dahil) paylaştığı oyunlar, kişisel
+// kredi kayıtları, koşul onayı, öğrenme takibi tabloları. Toplulukta açtığı bütün kayıtlardan yayındaki ya da
+// incelemedeki olanlar geri çekilir (kütüphaneden silinmiş olanlar ve önceki sürümler dahil). Kopya kayıtlarında
+// kimlik ve ad "silindi" olur. Başkalarının oyunlarına verdiği puan, inceleme kararı ve notu kimliksiz kalır (hesap
+// ve ad silindiği için kimseyle eşleşmez).
+// Önce hesabın sürümü artırılır: diğer cihaz ve sekmelerdeki oturumlar hemen düşer, silme sürerken yeni veri
+// yazamazlar. Hesap en son silinir: arada hata olursa öğretmen yeniden giriş yapıp tekrar deneyebilir.
 
 export interface HesapSilmeDeps {
   auth: AuthStore;
@@ -62,25 +64,30 @@ export async function hesabiSil(d: HesapSilmeDeps, hesap: Hesap, sifre: unknown,
     return { ok: false, status: 409, error: "Şu anda bir oyun oluşturuluyor. Birkaç dakika sonra tekrar dene." };
   }
 
+  await d.auth.sifreGuncelle({ ...hesap, surum: hesap.surum + 1 });
+
   const sahip = kutuphaneSahibi(hesap);
-  if (okulId) {
-    for (const p of await d.okul.paylasimlar(okulId)) {
-      if (p.paylasan !== hesap.id) continue;
-      const tam = await d.okul.paylasim(okulId, p.id);
-      if (tam) await d.okul.paylasimKaldir(okulId, { id: tam.id, kaynak: tam.kaynak });
+  for (const { okulId: o, paylasim } of await d.okul.hesabinPaylasimlari(hesap.id)) {
+    await d.okul.paylasimKaldir(o, { id: paylasim.id, kaynak: paylasim.kaynak });
+  }
+  if (okulId) await d.okul.uyeCikar(okulId, hesap.id);
+  for (const id of await d.topluluk.olusturanKayitlari(sahip)) {
+    const k = await d.topluluk.get(id);
+    if (!k || k.olusturan !== sahip) continue;
+    const durum = durumOf(k);
+    // Atomik: bu arada onaylanan ya da reddedilen kayıt için geçiş olmaz.
+    if ((durum === "inceleme" || durum === "yayinda") && (await d.topluluk.durumGecis(id, ["inceleme", "yayinda"], "geri-cekildi", durum))) {
+      await d.topluluk.kuyruktanCikar(id);
     }
-    await d.okul.uyeCikar(okulId, hesap.id);
   }
   for (const id of await d.library.idler(sahip)) {
-    // Toplulukta olmayan oyun için 404/409 döner; silmeyi durdurmaz.
-    await topluluktanGeriCek(d.topluluk, hesap, id);
     await istatistikleriSil(`${sahip}:${id}`);
     await d.library.remove(sahip, id);
   }
   for (const k of await d.koleksiyon.listele(hesap.id)) await d.koleksiyon.sil(hesap.id, k.id);
   await d.kredi.hesapSil(hesap.id, sonAylar(now, KREDI_AY));
   await d.takip.tablolariSil(sahip, sonAylar(now, TAKIP_AY));
-  await d.denetim.hesabiUnut(hesap.id, hesap.kullaniciAdi);
+  await d.denetim.hesabiUnut(hesap.id);
   if (!(await d.auth.hesapSil(hesap.id, hesap.kullaniciAdi))) {
     return { ok: false, status: 409, error: "Hesap bilgisi başka bir oturumda değişti. Sayfayı yenileyip tekrar dene." };
   }

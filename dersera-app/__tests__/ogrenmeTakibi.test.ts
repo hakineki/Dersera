@@ -162,10 +162,20 @@ describe("öğrenme takibi kuralları", () => {
   it("konuları bilinmeyen oyun (bu özellikten önceki yayın) sayılmaz", async () => {
     const s = createMemoryOgrenmeTakibiStore();
     const d = oyun();
-    await takipSinyali({ sahip: "hesap:a", definition: d }, "K1", "o1", { [d.duraklar[0].id]: 0 }, null, 1000, Date.UTC(2026, 8, 15), s);
+    const var_ = async () => true;
+    await takipSinyali({ sahip: "hesap:a", definition: d }, "K1", "o1", { [d.duraklar[0].id]: 0 }, null, 1000, Date.UTC(2026, 8, 15), s, var_);
     expect(await s.sayaclar("hesap:a", ["2026-09"])).toEqual([{}]);
-    await takipSinyali({ sahip: "hesap:a", definition: d, dersler }, "K1", "o1", { [d.duraklar[0].id]: 0 }, null, 1000, Date.UTC(2026, 8, 15), s);
+    await takipSinyali({ sahip: "hesap:a", definition: d, dersler }, "K1", "o1", { [d.duraklar[0].id]: 0 }, null, 1000, Date.UTC(2026, 8, 15), s, var_);
     expect((await s.sayaclar("hesap:a", ["2026-09"]))[0][cikti(d.duraklar[0].gorev.ogrenme_hedefi, "i")]).toBe(1);
+  });
+
+  it("hesabı silinmiş öğretmenin hâlâ açık oyunundan gelen sonuç sayılmaz (silinen tablo yeniden oluşmaz)", async () => {
+    const s = createMemoryOgrenmeTakibiStore();
+    const d = oyun();
+    const sorulan: string[] = [];
+    await takipSinyali({ sahip: "hesap:silinen", definition: d, dersler }, "K2", "o1", { [d.duraklar[0].id]: 0 }, null, 1000, Date.UTC(2026, 8, 15), s, async (id) => (sorulan.push(id), false));
+    expect(sorulan).toEqual(["silinen"]);
+    expect(await s.sayaclar("hesap:silinen", ["2026-09"])).toEqual([{}]);
   });
 });
 

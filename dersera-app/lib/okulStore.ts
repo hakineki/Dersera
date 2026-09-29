@@ -1,5 +1,5 @@
 import { OKUL, paylasimOzetiOf, type Okul, type OkulPaylasimi, type OkulUyesi, type PaylasimOzeti } from "@/lib/okul";
-import { depoKomutu, type RedisCommand } from "@/lib/redis";
+import { anahtarlariTara, depoKomutu, type RedisCommand } from "@/lib/redis";
 
 // Anahtarlar: okul kaydı, hesap → okul (öğretmen başına tek okul; tüm üyelik değişiklikleri bu anahtarla atomik),
 // okulun üye tablosu, davet kodu → okul, paylaşım özetleri (liste), paylaşımın tam kopyası ("Kullan") ve
@@ -29,6 +29,8 @@ export interface OkulStore {
   paylasimKaldir(okulId: string, p: Pick<OkulPaylasimi, "id" | "kaynak">): Promise<boolean>;
   // Kaynakların (kütüphane kayıtlarının) okuldaki paylaşım kimlikleri; paylaşılmamışsa null.
   kaynakPaylasimlari(okulId: string, kaynaklar: string[]): Promise<(string | null)[]>;
+  // Hesabın bütün okullardaki paylaşımları (ayrıldığı ya da çıkarıldığı okullar dahil; hesap silme için, seyrek).
+  hesabinPaylasimlari(hesapId: string): Promise<{ okulId: string; paylasim: OkulPaylasimi }[]>;
 }
 
 export function createMemoryOkulStore(): OkulStore {
@@ -101,6 +103,9 @@ export function createMemoryOkulStore(): OkulStore {
     },
     async paylasimKaldir(okulId, p) {
       return paylasimTablosu(okulId).delete(p.id);
+    },
+    async hesabinPaylasimlari(hesapId) {
+      return [...paylasimlar].flatMap(([okulId, t]) => [...t.values()].filter((p) => p.paylasan === hesapId).map((paylasim) => ({ okulId, paylasim })));
     },
     async kaynakPaylasimlari(okulId, kaynaklar) {
       const t = [...paylasimTablosu(okulId).values()];
@@ -230,6 +235,18 @@ export function createRedisOkulStore(command: RedisCommand): OkulStore {
     async paylasimlar(okulId) {
       const vals = ((await command(["HVALS", ozetKey(okulId)])) as string[] | null) ?? [];
       return vals.map((v) => JSON.parse(v) as PaylasimOzeti);
+    },
+    async hesabinPaylasimlari(hesapId) {
+      const out: { okulId: string; paylasim: OkulPaylasimi }[] = [];
+      for (const anahtar of await anahtarlariTara(command, ozetKey("*"))) {
+        const okulId = anahtar.slice(ozetKey("").length);
+        const ozetler = (((await command(["HVALS", anahtar])) as string[] | null) ?? []).map((v) => JSON.parse(v) as PaylasimOzeti);
+        for (const o of ozetler.filter((x) => x.paylasan === hesapId)) {
+          const ham = (await command(["GET", tamKey(o.id)])) as string | null;
+          if (ham) out.push({ okulId, paylasim: JSON.parse(ham) as OkulPaylasimi });
+        }
+      }
+      return out;
     },
     async paylasim(okulId, id) {
       // Kimlik okulun özet tablosunda değilse (başka okulun paylaşımı) okunmaz.

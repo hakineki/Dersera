@@ -653,9 +653,9 @@ function HesapSilme({ onSilindi }: { onSilindi: () => void }) {
         <form onSubmit={sil} className="space-y-3 bg-red-50 border border-red-200 rounded-xl p-4">
           <h3 className="text-sm font-bold text-red-800">Hesabımı kalıcı olarak sil</h3>
           <ul className="list-disc pl-5 text-xs text-red-900 space-y-1">
-            <li>Hesabın, kütüphanedeki oyunların, koleksiyonların, okul üyeliğin ve okulda paylaştığın oyunlar, kredi kayıtların ve öğrenme takibi raporların silinir. Kullanıcı adın boşa çıkar.</li>
-            <li>Toplulukta yayındaki ya da incelemedeki oyunların geri çekilir.</li>
-            <li>Başka oyunlara verdiğin puanlar ve inceleme kararların kimliksiz olarak toplamlarda kalır; kopya kayıtlarında adın &quot;silinmiş hesap&quot; olur.</li>
+            <li>Hesabın, kütüphanedeki oyunların, koleksiyonların, okul üyeliğin ve okullarda paylaştığın oyunlar, kredi kayıtların ve öğrenme takibi raporların silinir. Kullanıcı adın boşa çıkar; diğer cihazlardaki oturumların kapanır.</li>
+            <li>Toplulukta yayındaki ya da incelemedeki bütün oyunların geri çekilir.</li>
+            <li>Başka oyunlara verdiğin puanlar, inceleme kararların ve notların kimliksiz olarak kalır; kopya kayıtlarında adın &quot;silinmiş hesap&quot; olur.</li>
             <li>Silinen veriler şifreli yedeklerden en geç 14 gün içinde kalkar. Bu işlem geri alınamaz.</li>
           </ul>
           <div>

@@ -63,7 +63,7 @@ export const GIZLILIK_BOLUMLERI: GizlilikBolumu[] = [
       "Güvenlik sayaçları (IP ve kullanıcı adı içeren): 1 dakika ile 1 saat; günlük kullanım sınırları: 24 saat.",
       "Moderasyon kayıtları: 30 gün. Kredi aylık kullanımı: 40 gün; kredi hareketleri: son 100 hareket.",
       "Öğrenme takibi ve öğrenme döngüsü aylık sayaçları: 400 gün. Kimliksiz talimat metinleri: son 200 talimat.",
-      "Öğretmen hesabı, kütüphane, koleksiyonlar, paylaşımlar ve kopya kaydı (son 5.000 kayıt): hesabını silene kadar. Öğretmen kütüphanesindeki oyunları ve koleksiyonlarını istediği an, hesabını Ayarlar → \"Hesabımı sil\" ile tamamen silebilir. Hesap silinince kopya kayıtlarında kimlik ve ad \"silinmiş hesap\" olur; başka oyunlara verilen puanlar ve inceleme kararları kimliksiz olarak toplamlarda kalır.",
+      "Öğretmen hesabı, kütüphane, koleksiyonlar, paylaşımlar ve kopya kaydı (son 5.000 kayıt): hesabını silene kadar. Öğretmen kütüphanesindeki oyunları ve koleksiyonlarını istediği an, hesabını Ayarlar → \"Hesabımı sil\" ile tamamen silebilir. Hesap silinince kopya kayıtlarında kimlik ve ad \"silinmiş hesap\" olur; başka oyunlara verilen puanlar, inceleme kararları ve notları kimliksiz olarak kalır.",
       "Oyun görselleri (kişisel veri içermez, yalnız oyun metninden üretilir): süresiz, adresi tahmin edilemez biçimde.",
       "Şifreli gece yedeği: 14 gün; silinen veriler yedeklerden de en geç bu süre sonunda kalkar.",
     ],

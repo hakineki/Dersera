@@ -47,6 +47,7 @@ export async function POST(req: Request) {
     return oturumCereziSil(NextResponse.json({ ok: true }));
   } catch (err) {
     console.error("[auth] hesap silme hatası", err instanceof Error ? err.message : err);
-    return NextResponse.json({ error: "Hesap şu anda silinemedi. Biraz sonra tekrar dene." }, { status: 503 });
+    // Silme başladıysa oturumlar kapanmıştır; verilerin bir kısmı silinmiş olabilir, hesap durur ve tekrar denenebilir.
+    return oturumCereziSil(NextResponse.json({ error: "Hesap silme tamamlanamadı; verilerinin bir kısmı silinmiş olabilir. Yeniden giriş yapıp tekrar dene." }, { status: 503 }));
   }
 }

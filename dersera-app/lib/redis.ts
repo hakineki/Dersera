@@ -29,6 +29,18 @@ export function redisFromEnv(): RedisCommand | null {
   return null;
 }
 
+// Desene uyan bütün anahtarlar (SCAN; seyrek işlemler için: hesap silme gibi).
+export async function anahtarlariTara(command: RedisCommand, desen: string): Promise<string[]> {
+  const out: string[] = [];
+  let imlec = "0";
+  do {
+    const [sonraki, anahtarlar] = (await command(["SCAN", imlec, "MATCH", desen, "COUNT", 1000])) as [string | number, string[]];
+    out.push(...anahtarlar);
+    imlec = String(sonraki);
+  } while (imlec !== "0");
+  return [...new Set(out)];
+}
+
 export class RedisGerekliError extends Error {}
 
 // Kalıcı depolar için: canlıda Redis yoksa belleğe DÜŞMEZ, hata verir (sunucu başına ayrı ve yeniden başlayınca

@@ -501,7 +501,7 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     await d.denetim.kopyaEkle({ tarih: 1, hesapId: id, kullaniciAdi: ad, tur: "topluluk", oyunId: `o1-${run}`, baslik: "Şifre: \"x\"" });
     await d.denetim.kopyaEkle(baskasi);
     await d.denetim.kopyaEkle({ tarih: 4, hesapId: id, kullaniciAdi: ad, tur: "okul", oyunId: `o3-${run}`, baslik: "Üç" });
-    await d.denetim.hesabiUnut(id, ad);
+    await d.denetim.hesabiUnut(id);
     expect(await d.denetim.kosulOnayi(id)).toBeNull();
     const son = await d.denetim.kopyalar(3);
     expect(son).toEqual([
