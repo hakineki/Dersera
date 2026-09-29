@@ -1,3 +1,4 @@
+import { hesapBagla } from "@/lib/yzMaliyetKaydi";
 import { NextResponse } from "next/server";
 import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { gorselDurumu, gorselUret, type GorselDeps } from "@/lib/gorselService";
@@ -15,6 +16,7 @@ type Sonuc = { ok: true } | { ok: false; status: number; error: string };
 async function islem(req: Request, ctx: Params, is: (hesapId: string, isId: string) => Promise<Sonuc>) {
   const hesap = await istekHesabi(req);
   if (!hesap) return oturumGerekli();
+  hesapBagla(hesap.id);
   try {
     const r = await is(hesap.id, (await ctx.params).isId);
     if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });

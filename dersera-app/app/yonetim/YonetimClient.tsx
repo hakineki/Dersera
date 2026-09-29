@@ -31,6 +31,7 @@ const BOLUMLER = [
   { href: "/yonetim/ogrenme", ad: "Öğrenme döngüsü", metin: "Aylık üretim ve öğrenci sonuçları; yapay zekâdan kural önerisi ve onaylı kurallar." },
   { href: "/yonetim/okul-havuzu", ad: "Okul kredi havuzları", metin: "Okullara aylık kredi hakkı atama ve kullanım." },
   { href: "/yonetim/kopya-kaydi", ad: "Kopya kaydı", metin: "Başka öğretmenlerin oyunlarının tam içeriğinin açılma kaydı." },
+  { href: "/yonetim/yz-maliyet", ad: "Yapay zekâ maliyeti", metin: "Ücretli yapay zekâ çağrılarının aylık sayısı, tokenları ve tahmini tutarı; tür, model ve okul kırılımı." },
 ];
 
 export default function YonetimClient() {

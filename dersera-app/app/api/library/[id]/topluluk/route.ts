@@ -1,3 +1,4 @@
+import { hesapBagla } from "@/lib/yzMaliyetKaydi";
 import { NextResponse } from "next/server";
 import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import { isKutuphaneId } from "@/lib/library";
@@ -13,6 +14,7 @@ export async function POST(req: Request, ctx: Ctx) {
   if (koken) return koken;
   const hesap = await istekHesabi(req);
   if (!hesap) return oturumGerekli();
+  hesapBagla(hesap.id);
   const { id } = await ctx.params;
   if (!isKutuphaneId(id)) return NextResponse.json({ error: "Oyun bulunamadı" }, { status: 404 });
   try {

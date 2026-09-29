@@ -1,3 +1,4 @@
+import { hesapBagla } from "@/lib/yzMaliyetKaydi";
 import { NextResponse } from "next/server";
 import { istekHesabi, kokenReddi, oturumGerekli } from "@/lib/authRequest";
 import type { Hesap } from "@/lib/authStore";
@@ -29,6 +30,7 @@ export async function okulIslemi(
   }
   const hesap = await istekHesabi(req);
   if (!hesap) return oturumGerekli();
+  hesapBagla(hesap.id);
   try {
     const r = await is(hesap, okulDepolari());
     if (!r.ok) {

@@ -7,6 +7,7 @@ import { parcaliUret } from "@/lib/composer/parcali";
 import type { ResolvedInput } from "@/lib/composer/input";
 import { SYSTEM_PROMPT, type PromptParcalari } from "@/lib/composer/prompt";
 import type { Recipe } from "@/lib/composer/recipe";
+import { yzKullanimKaydet } from "@/lib/yzMaliyetKaydi";
 
 export const DEFAULT_MODEL = "claude-sonnet-4-6";
 // Parçalı üretimin (iskelet + paralel görevler) toplam üst sınırı; düzeltme çağrısı kalan süreyle yapılır (service.ts).
@@ -67,6 +68,9 @@ export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>
       { signal: controller.signal, timeout: timeoutMs, maxRetries: 0 }
     );
     console.info(`[compose] model=${response.model} stop=${response.stop_reason} output_tokens=${response.usage?.output_tokens}`);
+    // Kesik ya da reddedilen yanıt da ücretlidir: kayıt hata fırlatılmadan önce.
+    const u = response.usage as { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } | undefined;
+    await yzKullanimKaydet({ model: response.model || modelFromEnv(), giris: (u?.input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0), cikis: u?.output_tokens, onbellek: u?.cache_read_input_tokens ?? 0 });
     if (response.stop_reason === "refusal") throw new ComposeError("invalid-output", "Model isteği reddetti");
     if (response.stop_reason === "max_tokens") throw new ComposeError("invalid-output", `Çıktı max_tokens (${maxTokens}) sınırında kesildi`, true);
     const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");

@@ -1,3 +1,4 @@
+import { hesapBagla } from "@/lib/yzMaliyetKaydi";
 import { NextResponse } from "next/server";
 import { ComposeError } from "@/lib/composer/anthropic";
 import { parseComposeInput } from "@/lib/composer/input";
@@ -49,6 +50,7 @@ export async function POST(req: Request) {
   if (koken) return koken;
   const hesap = await istekHesabi(req);
   if (!hesap) return oturumGerekli();
+  hesapBagla(hesap.id);
 
   let body: unknown;
   try {

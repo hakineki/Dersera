@@ -1,3 +1,4 @@
+import { hesapBagla } from "@/lib/yzMaliyetKaydi";
 import { NextResponse } from "next/server";
 import { parseComposerDefinition } from "@/lib/composer/adapter";
 import { ComposeError } from "@/lib/composer/errors";
@@ -27,6 +28,7 @@ export async function POST(req: Request) {
   if (koken) return koken;
   const hesap = await istekHesabi(req);
   if (!hesap) return oturumGerekli();
+  hesapBagla(hesap.id);
 
   const body = await req.json().catch(() => null);
   const istek = GuncellemeIstegiSchema.safeParse(body);

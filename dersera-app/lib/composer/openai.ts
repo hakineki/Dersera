@@ -8,6 +8,7 @@ import { parseJsonText, type ModelOutput } from "@/lib/composer/modelOutput";
 import type { ResolvedInput } from "@/lib/composer/input";
 import { SYSTEM_PROMPT, type PromptParcalari } from "@/lib/composer/prompt";
 import type { Recipe } from "@/lib/composer/recipe";
+import { yzKullanimKaydet } from "@/lib/yzMaliyetKaydi";
 
 // OpenAI uyumlu sağlayıcı. Parçalı üretim ve düzeltme Anthropic ile aynı şemaları kullanır; GameDefinition'a dönüşüm değişmez.
 export const DEFAULT_OPENAI_MODEL = "gpt-6-luna";
@@ -65,6 +66,9 @@ export async function yapilandirilmisIstekOpenAI<S extends z.ZodObject<z.ZodRawS
     );
     const choice = completion.choices[0];
     console.info(`[compose] model=${completion.model} stop=${choice?.finish_reason} output_tokens=${completion.usage?.completion_tokens}`);
+    // Kesik ya da reddedilen yanıt da ücretlidir: kayıt hata fırlatılmadan önce. prompt_tokens önbellektekileri içerir.
+    const onbellek = completion.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+    await yzKullanimKaydet({ model: completion.model || openAIModelFromEnv(), giris: (completion.usage?.prompt_tokens ?? 0) - onbellek, cikis: completion.usage?.completion_tokens, onbellek });
     if (choice?.message.refusal) throw new ComposeError("invalid-output", "Model isteği reddetti");
     if (choice?.finish_reason === "length") throw new ComposeError("invalid-output", `Çıktı max_tokens (${maxTokens}) sınırında kesildi`, true);
     if (choice?.finish_reason === "content_filter") throw new ComposeError("invalid-output", "Çıktı içerik filtresine takıldı");

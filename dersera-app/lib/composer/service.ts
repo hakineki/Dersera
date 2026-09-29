@@ -1,3 +1,4 @@
+import { yzTuruIle } from "@/lib/yzMaliyetKaydi";
 import { composeGame, yapilandirilmisIstek, type ComposeClient } from "@/lib/composer/anthropic";
 import { ComposeError } from "@/lib/composer/errors";
 import { DuzeltmeSchema, toDefinition, type Duzeltme, type ModelOutput } from "@/lib/composer/modelOutput";
@@ -94,7 +95,11 @@ function dahaIyi(eski: ComposeResult, yeni: ComposeResult): boolean {
   return yeniler.length < eski.validation.hatalar.length && yeniler.every((k) => eskiler.has(k));
 }
 
-export async function composeAndValidate(input: ResolvedInput, client?: ComposeClient, now: () => number = Date.now): Promise<ComposeResult> {
+export function composeAndValidate(input: ResolvedInput, client?: ComposeClient, now: () => number = Date.now): Promise<ComposeResult> {
+  return yzTuruIle("uretim", () => uretVeDogrula(input, client, now));
+}
+
+async function uretVeDogrula(input: ResolvedInput, client: ComposeClient | undefined, now: () => number): Promise<ComposeResult> {
   const basla = now();
   const recipe = buildRecipe(input.sure, input.deneyim, input.alan);
   const uretici = ureticiSec(client);
@@ -149,14 +154,16 @@ export async function yapayZekaylaGuncelle(
   client?: ComposeClient,
   timeoutMs = GUNCELLEME_SURE_MS
 ): Promise<ComposeResult & { guncellenen: string[] }> {
-  const recipe = buildRecipe(input.sure, input.deneyim, input.alan);
-  const prompt = { ortak: buildUserPrompt(input, recipe, IZINLI_QR_IDLERI), asama: buildGuncellemePrompt(def, idler, talimat) };
-  const cikti = await ureticiSec(client).duzelt(prompt, duzeltmeToken(idler.length), timeoutMs);
-  const { definition, guncellenen } = guncellemeUygula(def, cikti, idler);
-  if (guncellenen.length === 0) throw new ComposeError("invalid-output", "Güncellenecek duraklar yanıtta yok");
-  const parsed = GameDefinitionSchema.safeParse(definition);
-  if (!parsed.success) throw new ComposeError("invalid-output", `Güncelleme oyun şemasına uymadı: ${parsed.error.issues[0]?.path.join(".")}`);
-  return { definition: parsed.data, validation: validateGame(parsed.data, validationContext(input)), guncellenen };
+  return yzTuruIle("guncelleme", async () => {
+    const recipe = buildRecipe(input.sure, input.deneyim, input.alan);
+    const prompt = { ortak: buildUserPrompt(input, recipe, IZINLI_QR_IDLERI), asama: buildGuncellemePrompt(def, idler, talimat) };
+    const cikti = await ureticiSec(client).duzelt(prompt, duzeltmeToken(idler.length), timeoutMs);
+    const { definition, guncellenen } = guncellemeUygula(def, cikti, idler);
+    if (guncellenen.length === 0) throw new ComposeError("invalid-output", "Güncellenecek duraklar yanıtta yok");
+    const parsed = GameDefinitionSchema.safeParse(definition);
+    if (!parsed.success) throw new ComposeError("invalid-output", `Güncelleme oyun şemasına uymadı: ${parsed.error.issues[0]?.path.join(".")}`);
+    return { definition: parsed.data, validation: validateGame(parsed.data, validationContext(input)), guncellenen };
+  });
 }
 
 // Yayın ve düzenleme sonrası: tanımı müfredata göre yeniden doğrular (istemciye güvenmez).
