@@ -84,6 +84,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 41 | A: bir kartta "Benzer oyunlar ›" | Aynı sınıf ve ünitedeki en çok 6 oyun, ortak öğrenme çıktısı çok olan önce; oyunun kendisi yok. Başlık öğrenci gözüyle demoyu açar. |
 | 42 | A: kartta "☆ Koleksiyona ekle" → yeni koleksiyon "Favoriler"; "Koleksiyonlarım" sekmesi; yeniden adlandır, oyunu çıkar, sil | Düğme "★ 1 koleksiyonda" olur; sekmede koleksiyon ve oyunlar görünür. B, A'nın koleksiyonlarını görmez. Koleksiyon silinince oyunlar toplulukta kalır. Topluluktan kalkan oyun "Bu oyun artık toplulukta değil" satırıyla görünür. En çok 20 koleksiyon, her birinde 100 oyun. |
 | 43 | Oyun yayınla, bir öğrenci bitirsin; gizli sekmede `/api/results?code=<KOD>` adresini aç | Yanıt 403 "Yetkisiz"; takma ad ve süreler görünmez. Yayınlayan öğretmenin panelinde sonuç tablosu güncellenir (oyun bittikten sonraki günlerde de, 7 güne kadar). |
+| 44 | Gizli sekmede ana sayfa, `/game`, Composer (PDF'ten al) ve görselli bir oyun; tarayıcı geliştirici araçlarında Ağ → belge yanıt başlıkları ve Konsol | Yanıtta Content-Security-Policy, X-Frame-Options: DENY, Referrer-Policy, Permissions-Policy, Strict-Transport-Security ve nosniff var. Konsolda "Content Security Policy" / "Refused to" hatası yok; oyun görselleri (Vercel Blob) ve PDF metni yükleniyor. |
 
 ## 4. Dağıtım doğrulaması
 
