@@ -7,13 +7,17 @@ import { getEpostaStore } from "@/lib/epostaStore";
 
 // E-posta ve şifre sıfırlama uçlarının ortak katmanı: depolar, gönderim, arka plan işi, IP sınırı, hata yanıtı.
 
-// Yanıttan sonra çalışır (sunucusuz ortamda işlev iş bitene kadar açık kalır); istek dışında (testte) hemen başlatılır.
+// İstek dışında (testte) hemen başlatılan işler; testler bitmelerini bekleyebilsin diye tutulur.
+export const istekDisiIsler = new Set<Promise<void>>();
+
+// Yanıttan sonra çalışır (sunucusuz ortamda işlev iş bitene kadar açık kalır); istek dışında hemen başlatılır.
 function arkaPlan(is: () => Promise<void>): void {
   const calis = () => is().catch((err) => console.error("[eposta] arka plan işi başarısız", err instanceof Error ? err.message : err));
   try {
     after(calis);
   } catch {
-    void calis();
+    const p = calis().finally(() => istekDisiIsler.delete(p));
+    istekDisiIsler.add(p);
   }
 }
 

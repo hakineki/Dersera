@@ -8,7 +8,8 @@ import { hashToken } from "@/lib/gamesService";
 
 // Öğretmenin isteğe bağlı e-postası ve şifre sıfırlama. E-posta yalnız doğrulandıktan sonra ve yalnız şifre sıfırlama
 // bağlantısı göndermek için kullanılır. Bağlantılar tek kullanımlıktır; e-posta tarayıcıları bağlantıyı önceden açsa da
-// tüketilmesin diye bağlantı yalnız sayfayı açar, işlem sayfadaki düğmeyle (POST) yapılır.
+// tüketilmesin diye bağlantı yalnız sayfayı açar, işlem sayfadaki düğmeyle (POST) yapılır. Belirteç bağlantının #
+// kısmında taşınır (sunucu kayıtlarına düşmez).
 
 export interface EpostaDeps {
   auth: AuthStore;
@@ -21,8 +22,10 @@ export interface EpostaDeps {
 export const DOGRULAMA_SURESI_MS = 24 * 60 * 60 * 1000;
 export const SIFIRLAMA_SURESI_MS = 60 * 60 * 1000;
 const SAAT_MS = 60 * 60 * 1000;
-// Hesap başına saatte en çok bu kadar e-posta (doğrulama + sıfırlama); kötüye kullanımla gelen kutusu doldurulmasın.
+// Hesap başına saatte en çok bu kadar e-posta; kötüye kullanımla gelen kutusu doldurulmasın. Sıfırlama ayrı sayılır:
+// başkasının yaptığı doğrulama istekleri öğretmenin kendi sıfırlamasını engellemesin.
 const HESAP_SAATLIK_EPOSTA = 5;
+const HESAP_SAATLIK_SIFIRLAMA = 3;
 const ADRES = /^[^\s@"\\<>(),;:]+@[^\s@"\\<>(),;:]+\.[^\s@"\\<>(),;:.]{2,}$/;
 
 const hata = (status: number, error: string) => ({ ok: false as const, status, error });
@@ -42,9 +45,8 @@ export async function epostaDurumu(d: Pick<EpostaDeps, "eposta">, hesap: Hesap) 
   return k ? { adres: k.adres, dogrulandi: k.dogrulandi } : null;
 }
 
-async function hesapEpostaSiniri(hesapId: string): Promise<boolean> {
-  return checkLimit(`dersera:eposta-gonderim:${hesapId}`, SAAT_MS, HESAP_SAATLIK_EPOSTA);
-}
+const hesapEpostaSiniri = (hesapId: string) => checkLimit(`dersera:eposta-gonderim:${hesapId}`, SAAT_MS, HESAP_SAATLIK_EPOSTA);
+const hesapSifirlamaSiniri = (hesapId: string) => checkLimit(`dersera:sifirlama-gonderim:${hesapId}`, SAAT_MS, HESAP_SAATLIK_SIFIRLAMA);
 
 // E-posta ekle ya da değiştir (şifreyle): adres doğrulanmamış yazılır, doğrulama bağlantısı gönderilir. Aynı adres
 // tekrar girilirse doğrulama bağlantısı yeniden gönderilir.
@@ -61,7 +63,7 @@ export async function epostaEkle(d: EpostaDeps, hesap: Hesap, adresGirdi: unknow
   await d.gonder({
     kime: adres,
     konu: "Dersera: e-posta adresini doğrula",
-    metin: `Merhaba ${hesap.kullaniciAdi},\n\nDersera hesabına bu e-posta adresi eklendi. Doğrulamak için bağlantıyı aç ve sayfadaki düğmeye bas (24 saat geçerli):\n\n${site}/eposta-dogrula?t=${belirtec}\n\nBu isteği sen yapmadıysan bu e-postayı yok sayabilirsin.`,
+    metin: `Merhaba ${hesap.kullaniciAdi},\n\nDersera hesabına bu e-posta adresi eklendi. Doğrulamak için bağlantıyı aç ve sayfadaki düğmeye bas (24 saat geçerli):\n\n${site}/eposta-dogrula#t=${belirtec}\n\nBu isteği sen yapmadıysan bu e-postayı yok sayabilirsin.`,
   });
   return { ok: true, value: { adres, dogrulandi: false } };
 }
@@ -90,7 +92,8 @@ async function sifirlamaBelirteci(d: Pick<EpostaDeps, "eposta">, hesap: Hesap): 
   await d.eposta.belirtecYaz(await hashToken(belirtec), { tur: "sifirlama", hesapId: hesap.id, surum: hesap.surum }, SIFIRLAMA_SURESI_MS);
   return belirtec;
 }
-export const sifirlamaBaglantisi = (site: string, belirtec: string) => `${site}/sifre-sifirla?t=${belirtec}`;
+// Belirteç adresin # kısmındadır: sunucuya ve erişim kayıtlarına gitmez.
+export const sifirlamaBaglantisi = (site: string, belirtec: string) => `${site}/sifre-sifirla#t=${belirtec}`;
 
 export const SIFIRLAMA_ISTENDI =
   "Bu kullanıcı adına ya da e-postaya bağlı doğrulanmış bir e-posta varsa birkaç dakika içinde şifre sıfırlama bağlantısı gelecek. E-postan yoksa okul yöneticinden ya da platform yöneticisinden sıfırlama bağlantısı iste.";
@@ -111,7 +114,8 @@ export async function sifirlamaIste(d: EpostaDeps, girdi: unknown, site: string)
   const hesapId = id;
   d.arkaPlan(async () => {
     const [hesap, k] = await Promise.all([d.auth.hesap(hesapId), d.eposta.oku(hesapId)]);
-    if (!hesap || !k?.dogrulandi || !(await hesapEpostaSiniri(hesapId))) return;
+    // Askıdaki hesap giriş yapamaz: sıfırlama e-postası gönderilmez.
+    if (!hesap || hesap.aski?.askida || !k?.dogrulandi || !(await hesapSifirlamaSiniri(hesapId))) return;
     const belirtec = await sifirlamaBelirteci(d, hesap);
     await d.gonder({
       kime: k.adres,

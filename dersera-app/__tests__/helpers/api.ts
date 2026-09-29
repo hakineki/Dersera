@@ -72,6 +72,7 @@ export async function buildApi() {
     ogretmenSifirlama: typeof import("@/app/api/yonetim/ogretmenler/[id]/sifirlama/route");
     epostaModul: typeof import("@/lib/eposta");
     epostaStore: typeof import("@/lib/epostaStore");
+    epostaIstek: typeof import("@/lib/epostaIstek");
     okullar: typeof import("@/app/api/yonetim/okullar/route");
     okulYonetim: typeof import("@/app/api/yonetim/okullar/[id]/route");
     okulDevret: typeof import("@/app/api/yonetim/okullar/[id]/devret/route");
@@ -162,6 +163,7 @@ export async function buildApi() {
       ogretmenSifirlama: await import("@/app/api/yonetim/ogretmenler/[id]/sifirlama/route"),
       epostaModul: await import("@/lib/eposta"),
       epostaStore: await import("@/lib/epostaStore"),
+      epostaIstek: await import("@/lib/epostaIstek"),
       okullar: await import("@/app/api/yonetim/okullar/route"),
       okulYonetim: await import("@/app/api/yonetim/okullar/[id]/route"),
       okulDevret: await import("@/app/api/yonetim/okullar/[id]/devret/route"),

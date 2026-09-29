@@ -38,7 +38,7 @@ export default function SifreSifirlaClient() {
         {t === null && <p className="text-sm text-purple-200 text-center">Bağlantı eksik. E-postadaki ya da sana iletilen bağlantıyı tam olarak aç.</p>}
         {tamam ? (
           <p role="status" className="text-sm rounded-lg px-4 py-3 bg-green-500/20 text-green-100 text-center">
-            Şifren değişti; bütün oturumların kapatıldı. Yeni şifrenle giriş yapabilirsin.
+            Şifren değişti; bütün oturumların kapatıldı. Yeni şifrenle giriş yapabilirsin (hesabın askıya alınmışsa giriş, askı kalkınca açılır).
           </p>
         ) : (
           t && (

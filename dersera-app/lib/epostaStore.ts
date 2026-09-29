@@ -78,7 +78,8 @@ export function createMemoryEpostaStore(now: () => number = Date.now): EpostaSto
 const YAZ = `if redis.call('GET', KEYS[2]) == ARGV[1] then redis.call('DEL', KEYS[2]) end
 redis.call('SET', KEYS[1], ARGV[2])
 return 1`;
-// KEYS: kayıt, dizin. ARGV: hesapId, beklenen adres (JSON dizesi olarak), doğrulanmış kayıt JSON.
+// KEYS: kayıt, dizin. ARGV: hesapId, beklenen adres (JSON dizesi olarak), doğrulanmış kayıt JSON. Kayıt JSON'u her
+// zaman {adres, dogrulandi, zaman} sırasıyla yazılır; desen bu sıraya ("adres" ilk alan, ardından virgül) dayanır.
 const DOGRULA = `local k = redis.call('GET', KEYS[1])
 if not k or not string.find(k, '"adres":' .. ARGV[2] .. ',', 1, true) then return -1 end
 local sahip = redis.call('GET', KEYS[2])

@@ -1,17 +1,13 @@
 import { epostaGonder, EpostaYapilandirilmadiError, siteAdresi, type Eposta } from "@/lib/eposta";
-import { createRedisEpostaStore } from "@/lib/epostaStore";
-import { adresOzeti, epostaNormal, SIFIRLAMA_ISTENDI } from "@/lib/epostaService";
+import { createMemoryEpostaStore, createRedisEpostaStore } from "@/lib/epostaStore";
+import { adresOzeti, DOGRULAMA_SURESI_MS, epostaNormal, SIFIRLAMA_ISTENDI, SIFIRLAMA_SURESI_MS } from "@/lib/epostaService";
 import { buildApi, cerezli, hesapAc, jsonRequest, oturumCerezi } from "./helpers/api";
 import { clearRedisEnv } from "./helpers/fakeRedis";
 import { createLuaRedis } from "./helpers/luaRedis";
 
 const SIFRE = "gizli-sifre-1";
 const YENI = "yepyeni-sifre-7";
-// Arka plan işi (sıfırlama e-postası) testte istek dışında hemen başlatılır; birkaç tur beklenir.
-const bekle = async () => {
-  for (let i = 0; i < 30; i++) await new Promise((r) => setImmediate(r));
-};
-const belirtecOf = (e: Eposta) => /[?&]t=([A-Za-z0-9_-]+)/.exec(e.metin)![1];
+const belirtecOf = (e: Eposta) => /#t=([A-Za-z0-9_-]+)/.exec(e.metin)![1];
 
 describe("e-posta gönderimi ve yapılandırma", () => {
   it("Resend isteği; canlıda anahtar ya da site adresi yoksa gönderilmez", async () => {
@@ -32,6 +28,25 @@ describe("e-posta gönderimi ve yapılandırma", () => {
     expect(siteAdresi(req, { DERSERA_SITE_ADRESI: "https://dersera.vercel.app/" })).toBe("https://dersera.vercel.app");
     expect(() => siteAdresi(req, { NODE_ENV: "production" })).toThrow(EpostaYapilandirilmadiError);
     expect(siteAdresi(req, {})).toBe("https://kotu.example");
+  });
+
+  it("belirteç süresi: sınırda geçerli, sonra null", async () => {
+    let t = 0;
+    const s = createMemoryEpostaStore(() => t);
+    const d = { tur: "dogrulama" as const, hesapId: "a", adres: "a@b.tr" };
+    const sf = { tur: "sifirlama" as const, hesapId: "a", surum: 1 };
+    await s.belirtecYaz("d1", d, DOGRULAMA_SURESI_MS);
+    await s.belirtecYaz("d2", d, DOGRULAMA_SURESI_MS);
+    await s.belirtecYaz("s1", sf, SIFIRLAMA_SURESI_MS);
+    await s.belirtecYaz("s2", sf, SIFIRLAMA_SURESI_MS);
+    t = SIFIRLAMA_SURESI_MS - 1;
+    expect(await s.belirtecAl("s1")).toEqual(sf);
+    t = SIFIRLAMA_SURESI_MS;
+    expect(await s.belirtecAl("s2")).toBeNull();
+    t = DOGRULAMA_SURESI_MS - 1;
+    expect(await s.belirtecAl("d1")).toEqual(d);
+    t = DOGRULAMA_SURESI_MS;
+    expect(await s.belirtecAl("d2")).toBeNull();
   });
 
   it("adres biçimi", () => {
@@ -67,6 +82,10 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
   let ayseId: string;
   let giden: Eposta[];
   const eskiYoneticiler = process.env.DERSERA_YONETICILER;
+  // Arka plan işi (sıfırlama e-postası) testte istek dışında hemen başlatılır; bitmesi beklenir.
+  const bekle = async () => {
+    while (api.epostaIstek.istekDisiIsler.size > 0) await Promise.all([...api.epostaIstek.istekDisiIsler]);
+  };
 
   beforeEach(async () => {
     clearRedisEnv();
@@ -115,7 +134,7 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
     expect(await r.json()).toEqual({ eposta: { adres: "ayse@okul.tr", dogrulandi: false } });
     expect(giden).toHaveLength(1);
     expect(giden[0]).toMatchObject({ kime: "ayse@okul.tr", konu: "Dersera: e-posta adresini doğrula" });
-    expect(giden[0].metin).toMatch(/http:\/\/localhost\/eposta-dogrula\?t=/);
+    expect(giden[0].metin).toMatch(/http:\/\/localhost\/eposta-dogrula#t=/);
     const t = belirtecOf(giden[0]);
     expect((await dogrula("kisa")).status).toBe(400);
     expect((await dogrula(t)).status).toBe(200);
@@ -146,7 +165,7 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
       ["ayse@okul.tr", "Dersera: şifre sıfırlama"],
       ["ayse@okul.tr", "Dersera: şifre sıfırlama"],
     ]);
-    expect(giden[0].metin).toMatch(/http:\/\/localhost\/sifre-sifirla\?t=/);
+    expect(giden[0].metin).toMatch(/http:\/\/localhost\/sifre-sifirla#t=/);
   });
 
   it("sıfırla: zayıf şifre belirteci harcamaz; başarıda oturumlar düşer, eski şifre geçmez; belirteç tek kullanımlık ve şifre değişince geçersiz", async () => {
@@ -191,6 +210,34 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
     expect([await es.oku(ayseId), await es.adrestenHesap(adresOzeti("son@okul.tr"))]).toEqual([null, null]);
   });
 
+  it("belirteç türleri karışmaz: doğrulama belirteci şifre sıfırlamaz, sıfırlama belirteci e-posta doğrulamaz", async () => {
+    await dogrulanmisEkle(ayse, "ayse@okul.tr");
+    expect((await epostaEkle(bora, "bora@okul.tr")).status).toBe(200);
+    const dogrulamaBelirteci = belirtecOf(giden.at(-1)!);
+    expect((await sifirla(dogrulamaBelirteci, YENI)).status).toBe(400);
+    expect((await giris("bora", YENI)).status).toBe(401);
+    await iste("ayse");
+    await bekle();
+    const sifirlamaBelirteci = belirtecOf(giden.at(-1)!);
+    expect((await dogrula(sifirlamaBelirteci)).status).toBe(400);
+  });
+
+  it("askıdaki hesaba sıfırlama e-postası gitmez; sıfırlama isteklerinin sayacı doğrulama e-postalarından ayrıdır", async () => {
+    await dogrulanmisEkle(ayse, "ayse@okul.tr");
+    await dogrulanmisEkle(bora, "bora@okul.tr");
+    await api.authStore.getAuthStore().askiYaz(ayseId, { askida: true, zaman: Date.now(), neden: "deneme" });
+    giden = [];
+    await iste("ayse");
+    await bekle();
+    expect(giden).toEqual([]);
+    // Sıfırlama saatte 3 kez; sonra doğrulama e-postası yine gönderilebilir (sayaçlar ayrı).
+    for (let i = 0; i < 4; i++) await iste("bora");
+    await bekle();
+    expect(giden.map((e) => e.konu)).toEqual(Array(3).fill("Dersera: şifre sıfırlama"));
+    expect((await epostaEkle(bora, "bora2@okul.tr")).status).toBe(200);
+    expect(giden).toHaveLength(4);
+  });
+
   it("hesap başına saatte en çok 5 e-posta", async () => {
     for (let i = 0; i < 5; i++) expect((await epostaEkle(ayse, `a${i}@okul.tr`)).status).toBe(200);
     expect((await epostaEkle(ayse, "a9@okul.tr")).status).toBe(429);
@@ -218,28 +265,38 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
 
   it("yönetici sıfırlama bağlantısı: yetki, gerekçe, işlem kaydı; bağlantı çalışır; ayrıntıda yalnız e-posta var/yok", async () => {
     const yonetici = await hesapAc(api, "platform1");
-    const uret = (c: string | null, id: string, neden: unknown) => api.ogretmenSifirlama.POST(cerezli(jsonRequest(`/api/yonetim/ogretmenler/${id}/sifirlama`, { neden }), c), api.idParams(id));
+    const uret = (c: string | null, id: string, neden: unknown, sifre = SIFRE) => api.ogretmenSifirlama.POST(cerezli(jsonRequest(`/api/yonetim/ogretmenler/${id}/sifirlama`, { neden, sifre }), c), api.idParams(id));
     expect((await uret(null, ayseId, "unuttu")).status).toBe(401);
     expect((await uret(bora, ayseId, "unuttu")).status).toBe(403);
+    expect((await uret(yonetici, ayseId, "unuttu", "yanlis-sifre-9")).status).toBe(403);
     expect((await uret(yonetici, ayseId, "")).status).toBe(422);
     expect((await uret(yonetici, (await api.authStore.getAuthStore().idByAd("platform1"))!, "kendim")).status).toBe(409);
 
     const ayrinti = async () => (await api.ogretmen.GET(cerezli(new Request(`http://localhost/api/yonetim/ogretmenler/${ayseId}`), yonetici), api.idParams(ayseId))).json();
     expect((await ayrinti()).epostaDogrulanmis).toBe(false);
     const r = await uret(yonetici, ayseId, "Şifresini unuttu, e-postası yok");
-    const { baglanti } = await r.json();
-    expect(baglanti).toMatch(/^http:\/\/localhost\/sifre-sifirla\?t=[A-Za-z0-9_-]{40,}$/);
-    expect(giden).toEqual([]);
-    expect((await sifirla(new URL(baglanti).searchParams.get("t")!, YENI)).status).toBe(200);
+    const { baglanti, bildirildi } = await r.json();
+    expect(baglanti).toMatch(/^http:\/\/localhost\/sifre-sifirla#t=[A-Za-z0-9_-]{40,}$/);
+    // E-postası yok: bildirim gitmez.
+    expect([bildirildi, giden]).toEqual([false, []]);
+    expect((await sifirla(new URL(baglanti).hash.slice(3), YENI)).status).toBe(200);
     expect((await giris("ayse", YENI)).status).toBe(200);
 
     await dogrulanmisEkle(bora, "bora@okul.tr");
     const boraId = (await api.authStore.getAuthStore().idByAd("bora"))!;
+    giden = [];
+    const rb = await (await uret(yonetici, boraId, "E-postasına ulaşamıyor")).json();
+    expect(rb.bildirildi).toBe(true);
+    expect(giden.map((e) => [e.kime, e.konu])).toEqual([["bora@okul.tr", "Dersera: hesabın için şifre sıfırlama bağlantısı üretildi"]]);
+    expect(giden[0].metin).not.toContain(rb.baglanti.split("#")[1]);
     const b = await (await api.ogretmen.GET(cerezli(new Request(`http://localhost/api/yonetim/ogretmenler/${boraId}`), yonetici), api.idParams(boraId))).json();
     expect(b.epostaDogrulanmis).toBe(true);
     expect(JSON.stringify(b)).not.toContain("bora@okul.tr");
 
     const islemler = (await (await api.ogretmenler.GET(cerezli(new Request("http://localhost/api/yonetim/ogretmenler"), yonetici))).json()).islemler;
-    expect(islemler[0]).toMatchObject({ islem: "sifirlama-baglantisi", hedef: "ayse", yonetici: "platform1" });
+    expect(islemler.slice(0, 2).map((i: { islem: string; hedef: string }) => [i.islem, i.hedef])).toEqual([
+      ["sifirlama-baglantisi", "bora"],
+      ["sifirlama-baglantisi", "ayse"],
+    ]);
   });
 });

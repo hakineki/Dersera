@@ -143,6 +143,8 @@ export default function OgretmenlerClient() {
 // E-postasız öğretmen için tek kullanımlık şifre sıfırlama bağlantısı; bağlantı yalnız burada bir kez görünür.
 function SifirlamaBaglantisi({ id }: { id: string }) {
   const [neden, setNeden] = useState("");
+  const [sifre, setSifre] = useState("");
+  const [bildirildi, setBildirildi] = useState(false);
   const [baglanti, setBaglanti] = useState<string | null>(null);
   const [hata, setHata] = useState<string | null>(null);
   const [kopyalandi, setKopyalandi] = useState(false);
@@ -151,10 +153,12 @@ function SifirlamaBaglantisi({ id }: { id: string }) {
   async function uret() {
     setCalisiyor(true);
     setHata(null);
-    const r = await istek<{ baglanti: string }>(`/api/yonetim/ogretmenler/${id}/sifirlama`, { neden });
+    const r = await istek<{ baglanti: string; bildirildi: boolean }>(`/api/yonetim/ogretmenler/${id}/sifirlama`, { neden, sifre });
     setCalisiyor(false);
+    setSifre("");
     if (hataMi(r)) return setHata(r.error);
     setBaglanti(r.baglanti);
+    setBildirildi(r.bildirildi);
     setNeden("");
   }
 
@@ -164,6 +168,7 @@ function SifirlamaBaglantisi({ id }: { id: string }) {
       <p className="text-xs text-gray-500">Şifresini unutan ve doğrulanmış e-postası olmayan öğretmen için. 1 saat geçerli, tek kullanımlık; öğretmene güvenli bir yoldan (yüz yüze, okul içi yazışma) kendin ilet.</p>
       {baglanti ? (
         <div className="space-y-2">
+          {bildirildi && <p className="text-xs text-gray-500">Öğretmenin doğrulanmış e-postasına bağlantı üretildiği bildirildi (bağlantının kendisi gönderilmedi).</p>}
           <input readOnly value={baglanti} aria-label="Sıfırlama bağlantısı" onFocus={(e) => e.currentTarget.select()} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono bg-gray-50" />
           <button
             type="button"
@@ -186,12 +191,16 @@ function SifirlamaBaglantisi({ id }: { id: string }) {
             Gerekçe
           </label>
           <input id="sifirlama-neden" value={neden} onChange={(e) => setNeden(e.target.value)} maxLength={300} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          <label htmlFor="sifirlama-sifre" className="block text-xs font-semibold text-gray-600">
+            Kendi şifren
+          </label>
+          <input id="sifirlama-sifre" type="password" value={sifre} onChange={(e) => setSifre(e.target.value)} autoComplete="current-password" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           {hata && (
             <p role="alert" className="text-sm rounded-lg p-2 bg-red-50 text-red-700">
               {hata}
             </p>
           )}
-          <button type="button" disabled={calisiyor || neden.trim().length < 3} onClick={uret} className="text-sm font-semibold rounded-lg px-3 py-2 text-white bg-indigo-600 disabled:opacity-50">
+          <button type="button" disabled={calisiyor || neden.trim().length < 3 || !sifre} onClick={uret} className="text-sm font-semibold rounded-lg px-3 py-2 text-white bg-indigo-600 disabled:opacity-50">
             Bağlantı üret
           </button>
         </>
