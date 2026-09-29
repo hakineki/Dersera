@@ -14,10 +14,8 @@ function rotalar(dizin: string): string[] {
   });
 }
 
-// Başarı verebilen uçlar:
-// - çıkış: yalnız tarayıcı çerezini siler (oturum silinemezse de çıkış yapılmış olmalı);
-// - eski takma ad kaydı (lib/nicknames, bellekte): ayrı işte kaldırılacak.
-const DEPOSUZ = new Set<string>(["POST app/api/auth/cikis/route.ts", "POST app/api/register/route.ts"]);
+// Başarı verebilen uç: çıkış yalnız tarayıcı çerezini siler (oturum silinemezse de çıkış yapılmış olmalı).
+const DEPOSUZ = new Set<string>(["POST app/api/auth/cikis/route.ts"]);
 
 // Dinamik parçalar: [code] oyun kodu, diğerleri UUID.
 const parametreler = new Proxy({} as Record<string, string>, { get: (_, k) => (k === "code" ? "KRT-423" : k === "stop" ? "1" : "00000000-0000-4000-8000-000000000000") });
