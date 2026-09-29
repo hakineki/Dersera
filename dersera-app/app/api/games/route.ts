@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 import { parseComposerPublish } from "@/lib/composer/adapter";
 import { parsePublishRequest, type PublishRequest } from "@/lib/games";
 import { getGamesStore } from "@/lib/gamesStore";
-import { hashToken, publishGame } from "@/lib/gamesService";
+import { publishGame } from "@/lib/gamesService";
 import { istekSahibi } from "@/lib/libraryService";
 import { isKutuphaneId } from "@/lib/library";
 import { getLibraryStore } from "@/lib/libraryStore";
-import { getResultsStore } from "@/lib/resultsStore";
 import { toplulukKodunuBagla } from "@/lib/toplulukService";
 import { kodKaynagaBagla } from "@/lib/istatistikService";
 import type { DersKonu } from "@/lib/composer/input";
@@ -74,11 +73,6 @@ export async function POST(req: Request) {
       await toplulukKodunuBagla(request.definition, published.game.code, published.game.expiresAt, Date.now(), sahip);
       if (yonetisim) await moderasyonaEkle({ tur: "sinif-yayini", yonetisim, definition: request.definition, kod: published.game.code, sahip, ip: clientIp(req) });
     }
-    // Sonuç listesi yalnız yayınlayanın anahtarıyla okunur; özet sonuçlar kadar saklanır. Yazılamazsa oyun kaydındaki
-    // özet kullanılır (oyun kaydı süre +1 gün durur): yayın bozulmaz.
-    await getResultsStore()
-      .yetkiYaz(published.game.code, await hashToken(published.adminToken))
-      .catch((err: unknown) => console.error("[games] sonuç yetkisi yazılamadı", err instanceof Error ? err.message : err));
     return NextResponse.json({ ...published, persistent: store.persistent, ...(yonetisim && { yonetisim }) }, { status: 201 });
   } catch (err) {
     console.error("[games] yayınlama hatası", err);

@@ -179,6 +179,25 @@ describe("oyun kütüphanesi", () => {
     expect(oyun.status).toBe(200);
   });
 
+  it("kütüphaneden yayında da sonuç listesi yalnız yayın anahtarıyla, oyun kaydı silindikten sonra da okunur", async () => {
+    const { data } = await kaydet();
+    const r = await yenidenYayinla(data.id);
+    const kod = r.data.game.code as string;
+    const oku = (anahtar: string | null) =>
+      api.results.GET(new Request(`http://localhost/api/results?code=${kod}`, { headers: anahtar ? { Authorization: `Bearer ${anahtar}` } : {} }));
+    expect((await oku(null)).status).toBe(403);
+    expect((await oku(r.data.adminToken)).status).toBe(200);
+    const games = api.gamesStore.getGamesStore() as unknown as { get: (c: string) => Promise<unknown> };
+    const eski = games.get;
+    games.get = async () => null;
+    try {
+      expect((await oku(r.data.adminToken)).status).toBe(200);
+      expect((await oku("yanlis-anahtar")).status).toBe(403);
+    } finally {
+      games.get = eski;
+    }
+  });
+
   it("tekrar yayında süre ayarlanır; geçersiz süre 422", async () => {
     const { data } = await kaydet();
     const r = await yenidenYayinla(data.id, A, { durationMinutes: 30 });
