@@ -110,8 +110,9 @@ export async function yoneticiDevret(d: OkulYonetimiDeps, yonetici: Hesap, okulI
 }
 
 // Okulu kapatır. Onay: okulun adı yazılır ve yönetici kendi şifresini girer. Önce kayıt "kapanıyor" olur (davet kodu
-// silinir, katılma ve paylaşma kapanır), sonra üyelikler ve paylaşımlar kaldırılır, havuz sıfırlanır, en son okul
-// kaydı silinir. Arada hata olursa okul listede "kapatılıyor" kalır ve kapatma yeniden çalıştırılabilir.
+// silinir, katılma, paylaşma ve davet yenileme kapanır) ve işlem kaydına yazılır; havuz sıfırlanır, üyelikler ve
+// paylaşımlar kaldırılır, en son okul kaydı silinir. Arada hata olursa okul listede "kapatılıyor" kalır ve kapatma
+// yeniden çalıştırılabilir.
 export async function okulKapat(d: OkulYonetimiDeps, yonetici: Hesap, okulId: string, onayAdi: unknown, sifre: unknown, nedenGirdi: unknown, now = Date.now()): Promise<Sonuc<{ uye: number; paylasim: number }>> {
   if (typeof sifre !== "string" || sifre.length === 0 || sifre.length > 200 || !(await sifreDogru(sifre, yonetici.sifreOzeti))) {
     return hata(403, "Şifren hatalı.");
@@ -123,7 +124,14 @@ export async function okulKapat(d: OkulYonetimiDeps, yonetici: Hesap, okulId: st
   if (typeof onayAdi !== "string" || onayAdi.trim().toLocaleLowerCase("tr-TR") !== o.ad.toLocaleLowerCase("tr-TR")) {
     return hata(422, "Onay için okulun adını aynen yaz.");
   }
-  if (!o.kapaniyor && !(await d.okul.kapatmaBaslat(o))) return hata(409, "Okul bilgisi bu arada değişti. Sayfayı yenileyip tekrar dene.");
+  if (!o.kapaniyor) {
+    if (!(await d.okul.kapatmaBaslat(o))) return hata(409, "Okul bilgisi bu arada değişti. Sayfayı yenileyip tekrar dene.");
+    // Kayıt kapatma başlarken yazılır: sonraki adımlar yarıda kalsa da (yeniden çalıştırılır) işlem kayıtta görünür.
+    await kaydet(d, yonetici, "okul-kapat", o, o.olusturan, neden.value, now);
+  }
+  // Havuz hemen kapanır: üyeler çıkarılırken havuzdan yeni harcama yapılmaz.
+  await d.kredi.okulHakYaz(okulId, 0);
+  await d.kredi.okulSinirYaz(okulId, 0);
 
   let uye = 0;
   let paylasim = 0;
@@ -136,9 +144,6 @@ export async function okulKapat(d: OkulYonetimiDeps, yonetici: Hesap, okulId: st
       if (tam && (await d.okul.paylasimKaldir(okulId, { id: tam.id, kaynak: tam.kaynak }))) paylasim++;
     }
   }
-  await d.kredi.okulHakYaz(okulId, 0);
-  await d.kredi.okulSinirYaz(okulId, 0);
   await d.okul.kapatmaBitir(okulId);
-  await kaydet(d, yonetici, "okul-kapat", o, o.olusturan, neden.value, now);
   return { ok: true, value: { uye, paylasim } };
 }

@@ -10,6 +10,21 @@ const girdi = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "deng
 const dersler = [{ ders: "fizik" as const, konuId: getUniteler(10, "fizik")[0].id }];
 
 describe("okul deposu Lua betikleri (mini-Redis)", () => {
+  it("davet yenileme kaydın diğer alanlarını korur (devredilmiş yönetici geri dönmez)", async () => {
+    const { command } = createLuaRedis();
+    const s = createRedisOkulStore(command);
+    const [y, o1] = ["a".repeat(24), "b".repeat(24)];
+    const okul = { id: "11111111-2222-4333-8444-666666666666", ad: "Lise", olusturma: 1, olusturan: y, davetKodu: "KODKOD11" };
+    await s.olustur(okul, { hesapId: y, rol: "yonetici", katilma: 1 });
+    await s.katil(okul.id, { hesapId: o1, rol: "ogretmen", katilma: 2 });
+    expect(await s.yoneticiDevret(okul.id, y, o1)).toBe(true);
+    // Eski yöneticinin devirden önce okuduğu kayıtla yenileme: yalnız kod değişir, yönetici o1 kalır.
+    expect(await s.davetYenile(okul, "KODKOD22")).toBe("ok");
+    expect(await s.get(okul.id)).toEqual({ ...okul, olusturan: o1, davetKodu: "KODKOD22" });
+    expect([await s.davettenOkul("KODKOD11"), await s.davettenOkul("KODKOD22")]).toEqual([null, okul.id]);
+    expect(await s.davetYenile(okul, "KODKOD33")).toBe("degisti");
+  });
+
   it("devir rolleri ve okul yöneticisini değiştirir, koşul tutmazsa yazmaz; kapatma kaydı işaretler, katılma ve paylaşma kapanır", async () => {
     const { command } = createLuaRedis();
     const s = createRedisOkulStore(command);
@@ -34,6 +49,10 @@ describe("okul deposu Lua betikleri (mini-Redis)", () => {
     expect(await s.kapatmaBaslat(guncel)).toBe(true);
     expect(await s.get(okul.id)).toEqual({ ...guncel, kapaniyor: true });
     expect(await s.davettenOkul(okul.davetKodu)).toBeNull();
+    // Kapatmadan önce okunmuş kayıtla davet yenilemesi okulu yeniden açmaz ve kodu yazmaz.
+    expect(await s.davetYenile(guncel, "YYYYYYYY")).toBe("yok");
+    expect(await s.get(okul.id)).toEqual({ ...guncel, kapaniyor: true });
+    expect(await s.davettenOkul("YYYYYYYY")).toBeNull();
     expect(await s.katil(okul.id, { hesapId: o2, rol: "ogretmen", katilma: 3 })).toBe("yok");
     const pay = { id: "p1", kaynak: `hesap:${o1}:k`, paylasan: o1, baslik: "B", sinif: 6, ders: "Fen", konu: "K", sure_dk: 40, tarih: 1, definition: makeDefinition(girdi, 6), dersler };
     expect(await s.paylas(okul.id, pay)).toBe("yok");
@@ -165,6 +184,7 @@ describe("okul yönetimi uçları", () => {
     expect(await os.kapatmaBaslat((await os.get(okulId))!)).toBe(true);
     expect((await (await liste(yonetici)).json()).okullar[0]).toMatchObject({ kapaniyor: true });
     expect(await okulum(bora)).toEqual({ okul: null });
+    expect((await api.okulDavet.POST(cerezli(jsonRequest("/api/okul/davet", {}), bora))).status).toBe(404);
     expect((await devret(yonetici, { hesapId: ayseId, neden: "kapanıyor" })).status).toBe(404);
     const r = await kapat(yonetici, {});
     expect([r.status, await r.json()]).toEqual([200, { uye: 2, paylasim: 0 }]);

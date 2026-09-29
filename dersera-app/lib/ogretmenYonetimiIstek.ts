@@ -16,7 +16,6 @@ import { getYonetimIslemKaydiStore } from "@/lib/yonetimIslemKaydi";
 // Yönetim uç noktalarının (öğretmenler, okullar) ortak katmanı: yönetici denetimi, köken, depolar, hata yanıtı.
 
 export const HESAP_ID = /^[0-9a-f]{24}$/;
-export const OKUL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export const yonetimDeps = (): OgretmenYonetimiDeps => ({
   auth: getAuthStore(),
@@ -56,7 +55,7 @@ export async function yonetimIslemi<T>(
     }
     return NextResponse.json(r.value ?? { ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
-    console.error("[yonetim] öğretmen işlemi hatası", err instanceof Error ? err.message : err);
-    return NextResponse.json({ error: yazma ? "İşlem tamamlanamadı; sayfayı yenileyip durumu kontrol et." : "Öğretmen bilgisi okunamadı." }, { status: 503 });
+    console.error("[yonetim] işlem hatası", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: yazma ? "İşlem tamamlanamadı; sayfayı yenileyip durumu kontrol et." : "Bilgi okunamadı." }, { status: 503 });
   }
 }

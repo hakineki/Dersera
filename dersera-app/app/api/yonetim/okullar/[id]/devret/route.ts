@@ -1,4 +1,5 @@
-import { OKUL_ID, yonetimIslemi } from "@/lib/ogretmenYonetimiIstek";
+import { OKUL_ID } from "@/lib/okul";
+import { yonetimIslemi } from "@/lib/ogretmenYonetimiIstek";
 import { yoneticiDevret } from "@/lib/okulYonetimi";
 
 // Okul yöneticiliğini devret: { hesapId (okulun öğretmen üyesi), neden }.

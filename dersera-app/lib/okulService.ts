@@ -10,7 +10,7 @@ import type { IstatistikStore } from "@/lib/istatistikStore";
 import { ayOf, OKUL_HAVUZU } from "@/lib/kredi";
 import type { KrediStore } from "@/lib/krediStore";
 import type { LibraryStore } from "@/lib/libraryStore";
-import { DAVET_ALFABE, DAVET_UZUNLUK, davetKoduNormal, OKUL, okulAdiNormal, type Okul, type OkulRolu, type PaylasimOzeti } from "@/lib/okul";
+import { DAVET_ALFABE, DAVET_UZUNLUK, davetKoduNormal, OKUL, OKUL_ID, okulAdiNormal, type Okul, type OkulRolu, type PaylasimOzeti } from "@/lib/okul";
 import type { OkulStore } from "@/lib/okulStore";
 
 // Okul katmanı kuralları (lib/okul.ts). Yetki: okul yöneticisi davet kodunu görür/yeniler, üye çıkarır, panoyu görür,
@@ -117,6 +117,7 @@ export async function davetYenile(d: OkulDeps, hesap: Hesap): Promise<Sonuc<{ da
     const kod = davetKoduUret();
     const r = await d.okul.davetYenile(u.okul, kod);
     if (r === "ok") return { ok: true, davetKodu: kod };
+    if (r === "yok") return UYE_DEGIL;
     // Eşzamanlı bir yenileme kazandı: onun kodu geçerlidir, ikinci kod üretilmez.
     if (r === "degisti") {
       const guncel = await d.okul.get(u.okul.id);
@@ -316,7 +317,6 @@ export interface HavuzluOkul {
   kullanilan: number;
 }
 
-const OKUL_ID = /^[0-9a-f-]{36}$/;
 
 export async function havuzListesi(d: Pick<OkulDeps, "okul" | "kredi">, now = Date.now()): Promise<{ ay: string; okullar: HavuzluOkul[] }> {
   const ay = ayOf(now);

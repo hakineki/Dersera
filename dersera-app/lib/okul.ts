@@ -14,6 +14,9 @@ export const OKUL = {
 
 export type OkulRolu = "yonetici" | "ogretmen";
 
+// Okul kimliği (randomUUID).
+export const OKUL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 export interface Okul {
   id: string;
   ad: string;

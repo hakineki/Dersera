@@ -1,4 +1,5 @@
-import { OKUL_ID, yonetimIslemi } from "@/lib/ogretmenYonetimiIstek";
+import { OKUL_ID } from "@/lib/okul";
+import { yonetimIslemi } from "@/lib/ogretmenYonetimiIstek";
 import { okulAyrintisi } from "@/lib/okulYonetimi";
 
 const YOK = { ok: false as const, status: 404, error: "Okul bulunamadı." };

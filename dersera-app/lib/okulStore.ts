@@ -7,8 +7,9 @@ import { anahtarlariTara, depoKomutu, type RedisCommand } from "@/lib/redis";
 // "yok": okul kapatıldı ya da kapatılıyor.
 export type KatilmaSonucu = "ok" | "zaten-uye" | "dolu" | "yok";
 export type PaylasmaSonucu = "ok" | "dolu" | "yok";
-// "degisti": kod bu arada başka bir istekle yenilendi (öksüz kod bırakılmaz); "cakisma": yeni kod başka okulda.
-export type DavetYenilemeSonucu = "ok" | "degisti" | "cakisma";
+// "degisti": kod bu arada başka bir istekle yenilendi (öksüz kod bırakılmaz); "cakisma": yeni kod başka okulda;
+// "yok": okul kapatıldı ya da kapatılıyor.
+export type DavetYenilemeSonucu = "ok" | "degisti" | "cakisma" | "yok";
 
 export interface OkulStore {
   // Açan hesap başka okulda değilse okulu ve yönetici üyeliğini birlikte yazar.
@@ -98,7 +99,8 @@ export function createMemoryOkulStore(): OkulStore {
     },
     async davetYenile(okul, yeniKod) {
       const su = okullar.get(okul.id);
-      if (!su || su.davetKodu !== okul.davetKodu) return "degisti";
+      if (!su || su.kapaniyor) return "yok";
+      if (su.davetKodu !== okul.davetKodu) return "degisti";
       if (davetler.has(yeniKod)) return "cakisma";
       davetler.delete(su.davetKodu);
       davetler.set(yeniKod, okul.id);
@@ -190,13 +192,22 @@ const CIKAR = `if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
 redis.call('DEL', KEYS[1])
 redis.call('HDEL', KEYS[2], ARGV[2])
 return 1`;
-// KEYS: yeni davet, eski davet, okul kaydı. ARGV: okulId, yeni okul JSON, beklenen eski kod. Okul kaydındaki kod
-// beklenenden farklıysa (eşzamanlı yenileme) -1: hiçbir şey yazılmaz, öksüz kod kalmaz. Yeni kod doluysa 0.
-const DAVET_YENILE = `local v = redis.call('GET', KEYS[3])
-if not v or not string.find(v, '"davetKodu":"' .. ARGV[3] .. '"', 1, true) then return -1 end
+// Kayıttaki alanlar düz metin olarak yerinde değiştirilir (JSON ayrıştırılmaz, kaydın diğer alanları korunur); kod ve
+// kimlikler yalnız harf, rakam ve tire.
+const degistir = `local function degistir(s, eski, yeni)
+  local i = string.find(s, eski, 1, true)
+  if not i then return nil end
+  return string.sub(s, 1, i - 1) .. yeni .. string.sub(s, i + #eski)
+end`;
+// KEYS: yeni davet, eski davet, okul kaydı. ARGV: okulId, yeni kod, beklenen eski kod. Okul kapatılıyorsa -2. Kayıttaki
+// kod beklenenden farklıysa (eşzamanlı yenileme) -1: hiçbir şey yazılmaz, öksüz kod kalmaz. Yeni kod doluysa 0.
+const DAVET_YENILE = `${degistir}
+${acikDegil(3)}
+local v = degistir(okulKaydi, '"davetKodu":"' .. ARGV[3] .. '"', '"davetKodu":"' .. ARGV[2] .. '"')
+if not v then return -1 end
 if redis.call('SET', KEYS[1], ARGV[1], 'NX') == false then return 0 end
 redis.call('DEL', KEYS[2])
-redis.call('SET', KEYS[3], ARGV[2])
+redis.call('SET', KEYS[3], v)
 return 1`;
 // KEYS: özetler, kaynak→id, yeni tam kopya, eski tam kopya (yoksa yeninin aynısı), okul kaydı. ARGV: id, kaynak, özet
 // JSON, tam JSON, en çok paylaşım, okunan eski id ('' yoksa). Eski id bu arada değiştiyse -1 (yeniden denenir).
@@ -212,12 +223,6 @@ redis.call('SET', KEYS[3], ARGV[4])
 redis.call('HSET', KEYS[1], ARGV[1], ARGV[3])
 redis.call('HSET', KEYS[2], ARGV[2], ARGV[1])
 return 1`;
-// Rol ve yönetici alanları düz metin olarak değiştirilir (JSON ayrıştırılmaz); kimlikler yalnız harf, rakam ve tire.
-const degistir = `local function degistir(s, eski, yeni)
-  local i = string.find(s, eski, 1, true)
-  if not i then return nil end
-  return string.sub(s, 1, i - 1) .. yeni .. string.sub(s, i + #eski)
-end`;
 // KEYS: üye tablosu, eski yöneticinin okulu, yeni yöneticinin okulu, okul kaydı. ARGV: okulId, eskiId, yeniId.
 const DEVRET = `${degistir}
 if redis.call('GET', KEYS[2]) ~= ARGV[1] or redis.call('GET', KEYS[3]) ~= ARGV[1] then return 0 end
@@ -282,9 +287,8 @@ export function createRedisOkulStore(command: RedisCommand): OkulStore {
       return Number(await command(["EVAL", CIKAR, 2, uyeOkuluKey(hesapId), uyelerKey(okulId), okulId, hesapId])) === 1;
     },
     async davetYenile(okul, yeniKod) {
-      const guncel = { ...okul, davetKodu: yeniKod };
-      const r = Number(await command(["EVAL", DAVET_YENILE, 3, davetKey(yeniKod), davetKey(okul.davetKodu), okulKey(okul.id), okul.id, JSON.stringify(guncel), okul.davetKodu]));
-      return r === 1 ? "ok" : r === 0 ? "cakisma" : "degisti";
+      const r = Number(await command(["EVAL", DAVET_YENILE, 3, davetKey(yeniKod), davetKey(okul.davetKodu), okulKey(okul.id), okul.id, yeniKod, okul.davetKodu]));
+      return r === 1 ? "ok" : r === 0 ? "cakisma" : r === -2 ? "yok" : "degisti";
     },
     async paylas(okulId, p) {
       for (let deneme = 0; deneme < 3; deneme++) {

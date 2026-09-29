@@ -1,4 +1,5 @@
-import { OKUL_ID, yonetimIslemi } from "@/lib/ogretmenYonetimiIstek";
+import { OKUL_ID } from "@/lib/okul";
+import { yonetimIslemi } from "@/lib/ogretmenYonetimiIstek";
 import { okulKapat } from "@/lib/okulYonetimi";
 
 // Okulu kapat: { okulAdi (onay), sifre (yöneticinin), neden }. Şifre denemesi giriş gibi sınırlı.

@@ -591,6 +591,10 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     expect(await d.okul.kapatmaBaslat(guncel)).toBe(true);
     expect(await d.okul.get(okul.id)).toEqual({ ...guncel, kapaniyor: true });
     expect(await d.okul.davettenOkul(guncel.davetKodu)).toBeNull();
+    // Kapatmadan önce okunmuş kayıtla davet yenilemesi okulu yeniden açmaz.
+    expect(await d.okul.davetYenile(guncel, `Y${run}`.slice(0, 8))).toBe("yok");
+    expect(await d.okul.get(okul.id)).toEqual({ ...guncel, kapaniyor: true });
+    expect(await d.okul.davettenOkul(`Y${run}`.slice(0, 8))).toBeNull();
     expect(await d.okul.katil(okul.id, { hesapId: o2, rol: "ogretmen", katilma: 3 })).toBe("yok");
     const pay = { id: `kp-${run}`, kaynak: `hesap:${o1}:k`, paylasan: o1, baslik: "B", sinif: 6, ders: "Fen", konu: "K", sure_dk: 40, tarih: 1, definition: makeDefinition(girdi, 6), dersler };
     expect(await d.okul.paylas(okul.id, pay)).toBe("yok");
