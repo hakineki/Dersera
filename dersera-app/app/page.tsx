@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DerseraLogo from "@/components/DerseraLogo";
 
@@ -44,7 +45,14 @@ export default function RoleSelector() {
         </div>
 
         <p className="text-center text-purple-400/50 text-xs mt-8">
-          Okulun Şifresi v3
+          Okulun Şifresi v3 ·{" "}
+          <Link href="/gizlilik" className="underline hover:text-purple-200">
+            Gizlilik ve KVKK
+          </Link>{" "}
+          ·{" "}
+          <Link href="/kosullar" className="underline hover:text-purple-200">
+            Kullanım Koşulları
+          </Link>
         </p>
       </div>
     </div>

@@ -21,7 +21,13 @@ export default function KosullarPage() {
       <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Kullanım Koşulları</h1>
-          <p className="text-sm text-gray-500 mt-1">Sürüm {KOSUL_SURUMU}. Öğretmen hesabı açarken bu koşulları onaylarsın.</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Sürüm {KOSUL_SURUMU}. Öğretmen hesabı açarken bu koşulları onaylarsın. Kişisel verilerin nasıl işlendiği:{" "}
+            <Link href="/gizlilik" className="underline text-indigo-700">
+              Gizlilik ve KVKK Aydınlatma Metni
+            </Link>
+            .
+          </p>
         </div>
         <ol className="space-y-4">
           {KOSUL_BOLUMLERI.map((b, i) => (

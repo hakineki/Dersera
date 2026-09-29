@@ -38,7 +38,7 @@ export function createMemoryOgrenmeTakibiStore(): OgrenmeTakibiStore {
 const tabloKey = (sahip: string, ay: string) => `dersera:takip:${sahip}:${ay}`;
 const sayilanKey = (kod: string) => `dersera:takip:sayilan:${kod}`;
 // Aylık tablo bir yıldan uzun tutulur (geçen yılın aynı dönemiyle karşılaştırma).
-const TABLO_TTL_MS = 400 * 24 * 60 * 60 * 1000;
+export const TABLO_TTL_MS = 400 * 24 * 60 * 60 * 1000;
 
 // KEYS: sayılan öğrenciler, tablo. ARGV: oyuncu, sayılan ttl, tablo ttl, öğrenci çifti sayısı n, sonra n alan/artış
 // çifti, sonra oyun başına bir kez artan alanlar (yalnız oyunun ilk sayılan öğrencisinde).

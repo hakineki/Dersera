@@ -134,6 +134,13 @@ function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: Hesa
                   okudum; oyunları ve soruları platform dışında paylaşmayacağımı kabul ediyorum.
                 </span>
               </label>
+              <p className="text-xs text-purple-300">
+                Kişisel verilerin{" "}
+                <Link href="/gizlilik" target="_blank" className="underline text-white">
+                  Gizlilik ve KVKK Aydınlatma Metni
+                </Link>
+                {"'ne göre işlenir."}
+              </p>
             </>
           )}
 

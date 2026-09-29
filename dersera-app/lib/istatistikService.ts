@@ -14,7 +14,7 @@ export const KOD_BASINA_EN_COK_OGRENCI = 60;
 // süre saldırıyı pahalılaştırır ama önlemez. Kesin çözüm doğrulanmış öğrenci (V2 okul katmanı) gerektirir.
 export const EN_AZ_OYUN_ORANI = 0.25;
 export const EN_AZ_OYUN_SN = 120;
-const KATILIM_SAKLAMA_MS = 7 * 24 * 60 * 60 * 1000;
+export const KATILIM_SAKLAMA_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Testler ortam değişkeniyle süreyi sıfırlayabilir (DERSERA_EN_AZ_OYUN_SN).
 export function enAzOyunMs(sureDk: number | null): number {
