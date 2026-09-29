@@ -1,41 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import { takmaAdHatasi } from "@/lib/results";
 
 interface Props {
+  // Oyuna katılım (takma adın bu oyunda boş olup olmadığı dahil) üst bileşende, oyuna özel katılım ucuyla yapılır.
   onConfirm: (nickname: string) => void;
 }
 
 export default function NicknameEntry({ onConfirm }: Props) {
   const [value, setValue] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const trimmed = value.trim();
     if (!trimmed) return;
+    const hata = takmaAdHatasi(trimmed);
+    if (hata) return setError(hata);
     setError("");
-    setLoading(true);
-
-    try {
-      const res = await fetch("/api/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname: trimmed }),
-      });
-      const data = (await res.json()) as { ok?: boolean; nickname?: string; error?: string };
-
-      if (res.ok && data.ok && data.nickname) {
-        onConfirm(data.nickname);
-      } else {
-        setError(data.error ?? "Bir hata oluştu, tekrar dene.");
-      }
-    } catch {
-      setError("Sunucuya ulaşılamadı. Bağlantını kontrol et.");
-    } finally {
-      setLoading(false);
-    }
+    onConfirm(trimmed);
   }
 
   return (
@@ -89,10 +73,10 @@ export default function NicknameEntry({ onConfirm }: Props) {
           {/* Submit */}
           <button
             type="submit"
-            disabled={loading || value.trim().length < 2}
+            disabled={value.trim().length < 2}
             className="w-full py-3.5 bg-purple-600 hover:bg-purple-500 disabled:bg-white/10 disabled:text-white/30 text-white font-bold rounded-xl transition-all duration-200 active:scale-95 text-base"
           >
-            {loading ? "Kontrol ediliyor..." : "Maceraya Başla ⚡"}
+            Maceraya Başla ⚡
           </button>
         </form>
 

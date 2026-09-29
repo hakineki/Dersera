@@ -1,6 +1,14 @@
 import type { LeaderboardEntry } from "@/lib/gameState";
 
 export const NICKNAME_PATTERN = /^[a-zA-ZÇçĞğİıÖöŞşÜü0-9_-]{2,20}$/;
+
+// Takma ad giriş ekranı için: katılım ucunun kuralıyla aynı; uygunsa null, değilse öğrenciye gösterilecek mesaj.
+export function takmaAdHatasi(ham: string): string | null {
+  const ad = ham.trim();
+  if (ad.length < 2 || ad.length > 20) return "Takma kod 2–20 karakter arasında olmalı.";
+  if (!NICKNAME_PATTERN.test(ad)) return "Takma kod yalnızca harf, rakam, _ ve - içerebilir.";
+  return null;
+}
 const STOP_ID_PATTERN = /^[a-z0-9-]{1,40}$/;
 const MAX_SECONDS = 24 * 60 * 60;
 const MAX_HINTS = 1000;
