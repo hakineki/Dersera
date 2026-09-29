@@ -50,6 +50,7 @@ const DEPOLAR: [string, string][] = [
   ["lib/composer/yzDenetimService", "getYzDenetimStore"],
   ["lib/denetimKaydi", "getDenetimKaydiStore"],
   ["lib/yzMaliyetStore", "getYzMaliyetStore"],
+  ["lib/yonetimIslemKaydi", "getYonetimIslemKaydiStore"],
   ["lib/authStore", "getAuthStore"],
   ["lib/krediStore", "getKrediStore"],
 ];

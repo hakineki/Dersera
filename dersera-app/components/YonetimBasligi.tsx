@@ -7,6 +7,7 @@ import DerseraLogo from "@/components/DerseraLogo";
 // Platform yöneticisi sayfalarının ortak başlığı: bütün yönetim bölümleri tek menüde, bulunulan sayfa işaretli.
 export const YONETIM_BOLUMLERI = [
   { href: "/yonetim", ad: "Genel bakış" },
+  { href: "/yonetim/ogretmenler", ad: "Öğretmenler" },
   { href: "/moderasyon", ad: "Moderasyon" },
   { href: "/yonetim/ogrenme", ad: "Öğrenme" },
   { href: "/yonetim/okul-havuzu", ad: "Okul havuzları" },
