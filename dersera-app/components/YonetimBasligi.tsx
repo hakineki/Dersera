@@ -8,6 +8,7 @@ import DerseraLogo from "@/components/DerseraLogo";
 export const YONETIM_BOLUMLERI = [
   { href: "/yonetim", ad: "Genel bakış" },
   { href: "/yonetim/ogretmenler", ad: "Öğretmenler" },
+  { href: "/yonetim/okullar", ad: "Okullar" },
   { href: "/moderasyon", ad: "Moderasyon" },
   { href: "/yonetim/ogrenme", ad: "Öğrenme" },
   { href: "/yonetim/okul-havuzu", ad: "Okul havuzları" },

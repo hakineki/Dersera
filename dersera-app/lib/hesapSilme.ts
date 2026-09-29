@@ -64,7 +64,7 @@ const ENGEL_MESAJLARI = {
   },
   yonetici: {
     yonetici: "Platform yöneticisi hesabı silinemez.",
-    okulYoneticisi: "Bu öğretmen bir okulun yöneticisi: önce okulun yöneticiliğini devret ya da okulu kapat.",
+    okulYoneticisi: "Bu öğretmen bir okulun yöneticisi: önce Okullar sayfasından yöneticiliği devret ya da okulu kapat.",
     askidaKredi: "Öğretmenin şu anda süren bir oyun oluşturması var. Birkaç dakika sonra tekrar dene.",
     degisti: "Hesap bilgisi bu arada değişti. Sayfayı yenileyip tekrar dene.",
   },

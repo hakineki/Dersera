@@ -181,7 +181,7 @@ describe("öğretmen yönetimi uçları", () => {
 
     expect((await api.okul.POST(cerezli(jsonRequest("/api/okul", { ad: "Deneme Lisesi" }), bora))).status).toBe(201);
     const okulYoneticisi = await sil(yonetici, boraId, { kullaniciAdi: "bora" });
-    expect([okulYoneticisi.status, (await okulYoneticisi.json()).error]).toEqual([409, "Bu öğretmen bir okulun yöneticisi: önce okulun yöneticiliğini devret ya da okulu kapat."]);
+    expect([okulYoneticisi.status, (await okulYoneticisi.json()).error]).toEqual([409, "Bu öğretmen bir okulun yöneticisi: önce Okullar sayfasından yöneticiliği devret ya da okulu kapat."]);
 
     const lib = await api.library.POST(cerezli(jsonRequest("/api/library", { definition: makeDefinition(girdi, 6), dersler }), ayse));
     expect(lib.status).toBe(201);

@@ -2,7 +2,7 @@ import { kutuphaneSahibi, sifreDogru } from "@/lib/auth";
 import type { Hesap } from "@/lib/authStore";
 import { hesapVerileriniSil, type HesapSilmeDeps } from "@/lib/hesapSilme";
 import { ayOf, KREDI_KURALLARI } from "@/lib/kredi";
-import type { YonetimIslemi, YonetimIslemKaydiStore } from "@/lib/yonetimIslemKaydi";
+import { sonIslemler, type YonetimIslemi, type YonetimIslemKaydiStore } from "@/lib/yonetimIslemKaydi";
 
 // Platform yöneticisinin öğretmen yönetimi: arama, ayrıntı, askıya alma / geri açma, hesabı silme. Her değişiklik
 // işlem kaydına yazılır. Yönetici kendini ve başka platform yöneticisini askıya alamaz, silemez.
@@ -16,7 +16,7 @@ const hata = (status: number, error: string) => ({ ok: false as const, status, e
 
 export const LISTE_SINIRI = 100;
 export const NEDEN_EN_FAZLA = 300;
-const SON_ISLEM = 30;
+export const SON_ISLEM = 30;
 
 export interface OgretmenSatiri {
   id: string;
@@ -42,16 +42,7 @@ export async function ogretmenListesi(d: OgretmenYonetimiDeps, sorguGirdi: unkno
     askida: !!h.aski?.askida,
     okulAdi: okulIdler[i] ? (okulAdi.get(okulIdler[i]!) ?? null) : null,
   }));
-  return { toplam: hepsi.length, eslesen: eslesen.length, ogretmenler, islemler: await sonIslemler(d) };
-}
-
-// Son yönetim işlemleri; adlar okurken çözülür (silinmiş hesap null).
-async function sonIslemler(d: OgretmenYonetimiDeps) {
-  const kayitlar = await d.islemler.son(SON_ISLEM);
-  const ids = [...new Set(kayitlar.flatMap((k) => [k.yoneticiId, k.hedefId]))];
-  const bulunan = await d.auth.kullaniciAdlari(ids);
-  const adlar = new Map(ids.map((id, i) => [id, bulunan[i] ?? null]));
-  return kayitlar.map((k) => ({ tarih: k.tarih, islem: k.islem, neden: k.neden, yonetici: adlar.get(k.yoneticiId) ?? null, hedef: adlar.get(k.hedefId) ?? null }));
+  return { toplam: hepsi.length, eslesen: eslesen.length, ogretmenler, islemler: await sonIslemler(d, SON_ISLEM) };
 }
 
 export async function ogretmenAyrintisi(d: OgretmenYonetimiDeps, id: string, now = Date.now()) {
