@@ -1,7 +1,7 @@
 import { nicknameKey } from "@/lib/gameState";
 import type { DersKonu } from "@/lib/composer/input";
 import type { PublicGame } from "@/lib/games";
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 
 export interface StoredGame extends PublicGame {
   adminTokenHash: string;
@@ -107,7 +107,7 @@ let store: GamesStore | null = null;
 
 export function getGamesStore(): GamesStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("oyunlar");
     store = command ? createRedisGamesStore(command) : createMemoryGamesStore();
   }
   return store;

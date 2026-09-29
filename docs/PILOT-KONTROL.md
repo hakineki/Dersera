@@ -7,7 +7,7 @@ Her satırın yanına sonucu (✓ / ✗ + not) yazın. ✗ olan satır pilotu du
 
 | Değişken | Gerekli | Not |
 |---|---|---|
-| `KV_REST_API_URL`, `KV_REST_API_TOKEN` (ya da `UPSTASH_REDIS_REST_URL/TOKEN`) | Evet | Yoksa üretimde oran sınırı çalışmaz, oyun oluşturma 503 döner; veriler bellekte kalır ve kaybolur. |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` (ya da `UPSTASH_REDIS_REST_URL/TOKEN`) | Evet | Yoksa üretimde hiçbir kalıcı depo açılmaz: hesap, oyun, sonuç, kütüphane ve topluluk uçları hata verir (503/500), veri belleğe yazılmaz. Günlükte `[redis] Ortam değişkenleri yok` görünür. |
 | `OPENAI_API_KEY` ya da `ANTHROPIC_API_KEY` | Evet | OpenAI varsa o, yoksa Anthropic kullanılır. Oluşturma, güncelleme ve çocuk güvenliği denetimi aynı sağlayıcıdan gider. |
 | `AI_MODEL` / `ANTHROPIC_MODEL` | Hayır | Varsayılan modeli değiştirmek için. |
 | `DERSERA_YONETICILER` | Moderasyon için | Virgülle ayrılmış kullanıcı adları (ör. `hakan`). Ad ilk girişte hesaba bağlanır; adı ÖNCE kendiniz alın, sonra ekleyin. Yönetici `/moderasyon` sayfasını görür. |

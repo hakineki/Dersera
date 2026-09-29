@@ -1,4 +1,4 @@
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 import { BOS_PUAN_SAYACI, kovaliPuanEkle, kovaliPuanLua, PUAN_KOVASI, type PuanSayaci } from "@/lib/istatistik";
 
 // Kütüphane oyunlarının saha istatistikleri. Oyun kodu yayın anında kütüphane kaydına ("sahip:kutuphaneId") bağlanır.
@@ -189,7 +189,7 @@ let store: IstatistikStore | null = null;
 
 export function getIstatistikStore(): IstatistikStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("istatistik");
     store = command ? createRedisIstatistikStore(command) : createMemoryIstatistikStore();
   }
   return store;

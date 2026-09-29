@@ -68,8 +68,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Oyun kodu gerekli" }, { status: 400 });
   }
 
-  const store = getResultsStore();
   try {
+    const store = getResultsStore();
     const results = await store.list(code);
     return NextResponse.json({ results, persistent: store.persistent });
   } catch (err) {

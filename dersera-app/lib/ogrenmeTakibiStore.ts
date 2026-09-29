@@ -1,4 +1,4 @@
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 
 // Öğretmen öğrenme takibi deposu: öğretmen (sahip = "hesap:<id>") başına aylık sayaç tablosu. Aynı oyunda aynı
 // öğrenci yalnız bir kez sayılır; oyunun ilk sayılan öğrencisinde oyun alanları da bir kez artar. Her sonuç tek komuttur.
@@ -85,7 +85,7 @@ export function createRedisOgrenmeTakibiStore(command: RedisCommand): OgrenmeTak
 let store: OgrenmeTakibiStore | null = null;
 export function getOgrenmeTakibiStore(): OgrenmeTakibiStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("öğrenme takibi");
     store = command ? createRedisOgrenmeTakibiStore(command) : createMemoryOgrenmeTakibiStore();
   }
   return store;

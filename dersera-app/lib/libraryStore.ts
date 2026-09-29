@@ -1,5 +1,5 @@
 import type { KutuphaneKaydi } from "@/lib/library";
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 
 // Kütüphane kayıtları süresizdir; öğretmen silene kadar kalır. Sahip = kütüphane anahtarının özeti.
 export interface LibraryStore {
@@ -134,7 +134,7 @@ let store: LibraryStore | null = null;
 
 export function getLibraryStore(): LibraryStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("kütüphane");
     store = command ? createRedisLibraryStore(command) : createMemoryLibraryStore();
   }
   return store;

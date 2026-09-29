@@ -1,4 +1,4 @@
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 import type { GorselHedefi } from "@/lib/gorselIstem";
 import type { Harcama } from "@/lib/krediService";
 
@@ -141,7 +141,7 @@ export function createRedisGorselStore(command: RedisCommand): GorselStore {
 let store: GorselStore | null = null;
 export function getGorselStore(): GorselStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("görsel işleri");
     store = command ? createRedisGorselStore(command) : createMemoryGorselStore();
   }
   return store;

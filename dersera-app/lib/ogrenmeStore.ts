@@ -1,5 +1,5 @@
 import { OGRENME, type Oneri, type OneriDurumu } from "@/lib/ogrenme";
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { depoKomutu, type RedisCommand } from "@/lib/redis";
 
 // Öğrenme döngüsü deposu: aylık sayaç tablosu (her olay tek komut), öğrenci başına tek sayım, yapay zekâ güncelleme
 // talimatları (son N, kimliksiz) ve öneriler (karar tek sefer: beklenen durumdan geçiş).
@@ -139,7 +139,7 @@ export function createRedisOgrenmeStore(command: RedisCommand): OgrenmeStore {
 let store: OgrenmeStore | null = null;
 export function getOgrenmeStore(): OgrenmeStore {
   if (!store) {
-    const command = redisFromEnv();
+    const command = depoKomutu("öğrenme döngüsü");
     store = command ? createRedisOgrenmeStore(command) : createMemoryOgrenmeStore();
   }
   return store;
