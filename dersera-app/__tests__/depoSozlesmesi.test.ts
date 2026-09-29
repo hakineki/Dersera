@@ -31,6 +31,8 @@ import { getUniteler } from "@/data/mufredat/programlar";
 // Üretim veritabanında çalışmaz: başlangıçta DBSIZE 0 değilse durur. Bitince yalnız bu çalıştırmanın anahtarlarını siler.
 
 const REDIS_ISTENDI = process.env.DERSERA_REDIS_DUMAN === "1";
+// Gerçek Redis'te her komut ayrı bir HTTP isteğidir: çok komutlu testler varsayılan 5 sn'yi aşabilir.
+if (REDIS_ISTENDI) jest.setTimeout(60_000);
 const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
 const token = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
 
