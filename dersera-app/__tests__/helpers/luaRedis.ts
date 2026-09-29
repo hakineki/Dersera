@@ -72,6 +72,20 @@ export function createLuaRedis() {
         tablolar.set(a[0], t);
         return yeni;
       }
+      case "HGET":
+        return tablolar.get(a[0])?.get(a[1]) ?? null;
+      case "HMGET":
+        return a.slice(1).map((f) => tablolar.get(a[0])?.get(f) ?? null);
+      case "HDEL": {
+        const t = tablolar.get(a[0]);
+        const n = a.slice(1).filter((f) => t?.delete(f)).length;
+        if (t && t.size === 0) tablolar.delete(a[0]);
+        return n;
+      }
+      case "HLEN":
+        return tablolar.get(a[0])?.size ?? 0;
+      case "HEXISTS":
+        return tablolar.get(a[0])?.has(a[1]) ? 1 : 0;
       case "HGETALL":
         return [...(tablolar.get(a[0]) ?? new Map<string, string>())].flat();
       case "PEXPIRE":

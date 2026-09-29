@@ -50,6 +50,7 @@ describe("gizlilik ve KVKK aydınlatma metni", () => {
     expect(s).toContain(`Şifreli gece yedeği: ${YEDEK_SAKLAMA_GUN} gün`);
     expect(s).toContain(`Yönetim işlem kaydı: son ${ISLEM_SAKLAMA} işlem`);
     expect(s).toContain("Askı kaydı ve gerekçesi: hesap silinene kadar");
+    expect(s).toMatch(/okul kapatılınca okul kaydı, davet kodu, üyelikler, okul kütüphanesindeki paylaşımlar ve okulun kredi havuzu silinir/);
     expect(bolum("Hangi verileri işliyoruz")).toMatch(/Hesap yönetimi: .*askıya/);
   });
 

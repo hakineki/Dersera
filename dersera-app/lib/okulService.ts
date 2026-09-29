@@ -36,13 +36,13 @@ export interface OkulDeps {
 const UYE_DEGIL: Sonuc<never> = { ok: false, status: 404, error: "Bir okula üye değilsin." };
 const YONETICI_DEGIL: Sonuc<never> = { ok: false, status: 403, error: "Bu işlem yalnız okul yöneticisine açık." };
 
-// Hesabın okulu ve rolü; üye değilse null.
+// Hesabın okulu ve rolü; üye değilse ya da okul kapatılıyorsa null.
 async function uyelik(d: OkulDeps, hesap: Hesap): Promise<{ okul: Okul; rol: OkulRolu } | null> {
   const okulId = await d.okul.okulOf(hesap.id);
   if (!okulId) return null;
   const [okul, uyeler] = await Promise.all([d.okul.get(okulId), d.okul.uyeler(okulId)]);
   const uye = uyeler.find((u) => u.hesapId === hesap.id);
-  return okul && uye ? { okul, rol: uye.rol } : null;
+  return okul && uye && !okul.kapaniyor ? { okul, rol: uye.rol } : null;
 }
 
 export interface OkulumYaniti {
@@ -86,6 +86,7 @@ export async function okulaKatil(d: OkulDeps, hesap: Hesap, kodGirdi: unknown, n
   const r = await d.okul.katil(okulId, { hesapId: hesap.id, rol: "ogretmen", katilma: now });
   if (r === "zaten-uye") return { ok: false, status: 409, error: "Zaten bir okula üyesin; önce ondan ayrıl." };
   if (r === "dolu") return { ok: false, status: 422, error: `Okul en çok ${OKUL.enCokUye} öğretmene açık.` };
+  if (r === "yok") return { ok: false, status: 404, error: "Davet kodu geçersiz." };
   return { ok: true, ...(await okulum(d, hesap)) };
 }
 
@@ -154,6 +155,7 @@ export async function okullaPaylas(d: OkulDeps, hesap: Hesap, kutuphaneId: strin
     definition: r.definition,
     dersler: r.dersler,
   });
+  if (sonuc === "yok") return UYE_DEGIL;
   if (sonuc === "dolu") return { ok: false, status: 422, error: `Okul kütüphanesi en çok ${OKUL.enCokPaylasim} oyun alır; önce eskileri kaldırın.` };
   return { ok: true, id };
 }

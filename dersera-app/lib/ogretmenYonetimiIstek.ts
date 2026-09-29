@@ -13,11 +13,12 @@ import { yoneticiMi } from "@/lib/yonetici";
 import { yoneticiHesabi } from "@/lib/yoneticiIstek";
 import { getYonetimIslemKaydiStore } from "@/lib/yonetimIslemKaydi";
 
-// Öğretmen yönetimi uç noktalarının ortak katmanı: yönetici denetimi, köken, depolar, hata yanıtı.
+// Yönetim uç noktalarının (öğretmenler, okullar) ortak katmanı: yönetici denetimi, köken, depolar, hata yanıtı.
 
 export const HESAP_ID = /^[0-9a-f]{24}$/;
+export const OKUL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
-export const ogretmenYonetimiDeps = (): OgretmenYonetimiDeps => ({
+export const yonetimDeps = (): OgretmenYonetimiDeps => ({
   auth: getAuthStore(),
   okul: getOkulStore(),
   library: getLibraryStore(),
@@ -30,7 +31,7 @@ export const ogretmenYonetimiDeps = (): OgretmenYonetimiDeps => ({
   yoneticiMi: (h) => yoneticiMi(h),
 });
 
-export async function ogretmenYonetimiIslemi<T>(
+export async function yonetimIslemi<T>(
   req: Request,
   islem: (yonetici: Hesap, d: OgretmenYonetimiDeps, govde: Record<string, unknown>) => Promise<Sonuc<T>>,
   { yazma = false, sifreli = false }: { yazma?: boolean; sifreli?: boolean } = {}
@@ -47,7 +48,7 @@ export async function ogretmenYonetimiIslemi<T>(
   }
   const govde = yazma ? await jsonGovde(req) : {};
   try {
-    const r = await islem(y.hesap, ogretmenYonetimiDeps(), govde);
+    const r = await islem(y.hesap, yonetimDeps(), govde);
     if (!r.ok) {
       // Yöneticinin şifre denemesi de giriş gibi sayılır.
       if (sifreli && r.status === 403) await hataliDenemeKaydet(req, y.hesap.kullaniciAdi);

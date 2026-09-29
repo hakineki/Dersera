@@ -568,6 +568,40 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     expect((await d.auth.hesaplar()).find((x) => x.id === id)).toEqual({ id, kullaniciAdi: h.kullaniciAdi, olusturma: 5 });
   });
 
+  it("okul yönetimi: liste, atomik devir (koşul tutmazsa yazılmaz), kapatma: katılma ve paylaşma kapanır, kayıt silinir", async () => {
+    const [y, o1, o2] = [`ky-${run}`, `ko1-${run}`, `ko2-${run}`];
+    const okul = { id: `okd-${run}`, ad: "Devir Okulu", olusturma: 1, olusturan: y, davetKodu: `D${run}`.slice(0, 8) };
+    expect(await d.okul.olustur(okul, { hesapId: y, rol: "yonetici", katilma: 1 })).toBe(true);
+    expect(await d.okul.okulIdleri()).toContain(okul.id);
+    expect(await d.okul.katil(okul.id, { hesapId: o1, rol: "ogretmen", katilma: 2 })).toBe("ok");
+    expect(await d.okul.katil(`yok-${run}`, { hesapId: o2, rol: "ogretmen", katilma: 2 })).toBe("yok");
+    // Üye olmayan ya da zaten yönetici olan hesaba devir yazılmaz.
+    expect(await d.okul.yoneticiDevret(okul.id, y, o2)).toBe(false);
+    expect(await d.okul.yoneticiDevret(okul.id, o1, y)).toBe(false);
+    expect(await d.okul.yoneticiDevret(okul.id, y, o1)).toBe(true);
+    const roller = Object.fromEntries((await d.okul.uyeler(okul.id)).map((u) => [u.hesapId, u.rol]));
+    expect(roller).toEqual({ [y]: "ogretmen", [o1]: "yonetici" });
+    expect((await d.okul.get(okul.id))!.olusturan).toBe(o1);
+    expect(await d.okul.yoneticiDevret(okul.id, y, o1)).toBe(false);
+
+    const guncel = (await d.okul.get(okul.id))!;
+    expect(await d.okul.kapatmaBaslat({ ...guncel, davetKodu: "ESKIKOD1" })).toBe(false);
+    expect(await d.okul.kapatmaBaslat({ ...guncel, olusturan: y })).toBe(false);
+    expect(await d.okul.kapatmaBaslat(guncel)).toBe(true);
+    expect(await d.okul.kapatmaBaslat(guncel)).toBe(true);
+    expect(await d.okul.get(okul.id)).toEqual({ ...guncel, kapaniyor: true });
+    expect(await d.okul.davettenOkul(guncel.davetKodu)).toBeNull();
+    expect(await d.okul.katil(okul.id, { hesapId: o2, rol: "ogretmen", katilma: 3 })).toBe("yok");
+    const pay = { id: `kp-${run}`, kaynak: `hesap:${o1}:k`, paylasan: o1, baslik: "B", sinif: 6, ders: "Fen", konu: "K", sure_dk: 40, tarih: 1, definition: makeDefinition(girdi, 6), dersler };
+    expect(await d.okul.paylas(okul.id, pay)).toBe("yok");
+    expect(await d.okul.uyeCikar(okul.id, y)).toBe(true);
+    expect(await d.okul.uyeCikar(okul.id, o1)).toBe(true);
+    await d.okul.kapatmaBitir(okul.id);
+    expect([await d.okul.get(okul.id), await d.okul.uyeler(okul.id), await d.okul.paylasimlar(okul.id)]).toEqual([null, [], []]);
+    expect(await d.okul.okulIdleri()).not.toContain(okul.id);
+    expect(await d.okul.okulOf(o1)).toBeNull();
+  });
+
   it("yönetim işlem kaydı: en yeni önce", async () => {
     const k = (tarih: number) => ({ tarih, yoneticiId: `y${run}`, islem: "askiya-al" as const, hedefId: `h${run}`, neden: "n" });
     await d.islemler.ekle(k(1));

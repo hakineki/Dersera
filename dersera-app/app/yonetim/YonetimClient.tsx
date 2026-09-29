@@ -28,6 +28,7 @@ const SAGLIK_ADI: { key: keyof YonetimOzeti["saglik"]; ad: string; eksik: string
 
 const BOLUMLER = [
   { href: "/yonetim/ogretmenler", ad: "Öğretmenler", metin: "Öğretmen arama ve ayrıntısı; hesabı askıya alma, geri açma ve silme; son yönetim işlemleri." },
+  { href: "/yonetim/okullar", ad: "Okullar", metin: "Okulların üyeleri ve havuzu; okul yöneticiliğini devretme ve okulu kapatma." },
   { href: "/moderasyon", ad: "Moderasyon", metin: "İçerik denetiminden uyarı ya da engel alan oyunlar; topluluk başlangıç döneminin incelemesiz oyunları.", rozet: "moderasyonBekleyen" as const },
   { href: "/yonetim/ogrenme", ad: "Öğrenme döngüsü", metin: "Aylık üretim ve öğrenci sonuçları; yapay zekâdan kural önerisi ve onaylı kurallar." },
   { href: "/yonetim/okul-havuzu", ad: "Okul kredi havuzları", metin: "Okullara aylık kredi hakkı atama ve kullanım." },

@@ -18,9 +18,11 @@ export interface Okul {
   id: string;
   ad: string;
   olusturma: number;
-  // Okulu açan hesap: okul yöneticisi.
+  // Okul yöneticisinin hesabı (okulu açan; platform yöneticisi yöneticiliği devredince yeni yönetici).
   olusturan: string;
   davetKodu: string;
+  // Platform yöneticisi okulu kapatıyor: davet kodu silinmiştir, katılma ve paylaşma kapalıdır; bitince kayıt silinir.
+  kapaniyor?: true;
 }
 
 export interface OkulUyesi {

@@ -4,8 +4,9 @@ import { anahtarlariTara, depoKomutu, type RedisCommand } from "@/lib/redis";
 // Anahtarlar: okul kaydı, hesap → okul (öğretmen başına tek okul; tüm üyelik değişiklikleri bu anahtarla atomik),
 // okulun üye tablosu, davet kodu → okul, paylaşım özetleri (liste), paylaşımın tam kopyası ("Kullan") ve
 // kaynak → paylaşım (aynı oyunun yeniden paylaşımı öncekinin yerine geçer).
-export type KatilmaSonucu = "ok" | "zaten-uye" | "dolu";
-export type PaylasmaSonucu = "ok" | "dolu";
+// "yok": okul kapatıldı ya da kapatılıyor.
+export type KatilmaSonucu = "ok" | "zaten-uye" | "dolu" | "yok";
+export type PaylasmaSonucu = "ok" | "dolu" | "yok";
 // "degisti": kod bu arada başka bir istekle yenilendi (öksüz kod bırakılmaz); "cakisma": yeni kod başka okulda.
 export type DavetYenilemeSonucu = "ok" | "degisti" | "cakisma";
 
@@ -33,6 +34,16 @@ export interface OkulStore {
   hesabinPaylasimlari(hesapId: string): Promise<{ okulId: string; paylasim: OkulPaylasimi }[]>;
   // Toplam okul sayısı (yönetim özeti; tarama, seyrek).
   okulSayisi(): Promise<number>;
+  // Bütün okulların kimlikleri (yönetim listesi; tarama, seyrek).
+  okulIdleri(): Promise<string[]>;
+  // Okul yöneticiliğini üyeler arasında atomik olarak devreder: eski hâlâ yönetici, yeni hâlâ öğretmen üye olmalı;
+  // okul kaydındaki yönetici de değişir. Koşul tutmazsa hiçbir şey yazılmaz (false).
+  yoneticiDevret(okulId: string, eskiId: string, yeniId: string): Promise<boolean>;
+  // Kapatmanın ilk adımı: davet kodu silinir, kayıt "kapanıyor" olur (yeni katılma ve paylaşma yok). Kayıt bu arada
+  // değiştiyse (davet yenilendi, yönetici devredildi) false.
+  kapatmaBaslat(okul: Okul): Promise<boolean>;
+  // Son adım (üyeler ve paylaşımlar kaldırıldıktan sonra): okul kaydı ve kalan tablolar silinir.
+  kapatmaBitir(okulId: string): Promise<void>;
 }
 
 export function createMemoryOkulStore(): OkulStore {
@@ -43,6 +54,10 @@ export function createMemoryOkulStore(): OkulStore {
   const paylasimlar = new Map<string, Map<string, OkulPaylasimi>>();
   const uyeTablosu = (okulId: string) => uyeler.get(okulId) ?? uyeler.set(okulId, new Map()).get(okulId)!;
   const paylasimTablosu = (okulId: string) => paylasimlar.get(okulId) ?? paylasimlar.set(okulId, new Map()).get(okulId)!;
+  const acik = (okulId: string) => {
+    const o = okullar.get(okulId);
+    return !!o && !o.kapaniyor;
+  };
   return {
     async olustur(okul, yonetici) {
       if (uyeOkulu.has(yonetici.hesapId)) return false;
@@ -65,6 +80,7 @@ export function createMemoryOkulStore(): OkulStore {
       return davetler.get(kod) ?? null;
     },
     async katil(okulId, uye) {
+      if (!acik(okulId)) return "yok";
       if (uyeOkulu.has(uye.hesapId)) return "zaten-uye";
       if (uyeTablosu(okulId).size >= OKUL.enCokUye) return "dolu";
       uyeOkulu.set(uye.hesapId, okulId);
@@ -90,6 +106,7 @@ export function createMemoryOkulStore(): OkulStore {
       return "ok";
     },
     async paylas(okulId, p) {
+      if (!acik(okulId)) return "yok";
       const t = paylasimTablosu(okulId);
       const eski = [...t.values()].find((x) => x.kaynak === p.kaynak);
       if (!eski && t.size >= OKUL.enCokPaylasim) return "dolu";
@@ -108,6 +125,30 @@ export function createMemoryOkulStore(): OkulStore {
     },
     async okulSayisi() {
       return okullar.size;
+    },
+    async okulIdleri() {
+      return [...okullar.keys()];
+    },
+    async yoneticiDevret(okulId, eskiId, yeniId) {
+      const t = uyeTablosu(okulId);
+      const [e, y, o] = [t.get(eskiId), t.get(yeniId), okullar.get(okulId)];
+      if (!o || uyeOkulu.get(eskiId) !== okulId || uyeOkulu.get(yeniId) !== okulId || e?.rol !== "yonetici" || y?.rol !== "ogretmen") return false;
+      t.set(eskiId, { ...e, rol: "ogretmen" });
+      t.set(yeniId, { ...y, rol: "yonetici" });
+      if (o.olusturan === eskiId) okullar.set(okulId, { ...o, olusturan: yeniId });
+      return true;
+    },
+    async kapatmaBaslat(okul) {
+      const su = okullar.get(okul.id);
+      if (!su || su.davetKodu !== okul.davetKodu || su.olusturan !== okul.olusturan) return false;
+      davetler.delete(su.davetKodu);
+      okullar.set(okul.id, { ...su, kapaniyor: true });
+      return true;
+    },
+    async kapatmaBitir(okulId) {
+      okullar.delete(okulId);
+      uyeler.delete(okulId);
+      paylasimlar.delete(okulId);
     },
     async hesabinPaylasimlari(hesapId) {
       return [...paylasimlar].flatMap(([okulId, t]) => [...t.values()].filter((p) => p.paylasan === hesapId).map((paylasim) => ({ okulId, paylasim })));
@@ -134,8 +175,12 @@ redis.call('SET', KEYS[3], ARGV[4])
 redis.call('SET', KEYS[1], ARGV[1])
 redis.call('HSET', KEYS[2], ARGV[2], ARGV[3])
 return 1`;
-// KEYS: hesap→okul, üye tablosu. ARGV: okulId, hesapId, üye JSON, en çok üye.
-const KATIL = `if redis.call('EXISTS', KEYS[1]) == 1 then return 0 end
+// Okul kaydı yoksa ya da kapanıyorsa (KEYS[n] okul kaydı) -2.
+const acikDegil = (n: number) => `local okulKaydi = redis.call('GET', KEYS[${n}])
+if not okulKaydi or string.find(okulKaydi, '"kapaniyor":true', 1, true) then return -2 end`;
+// KEYS: hesap→okul, üye tablosu, okul kaydı. ARGV: okulId, hesapId, üye JSON, en çok üye.
+const KATIL = `${acikDegil(3)}
+if redis.call('EXISTS', KEYS[1]) == 1 then return 0 end
 if redis.call('HLEN', KEYS[2]) >= tonumber(ARGV[4]) then return -1 end
 redis.call('SET', KEYS[1], ARGV[1])
 redis.call('HSET', KEYS[2], ARGV[2], ARGV[3])
@@ -153,9 +198,10 @@ if redis.call('SET', KEYS[1], ARGV[1], 'NX') == false then return 0 end
 redis.call('DEL', KEYS[2])
 redis.call('SET', KEYS[3], ARGV[2])
 return 1`;
-// KEYS: özetler, kaynak→id, yeni tam kopya, eski tam kopya (yoksa yeninin aynısı). ARGV: id, kaynak, özet JSON,
-// tam JSON, en çok paylaşım, okunan eski id ('' yoksa). Eski id bu arada değiştiyse -1 (yeniden denenir).
-const PAYLAS = `local su = redis.call('HGET', KEYS[2], ARGV[2]) or ''
+// KEYS: özetler, kaynak→id, yeni tam kopya, eski tam kopya (yoksa yeninin aynısı), okul kaydı. ARGV: id, kaynak, özet
+// JSON, tam JSON, en çok paylaşım, okunan eski id ('' yoksa). Eski id bu arada değiştiyse -1 (yeniden denenir).
+const PAYLAS = `${acikDegil(5)}
+local su = redis.call('HGET', KEYS[2], ARGV[2]) or ''
 if su ~= ARGV[6] then return -1 end
 if su == '' and redis.call('HLEN', KEYS[1]) >= tonumber(ARGV[5]) then return 0 end
 if su ~= '' then
@@ -165,6 +211,34 @@ end
 redis.call('SET', KEYS[3], ARGV[4])
 redis.call('HSET', KEYS[1], ARGV[1], ARGV[3])
 redis.call('HSET', KEYS[2], ARGV[2], ARGV[1])
+return 1`;
+// Rol ve yönetici alanları düz metin olarak değiştirilir (JSON ayrıştırılmaz); kimlikler yalnız harf, rakam ve tire.
+const degistir = `local function degistir(s, eski, yeni)
+  local i = string.find(s, eski, 1, true)
+  if not i then return nil end
+  return string.sub(s, 1, i - 1) .. yeni .. string.sub(s, i + #eski)
+end`;
+// KEYS: üye tablosu, eski yöneticinin okulu, yeni yöneticinin okulu, okul kaydı. ARGV: okulId, eskiId, yeniId.
+const DEVRET = `${degistir}
+if redis.call('GET', KEYS[2]) ~= ARGV[1] or redis.call('GET', KEYS[3]) ~= ARGV[1] then return 0 end
+local okul = redis.call('GET', KEYS[4])
+local e = redis.call('HGET', KEYS[1], ARGV[2])
+local y = redis.call('HGET', KEYS[1], ARGV[3])
+if not okul or not e or not y then return 0 end
+local e2 = degistir(e, '"rol":"yonetici"', '"rol":"ogretmen"')
+local y2 = degistir(y, '"rol":"ogretmen"', '"rol":"yonetici"')
+if not e2 or not y2 then return 0 end
+redis.call('HSET', KEYS[1], ARGV[2], e2, ARGV[3], y2)
+local o2 = degistir(okul, '"olusturan":"' .. ARGV[2] .. '"', '"olusturan":"' .. ARGV[3] .. '"')
+if o2 then redis.call('SET', KEYS[4], o2) end
+return 1`;
+// KEYS: okul kaydı, davet. ARGV: beklenen davet kodu, beklenen yönetici.
+const KAPATMA_BASLAT = `local okul = redis.call('GET', KEYS[1])
+if not okul or not string.find(okul, '"davetKodu":"' .. ARGV[1] .. '"', 1, true) or not string.find(okul, '"olusturan":"' .. ARGV[2] .. '"', 1, true) then return 0 end
+if not string.find(okul, '"kapaniyor":true', 1, true) then
+  redis.call('SET', KEYS[1], string.sub(okul, 1, #okul - 1) .. ',"kapaniyor":true}')
+end
+redis.call('DEL', KEYS[2])
 return 1`;
 // KEYS: özetler, kaynak→id, tam kopya. ARGV: id, kaynak.
 const KALDIR = `if redis.call('HDEL', KEYS[1], ARGV[1]) == 0 then return 0 end
@@ -197,8 +271,8 @@ export function createRedisOkulStore(command: RedisCommand): OkulStore {
       return ((await command(["GET", davetKey(kod)])) as string | null) ?? null;
     },
     async katil(okulId, uye) {
-      const r = Number(await command(["EVAL", KATIL, 2, uyeOkuluKey(uye.hesapId), uyelerKey(okulId), okulId, uye.hesapId, JSON.stringify(uye), OKUL.enCokUye]));
-      return r === 1 ? "ok" : r === 0 ? "zaten-uye" : "dolu";
+      const r = Number(await command(["EVAL", KATIL, 3, uyeOkuluKey(uye.hesapId), uyelerKey(okulId), okulKey(okulId), okulId, uye.hesapId, JSON.stringify(uye), OKUL.enCokUye]));
+      return r === 1 ? "ok" : r === 0 ? "zaten-uye" : r === -2 ? "yok" : "dolu";
     },
     async uyeler(okulId) {
       const vals = ((await command(["HVALS", uyelerKey(okulId)])) as string[] | null) ?? [];
@@ -219,11 +293,12 @@ export function createRedisOkulStore(command: RedisCommand): OkulStore {
           await command([
             "EVAL",
             PAYLAS,
-            4,
+            5,
             ozetKey(okulId),
             kaynakKey(okulId),
             tamKey(p.id),
             tamKey(eski || p.id),
+            okulKey(okulId),
             p.id,
             p.kaynak,
             JSON.stringify(paylasimOzetiOf(p)),
@@ -234,6 +309,7 @@ export function createRedisOkulStore(command: RedisCommand): OkulStore {
         );
         if (r === 1) return "ok";
         if (r === 0) return "dolu";
+        if (r === -2) return "yok";
       }
       throw new Error("Paylaşım eşzamanlı güncellendi");
     },
@@ -243,6 +319,18 @@ export function createRedisOkulStore(command: RedisCommand): OkulStore {
     },
     async okulSayisi() {
       return (await anahtarlariTara(command, okulKey("*"))).length;
+    },
+    async okulIdleri() {
+      return (await anahtarlariTara(command, okulKey("*"))).map((k) => k.slice(okulKey("").length));
+    },
+    async yoneticiDevret(okulId, eskiId, yeniId) {
+      return Number(await command(["EVAL", DEVRET, 4, uyelerKey(okulId), uyeOkuluKey(eskiId), uyeOkuluKey(yeniId), okulKey(okulId), okulId, eskiId, yeniId])) === 1;
+    },
+    async kapatmaBaslat(okul) {
+      return Number(await command(["EVAL", KAPATMA_BASLAT, 2, okulKey(okul.id), davetKey(okul.davetKodu), okul.davetKodu, okul.olusturan])) === 1;
+    },
+    async kapatmaBitir(okulId) {
+      await command(["DEL", okulKey(okulId), uyelerKey(okulId), ozetKey(okulId), kaynakKey(okulId)]);
     },
     async hesabinPaylasimlari(hesapId) {
       const out: { okulId: string; paylasim: OkulPaylasimi }[] = [];

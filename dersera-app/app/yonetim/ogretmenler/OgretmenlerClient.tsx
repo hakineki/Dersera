@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import YonetimBasligi from "@/components/YonetimBasligi";
+import YonetimIslemListesi from "@/components/YonetimIslemListesi";
 import type { ogretmenAyrintisi, ogretmenListesi } from "@/lib/ogretmenYonetimi";
 
 type Liste = Awaited<ReturnType<typeof ogretmenListesi>>;
@@ -10,7 +12,6 @@ type Hata = { error: string; status: number };
 
 const tarih = (t: number) => new Date(t).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
 const zaman = (t: number) => new Date(t).toLocaleString("tr-TR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-const ISLEM_ADI = { "askiya-al": "askıya aldı", "geri-ac": "geri açtı", sil: "sildi" } as const;
 
 async function istek<T>(url: string, govde?: unknown): Promise<T | Hata> {
   try {
@@ -130,21 +131,7 @@ export default function OgretmenlerClient() {
                 </>
               )}
 
-              <section aria-label="Son işlemler" className="bg-white border border-gray-200 rounded-2xl p-4">
-                <h2 className="text-sm font-bold text-gray-900 mb-2">Son yönetim işlemleri</h2>
-                {hazir.islemler.length === 0 ? (
-                  <p className="text-xs text-gray-500">Henüz işlem yok.</p>
-                ) : (
-                  <ul className="space-y-2 text-xs text-gray-700">
-                    {hazir.islemler.map((i, n) => (
-                      <li key={n}>
-                        <span className="text-gray-400">{zaman(i.tarih)}</span> · <b>{i.yonetici ?? "silinmiş hesap"}</b>, <b>{i.hedef ?? "silinmiş hesap"}</b> hesabını {ISLEM_ADI[i.islem]}
-                        {i.neden && <span className="block text-gray-500">Gerekçe: {i.neden}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
+              <YonetimIslemListesi islemler={hazir.islemler} />
             </div>
           </div>
         )}
@@ -251,6 +238,15 @@ function OgretmenAyrintisi({ id, degisti }: { id: string; degisti: (silinen: str
           <div className="border-t border-gray-100 pt-4 space-y-2">
             <h3 className="text-sm font-bold text-red-700">Hesabı kalıcı olarak sil</h3>
             <p className="text-xs text-gray-500">Hesap, kütüphane, koleksiyonlar, okul paylaşımları ve kredi kayıtları silinir; topluluktaki oyunları geri çekilir. Geri alınamaz.</p>
+            {a.okul?.rol === "yonetici" && (
+              <p className="text-xs text-amber-800 bg-amber-50 rounded-lg p-2">
+                Bu öğretmen okul yöneticisi: silmeden önce{" "}
+                <Link href="/yonetim/okullar" className="underline font-semibold">
+                  Okullar
+                </Link>{" "}
+                sayfasından yöneticiliği devret ya da okulu kapat.
+              </p>
+            )}
             <label htmlFor="sil-neden" className="block text-xs font-semibold text-gray-600">
               Gerekçe
             </label>
