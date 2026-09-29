@@ -22,9 +22,10 @@ export async function submitResult(
   }
 }
 
-export async function fetchResults(gameCode: string): Promise<ResultsResponse | null> {
+// Yalnız oyunu yayınlayan okur: yayında alınan yönetici anahtarı gönderilir.
+export async function fetchResults(gameCode: string, adminToken: string): Promise<ResultsResponse | null> {
   try {
-    const res = await fetch(`/api/results?code=${encodeURIComponent(gameCode)}`, { cache: "no-store" });
+    const res = await fetch(`/api/results?code=${encodeURIComponent(gameCode)}`, { cache: "no-store", headers: { Authorization: `Bearer ${adminToken}` } });
     if (!res.ok) return null;
     return (await res.json()) as ResultsResponse;
   } catch {

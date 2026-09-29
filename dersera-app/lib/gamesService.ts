@@ -1,6 +1,7 @@
 import type { DersKonu } from "@/lib/composer/input";
 import type { PublicGame, PublishRequest } from "@/lib/games";
 import type { GamesStore, StoredGame } from "@/lib/gamesStore";
+import { getResultsStore } from "@/lib/resultsStore";
 
 // I, O, Q, W, X çıkarıldı: tahtaya yazılırken 1/0 ile karışmasın, Türk klavyesinde sorun çıkarmasın.
 const CODE_LETTERS = "ABCDEFGHJKLMNPRSTUVYZ";
@@ -31,6 +32,11 @@ export function createAdminToken(): string {
 export async function hashToken(token: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
   return toBase64Url(new Uint8Array(digest));
+}
+
+// Yönetici anahtarı kayıtlı özetle eşleşiyor mu (sabit süreli karşılaştırma).
+export async function anahtarDogru(adminToken: string, adminTokenHash: string): Promise<boolean> {
+  return constantTimeEqual(await hashToken(adminToken), adminTokenHash);
 }
 
 function constantTimeEqual(a: string, b: string): boolean {
@@ -68,7 +74,14 @@ export async function publishGame(
       ...(req.sahip ? { sahip: req.sahip } : {}),
       ...(req.definition && req.dersler ? { dersler: req.dersler } : {}),
     };
-    if (await store.create(game, now)) return { game: toPublicGame(game), adminToken };
+    if (await store.create(game, now)) {
+      // Sonuç listesi yalnız yayınlayanın anahtarıyla okunur; özet sonuçlar kadar (7 gün) saklanır. Yazılamazsa oyun
+      // kaydındaki özet kullanılır (oyun kaydı süre +1 gün durur): yayın bozulmaz. Tüm yayın yolları buradan geçer.
+      await getResultsStore()
+        .yetkiYaz(game.code, adminTokenHash)
+        .catch((err: unknown) => console.error("[games] sonuç yetkisi yazılamadı", err instanceof Error ? err.message : err));
+      return { game: toPublicGame(game), adminToken };
+    }
   }
   return null;
 }
@@ -111,7 +124,7 @@ export async function endGame(
 ): Promise<EndResult> {
   const game = await store.get(code);
   if (!game) return "not-found";
-  if (!constantTimeEqual(await hashToken(adminToken), game.adminTokenHash)) return "forbidden";
+  if (!(await anahtarDogru(adminToken, game.adminTokenHash))) return "forbidden";
   if (game.endedAt === null) await store.put({ ...game, endedAt: now }, now);
   return "ended";
 }

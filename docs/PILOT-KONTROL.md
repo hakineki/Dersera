@@ -83,6 +83,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 40 | A: "Sırala" → En çok oynanan / Öğretmen puanı / Öğrenci puanı; "Daha fazla" | Liste seçilen ölçüte göre büyükten küçüğe; puanı olmayanlar sonda. "Sıralama en yeni 500 oyun içinde yapılır." notu görünür. |
 | 41 | A: bir kartta "Benzer oyunlar ›" | Aynı sınıf ve ünitedeki en çok 6 oyun, ortak öğrenme çıktısı çok olan önce; oyunun kendisi yok. Başlık öğrenci gözüyle demoyu açar. |
 | 42 | A: kartta "☆ Koleksiyona ekle" → yeni koleksiyon "Favoriler"; "Koleksiyonlarım" sekmesi; yeniden adlandır, oyunu çıkar, sil | Düğme "★ 1 koleksiyonda" olur; sekmede koleksiyon ve oyunlar görünür. B, A'nın koleksiyonlarını görmez. Koleksiyon silinince oyunlar toplulukta kalır. Topluluktan kalkan oyun "Bu oyun artık toplulukta değil" satırıyla görünür. En çok 20 koleksiyon, her birinde 100 oyun. |
+| 43 | Oyun yayınla, bir öğrenci bitirsin; gizli sekmede `/api/results?code=<KOD>` adresini aç | Yanıt 403 "Yetkisiz"; takma ad ve süreler görünmez. Yayınlayan öğretmenin panelinde sonuç tablosu güncellenir (oyun bittikten sonraki günlerde de, 7 güne kadar). |
 
 ## 4. Dağıtım doğrulaması
 

@@ -13,6 +13,7 @@ const result = {
 describe("/api/results", () => {
   let api: Awaited<ReturnType<typeof buildApi>>;
   let code: string;
+  let anahtar: string;
 
   async function publish() {
     const res = await api.games.POST(jsonRequest("/api/games", samplePublish()));
@@ -27,12 +28,13 @@ describe("/api/results", () => {
   beforeEach(async () => {
     clearRedisEnv();
     api = await buildApi();
-    code = (await publish()).game.code;
+    ({ game: { code }, adminToken: anahtar } = await publish());
   });
 
   const post = (body: unknown) => api.results.POST(jsonRequest("/api/results", body));
-  const get = (c: string) => api.results.GET(new Request(`http://localhost/api/results?code=${encodeURIComponent(c)}`));
-  const list = async (c: string) => (await (await get(c)).json()).results as { nickname: string }[];
+  const get = (c: string, a: string | null = anahtar) =>
+    api.results.GET(new Request(`http://localhost/api/results?code=${encodeURIComponent(c)}`, { headers: a === null ? {} : { Authorization: `Bearer ${a}` } }));
+  const list = async (c: string, a: string = anahtar) => (await (await get(c, a)).json()).results as { nickname: string }[];
 
   it("GET başlangıçta boş liste ve persistent=false döndürür", async () => {
     const res = await get(code);
@@ -49,8 +51,8 @@ describe("/api/results", () => {
     expect((await post({ gameCode: code, playerToken, result })).status).toBe(201);
     expect(await list(code)).toEqual([result]);
 
-    const other = (await publish()).game.code;
-    expect(await list(other)).toEqual([]);
+    const other = await publish();
+    expect(await list(other.game.code, other.adminToken)).toEqual([]);
   });
 
   it("küçük harfli ve tiresiz oyun kodunu da kabul eder", async () => {
@@ -144,6 +146,46 @@ describe("/api/results", () => {
     expect(await list(code)).toEqual([]);
   });
 
+  it("sonuç listesi yalnız yayınlayanın anahtarıyla okunur: anahtarsız ve yanlış anahtarla 403, başka oyunun anahtarı geçmez", async () => {
+    const playerToken = await join(code, "Kartal");
+    await post({ gameCode: code, playerToken, result });
+    expect((await get(code, null)).status).toBe(403);
+    expect((await get(code, "yanlis-anahtar")).status).toBe(403);
+    expect((await get(code, playerToken)).status).toBe(403);
+    const other = await publish();
+    expect((await get(code, other.adminToken)).status).toBe(403);
+    const r = await api.results.GET(new Request(`http://localhost/api/results?code=${code}`, { headers: { Authorization: `Basic ${anahtar}` } }));
+    expect(r.status).toBe(403);
+    expect(await list(code)).toEqual([result]);
+  });
+
+  it("bilinmeyen oyun kodunda 404 döner", async () => {
+    expect((await get("ZZZ-999")).status).toBe(404);
+  });
+
+  it("oyun kaydı silindikten sonra da (sonuçlar 7 gün) yayınlayan sonuçları okur", async () => {
+    const playerToken = await join(code, "Kartal");
+    await post({ gameCode: code, playerToken, result });
+    const games = api.gamesStore.getGamesStore() as unknown as { get: (c: string) => Promise<unknown> };
+    const eski = games.get;
+    games.get = async () => null;
+    try {
+      expect(await list(code)).toEqual([result]);
+      expect((await get(code, "yanlis-anahtar")).status).toBe(403);
+    } finally {
+      games.get = eski;
+    }
+  });
+
+  it("yetki özeti olmayan (önceden yayınlanmış) oyunda oyun kaydındaki anahtar geçerlidir", async () => {
+    const { createAdminToken, hashToken } = await import("@/lib/gamesService");
+    const eskiAnahtar = createAdminToken();
+    const now = Date.now();
+    await api.gamesStore.getGamesStore().create({ code: "ESK-123", stops: [], aylar: [], createdAt: now, expiresAt: now + 3_600_000, endedAt: null, adminTokenHash: await hashToken(eskiAnahtar) }, now);
+    expect((await get("ESK-123", eskiAnahtar)).status).toBe(200);
+    expect((await get("ESK-123", anahtar)).status).toBe(403);
+  });
+
   it("depolama hatasında 503 döner", async () => {
     process.env.KV_REST_API_URL = "https://redis.test";
     process.env.KV_REST_API_TOKEN = "tok";
@@ -155,7 +197,7 @@ describe("/api/results", () => {
       expect(
         (await failing.results.POST(jsonRequest("/api/results", { gameCode: code, playerToken: "x", result }))).status
       ).toBe(503);
-      expect((await failing.results.GET(new Request(`http://localhost/api/results?code=${code}`))).status).toBe(503);
+      expect((await failing.results.GET(new Request(`http://localhost/api/results?code=${code}`, { headers: { Authorization: `Bearer ${anahtar}` } }))).status).toBe(503);
     } finally {
       global.fetch = realFetch;
       spy.mockRestore();

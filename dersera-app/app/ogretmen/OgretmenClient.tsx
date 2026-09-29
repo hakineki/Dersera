@@ -674,14 +674,15 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
 
   const latestRequest = useRef(0);
   const gameCode = teacherGame?.game.code ?? null;
+  const adminToken = teacherGame?.adminToken ?? null;
 
   const refreshLeaderboard = useCallback(() => {
     const requestId = ++latestRequest.current;
-    if (!gameCode) {
+    if (!gameCode || !adminToken) {
       setLeaderboard([]);
       return;
     }
-    fetchResults(gameCode).then((data) => {
+    fetchResults(gameCode, adminToken).then((data) => {
       if (requestId !== latestRequest.current) return;
       if (data) {
         setLeaderboard(data.results);
@@ -690,7 +691,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
         setSync((s) => ({ ...s, status: "error" }));
       }
     });
-  }, [gameCode]);
+  }, [gameCode, adminToken]);
 
   // Şu an girişli hesap: çıkıştan sonra dönen eski istek (yayın, oyunu bitirme) kaydı geri yazmaz, oyunu sonraki
   // öğretmene göstermez. Çıkış bunu ağ beklenmeden boşaltır.
