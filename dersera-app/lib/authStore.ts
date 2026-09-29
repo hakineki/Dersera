@@ -1,4 +1,4 @@
-import { redisFromEnv, type RedisCommand } from "@/lib/redis";
+import { anahtarlariTara, redisFromEnv, type RedisCommand } from "@/lib/redis";
 
 // Öğretmen hesabı. Kimlik (id) değişmez; kullanıcı adı ayrı tutulur ve bir dizinle id'ye bağlanır.
 // Ad ile şifre ayrı anahtarlarda durduğu için eşzamanlı ad ve şifre değişikliği birbirini ezmez.
@@ -38,6 +38,8 @@ export interface AuthStore {
   // Hesabı ve ad dizinini siler (ad boşa çıkar); hesabın adı bu arada değiştiyse hiçbir şey silmez (false). Kayıt
   // gidince bu hesabın bütün oturumları geçersizdir (oturum hesabı bulamaz).
   hesapSil(id: string, kullaniciAdi: string): Promise<boolean>;
+  // Toplam hesap sayısı (yönetim özeti; tarama, seyrek).
+  hesapSayisi(): Promise<number>;
 }
 
 const hesapKey = (id: string) => `dersera:hesap:${id}`;
@@ -93,6 +95,9 @@ export function createMemoryAuthStore(now: () => number = Date.now): AuthStore {
     },
     async oturumSil(ozet) {
       oturumlar.delete(ozet);
+    },
+    async hesapSayisi() {
+      return adlar.size;
     },
     async hesapSil(id, ad) {
       if (hesapAdlari.get(id) !== ad) return false;
@@ -156,6 +161,9 @@ export function createRedisAuthStore(command: RedisCommand): AuthStore {
     },
     async oturumSil(ozet) {
       await command(["DEL", oturumKey(ozet)]);
+    },
+    async hesapSayisi() {
+      return (await anahtarlariTara(command, adKey("*"))).length;
     },
     async hesapSil(id, ad) {
       return Number(await command(["EVAL", HESAP_SIL, 3, hesapKey(id), hesapAdKey(id), adKey(ad), id, ad])) === 1;

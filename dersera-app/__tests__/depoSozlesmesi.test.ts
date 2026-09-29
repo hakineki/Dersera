@@ -546,6 +546,13 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     expect(bulunanlar).not.toContain(baska);
   });
 
+  it("yönetim sayıları: hesap ve okul sayısı oluşturulanla artar", async () => {
+    const [h0, o0] = [await d.auth.hesapSayisi(), await d.okul.okulSayisi()];
+    expect(await d.auth.olustur({ id: `say${run}`, kullaniciAdi: `say_${run}`, sifreOzeti: "x", surum: 1, olusturma: 1 })).toBe(true);
+    expect(await d.okul.olustur({ id: `osay-${run}`, ad: "Sayı", olusturma: 1, olusturan: `ysay-${run}`, davetKodu: `S${run}`.slice(0, 8) }, { hesapId: `ysay-${run}`, rol: "yonetici", katilma: 1 })).toBe(true);
+    expect([await d.auth.hesapSayisi(), await d.okul.okulSayisi()]).toEqual([h0 + 1, o0 + 1]);
+  });
+
   it("oran sınırı sayacı ve yapay zekâ denetim önbelleği", async () => {
     const anahtar = `dersera:duman:sinir:${run}`;
     expect(await d.limiter.hit(anahtar, SAAT)).toBe(1);

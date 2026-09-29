@@ -56,6 +56,7 @@ export async function buildApi() {
     okulPaylasim: typeof import("@/app/api/okul/paylasim/route");
     okulPaylasimOge: typeof import("@/app/api/okul/paylasim/[id]/route");
     kopyaKaydi: typeof import("@/app/api/yonetim/kopya-kaydi/route");
+    yonetimOzeti: typeof import("@/app/api/yonetim/ozet/route");
     denetimKaydi: typeof import("@/lib/denetimKaydi");
     compose: typeof import("@/app/api/compose/route");
     composeGuncelle: typeof import("@/app/api/compose/guncelle/route");
@@ -126,6 +127,7 @@ export async function buildApi() {
       okulPaylasim: await import("@/app/api/okul/paylasim/route"),
       okulPaylasimOge: await import("@/app/api/okul/paylasim/[id]/route"),
       kopyaKaydi: await import("@/app/api/yonetim/kopya-kaydi/route"),
+      yonetimOzeti: await import("@/app/api/yonetim/ozet/route"),
       denetimKaydi: await import("@/lib/denetimKaydi"),
       compose: await import("@/app/api/compose/route"),
       composeGuncelle: await import("@/app/api/compose/guncelle/route"),

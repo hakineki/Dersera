@@ -1,8 +1,8 @@
 "use client";
 
+import YonetimBasligi from "@/components/YonetimBasligi";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import DerseraLogo from "@/components/DerseraLogo";
 import YedekDurumu from "./YedekDurumu";
 import { KAPILAR } from "@/lib/composer/yonetisim";
 import { MODERASYON, type ModerasyonKarari, type ModerasyonKaydi, type ModerasyonOzeti, type ModerasyonTuru } from "@/lib/moderasyon";
@@ -177,28 +177,7 @@ export default function ModerasyonClient() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-indigo-900 text-white px-4 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <DerseraLogo />
-            <p className="text-xs font-semibold text-indigo-200 border-l border-indigo-700 pl-3">Moderasyon</p>
-          </div>
-          <nav className="flex gap-4 text-sm whitespace-nowrap">
-            <Link href="/yonetim/okul-havuzu" className="text-indigo-300 hover:text-white">
-              Okul havuzları
-            </Link>
-            <Link href="/yonetim/kopya-kaydi" className="text-indigo-300 hover:text-white">
-              Kopya kaydı
-            </Link>
-            <Link href="/yonetim/ogrenme" className="text-indigo-300 hover:text-white">
-              Öğrenme
-            </Link>
-            <Link href="/ogretmen" className="text-indigo-300 hover:text-white">
-              ← Öğretmen paneli
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <YonetimBasligi baslik="Moderasyon" />
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         <YedekDurumu />

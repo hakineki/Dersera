@@ -31,6 +31,8 @@ export interface OkulStore {
   kaynakPaylasimlari(okulId: string, kaynaklar: string[]): Promise<(string | null)[]>;
   // Hesabın bütün okullardaki paylaşımları (ayrıldığı ya da çıkarıldığı okullar dahil; hesap silme için, seyrek).
   hesabinPaylasimlari(hesapId: string): Promise<{ okulId: string; paylasim: OkulPaylasimi }[]>;
+  // Toplam okul sayısı (yönetim özeti; tarama, seyrek).
+  okulSayisi(): Promise<number>;
 }
 
 export function createMemoryOkulStore(): OkulStore {
@@ -103,6 +105,9 @@ export function createMemoryOkulStore(): OkulStore {
     },
     async paylasimKaldir(okulId, p) {
       return paylasimTablosu(okulId).delete(p.id);
+    },
+    async okulSayisi() {
+      return okullar.size;
     },
     async hesabinPaylasimlari(hesapId) {
       return [...paylasimlar].flatMap(([okulId, t]) => [...t.values()].filter((p) => p.paylasan === hesapId).map((paylasim) => ({ okulId, paylasim })));
@@ -235,6 +240,9 @@ export function createRedisOkulStore(command: RedisCommand): OkulStore {
     async paylasimlar(okulId) {
       const vals = ((await command(["HVALS", ozetKey(okulId)])) as string[] | null) ?? [];
       return vals.map((v) => JSON.parse(v) as PaylasimOzeti);
+    },
+    async okulSayisi() {
+      return (await anahtarlariTara(command, okulKey("*"))).length;
     },
     async hesabinPaylasimlari(hesapId) {
       const out: { okulId: string; paylasim: OkulPaylasimi }[] = [];
