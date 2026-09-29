@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { normalizeGameCode } from "@/lib/games";
 import { getGamesStore } from "@/lib/gamesStore";
-import { verifyPlayer } from "@/lib/gamesService";
+import { anahtarDogru, verifyPlayer } from "@/lib/gamesService";
 import { parseLeaderboardEntry } from "@/lib/results";
 import { getResultsStore } from "@/lib/resultsStore";
 import { bitirisSay, oyuncuOf } from "@/lib/istatistikService";
@@ -62,14 +62,29 @@ export async function POST(req: Request) {
   return NextResponse.json({ ok: true }, { status: 201 });
 }
 
+// Sonuç listesi (takma adlar ve süreler) yalnız oyunu yayınlayana: kod sınıfta, QR'da ve öğrenci cihazında durduğu
+// için gizli değildir. Öğretmen paneli yayında aldığı yönetici anahtarını "Authorization: Bearer" ile gönderir.
+function yoneticiAnahtari(req: Request): string | null {
+  const m = /^Bearer (\S{1,100})$/.exec(req.headers.get("authorization") ?? "");
+  return m ? m[1] : null;
+}
+
 export async function GET(req: Request) {
   const code = normalizeGameCode(new URL(req.url).searchParams.get("code") ?? "");
   if (!code) {
     return NextResponse.json({ error: "Oyun kodu gerekli" }, { status: 400 });
   }
+  const adminToken = yoneticiAnahtari(req);
+  if (!adminToken) {
+    return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
+  }
 
   try {
     const store = getResultsStore();
+    // Bu sürümden önce yayınlanmış oyunlarda yetki özeti yoktur: oyun kaydındaki özet kullanılır.
+    const ozet = (await store.yetki(code)) ?? (await getGamesStore().get(code))?.adminTokenHash ?? null;
+    if (!ozet) return NextResponse.json({ error: "Oyun bulunamadı" }, { status: 404 });
+    if (!(await anahtarDogru(adminToken, ozet))) return NextResponse.json({ error: "Yetkisiz" }, { status: 403 });
     const results = await store.list(code);
     return NextResponse.json({ results, persistent: store.persistent });
   } catch (err) {

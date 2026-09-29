@@ -60,6 +60,19 @@ describe("createRedisStore", () => {
     expect(await store.has("ABC-123", "Şahin")).toBe(false);
     expect(calls[0]).toEqual(["HEXISTS", resultsKey("ABC-123"), "kartal"]);
   });
+  it("sonuç okuma yetkisi: özet sonuçlarla aynı süre saklanır, yoksa null", async () => {
+    const { command, calls } = recordingCommand((a) => (a[0] === "GET" ? (a[1].startsWith("dersera:results:ABC-123") ? "ozet" : null) : "OK"));
+    const store = createRedisStore(command);
+    await store.yetkiYaz("ABC-123", "ozet");
+    expect(calls[0]).toEqual(["SET", "dersera:results:ABC-123:yetki", "ozet", "PX", String(RESULTS_RETENTION_MS)]);
+    expect(await store.yetki("ABC-123")).toBe("ozet");
+    expect(calls[1]).toEqual(["GET", "dersera:results:ABC-123:yetki"]);
+    expect(await store.yetki("XYZ-999")).toBeNull();
+    const m = createMemoryStore();
+    expect(await m.yetki("ABC-123")).toBeNull();
+    await m.yetkiYaz("ABC-123", "ozet");
+    expect(await m.yetki("ABC-123")).toBe("ozet");
+  });
 });
 
 describe("createMemoryStore has", () => {

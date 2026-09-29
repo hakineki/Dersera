@@ -33,6 +33,11 @@ export async function hashToken(token: string): Promise<string> {
   return toBase64Url(new Uint8Array(digest));
 }
 
+// Yönetici anahtarı kayıtlı özetle eşleşiyor mu (sabit süreli karşılaştırma).
+export async function anahtarDogru(adminToken: string, adminTokenHash: string): Promise<boolean> {
+  return constantTimeEqual(await hashToken(adminToken), adminTokenHash);
+}
+
 function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -111,7 +116,7 @@ export async function endGame(
 ): Promise<EndResult> {
   const game = await store.get(code);
   if (!game) return "not-found";
-  if (!constantTimeEqual(await hashToken(adminToken), game.adminTokenHash)) return "forbidden";
+  if (!(await anahtarDogru(adminToken, game.adminTokenHash))) return "forbidden";
   if (game.endedAt === null) await store.put({ ...game, endedAt: now }, now);
   return "ended";
 }
