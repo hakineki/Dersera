@@ -24,6 +24,9 @@ const SAGLIK_ADI: { key: keyof YonetimOzeti["saglik"]; ad: string; eksik: string
   { key: "yedekAnahtari", ad: "Yedek şifreleme anahtarı", eksik: "YEDEK_ANAHTARI yok: gece yedeği alınmaz." },
   { key: "zamanlayici", ad: "Zamanlanmış görev anahtarı", eksik: "CRON_SECRET yok: gece yedeği tetiklenemez." },
   { key: "davetKodu", ad: "Kayıt davet kodu", eksik: "KAYIT_DAVET_KODU yok: canlıda yeni öğretmen kaydı kapalıdır." },
+  { key: "epostaAnahtari", ad: "E-posta servisi (Resend)", eksik: "RESEND_API_KEY yok: e-posta doğrulama ve şifre sıfırlama e-postası gönderilemez." },
+  { key: "epostaGonderen", ad: "E-posta gönderen adresi", eksik: "EPOSTA_GONDEREN yok (ör. Dersera <bildirim@alanadiniz>): e-posta gönderilemez." },
+  { key: "siteAdresi", ad: "Site adresi", eksik: "DERSERA_SITE_ADRESI yok (ör. https://dersera.vercel.app): e-postadaki bağlantılar kurulamaz." },
 ];
 
 const BOLUMLER = [

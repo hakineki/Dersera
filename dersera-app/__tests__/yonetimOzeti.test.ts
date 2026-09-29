@@ -42,8 +42,11 @@ describe("yönetim genel bakışı", () => {
   });
 
   it("sağlık: tanımlı/boş ortam değişkenleri, yapay zekâ için iki sağlayıcıdan biri yeter", () => {
-    expect(saglikOf({}, false)).toEqual({ kaliciDepo: false, yapayZeka: false, gorselDepo: false, yedekAnahtari: false, zamanlayici: false, davetKodu: false });
+    const eposta = { epostaAnahtari: false, epostaGonderen: false, siteAdresi: false };
+    expect(saglikOf({}, false)).toEqual({ kaliciDepo: false, yapayZeka: false, gorselDepo: false, yedekAnahtari: false, zamanlayici: false, davetKodu: false, ...eposta });
+    expect(saglikOf({ RESEND_API_KEY: "re", EPOSTA_GONDEREN: "g", DERSERA_SITE_ADRESI: " " }, false)).toMatchObject({ epostaAnahtari: true, epostaGonderen: true, siteAdresi: false });
     expect(saglikOf({ ANTHROPIC_API_KEY: "x", BLOB_READ_WRITE_TOKEN: "y", YEDEK_ANAHTARI: "z", CRON_SECRET: "c", KAYIT_DAVET_KODU: "  " }, true)).toEqual({
+      ...eposta,
       kaliciDepo: true,
       yapayZeka: true,
       gorselDepo: true,

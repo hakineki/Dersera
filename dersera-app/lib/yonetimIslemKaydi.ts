@@ -6,7 +6,7 @@ import { depoKomutu, type RedisCommand } from "@/lib/redis";
 // tutulur; adlar okurken çözülür. Silinen hesabın kimliği hiçbir hesapla eşleşmediği için "silinmiş hesap" görünür
 // (KVKK: ad saklanmaz). Okulun adı (kişisel veri değil) kapatıldıktan sonra da okunabilsin diye kayda yazılır.
 
-export type YonetimIslemi = "askiya-al" | "geri-ac" | "sil" | "okul-devret" | "okul-kapat";
+export type YonetimIslemi = "askiya-al" | "geri-ac" | "sil" | "sifirlama-baglantisi" | "okul-devret" | "okul-kapat";
 
 export interface YonetimIslemKaydi {
   tarih: number;

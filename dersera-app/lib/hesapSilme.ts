@@ -1,6 +1,8 @@
 import { kutuphaneSahibi, sifreDogru } from "@/lib/auth";
 import type { AuthStore, Hesap } from "@/lib/authStore";
 import type { DenetimKaydiStore } from "@/lib/denetimKaydi";
+import type { EpostaStore } from "@/lib/epostaStore";
+import { adresOzeti } from "@/lib/epostaService";
 import { istatistikleriSil } from "@/lib/istatistikService";
 import type { KoleksiyonStore } from "@/lib/koleksiyonStore";
 import { ayOf } from "@/lib/kredi";
@@ -29,6 +31,7 @@ export interface HesapSilmeDeps {
   denetim: DenetimKaydiStore;
   takip: OgrenmeTakibiStore;
   topluluk: ToplulukStore;
+  eposta: EpostaStore;
   // Platform yöneticisi mi (env listesi): yönetici hesabı buradan silinmez.
   yoneticiMi: (hesap: Hesap) => Promise<boolean>;
 }
@@ -108,6 +111,8 @@ export async function hesapVerileriniSil(d: HesapSilmeDeps, hesap: Hesap, kim: k
   await d.kredi.hesapSil(hesap.id, sonAylar(now, KREDI_AY));
   await d.takip.tablolariSil(sahip, sonAylar(now, TAKIP_AY));
   await d.denetim.hesabiUnut(hesap.id);
+  const eposta = await d.eposta.oku(hesap.id);
+  if (eposta) await d.eposta.kaldir(hesap.id, eposta.dogrulandi ? adresOzeti(eposta.adres) : null);
   if (!(await d.auth.hesapSil(hesap.id, hesap.kullaniciAdi))) return { ok: false, status: 409, error: m.degisti };
   return { ok: true };
 }

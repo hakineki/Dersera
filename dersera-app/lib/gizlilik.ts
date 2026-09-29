@@ -20,7 +20,8 @@ export const GIZLILIK_BOLUMLERI: GizlilikBolumu[] = [
   {
     baslik: "Hangi verileri işliyoruz",
     liste: [
-      "Öğretmen hesabı: kullanıcı adı, şifrenin geri çevrilemez özeti (şifrenin kendisi saklanmaz), hesabın açılış zamanı ve kullanım koşullarını onayladığın sürüm ve tarih. Ad-soyad, e-posta ya da telefon istenmez.",
+      "Öğretmen hesabı: kullanıcı adı, şifrenin geri çevrilemez özeti (şifrenin kendisi saklanmaz), hesabın açılış zamanı ve kullanım koşullarını onayladığın sürüm ve tarih. Ad-soyad ya da telefon istenmez.",
+      "E-posta (isteğe bağlı): Ayarlar'dan eklersen adresin ve doğrulanıp doğrulanmadığı tutulur. Yalnız adresi doğrulamak ve şifreni unuttuğunda sıfırlama bağlantısı göndermek için kullanılır; bülten, reklam ya da başka bir bildirim gönderilmez. Platform yöneticisi adresini görmez, yalnız doğrulanmış bir e-postan olup olmadığını görür.",
       "Oturum: tarayıcına yazılan tek bir oturum çerezi ve sunucuda bu çerezin özeti.",
       "Öğretmen içeriği: oluşturduğun ve kütüphanene kaydettiğin oyunlar, koleksiyonların, okul ve topluluk paylaşımların, verdiğin inceleme kararları ve öğretmen puanların, kredi kullanım hareketlerin, okul üyeliğin ve rolün.",
       "Kopya kaydı: topluluktan ya da okul kütüphanesinden bir oyunu açtığında kullanıcı adın, oyun ve zaman kaydedilir (içeriğin izinsiz dağıtımını önlemek için).",
@@ -34,7 +35,7 @@ export const GIZLILIK_BOLUMLERI: GizlilikBolumu[] = [
   {
     baslik: "Amaçlar ve hukuki sebepler",
     liste: [
-      "Öğretmen hesabını açmak, oturum yönetmek, oyun oluşturmak ve yayınlamak, okul ve topluluk özelliklerini sunmak, kredi ve kullanım sınırlarını uygulamak: öğretmenle kurulan hizmet sözleşmesinin kurulması ve ifası (KVKK md. 5/2-c).",
+      "Öğretmen hesabını açmak, oturum yönetmek, oyun oluşturmak ve yayınlamak, okul ve topluluk özelliklerini sunmak, kredi ve kullanım sınırlarını uygulamak, isteğe bağlı e-postayı doğrulamak ve şifre sıfırlama bağlantısı göndermek: öğretmenle kurulan hizmet sözleşmesinin kurulması ve ifası (KVKK md. 5/2-c).",
       "Öğrencinin öğretmenin başlattığı oyuna katılması, sonucunun öğretmene gösterilmesi ve oyun istatistikleri: veri en aza indirilerek (yalnız takma ad) veri sorumlusunun meşru menfaati (md. 5/2-f); öğrencinin temel hak ve özgürlüklerine zarar verilmemesi için veri kısa sürede silinir.",
       "Hesap güvenliği, kötüye kullanımın ve içerik sızıntısının önlenmesi, kullanım koşullarına aykırı hesapların askıya alınması ya da kapatılması ve bu işlemlerin hesabının verilebilmesi, çocuklara uygun olmayan içeriğin denetlenmesi, yedekleme ve oyun üretiminin iyileştirilmesi: veri sorumlusunun meşru menfaati (md. 5/2-f).",
       "Kanuni yükümlülüklerin yerine getirilmesi ve hakların korunması gerektiğinde: md. 5/2-ç ve 5/2-e.",
@@ -52,6 +53,7 @@ export const GIZLILIK_BOLUMLERI: GizlilikBolumu[] = [
     liste: [
       "Vercel Inc.: uygulamanın barındırılması, erişim kayıtları, oyun görsellerinin ve şifreli gece yedeğinin saklanması.",
       "Upstash Inc.: uygulama verilerinin saklandığı veritabanı (yukarıdaki tüm hesap, içerik ve sonuç verileri).",
+      "Resend Inc.: e-posta gönderimi (yalnız isteğe bağlı e-posta adresin, kullanıcı adın ve doğrulama ya da şifre sıfırlama bağlantısı).",
       "OpenAI (tanımlı değilse Anthropic): oyun metni üretimi, yapay zekâyla güncelleme, çocuk güvenliği denetimi ve oyun görselleri için öğretmenin seçimleri, ön notu, kaynak metni, talimatı ve oyun metinleri; öğrenme döngüsü önerileri için toplu sayılar ve kimliksiz talimat metinleri. Öğrenci takma adları ve sonuçları yapay zekâ hizmetine gönderilmez.",
       "Aynı okuldaki okul yöneticisi, okul panosunda öğretmenlerin kullanıcı adını, rolünü, katılma tarihini, oyun ve paylaşım sayılarını, oyunlarındaki öğrenci sayısını ve puan ortalamasını ve okul kredi kullanımını görür. Oyunu yayınlayan öğretmen, o oyundaki öğrencilerin takma adlarını ve sonuçlarını görür. Topluluktaki oyunların öğretmen ve öğrenci puan ortalamaları diğer öğretmenlere gösterilir.",
     ],
@@ -61,6 +63,7 @@ export const GIZLILIK_BOLUMLERI: GizlilikBolumu[] = [
     liste: [
       "Öğrenci sonuçları ve istatistikteki öğrenci özeti: 7 gün. Oyuna katılan takma adlar, bitirme ve puan bilgisi ve oyun kaydı: oyun süresi bitiminden 1 gün sonra silinir.",
       "Oturum: 30 gün ya da çıkış yapana kadar.",
+      "E-posta adresi: kaldırana ya da hesabını silene kadar. Doğrulama bağlantısı 24 saat, şifre sıfırlama bağlantısı 1 saat sonra geçersiz olur ve silinir; ikisi de tek kullanımlıktır.",
       "Güvenlik sayaçları (IP ve kullanıcı adı içeren): 1 dakika ile 1 saat; günlük kullanım sınırları: 24 saat.",
       "Moderasyon kayıtları: 30 gün. Kredi aylık kullanımı: 40 gün; kredi hareketleri: son 100 hareket.",
       "Öğrenme takibi ve öğrenme döngüsü aylık sayaçları: 400 gün. Kimliksiz talimat metinleri: son 200 talimat.",

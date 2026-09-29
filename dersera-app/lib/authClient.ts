@@ -48,6 +48,28 @@ export const kullaniciAdiDegistir = (yeniKullaniciAdi: string, sifre: string) =>
 // Başarıda sunucu oturum çerezini de siler.
 export const hesabimiSil = (sifre: string) => gonder("/api/auth/hesap-sil", { sifre });
 
+// E-posta ve şifre sıfırlama: yanıt gövdesi ya da { error }.
+export type Yanit<T> = T | { error: string };
+async function istek<T>(path: string, body?: unknown): Promise<Yanit<T>> {
+  try {
+    const res = await fetch(path, body === undefined ? { cache: "no-store" } : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const json = await res.json().catch(() => ({}));
+    return res.ok ? (json as T) : { error: json.error ?? "İşlem yapılamadı." };
+  } catch {
+    return { error: "Bağlantı kurulamadı." };
+  }
+}
+export interface EpostaDurumu {
+  adres: string;
+  dogrulandi: boolean;
+}
+export const epostaDurumuAl = () => istek<{ eposta: EpostaDurumu | null }>("/api/auth/eposta");
+export const epostaKaydet = (adres: string, sifre: string) => istek<{ eposta: EpostaDurumu }>("/api/auth/eposta", { adres, sifre });
+export const epostaSil = (sifre: string) => istek<{ ok: true }>("/api/auth/eposta/kaldir", { sifre });
+export const epostaDogrula = (t: string) => istek<{ adres: string }>("/api/auth/eposta/dogrula", { t });
+export const sifirlamaIste = (girdi: string) => istek<{ mesaj: string }>("/api/auth/sifre-sifirlama/iste", { girdi });
+export const sifreSifirla = (t: string, yeniSifre: string) => istek<{ ok: true }>("/api/auth/sifre-sifirlama", { t, yeniSifre });
+
 export async function cikisYap(): Promise<void> {
   try {
     await fetch("/api/auth/cikis", { method: "POST" });

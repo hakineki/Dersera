@@ -11,6 +11,7 @@ import { createMemoryYoneticiStore, createRedisYoneticiStore, type YoneticiStore
 import { createMemoryOkulStore, createRedisOkulStore, type OkulStore } from "@/lib/okulStore";
 import { createMemoryGorselStore, createRedisGorselStore, type GorselStore } from "@/lib/gorselStore";
 import { createMemoryDenetimKaydiStore, createRedisDenetimKaydiStore, SILINMIS_HESAP, type DenetimKaydiStore } from "@/lib/denetimKaydi";
+import { createMemoryEpostaStore, createRedisEpostaStore, type EpostaStore } from "@/lib/epostaStore";
 import { createMemoryYonetimIslemKaydiStore, createRedisYonetimIslemKaydiStore, ISLEM_SAKLAMA, type YonetimIslemKaydiStore } from "@/lib/yonetimIslemKaydi";
 import { KOLEKSIYON } from "@/lib/koleksiyon";
 import { createMemoryKoleksiyonStore, createRedisKoleksiyonStore, type KoleksiyonStore } from "@/lib/koleksiyonStore";
@@ -54,6 +55,7 @@ interface Depolar {
   koleksiyon: KoleksiyonStore;
   denetim: DenetimKaydiStore;
   islemler: YonetimIslemKaydiStore;
+  eposta: EpostaStore;
 }
 
 // Yazılan her "dersera:" anahtarını kaydeden komut: temizlik yalnız bunları siler.
@@ -85,6 +87,7 @@ const uygulamalar: [string, () => Depolar][] = [
       koleksiyon: createMemoryKoleksiyonStore(),
       denetim: createMemoryDenetimKaydiStore(),
       islemler: createMemoryYonetimIslemKaydiStore(),
+      eposta: createMemoryEpostaStore(),
     }),
   ],
 ];
@@ -112,6 +115,7 @@ if (REDIS_ISTENDI) {
       koleksiyon: createRedisKoleksiyonStore(c),
       denetim: createRedisDenetimKaydiStore(c),
       islemler: createRedisYonetimIslemKaydiStore(c),
+      eposta: createRedisEpostaStore(c),
     }),
   ]);
 }
@@ -604,6 +608,34 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     expect([await d.okul.get(okul.id), await d.okul.uyeler(okul.id), await d.okul.paylasimlar(okul.id)]).toEqual([null, [], []]);
     expect(await d.okul.okulIdleri()).not.toContain(okul.id);
     expect(await d.okul.okulOf(o1)).toBeNull();
+  });
+
+  it("e-posta: doğrulama dizini tek hesaba, eski adres dizini değişince kalkar, kaldırma; belirteç tek kullanımlık ve süreli", async () => {
+    const [a, b] = [`ea-${run}`, `eb-${run}`];
+    const adres = `ogretmen-${run}@okul.k12.tr`;
+    const ozet = `oz-${run}`;
+    expect(await d.eposta.dogrula(a, adres, ozet, 1)).toBe("degisti");
+    await d.eposta.yaz(a, { adres, dogrulandi: false, zaman: 1 }, null);
+    await d.eposta.yaz(b, { adres, dogrulandi: false, zaman: 1 }, null);
+    expect(await d.eposta.dogrula(a, `baska-${run}@x.tr`, ozet, 2)).toBe("degisti");
+    expect(await d.eposta.dogrula(a, adres, ozet, 2)).toBe("ok");
+    expect(await d.eposta.oku(a)).toEqual({ adres, dogrulandi: true, zaman: 2 });
+    expect(await d.eposta.adrestenHesap(ozet)).toBe(a);
+    expect(await d.eposta.dogrula(b, adres, ozet, 3)).toBe("alinmis");
+    // b kendi (doğrulanmamış) kaydını kaldırırken a'nın dizinine dokunmaz.
+    await d.eposta.kaldir(b, ozet);
+    expect(await d.eposta.adrestenHesap(ozet)).toBe(a);
+    // a yeni adres yazınca eski dizin kalkar.
+    await d.eposta.yaz(a, { adres: `yeni-${run}@x.tr`, dogrulandi: false, zaman: 4 }, ozet);
+    expect(await d.eposta.adrestenHesap(ozet)).toBeNull();
+    await d.eposta.kaldir(a, null);
+    expect(await d.eposta.oku(a)).toBeNull();
+
+    const bel = { tur: "sifirlama" as const, hesapId: a, surum: 3 };
+    await d.eposta.belirtecYaz(`b-${run}`, bel, SAAT);
+    expect(await d.eposta.belirtecAl(`b-${run}`)).toEqual(bel);
+    expect(await d.eposta.belirtecAl(`b-${run}`)).toBeNull();
+    expect(await d.eposta.belirtecAl(`yok-${run}`)).toBeNull();
   });
 
   it("yönetim işlem kaydı: en yeni önce", async () => {

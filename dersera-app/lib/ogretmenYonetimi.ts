@@ -1,5 +1,6 @@
 import { kutuphaneSahibi, sifreDogru } from "@/lib/auth";
 import type { Hesap } from "@/lib/authStore";
+import { sifirlamaBaglantisi, yoneticiSifirlamaBelirteci } from "@/lib/epostaService";
 import { hesapVerileriniSil, type HesapSilmeDeps } from "@/lib/hesapSilme";
 import { ayOf, KREDI_KURALLARI } from "@/lib/kredi";
 import { sonIslemler, type YonetimIslemi, type YonetimIslemKaydiStore } from "@/lib/yonetimIslemKaydi";
@@ -50,13 +51,14 @@ export async function ogretmenAyrintisi(d: OgretmenYonetimiDeps, id: string, now
   if (!h) return hata(404, "Öğretmen bulunamadı.");
   const sahip = kutuphaneSahibi(h);
   const okulId = await d.okul.okulOf(h.id);
-  const [okul, uyeler, kredi, oyunSayisi, toplulukKayitlari, platformYoneticisi] = await Promise.all([
+  const [okul, uyeler, kredi, oyunSayisi, toplulukKayitlari, platformYoneticisi, eposta] = await Promise.all([
     okulId ? d.okul.get(okulId) : null,
     okulId ? d.okul.uyeler(okulId) : [],
     d.kredi.oku(h.id, ayOf(now), 0),
     d.library.count(sahip),
     d.topluluk.olusturanKayitlari(sahip),
     d.yoneticiMi(h),
+    d.eposta.oku(h.id),
   ]);
   return {
     ok: true as const,
@@ -70,6 +72,8 @@ export async function ogretmenAyrintisi(d: OgretmenYonetimiDeps, id: string, now
       kredi: { aylikKalan: Math.max(0, KREDI_KURALLARI.aylikHak - kredi.kullanilan), aylikHak: KREDI_KURALLARI.aylikHak, kazanilan: kredi.kazanilan },
       oyunSayisi,
       toplulukKayitSayisi: toplulukKayitlari.length,
+      // Adres gösterilmez; yalnız öğretmenin kendi şifresini sıfırlayabilip sıfırlayamayacağı.
+      epostaDogrulanmis: !!eposta?.dogrulandi,
     },
   };
 }
@@ -97,6 +101,19 @@ async function kaydet(d: OgretmenYonetimiDeps, yonetici: Hesap, islem: YonetimIs
   } catch (err) {
     console.error("[yonetim] işlem kaydı yazılamadı", islem, hedefId, err instanceof Error ? err.message : err);
   }
+}
+
+// E-postasız (ya da e-postasına ulaşamayan) öğretmen için tek kullanımlık, 1 saatlik şifre sıfırlama bağlantısı. Bağlantı
+// yalnız yanıtta döner (saklanmaz); yönetici öğretmene güvenli bir yoldan kendisi iletir. Bağlantı öğretmenin o anki
+// şifre sürümüne bağlıdır: öğretmen bu arada şifresini değiştirirse geçersiz olur.
+export async function sifirlamaBaglantisiUret(d: OgretmenYonetimiDeps, yonetici: Hesap, id: string, nedenGirdi: unknown, site: string, now = Date.now()): Promise<Sonuc<{ baglanti: string }>> {
+  const neden = nedenOf(nedenGirdi, true);
+  if (!neden.ok) return neden;
+  const hedef = await hedefHesap(d, yonetici, id);
+  if (!hedef.ok) return hedef;
+  const belirtec = await yoneticiSifirlamaBelirteci(d, hedef.value);
+  await kaydet(d, yonetici, "sifirlama-baglantisi", id, neden.value, now);
+  return { ok: true, value: { baglanti: sifirlamaBaglantisi(site, belirtec) } };
 }
 
 // Askıya alınan hesabın bütün oturumları hemen düşer ve giriş yapamaz; geri açılınca yeniden giriş yapar. Yalnız hesaba

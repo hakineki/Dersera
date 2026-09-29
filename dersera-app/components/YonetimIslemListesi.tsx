@@ -11,6 +11,8 @@ function Cumle({ i }: { i: SonIslem }) {
       return <>{hesap(i.hedef)} hesabını geri açtı</>;
     case "sil":
       return <>{hesap(i.hedef)} hesabını sildi</>;
+    case "sifirlama-baglantisi":
+      return <>{hesap(i.hedef)} hesabı için şifre sıfırlama bağlantısı üretti</>;
     case "okul-devret":
       return (
         <>

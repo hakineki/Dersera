@@ -16,7 +16,7 @@ import OkulTab from "./OkulTab";
 import OgrenmeTakibiTab from "./OgrenmeTakibiTab";
 import OgretmenMenusu, { IKON_KUTUSU, type MenuBaglantisi } from "./OgretmenMenusu";
 import Ikon, { type IkonAdi } from "@/components/Ikon";
-import { cikisYap, eskiYerelGirisiTemizle, girisYap, hesabimiSil, kayitOl, kullaniciAdiDegistir, oturumBilgisi, sifreDegistir, type HesapOzeti } from "@/lib/authClient";
+import { cikisYap, epostaDurumuAl, epostaKaydet, epostaSil, eskiYerelGirisiTemizle, girisYap, hesabimiSil, kayitOl, kullaniciAdiDegistir, oturumBilgisi, sifirlamaIste, sifreDegistir, type EpostaDurumu, type HesapOzeti } from "@/lib/authClient";
 import { eskiKutuphaneSayisi, eskiKutuphaneyiTasi } from "@/lib/libraryClient";
 import {
   clearPilotInfo,
@@ -160,11 +160,52 @@ function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: Hesa
           </button>
         </form>
 
+        {mod === "giris" && <SifremiUnuttum />}
+
         <Link href="/" className="block text-center text-purple-400 text-sm mt-6 hover:text-purple-200 transition-colors">
           ← Ana sayfaya dön
         </Link>
       </div>
     </div>
+  );
+}
+
+// "Şifremi unuttum": doğrulanmış e-postaya sıfırlama bağlantısı. Yanıt her durumda aynı mesajdır.
+function SifremiUnuttum() {
+  const [acik, setAcik] = useState(false);
+  const [girdi, setGirdi] = useState("");
+  const [mesaj, setMesaj] = useState<{ tur: "tamam" | "hata"; metin: string } | null>(null);
+  const [bekliyor, setBekliyor] = useState(false);
+
+  async function gonder(e: React.FormEvent) {
+    e.preventDefault();
+    setBekliyor(true);
+    const r = await sifirlamaIste(girdi.trim());
+    setBekliyor(false);
+    setMesaj("error" in r ? { tur: "hata", metin: r.error } : { tur: "tamam", metin: r.mesaj });
+  }
+
+  if (!acik)
+    return (
+      <button type="button" onClick={() => setAcik(true)} className="block mx-auto mt-4 text-sm text-purple-300 underline hover:text-white">
+        Şifremi unuttum
+      </button>
+    );
+  return (
+    <form onSubmit={gonder} className="mt-5 space-y-3 bg-white/5 border border-white/10 rounded-xl p-4">
+      <label htmlFor="unuttum" className="block text-sm text-purple-200">
+        Kullanıcı adın ya da doğrulanmış e-postan
+      </label>
+      <input id="unuttum" type="text" value={girdi} onChange={(e) => setGirdi(e.target.value)} autoComplete="username" className="w-full bg-white/10 border border-white/20 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+      {mesaj && (
+        <p role={mesaj.tur === "hata" ? "alert" : "status"} className={`text-xs rounded-lg px-3 py-2 ${mesaj.tur === "hata" ? "bg-red-500/20 text-red-100" : "bg-white/10 text-purple-100"}`}>
+          {mesaj.metin}
+        </p>
+      )}
+      <button type="submit" disabled={bekliyor || !girdi.trim()} className="w-full bg-white/15 hover:bg-white/25 disabled:opacity-40 text-white font-semibold py-2.5 rounded-xl text-sm">
+        {bekliyor ? "Gönderiliyor…" : "Sıfırlama bağlantısı gönder"}
+      </button>
+    </form>
   );
 }
 
@@ -569,6 +610,8 @@ function AyarlarTab({ hesap, onHesap, onCikis }: { hesap: HesapOzeti; onHesap: (
       </div>
 
 
+      <EpostaAyari />
+
       <div className="border-t border-gray-200 pt-6">
         <h3 className="font-semibold text-gray-700 mb-4">Kullanıcı Adını Değiştir</h3>
         <form onSubmit={handleAd} className="space-y-3">
@@ -619,6 +662,86 @@ function AyarlarTab({ hesap, onHesap, onCikis }: { hesap: HesapOzeti; onHesap: (
       </div>
 
       <HesapSilme onSilindi={onCikis} />
+    </div>
+  );
+}
+
+// İsteğe bağlı e-posta: yalnız doğrulandıktan sonra ve yalnız şifre sıfırlama bağlantısı için kullanılır.
+function EpostaAyari() {
+  const [durum, setDurum] = useState<EpostaDurumu | null | undefined>(undefined);
+  const [adres, setAdres] = useState("");
+  const [sifre, setSifre] = useState("");
+  const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [bekliyor, setBekliyor] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      const r = await epostaDurumuAl();
+      setDurum("error" in r ? null : r.eposta);
+    });
+    return () => clearTimeout(t);
+  }, []);
+
+  async function kaydet(e: React.FormEvent) {
+    e.preventDefault();
+    setBekliyor(true);
+    setMsg(null);
+    const r = await epostaKaydet(adres, sifre);
+    setBekliyor(false);
+    setSifre("");
+    if ("error" in r) return setMsg({ type: "err", text: r.error });
+    setDurum(r.eposta);
+    setAdres("");
+    setMsg(r.eposta.dogrulandi ? { type: "ok", text: "Bu adres zaten doğrulanmış." } : { type: "ok", text: `${r.eposta.adres} adresine doğrulama bağlantısı gönderildi (24 saat geçerli).` });
+  }
+
+  async function kaldir() {
+    setBekliyor(true);
+    setMsg(null);
+    const r = await epostaSil(sifre);
+    setBekliyor(false);
+    setSifre("");
+    if ("error" in r) return setMsg({ type: "err", text: r.error });
+    setDurum(null);
+    setMsg({ type: "ok", text: "E-posta kaldırıldı." });
+  }
+
+  const girdi = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
+  return (
+    <div className="border-t border-gray-200 pt-6">
+      <h3 className="font-semibold text-gray-700 mb-1">E-posta (isteğe bağlı)</h3>
+      <p className="text-xs text-gray-500 mb-4">Şifreni unutursan sıfırlama bağlantısı yalnız doğrulanmış bu adrese gönderilir. Başka bir amaçla kullanılmaz.</p>
+      {durum && (
+        <p className="text-sm mb-3">
+          <span className="font-medium break-all">{durum.adres}</span>{" "}
+          {durum.dogrulandi ? <span className="text-xs text-green-700 bg-green-50 rounded-full px-2 py-0.5">Doğrulandı</span> : <span className="text-xs text-amber-800 bg-amber-50 rounded-full px-2 py-0.5">Doğrulanmadı: gelen kutunu kontrol et</span>}
+        </p>
+      )}
+      <form onSubmit={kaydet} className="space-y-3">
+        <div>
+          <label htmlFor="eposta-adres" className="block text-xs font-medium text-gray-600 mb-1">
+            {durum ? "Yeni e-posta (ya da aynısını yazıp doğrulamayı yeniden gönder)" : "E-posta"}
+          </label>
+          <input id="eposta-adres" type="email" value={adres} onChange={(e) => setAdres(e.target.value)} autoComplete="email" className={girdi} />
+        </div>
+        <div>
+          <label htmlFor="eposta-sifre" className="block text-xs font-medium text-gray-600 mb-1">
+            Şifre
+          </label>
+          <input id="eposta-sifre" type="password" value={sifre} onChange={(e) => setSifre(e.target.value)} autoComplete="current-password" className={girdi} />
+        </div>
+        <Mesaj msg={msg} />
+        <div className="flex gap-2">
+          <button type="submit" disabled={bekliyor || !adres.trim() || !sifre} className="flex-1 bg-indigo-600 disabled:bg-indigo-300 text-white font-semibold py-2 rounded-lg text-sm hover:bg-indigo-700">
+            Doğrulama bağlantısı gönder
+          </button>
+          {durum && (
+            <button type="button" onClick={kaldir} disabled={bekliyor || !sifre} className="px-3 text-sm text-red-600 disabled:text-red-300 border border-red-200 rounded-lg">
+              Kaldır
+            </button>
+          )}
+        </div>
+      </form>
     </div>
   );
 }
