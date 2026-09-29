@@ -15,9 +15,11 @@ export async function pdfMetni(dosya: File): Promise<PdfSonucu> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   // globalThis.pdfjsWorker'ı kurar: pdf.js ayrı worker yerine bunu kullanır.
   await import("pdfjs-dist/legacy/build/pdf.worker.mjs");
-  let belge: Awaited<ReturnType<typeof pdfjs.getDocument>["promise"]> | null = null;
+  // Belgeyi kapatma yükleme görevindedir (pdf.js 6): hata durumunda da serbest bırakılır.
+  let gorev: ReturnType<typeof pdfjs.getDocument> | null = null;
   try {
-    belge = await pdfjs.getDocument({ data: new Uint8Array(await dosya.arrayBuffer()), disableFontFace: true }).promise;
+    gorev = pdfjs.getDocument({ data: new Uint8Array(await dosya.arrayBuffer()), disableFontFace: true });
+    const belge = await gorev.promise;
     const sayfalar: string[] = [];
     let uzunluk = 0;
     for (let i = 1; i <= Math.min(belge.numPages, EN_COK_SAYFA) && uzunluk <= KAYNAK.enCok; i++) {
@@ -35,6 +37,6 @@ export async function pdfMetni(dosya: File): Promise<PdfSonucu> {
     if (err instanceof Error && err.name === "PasswordException") return { ok: false, hata: "Parola korumalı PDF açılamıyor. Parolasız bir kopya seç." };
     return { ok: false, hata: "PDF okunamadı. Dosya bozuk olabilir; metni kopyalayıp yapıştırmayı dene." };
   } finally {
-    await belge?.destroy();
+    await gorev?.destroy();
   }
 }
