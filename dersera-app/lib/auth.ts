@@ -51,6 +51,8 @@ export function sifreHatasi(v: unknown): string | null {
   return null;
 }
 
+export const ASKIDA = "Hesabın platform yöneticisi tarafından askıya alındı. Bilgi için okulunla ya da bizimle iletişime geç.";
+
 export const AD_HATASI = "Kullanıcı adı 3–32 karakter olmalı; harf, rakam, nokta, tire ve alt çizgi kullanılabilir.";
 
 export type AuthSonucu<T> = { ok: true; value: T } | { ok: false; status: number; error: string };
@@ -97,13 +99,15 @@ export async function girisYap(store: AuthStore, adGirdi: unknown, sifre: unknow
     return hata(401, "Kullanıcı adı veya şifre hatalı.");
   }
   if (!(await sifreDogru(sifre, hesap.sifreOzeti))) return hata(401, "Kullanıcı adı veya şifre hatalı.");
+  // Askı yalnız doğru şifreyle söylenir: bir hesabın askıda olduğu şifresiz öğrenilemez.
+  if (hesap.aski?.askida) return hata(403, ASKIDA);
   return { ok: true, value: hesap };
 }
 
 // Oturum belirteci yalnız çerezde durur; sunucu özetini saklar.
-export async function oturumAc(store: AuthStore, hesap: Hesap): Promise<string> {
+export async function oturumAc(store: AuthStore, hesap: Hesap, now = Date.now()): Promise<string> {
   const belirtec = randomBytes(32).toString("base64url");
-  await store.oturumYaz(await hashToken(belirtec), { id: hesap.id, surum: hesap.surum }, OTURUM_SURESI_MS);
+  await store.oturumYaz(await hashToken(belirtec), { id: hesap.id, surum: hesap.surum, acilis: now }, OTURUM_SURESI_MS);
   return belirtec;
 }
 
@@ -112,8 +116,10 @@ export async function oturumHesabi(store: AuthStore, belirtec: string | null): P
   const oturum = await store.oturum(await hashToken(belirtec));
   if (!oturum) return null;
   const hesap = await store.hesap(oturum.id);
-  // Şifre değiştiyse eski oturumlar geçersizdir.
-  return hesap && hesap.surum === oturum.surum ? hesap : null;
+  // Şifre değiştiyse eski oturumlar geçersizdir. Askıdaki hesabın oturumu yoktur; askıdan önce açılmış oturum geri
+  // açıldıktan sonra da geçersizdir (öğretmen yeniden giriş yapar).
+  if (!hesap || hesap.surum !== oturum.surum || hesap.aski?.askida) return null;
+  return hesap.aski && (oturum.acilis ?? 0) < hesap.aski.zaman ? null : hesap;
 }
 
 export async function oturumKapat(store: AuthStore, belirtec: string | null): Promise<void> {

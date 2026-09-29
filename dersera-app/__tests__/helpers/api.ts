@@ -59,6 +59,11 @@ export async function buildApi() {
     yonetimOzeti: typeof import("@/app/api/yonetim/ozet/route");
     yzMaliyet: typeof import("@/app/api/yonetim/yz-maliyet/route");
     yzMaliyetStore: typeof import("@/lib/yzMaliyetStore");
+    ogretmenler: typeof import("@/app/api/yonetim/ogretmenler/route");
+    ogretmen: typeof import("@/app/api/yonetim/ogretmenler/[id]/route");
+    ogretmenAski: typeof import("@/app/api/yonetim/ogretmenler/[id]/aski/route");
+    ogretmenSil: typeof import("@/app/api/yonetim/ogretmenler/[id]/sil/route");
+    yonetimIslemKaydi: typeof import("@/lib/yonetimIslemKaydi");
     denetimKaydi: typeof import("@/lib/denetimKaydi");
     compose: typeof import("@/app/api/compose/route");
     composeGuncelle: typeof import("@/app/api/compose/guncelle/route");
@@ -132,6 +137,11 @@ export async function buildApi() {
       yonetimOzeti: await import("@/app/api/yonetim/ozet/route"),
       yzMaliyet: await import("@/app/api/yonetim/yz-maliyet/route"),
       yzMaliyetStore: await import("@/lib/yzMaliyetStore"),
+      ogretmenler: await import("@/app/api/yonetim/ogretmenler/route"),
+      ogretmen: await import("@/app/api/yonetim/ogretmenler/[id]/route"),
+      ogretmenAski: await import("@/app/api/yonetim/ogretmenler/[id]/aski/route"),
+      ogretmenSil: await import("@/app/api/yonetim/ogretmenler/[id]/sil/route"),
+      yonetimIslemKaydi: await import("@/lib/yonetimIslemKaydi"),
       denetimKaydi: await import("@/lib/denetimKaydi"),
       compose: await import("@/app/api/compose/route"),
       composeGuncelle: await import("@/app/api/compose/guncelle/route"),

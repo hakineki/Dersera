@@ -11,6 +11,7 @@ import { createMemoryYoneticiStore, createRedisYoneticiStore, type YoneticiStore
 import { createMemoryOkulStore, createRedisOkulStore, type OkulStore } from "@/lib/okulStore";
 import { createMemoryGorselStore, createRedisGorselStore, type GorselStore } from "@/lib/gorselStore";
 import { createMemoryDenetimKaydiStore, createRedisDenetimKaydiStore, SILINMIS_HESAP, type DenetimKaydiStore } from "@/lib/denetimKaydi";
+import { createMemoryYonetimIslemKaydiStore, createRedisYonetimIslemKaydiStore, ISLEM_SAKLAMA, type YonetimIslemKaydiStore } from "@/lib/yonetimIslemKaydi";
 import { KOLEKSIYON } from "@/lib/koleksiyon";
 import { createMemoryKoleksiyonStore, createRedisKoleksiyonStore, type KoleksiyonStore } from "@/lib/koleksiyonStore";
 import { createRedisCommand, type RedisCommand } from "@/lib/redis";
@@ -52,6 +53,7 @@ interface Depolar {
   takip: OgrenmeTakibiStore;
   koleksiyon: KoleksiyonStore;
   denetim: DenetimKaydiStore;
+  islemler: YonetimIslemKaydiStore;
 }
 
 // Yazılan her "dersera:" anahtarını kaydeden komut: temizlik yalnız bunları siler.
@@ -82,6 +84,7 @@ const uygulamalar: [string, () => Depolar][] = [
       takip: createMemoryOgrenmeTakibiStore(),
       koleksiyon: createMemoryKoleksiyonStore(),
       denetim: createMemoryDenetimKaydiStore(),
+      islemler: createMemoryYonetimIslemKaydiStore(),
     }),
   ],
 ];
@@ -108,6 +111,7 @@ if (REDIS_ISTENDI) {
       takip: createRedisOgrenmeTakibiStore(c),
       koleksiyon: createRedisKoleksiyonStore(c),
       denetim: createRedisDenetimKaydiStore(c),
+      islemler: createRedisYonetimIslemKaydiStore(c),
     }),
   ]);
 }
@@ -544,6 +548,32 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     const bulunanlar = await d.topluluk.olusturanKayitlari(sahip);
     expect([...bulunanlar].sort()).toEqual([a1, a2].sort());
     expect(bulunanlar).not.toContain(baska);
+  });
+
+  it("hesap askısı ve listesi: silinmiş hesaba yazılmaz, şifre güncellemesi ezmez, silmeyle gider; liste şifresiz", async () => {
+    const id = `aski${run}`;
+    const h = { id, kullaniciAdi: `aski_${run}`, sifreOzeti: "gizli", surum: 1, olusturma: 5 };
+    const aski = { askida: true, zaman: 10, neden: 'Gerekçe "tırnak"' };
+    expect(await d.auth.askiYaz(id, aski)).toBe(false);
+    expect(await d.auth.olustur(h)).toBe(true);
+    expect(await d.auth.askiYaz(id, aski)).toBe(true);
+    await d.auth.sifreGuncelle({ ...h, sifreOzeti: "yeni", surum: 2 });
+    expect(await d.auth.hesap(id)).toEqual({ ...h, sifreOzeti: "yeni", surum: 2, aski });
+    const liste = await d.auth.hesaplar();
+    expect(liste.find((x) => x.id === id)).toEqual({ id, kullaniciAdi: h.kullaniciAdi, olusturma: 5, aski });
+    expect(JSON.stringify(liste.find((x) => x.id === id))).not.toMatch(/gizli|yeni|sifreOzeti|surum/);
+    expect(await d.auth.hesapSil(id, h.kullaniciAdi)).toBe(true);
+    expect(await d.auth.olustur(h)).toBe(true);
+    expect((await d.auth.hesap(id))!.aski).toBeUndefined();
+    expect((await d.auth.hesaplar()).find((x) => x.id === id)).toEqual({ id, kullaniciAdi: h.kullaniciAdi, olusturma: 5 });
+  });
+
+  it("yönetim işlem kaydı: en yeni önce", async () => {
+    const k = (tarih: number) => ({ tarih, yoneticiId: `y${run}`, islem: "askiya-al" as const, hedefId: `h${run}`, neden: "n" });
+    await d.islemler.ekle(k(1));
+    await d.islemler.ekle({ ...k(2), islem: "sil" });
+    expect((await d.islemler.son(2)).map((x) => [x.tarih, x.islem])).toEqual([[2, "sil"], [1, "askiya-al"]]);
+    expect(ISLEM_SAKLAMA).toBeGreaterThan(100);
   });
 
   it("yönetim sayıları: hesap ve okul sayısı oluşturulanla artar", async () => {

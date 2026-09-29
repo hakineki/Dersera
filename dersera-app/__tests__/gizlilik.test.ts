@@ -9,6 +9,7 @@ import { OGRENME } from "@/lib/ogrenme";
 import { TABLO_TTL_MS } from "@/lib/ogrenmeTakibiStore";
 import { RESULTS_RETENTION_MS } from "@/lib/resultsStore";
 import { YEDEK_SAKLAMA_GUN } from "@/lib/yedekDepo";
+import { ISLEM_SAKLAMA } from "@/lib/yonetimIslemKaydi";
 
 // Aydınlatma metni koddaki gerçek saklama süreleri ve çerezle aynı kalmalı: süre değişirse bu test metni güncellemeyi hatırlatır.
 const GUN = 24 * 60 * 60 * 1000;
@@ -47,6 +48,9 @@ describe("gizlilik ve KVKK aydınlatma metni", () => {
     expect(s).toContain(`son ${HAREKET_SAKLAMA} hareket`);
     expect(s).toContain(`son ${KOPYA_SAKLAMA.toLocaleString("tr-TR")} kayıt`);
     expect(s).toContain(`Şifreli gece yedeği: ${YEDEK_SAKLAMA_GUN} gün`);
+    expect(s).toContain(`Yönetim işlem kaydı: son ${ISLEM_SAKLAMA} işlem`);
+    expect(s).toContain("Askı kaydı ve gerekçesi: hesap silinene kadar");
+    expect(bolum("Hangi verileri işliyoruz")).toMatch(/Hesap yönetimi: .*askıya/);
   });
 
   it("tek çerez oturum çerezidir; süresi koddakiyle aynı; takip çerezi yok", () => {

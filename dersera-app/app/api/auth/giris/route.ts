@@ -14,7 +14,8 @@ export async function POST(req: Request) {
     const store = getAuthStore();
     const r = await girisYap(store, b.kullaniciAdi, b.sifre);
     if (!r.ok) {
-      if (ad) await hataliDenemeKaydet(req, ad);
+      // Askıdaki hesaba doğru şifre (403) hatalı deneme sayılmaz: geri açılınca öğretmen kilitli kalmasın.
+      if (ad && r.status !== 403) await hataliDenemeKaydet(req, ad);
       return NextResponse.json({ error: r.error }, { status: r.status });
     }
     // Aynı tarayıcıda önceki (başka hesabın) oturumu sunucuda da kapatılır.

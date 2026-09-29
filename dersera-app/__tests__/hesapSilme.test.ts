@@ -40,7 +40,7 @@ describe("depo silme komutları", () => {
 
     const { command, calls } = recordingCommand(() => 1);
     expect(await createRedisAuthStore(command).hesapSil("a1", "ayse")).toBe(true);
-    expect(calls[0].slice(2)).toEqual(["3", "dersera:hesap:a1", "dersera:hesap:a1:ad", "dersera:hesap-adi:ayse", "a1", "ayse"]);
+    expect(calls[0].slice(2)).toEqual(["4", "dersera:hesap:a1", "dersera:hesap:a1:ad", "dersera:hesap-adi:ayse", "dersera:hesap:a1:aski", "a1", "ayse"]);
   });
 
   it("kredi, öğrenme takibi ve denetim: kişisel anahtarlar silinir, kopya kayıtları kimliksizleşir", async () => {
