@@ -5,6 +5,8 @@ import { sonAylar } from "@/lib/hesapSilme";
 import { ayOf } from "@/lib/kredi";
 import { createRedisKrediStore } from "@/lib/krediStore";
 import { createRedisOgrenmeTakibiStore } from "@/lib/ogrenmeTakibiStore";
+import { createRedisOkulStore } from "@/lib/okulStore";
+import { createRedisToplulukStore } from "@/lib/toplulukStore";
 import { icerikOzetiOf, yeniToplulukKaydi } from "@/lib/toplulukService";
 import { buildApi, cerezli, hesapAc, jsonRequest, toplulugaKoy } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
@@ -282,5 +284,30 @@ describe("hesap silme Lua betikleri (çalıştırılarak)", () => {
     r.dizeler.set("dersera:topluluk:olusturan:x", "hesap:a1");
     r.dizeler.set("dersera:topluluk:oyun:x", "{}");
     expect(await anahtarlariTara(r.command, "dersera:topluluk:olusturan:*")).toEqual(["dersera:topluluk:olusturan:x"]);
+  });
+});
+
+describe("hesap silme taramaları (Redis uygulaması, mini-Redis)", () => {
+  it("okul: bütün okulların özet tablolarından hesabın paylaşımları, tam kayıtlarıyla", async () => {
+    const r = createLuaRedis();
+    const ozet = (id: string, paylasan: string) => JSON.stringify({ id, paylasan, baslik: "B", sinif: 6, ders: "Fen", konu: "K", sure_dk: 40, tarih: 1 });
+    await r.command(["HSET", "dersera:okul:paylasim-ozet:o1", "p1", ozet("p1", "a1"), "p9", ozet("p9", "b1")]);
+    await r.command(["HSET", "dersera:okul:paylasim-ozet:o2", "p2", ozet("p2", "a1")]);
+    await r.command(["SET", "dersera:okul:paylasim:p1", JSON.stringify({ id: "p1", kaynak: "hesap:a1:k1", paylasan: "a1" })]);
+    await r.command(["SET", "dersera:okul:paylasim:p2", JSON.stringify({ id: "p2", kaynak: "hesap:a1:k2", paylasan: "a1" })]);
+    await r.command(["SET", "dersera:okul:paylasim:p9", JSON.stringify({ id: "p9", kaynak: "hesap:b1:k9", paylasan: "b1" })]);
+    const bulunan = await createRedisOkulStore(r.command).hesabinPaylasimlari("a1");
+    expect(bulunan.map((b) => `${b.okulId}/${b.paylasim.id}/${b.paylasim.kaynak}`).sort()).toEqual(["o1/p1/hesap:a1:k1", "o2/p2/hesap:a1:k2"]);
+  });
+
+  it("topluluk: oluşturan anahtarlı kayıtlar ve bu anahtardan önce açılmış (anahtarsız) kayıtlar", async () => {
+    const r = createLuaRedis();
+    r.dizeler.set("dersera:topluluk:olusturan:n1", "hesap:a1");
+    r.dizeler.set("dersera:topluluk:oyun:n1", JSON.stringify({ oyun_id: "n1", olusturan: "hesap:a1" }));
+    r.dizeler.set("dersera:topluluk:olusturan:n2", "hesap:b1");
+    r.dizeler.set("dersera:topluluk:oyun:n2", JSON.stringify({ oyun_id: "n2", olusturan: "hesap:b1" }));
+    r.dizeler.set("dersera:topluluk:oyun:eski1", JSON.stringify({ oyun_id: "eski1", olusturan: "hesap:a1" }));
+    r.dizeler.set("dersera:topluluk:oyun:eski2", JSON.stringify({ oyun_id: "eski2", olusturan: "hesap:b1" }));
+    expect([...(await createRedisToplulukStore(r.command).olusturanKayitlari("hesap:a1"))].sort()).toEqual(["eski1", "n1"]);
   });
 });

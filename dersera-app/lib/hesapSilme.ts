@@ -64,7 +64,12 @@ export async function hesabiSil(d: HesapSilmeDeps, hesap: Hesap, sifre: unknown,
     return { ok: false, status: 409, error: "Şu anda bir oyun oluşturuluyor. Birkaç dakika sonra tekrar dene." };
   }
 
-  await d.auth.sifreGuncelle({ ...hesap, surum: hesap.surum + 1 });
+  // Güncel kayıt yeniden okunur: bu arada başka sekmede değişen şifre eski özetle ezilmez.
+  const guncel = await d.auth.hesap(hesap.id);
+  if (!guncel || guncel.kullaniciAdi !== hesap.kullaniciAdi) {
+    return { ok: false, status: 409, error: "Hesap bilgisi başka bir oturumda değişti. Sayfayı yenileyip tekrar dene." };
+  }
+  await d.auth.sifreGuncelle({ ...guncel, surum: guncel.surum + 1 });
 
   const sahip = kutuphaneSahibi(hesap);
   for (const { okulId: o, paylasim } of await d.okul.hesabinPaylasimlari(hesap.id)) {

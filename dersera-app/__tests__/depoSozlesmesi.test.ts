@@ -511,6 +511,39 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     ]);
   });
 
+  it("hesap silme taramaları: bütün okullardaki paylaşımlar (ayrılınan okul dahil) ve hesabın bütün topluluk kayıtları", async () => {
+    const g = `g-sil-${run}`;
+    const okul1 = { id: `os1-${run}`, ad: "Bir", olusturma: 1, olusturan: `y1-${run}`, davetKodu: `H${run}`.slice(0, 8) };
+    const okul2 = { id: `os2-${run}`, ad: "İki", olusturma: 1, olusturan: `y2-${run}`, davetKodu: `J${run}`.slice(0, 8) };
+    expect(await d.okul.olustur(okul1, { hesapId: okul1.olusturan, rol: "yonetici", katilma: 1 })).toBe(true);
+    expect(await d.okul.olustur(okul2, { hesapId: okul2.olusturan, rol: "yonetici", katilma: 1 })).toBe(true);
+    const pay = (id: string, paylasan: string, kaynak: string) => ({ id, kaynak, paylasan, baslik: "B", sinif: 6, ders: "Fen", konu: "K", sure_dk: 40, tarih: 1, definition: makeDefinition(girdi, 6), dersler });
+    expect(await d.okul.katil(okul1.id, { hesapId: g, rol: "ogretmen", katilma: 2 })).toBe("ok");
+    expect(await d.okul.paylas(okul1.id, pay(`ps1-${run}`, g, `hesap:${g}:k1`))).toBe("ok");
+    expect(await d.okul.uyeCikar(okul1.id, g)).toBe(true);
+    expect(await d.okul.katil(okul2.id, { hesapId: g, rol: "ogretmen", katilma: 3 })).toBe("ok");
+    expect(await d.okul.paylas(okul2.id, pay(`ps2-${run}`, g, `hesap:${g}:k2`))).toBe("ok");
+    expect(await d.okul.paylas(okul2.id, pay(`ps3-${run}`, okul2.olusturan, `hesap:${okul2.olusturan}:k3`))).toBe("ok");
+    const bulunan = await d.okul.hesabinPaylasimlari(g);
+    expect(bulunan.map((b) => `${b.okulId}/${b.paylasim.id}/${b.paylasim.kaynak}`).sort()).toEqual([`${okul1.id}/ps1-${run}/hesap:${g}:k1`, `${okul2.id}/ps2-${run}/hesap:${g}:k2`].sort());
+    for (const b of bulunan) expect(await d.okul.paylasimKaldir(b.okulId, { id: b.paylasim.id, kaynak: b.paylasim.kaynak })).toBe(true);
+    expect(await d.okul.hesabinPaylasimlari(g)).toEqual([]);
+    expect((await d.okul.paylasimlar(okul2.id)).map((p) => p.id)).toEqual([`ps3-${run}`]);
+
+    const sahip = `hesap:ts-${run}`;
+    const kayit = (durak: number, olusturan: string) => {
+      const def = makeDefinition(girdi, durak);
+      def.meta.baslik = `Tarama ${durak} ${run}`;
+      return [yeniToplulukKaydi(def, dersler, olusturan, 1_000, { durum: "yayinda", aktif: true }), icerikOzetiOf(def)] as const;
+    };
+    const a1 = await d.topluluk.ekle(...kayit(6, sahip));
+    const a2 = await d.topluluk.ekle(...kayit(7, sahip));
+    const baska = await d.topluluk.ekle(...kayit(8, `hesap:baska-${run}`));
+    const bulunanlar = await d.topluluk.olusturanKayitlari(sahip);
+    expect([...bulunanlar].sort()).toEqual([a1, a2].sort());
+    expect(bulunanlar).not.toContain(baska);
+  });
+
   it("oran sınırı sayacı ve yapay zekâ denetim önbelleği", async () => {
     const anahtar = `dersera:duman:sinir:${run}`;
     expect(await d.limiter.hit(anahtar, SAAT)).toBe(1);
