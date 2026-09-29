@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { takmaAdHatasi } from "@/lib/results";
 
 interface Props {
@@ -81,7 +82,10 @@ export default function NicknameEntry({ onConfirm }: Props) {
         </form>
 
         <p className="text-center text-white/30 text-xs mt-6">
-          Kodun alınmışsa farklı bir tane seç.
+          Kodun alınmışsa farklı bir tane seç. Gerçek adını yazma.{" "}
+          <Link href="/gizlilik" target="_blank" className="underline">
+            Gizlilik
+          </Link>
         </p>
       </div>
     </div>

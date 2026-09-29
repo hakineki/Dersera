@@ -85,6 +85,7 @@ betikleriyle atomiktir. Birim testleri bellek deposunda çalışır; gerçek Red
 | 42 | A: kartta "☆ Koleksiyona ekle" → yeni koleksiyon "Favoriler"; "Koleksiyonlarım" sekmesi; yeniden adlandır, oyunu çıkar, sil | Düğme "★ 1 koleksiyonda" olur; sekmede koleksiyon ve oyunlar görünür. B, A'nın koleksiyonlarını görmez. Koleksiyon silinince oyunlar toplulukta kalır. Topluluktan kalkan oyun "Bu oyun artık toplulukta değil" satırıyla görünür. En çok 20 koleksiyon, her birinde 100 oyun. |
 | 43 | Oyun yayınla, bir öğrenci bitirsin; gizli sekmede `/api/results?code=<KOD>` adresini aç | Yanıt 403 "Yetkisiz"; takma ad ve süreler görünmez. Yayınlayan öğretmenin panelinde sonuç tablosu güncellenir (oyun bittikten sonraki günlerde de, 7 güne kadar). |
 | 44 | Gizli sekmede ana sayfa, `/game`, Composer (PDF'ten al) ve görselli bir oyun; tarayıcı geliştirici araçlarında Ağ → belge yanıt başlıkları ve Konsol | Yanıtta Content-Security-Policy, X-Frame-Options: DENY, Referrer-Policy, Permissions-Policy, Strict-Transport-Security ve nosniff var. Konsolda "Content Security Policy" / "Refused to" hatası yok; oyun görselleri (Vercel Blob) ve PDF metni yükleniyor. |
+| 45 | Ana sayfa alt satırında "Gizlilik ve KVKK"; öğretmen kayıt formu; öğrencinin takma ad ekranında "Gizlilik" | `/gizlilik` açılır: veri sorumlusu, işlenen veriler, amaç ve hukuki sebepler, yurt dışı hizmet sağlayıcılar, saklama süreleri, çerez, KVKK md. 11 hakları ve başvuru e-postası. Metin hukuk incelemesinden geçmeden okullarla veri işleme sözleşmesi imzalanmaz. |
 
 ## 4. Dağıtım doğrulaması
 
