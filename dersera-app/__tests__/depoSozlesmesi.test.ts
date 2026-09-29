@@ -10,6 +10,7 @@ import { createMemoryModerasyonStore, createRedisModerasyonStore, type Moderasyo
 import { createMemoryYoneticiStore, createRedisYoneticiStore, type YoneticiStore } from "@/lib/yonetici";
 import { createMemoryOkulStore, createRedisOkulStore, type OkulStore } from "@/lib/okulStore";
 import { createMemoryGorselStore, createRedisGorselStore, type GorselStore } from "@/lib/gorselStore";
+import { createMemoryDenetimKaydiStore, createRedisDenetimKaydiStore, SILINMIS_HESAP, type DenetimKaydiStore } from "@/lib/denetimKaydi";
 import { KOLEKSIYON } from "@/lib/koleksiyon";
 import { createMemoryKoleksiyonStore, createRedisKoleksiyonStore, type KoleksiyonStore } from "@/lib/koleksiyonStore";
 import { createRedisCommand, type RedisCommand } from "@/lib/redis";
@@ -23,7 +24,7 @@ import { getUniteler } from "@/data/mufredat/programlar";
 
 // Depo sözleşmesi: aynı davranış testleri bellek ve Redis depolarında. Bellek her zaman çalışır (testin kendisi
 // doğrulanır). Redis yalnız açıkça istenince ve BOŞ, ayrı bir veritabanında çalışır: Lua betiklerinin (kredi,
-// sürüm CAS, topluluk durumu, puanlar, bitiren sayımı, hesap açma, koleksiyon sınırları) gerçek Redis'teki duman testidir.
+// sürüm CAS, topluluk durumu, puanlar, bitiren sayımı, hesap açma, koleksiyon sınırları, hesap silme) gerçek Redis'teki duman testidir.
 //
 //   DERSERA_REDIS_DUMAN=1 KV_REST_API_URL=… KV_REST_API_TOKEN=… npx jest __tests__/depoSozlesmesi.test.ts
 //
@@ -48,6 +49,7 @@ interface Depolar {
   ogrenme: OgrenmeStore;
   takip: OgrenmeTakibiStore;
   koleksiyon: KoleksiyonStore;
+  denetim: DenetimKaydiStore;
 }
 
 // Yazılan her "dersera:" anahtarını kaydeden komut: temizlik yalnız bunları siler.
@@ -77,6 +79,7 @@ const uygulamalar: [string, () => Depolar][] = [
       ogrenme: createMemoryOgrenmeStore(),
       takip: createMemoryOgrenmeTakibiStore(),
       koleksiyon: createMemoryKoleksiyonStore(),
+      denetim: createMemoryDenetimKaydiStore(),
     }),
   ],
 ];
@@ -102,6 +105,7 @@ if (REDIS_ISTENDI) {
       ogrenme: createRedisOgrenmeStore(c),
       takip: createRedisOgrenmeTakibiStore(c),
       koleksiyon: createRedisKoleksiyonStore(c),
+      denetim: createRedisDenetimKaydiStore(c),
     }),
   ]);
 }
@@ -469,6 +473,42 @@ describe.each(uygulamalar)("%s depoları", (_ad, kur) => {
     expect(await d.koleksiyon.adDegistir(h, k, "X")).toBe(false);
     expect(await d.koleksiyon.olustur(h, { id: `${run}-son`, ad: "Son", olusturma: 1 })).toBe(true);
     expect(await d.koleksiyon.listele(`hesap:baska-${run}`)).toEqual([]);
+  });
+
+  it("hesap silme: ad değiştiyse silinmez; hesap, ad ve dizin gider; kredi ve takip anahtarları; kopya kaydı kimliksizleşir", async () => {
+    const id = `sil${run}`;
+    const ad = `ayşe_${run}`;
+    const ay = "2026-09";
+    await d.auth.olustur({ id, kullaniciAdi: ad, sifreOzeti: "x", surum: 1, olusturma: 1 });
+    expect(await d.auth.hesapSil(id, `baska_${run}`)).toBe(false);
+    expect(await d.auth.hesap(id)).not.toBeNull();
+    expect(await d.auth.hesapSil(id, ad)).toBe(true);
+    expect([await d.auth.hesap(id), await d.auth.idByAd(ad)]).toEqual([null, null]);
+
+    await d.kredi.odul(id, 2, 1, "ödül");
+    expect(await d.kredi.harca(id, ay, 30, 1, 2, "a", SAAT, `s1-${run}`)).toMatchObject({ ok: true });
+    await d.kredi.hesapSil(id, [ay]);
+    expect(await d.kredi.oku(id, ay, 10)).toEqual({ kullanilan: 0, kazanilan: 0, hareketler: [] });
+    expect(await d.kredi.askidakiler(id)).toEqual([]);
+
+    const sahip = `hesap:${id}`;
+    expect(await d.takip.ogrenciSay(sahip, ay, `S${run}`, "o1", ["x"], ["oyun"], SAAT)).toBe(true);
+    await d.takip.tablolariSil(sahip, [ay]);
+    expect(await d.takip.sayaclar(sahip, [ay])).toEqual([{}]);
+
+    await d.denetim.kosulOnayiYaz(id, { surum: "2026-09", tarih: 1 });
+    const baskasi = { tarih: 3, hesapId: `b${run}`, kullaniciAdi: "bora", tur: "okul" as const, oyunId: "o2", baslik: "Başka" };
+    await d.denetim.kopyaEkle({ tarih: 1, hesapId: id, kullaniciAdi: ad, tur: "topluluk", oyunId: `o1-${run}`, baslik: "Şifre: \"x\"" });
+    await d.denetim.kopyaEkle(baskasi);
+    await d.denetim.kopyaEkle({ tarih: 4, hesapId: id, kullaniciAdi: ad, tur: "okul", oyunId: `o3-${run}`, baslik: "Üç" });
+    await d.denetim.hesabiUnut(id, ad);
+    expect(await d.denetim.kosulOnayi(id)).toBeNull();
+    const son = await d.denetim.kopyalar(3);
+    expect(son).toEqual([
+      { tarih: 4, ...SILINMIS_HESAP, tur: "okul", oyunId: `o3-${run}`, baslik: "Üç" },
+      baskasi,
+      { tarih: 1, ...SILINMIS_HESAP, tur: "topluluk", oyunId: `o1-${run}`, baslik: "Şifre: \"x\"" },
+    ]);
   });
 
   it("oran sınırı sayacı ve yapay zekâ denetim önbelleği", async () => {

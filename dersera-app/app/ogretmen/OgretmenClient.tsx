@@ -16,9 +16,10 @@ import OkulTab from "./OkulTab";
 import OgrenmeTakibiTab from "./OgrenmeTakibiTab";
 import OgretmenMenusu, { IKON_KUTUSU, type MenuBaglantisi } from "./OgretmenMenusu";
 import Ikon, { type IkonAdi } from "@/components/Ikon";
-import { cikisYap, eskiYerelGirisiTemizle, girisYap, kayitOl, kullaniciAdiDegistir, oturumBilgisi, sifreDegistir, type HesapOzeti } from "@/lib/authClient";
+import { cikisYap, eskiYerelGirisiTemizle, girisYap, hesabimiSil, kayitOl, kullaniciAdiDegistir, oturumBilgisi, sifreDegistir, type HesapOzeti } from "@/lib/authClient";
 import { eskiKutuphaneSayisi, eskiKutuphaneyiTasi } from "@/lib/libraryClient";
 import {
+  clearPilotInfo,
   loadPilotInfo,
   savePilotInfo,
   type PilotInfo,
@@ -616,6 +617,68 @@ function AyarlarTab({ hesap, onHesap, onCikis }: { hesap: HesapOzeti; onHesap: (
           Çıkış Yap
         </button>
       </div>
+
+      <HesapSilme onSilindi={onCikis} />
+    </div>
+  );
+}
+
+// Hesabı kalıcı olarak silme (KVKK). Ne silinip ne kaldığı açıkça yazılır; şifre ve onay kutusuyla yapılır.
+function HesapSilme({ onSilindi }: { onSilindi: () => void }) {
+  const [acik, setAcik] = useState(false);
+  const [sifre, setSifre] = useState("");
+  const [onay, setOnay] = useState(false);
+  const [bekliyor, setBekliyor] = useState(false);
+  const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  async function sil(e: React.FormEvent) {
+    e.preventDefault();
+    setBekliyor(true);
+    setMsg(null);
+    const r = await hesabimiSil(sifre);
+    setBekliyor(false);
+    if ("error" in r) return setMsg({ type: "err", text: r.error });
+    clearPilotInfo();
+    window.alert("Hesabın ve verilerin silindi.");
+    onSilindi();
+  }
+
+  return (
+    <div className="pt-6 border-t border-gray-200">
+      {!acik ? (
+        <button type="button" onClick={() => setAcik(true)} className="text-sm text-red-600 underline">
+          Hesabımı sil…
+        </button>
+      ) : (
+        <form onSubmit={sil} className="space-y-3 bg-red-50 border border-red-200 rounded-xl p-4">
+          <h3 className="text-sm font-bold text-red-800">Hesabımı kalıcı olarak sil</h3>
+          <ul className="list-disc pl-5 text-xs text-red-900 space-y-1">
+            <li>Hesabın, kütüphanedeki oyunların, koleksiyonların, okul üyeliğin ve okulda paylaştığın oyunlar, kredi kayıtların ve öğrenme takibi raporların silinir. Kullanıcı adın boşa çıkar.</li>
+            <li>Toplulukta yayındaki ya da incelemedeki oyunların geri çekilir.</li>
+            <li>Başka oyunlara verdiğin puanlar ve inceleme kararların kimliksiz olarak toplamlarda kalır; kopya kayıtlarında adın &quot;silinmiş hesap&quot; olur.</li>
+            <li>Silinen veriler şifreli yedeklerden en geç 14 gün içinde kalkar. Bu işlem geri alınamaz.</li>
+          </ul>
+          <div>
+            <label htmlFor="silme-sifre" className="block text-xs font-semibold text-red-900 mb-1">
+              Şifren
+            </label>
+            <input id="silme-sifre" type="password" value={sifre} onChange={(e) => setSifre(e.target.value)} autoComplete="current-password" className="w-full border border-red-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <label className="flex items-start gap-2 text-xs text-red-900">
+            <input type="checkbox" checked={onay} onChange={(e) => setOnay(e.target.checked)} className="mt-0.5" />
+            <span>Hesabımın ve verilerimin kalıcı olarak silineceğini anlıyorum.</span>
+          </label>
+          <Mesaj msg={msg} />
+          <div className="flex gap-2">
+            <button type="submit" disabled={bekliyor || !sifre || !onay} className="flex-1 bg-red-600 disabled:bg-red-300 text-white font-semibold py-2 rounded-lg text-sm hover:bg-red-700">
+              {bekliyor ? "Siliniyor…" : "Hesabımı sil"}
+            </button>
+            <button type="button" onClick={() => { setAcik(false); setSifre(""); setOnay(false); setMsg(null); }} className="px-3 text-sm text-gray-600">
+              Vazgeç
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

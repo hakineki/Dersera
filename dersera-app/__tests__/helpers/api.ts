@@ -24,6 +24,7 @@ export async function buildApi() {
     ben: typeof import("@/app/api/auth/ben/route");
     sifre: typeof import("@/app/api/auth/sifre/route");
     ad: typeof import("@/app/api/auth/ad/route");
+    hesapSil: typeof import("@/app/api/auth/hesap-sil/route");
     authStore: typeof import("@/lib/authStore");
     topluluk: typeof import("@/app/api/topluluk/route");
     toplulukOyun: typeof import("@/app/api/topluluk/[id]/route");
@@ -93,6 +94,7 @@ export async function buildApi() {
       ben: await import("@/app/api/auth/ben/route"),
       sifre: await import("@/app/api/auth/sifre/route"),
       ad: await import("@/app/api/auth/ad/route"),
+      hesapSil: await import("@/app/api/auth/hesap-sil/route"),
       authStore: await import("@/lib/authStore"),
       topluluk: await import("@/app/api/topluluk/route"),
       toplulukOyun: await import("@/app/api/topluluk/[id]/route"),

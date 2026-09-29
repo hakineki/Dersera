@@ -45,6 +45,8 @@ export const kayitOl = (kullaniciAdi: string, sifre: string, davetKodu: string, 
   gonder("/api/auth/kayit", { kullaniciAdi, sifre, davetKodu, kosulOnayi });
 export const sifreDegistir = (mevcutSifre: string, yeniSifre: string) => gonder("/api/auth/sifre", { mevcutSifre, yeniSifre });
 export const kullaniciAdiDegistir = (yeniKullaniciAdi: string, sifre: string) => gonder("/api/auth/ad", { yeniKullaniciAdi, sifre });
+// Başarıda sunucu oturum çerezini de siler.
+export const hesabimiSil = (sifre: string) => gonder("/api/auth/hesap-sil", { sifre });
 
 export async function cikisYap(): Promise<void> {
   try {

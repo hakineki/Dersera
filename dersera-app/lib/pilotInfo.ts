@@ -39,6 +39,15 @@ export function loadPilotInfo(): PilotInfo {
   }
 }
 
+// Hesap silinince bu cihazdaki pilot bilgileri (öğretmen adı dahil) de kalkar.
+export function clearPilotInfo(): void {
+  try {
+    localStorage.removeItem(PILOT_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function savePilotInfo(info: PilotInfo): void {
   safeSet(PILOT_STORAGE_KEY, JSON.stringify(info));
 }
