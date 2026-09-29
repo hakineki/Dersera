@@ -1,6 +1,8 @@
 // Yapay zekâ maliyet kaydının tipleri ve fiyat varsayımları. Fiyatlar kodda sabittir ve TAHMİNDİR: sağlayıcının faturası
 // esastır. Kaynak: fizibilite belgesi "Birim maliyet" tablosu (28 Eylül 2026). Fiyatı bilinmeyen model için token
 // sayıları yine kaydedilir, tutar "fiyatsız" sayılır (yönetim sayfasında ayrıca gösterilir).
+// Sayılmayanlar: yanıt gelmeden zaman aşımına uğrayan ya da bağlantısı kopan çağrılar (sağlayıcı bunları da
+// faturalayabilir) ve görsel üretiminde görsel dönmeyen istekler. Anthropic önbellek yazma tokenları giriş sayılır.
 // İstemci de okur: ağır modül içe aktarmamalı.
 
 export const YZ_TURLERI = ["uretim", "guncelleme", "denetim", "oneri", "gorsel", "diger"] as const;
@@ -37,10 +39,10 @@ export const GORSEL_FIYATLARI: Record<string, { fiyat: Partial<Record<string, nu
 
 export const DOLAR_KURU = { tl: 48.98, tarih: "28 Eylül 2026", kaynak: "Fizibilite belgesi (Trading Economics)" };
 
+// Model adı tam eşleşir ya da yalnız sürüm/tarih ekiyle uzar ("claude-sonnet-4-6-20260301"); "gpt-6-luna-mini" gibi
+// başka bir model "gpt-6-luna" fiyatını almaz.
 function fiyatOf<T>(tablo: Record<string, T>, model: string): T | null {
-  const anahtar = Object.keys(tablo)
-    .sort((a, b) => b.length - a.length)
-    .find((k) => model.startsWith(k));
+  const anahtar = Object.keys(tablo).find((k) => model === k || (model.startsWith(`${k}-`) && /[0-9]/.test(model.charAt(k.length + 1))));
   return anahtar ? tablo[anahtar] : null;
 }
 

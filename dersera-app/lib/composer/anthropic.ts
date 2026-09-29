@@ -69,8 +69,8 @@ export async function yapilandirilmisIstek<S extends z.ZodObject<z.ZodRawShape>>
     );
     console.info(`[compose] model=${response.model} stop=${response.stop_reason} output_tokens=${response.usage?.output_tokens}`);
     // Kesik ya da reddedilen yanıt da ücretlidir: kayıt hata fırlatılmadan önce.
-    const u = response.usage as { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number | null } | undefined;
-    await yzKullanimKaydet({ model: response.model || modelFromEnv(), giris: u?.input_tokens, cikis: u?.output_tokens, onbellek: u?.cache_read_input_tokens ?? 0 });
+    const u = response.usage as { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number | null; cache_creation_input_tokens?: number | null } | undefined;
+    await yzKullanimKaydet({ model: response.model || modelFromEnv(), giris: (u?.input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0), cikis: u?.output_tokens, onbellek: u?.cache_read_input_tokens ?? 0 });
     if (response.stop_reason === "refusal") throw new ComposeError("invalid-output", "Model isteği reddetti");
     if (response.stop_reason === "max_tokens") throw new ComposeError("invalid-output", `Çıktı max_tokens (${maxTokens}) sınırında kesildi`, true);
     const text = response.content.flatMap((b) => (b.type === "text" ? [b.text] : [])).join("");

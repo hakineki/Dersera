@@ -5,7 +5,7 @@ import { openaiGorsel, type GorselIstemcisi } from "@/lib/gorselUretici";
 import { ayOf } from "@/lib/kredi";
 import { getOkulStore } from "@/lib/okulStore";
 import { raporOf, tahminiDolar } from "@/lib/yzMaliyet";
-import { hesapBagla, hesapIcin, yzKullanimKaydet, yzTuruIle } from "@/lib/yzMaliyetKaydi";
+import { hesapBagla, yzKullanimKaydet, yzTuruIle } from "@/lib/yzMaliyetKaydi";
 import { sonAylarListesi } from "@/lib/yzMaliyetRaporu";
 import { createMemoryYzMaliyetStore, createRedisYzMaliyetStore, getYzMaliyetStore, MALIYET_SAKLAMA_MS } from "@/lib/yzMaliyetStore";
 import { buildApi, cerezli, hesapAc, jsonRequest } from "./helpers/api";
@@ -15,6 +15,12 @@ import { createLuaRedis } from "./helpers/luaRedis";
 const Sema = z.object({ a: z.string() });
 const prompt = { ortak: "o", asama: "a" };
 const ay = () => ayOf(Date.now());
+// Uç noktadaki gibi: kendi bağlamında öğretmeni bağla, sonra servis türüyle çağır.
+const hesapIcin = <T,>(hesapId: string, fn: () => Promise<T>) =>
+  yzTuruIle("diger", async () => {
+    hesapBagla(hesapId);
+    return fn();
+  });
 
 describe("fiyat ve rapor", () => {
   it("tahmini dolar: token fiyatı, sürüm ekli model adı, görsel, bilinmeyen model", () => {
@@ -23,6 +29,8 @@ describe("fiyat ve rapor", () => {
     expect(tahminiDolar({ model: "gpt-image-2", gorsel: 4, kalite: "low" })).toBeCloseTo(0.024);
     expect(tahminiDolar({ model: "gpt-image-2", gorsel: 1, kalite: "high" })).toBeNull();
     expect(tahminiDolar({ model: "bilinmeyen-model", giris: 10 })).toBeNull();
+    expect(tahminiDolar({ model: "gpt-6-luna-mini", giris: 10 })).toBeNull();
+    expect(tahminiDolar({ model: "gpt-6-luna-2026-09-01", giris: 1_000_000 })).toBeCloseTo(0.1);
   });
 
   it("rapor: tür/model ve okul kırılımı, toplam; bilinmeyen tür 'diğer'", () => {
@@ -123,6 +131,25 @@ describe("çağrı noktalarında kayıt", () => {
     expect(t["t|oneri|gpt-6-luna|cagri"]).toBe(1);
     expect(t[`o|${okulId}|cagri`]).toBe(2);
     expect(t["o|yok|cagri"]).toBe(2);
+  });
+
+  it("canlıda Redis yoksa kayıt hatası çağrıyı bozmaz (depo çözümü de try içinde)", async () => {
+    clearRedisEnv();
+    const env = process.env as Record<string, string | undefined>;
+    const eski = env.NODE_ENV;
+    env.NODE_ENV = "production";
+    const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      let mod!: typeof import("@/lib/yzMaliyetKaydi");
+      await jest.isolateModulesAsync(async () => {
+        mod = await import("@/lib/yzMaliyetKaydi");
+      });
+      await expect(mod.yzKullanimKaydet({ model: "gpt-6-luna", giris: 1 })).resolves.toBeUndefined();
+      expect(spy.mock.calls.some((c) => String(c[1] ?? "").includes("Redis gerekli"))).toBe(true);
+    } finally {
+      env.NODE_ENV = eski;
+      spy.mockRestore();
+    }
   });
 
   it("kayıt hatası çağrıyı bozmaz", async () => {

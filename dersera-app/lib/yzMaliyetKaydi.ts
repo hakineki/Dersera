@@ -26,19 +26,16 @@ export function yzTuruIle<T>(tur: YzTuru, fn: () => Promise<T>): Promise<T> {
   return baglam.run({ ...baglam.getStore(), tur }, fn);
 }
 
-// Görsel üretimi gibi öğretmenin işten bilindiği yerler için.
-export function hesapIcin<T>(hesapId: string, fn: () => Promise<T>): Promise<T> {
-  return baglam.run({ ...baglam.getStore(), hesapId, okulId: undefined }, fn);
-}
-
 async function okulOf(b: Baglam | undefined): Promise<string | null> {
   if (!b?.hesapId) return null;
   if (b.okulId === undefined) b.okulId = await getOkulStore().okulOf(b.hesapId);
   return b.okulId;
 }
 
-export async function yzKullanimKaydet(k: YzKullanimi, now = Date.now(), store: YzMaliyetStore = getYzMaliyetStore()): Promise<void> {
+export async function yzKullanimKaydet(k: YzKullanimi, now = Date.now(), depo?: YzMaliyetStore): Promise<void> {
   try {
+    // Depo try içinde çözülür: canlıda Redis yoksa (RedisGerekliError) hata çağrıyı bozmasın.
+    const store = depo ?? getYzMaliyetStore();
     const b = baglam.getStore();
     const tur = b?.tur ?? "diger";
     const okulId = await okulOf(b);
