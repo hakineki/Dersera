@@ -108,8 +108,9 @@ async function kaydet(d: OgretmenYonetimiDeps, yonetici: Hesap, islem: YonetimIs
   }
 }
 
-// Askıya alınan hesabın bütün oturumları hemen düşer ve giriş yapamaz; geri açılınca yeniden giriş yapar. Oyunları,
-// kütüphanesi ve okul üyeliği durur (öğrencilerin süren oyunları etkilenmez).
+// Askıya alınan hesabın bütün oturumları hemen düşer ve giriş yapamaz; geri açılınca yeniden giriş yapar. Yalnız hesaba
+// erişim kapanır: verileri silinmez, topluluktaki ve okuldaki paylaşımları görünür kalır, öğrencilerin süren oyunları
+// sürer (içerik sorunu varsa moderasyondan ayrıca geri çekilir).
 export async function askiDegistir(d: OgretmenYonetimiDeps, yonetici: Hesap, id: string, askida: unknown, nedenGirdi: unknown, now = Date.now()): Promise<Sonuc<{ askida: boolean }>> {
   if (typeof askida !== "boolean") return hata(422, "askida alanı true ya da false olmalı.");
   const neden = nedenOf(nedenGirdi, askida);

@@ -241,6 +241,7 @@ function OgretmenAyrintisi({ id, degisti }: { id: string; degisti: (silinen: str
             <label htmlFor="aski-neden" className="block text-xs font-semibold text-gray-600">
               Gerekçe{askida ? " (isteğe bağlı)" : ""}
             </label>
+            <p className="text-xs text-gray-400">Gerekçe işlem kaydında kalır; öğrenci ya da öğretmen hakkında kişisel bilgi yazma.</p>
             <input id="aski-neden" value={neden} onChange={(e) => setNeden(e.target.value)} maxLength={300} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
             <button type="button" disabled={calisiyor || (!askida && neden.trim().length < 3)} onClick={askiDegistir} className={`text-sm font-semibold rounded-lg px-3 py-2 text-white disabled:opacity-50 ${askida ? "bg-indigo-600" : "bg-amber-600"}`}>
               {askida ? "Hesabı geri aç" : "Hesabı askıya al"}
@@ -253,6 +254,7 @@ function OgretmenAyrintisi({ id, degisti }: { id: string; degisti: (silinen: str
             <label htmlFor="sil-neden" className="block text-xs font-semibold text-gray-600">
               Gerekçe
             </label>
+            <p className="text-xs text-gray-400">Gerekçe işlem kaydında kalır; kişisel bilgi yazma.</p>
             <input id="sil-neden" value={silNeden} onChange={(e) => setSilNeden(e.target.value)} maxLength={300} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
             <label htmlFor="sil-onay" className="block text-xs font-semibold text-gray-600">
               Onay için kullanıcı adını yaz: <span className="font-mono">{a.kullaniciAdi}</span>

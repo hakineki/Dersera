@@ -1,6 +1,7 @@
 import { getUniteler } from "@/data/mufredat/programlar";
 import { ASKIDA, oturumAc, oturumHesabi } from "@/lib/auth";
 import { createMemoryAuthStore, createRedisAuthStore } from "@/lib/authStore";
+import { hashToken } from "@/lib/gamesService";
 import { buildApi, cerezli, hesapAc, jsonRequest } from "./helpers/api";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 import { clearRedisEnv } from "./helpers/fakeRedis";
@@ -23,6 +24,17 @@ describe("askı ve oturum", () => {
     expect(await oturumHesabi(s, eski)).toBeNull();
     const yeni = await oturumAc(s, (await s.hesap(h.id))!, 3_000);
     expect(await oturumHesabi(s, yeni)).toMatchObject({ id: h.id });
+  });
+
+  it("eski oturum (açılış zamanı yok): askı hiç olmadıysa geçerli, askı olduysa geri açılsa da geçersiz", async () => {
+    const s = createMemoryAuthStore();
+    const h = { id: "b".repeat(24), kullaniciAdi: "bora", sifreOzeti: "x", surum: 1, olusturma: 1 };
+    await s.olustur(h);
+    const belirtec = "eski-belirtec";
+    await s.oturumYaz(await hashToken(belirtec), { id: h.id, surum: 1 }, 60_000);
+    expect(await oturumHesabi(s, belirtec)).toMatchObject({ id: h.id });
+    await s.askiYaz(h.id, { askida: false, zaman: 5, neden: "" });
+    expect(await oturumHesabi(s, belirtec)).toBeNull();
   });
 
   it("Redis: askı betiği hesap yoksa yazmaz; liste tarama ve toplu okumayla", async () => {
@@ -118,6 +130,8 @@ describe("öğretmen yönetimi uçları", () => {
     const g = await giris("ayse");
     expect([g.status, (await g.json()).error]).toEqual([403, ASKIDA]);
     expect((await giris("ayse", "yanlis-sifre-9")).status).toBe(401);
+    // Askıdayken doğru şifreyle denemeler kilitlemez: geri açılınca giriş yapılabilir.
+    for (let i = 0; i < 12; i++) expect((await giris("ayse")).status).toBe(403);
     expect((await aski(yonetici, ayseId, { askida: true, neden: "tekrar" })).status).toBe(409);
     expect((await (await liste(yonetici, "ayse")).json()).ogretmenler[0].askida).toBe(true);
     expect(await (await ayrinti(yonetici, ayseId)).json()).toMatchObject({ aski: { askida: true, neden: "uygunsuz içerik" } });
@@ -136,6 +150,16 @@ describe("öğretmen yönetimi uçları", () => {
       ["geri-ac", "ayse", "platform1"],
       ["askiya-al", "ayse", "platform1"],
     ]);
+  });
+
+  it("askıdaki okul yöneticisinin okulu ve üyeleri etkilenmez", async () => {
+    const kod = (await (await api.okul.POST(cerezli(jsonRequest("/api/okul", { ad: "Deneme Lisesi" }), bora))).json()).okul.davetKodu;
+    expect((await api.okulKatil.POST(cerezli(jsonRequest("/api/okul/katil", { kod }), ayse))).status).toBe(200);
+    expect((await aski(yonetici, boraId, { askida: true, neden: "deneme askısı" })).status).toBe(200);
+    expect(await ben(bora)).toBeNull();
+    const okul = await api.okul.GET(cerezli(new Request("http://localhost/api/okul"), ayse));
+    expect(okul.status).toBe(200);
+    expect(JSON.stringify(await okul.json())).toContain("Deneme Lisesi");
   });
 
   it("kendisi ve başka platform yöneticisi askıya alınamaz, silinemez", async () => {

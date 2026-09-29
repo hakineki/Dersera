@@ -108,8 +108,6 @@ export async function hesapVerileriniSil(d: HesapSilmeDeps, hesap: Hesap, kim: k
   await d.kredi.hesapSil(hesap.id, sonAylar(now, KREDI_AY));
   await d.takip.tablolariSil(sahip, sonAylar(now, TAKIP_AY));
   await d.denetim.hesabiUnut(hesap.id);
-  if (!(await d.auth.hesapSil(hesap.id, hesap.kullaniciAdi))) {
-    return { ok: false, status: 409, error: "Hesap bilgisi başka bir oturumda değişti. Sayfayı yenileyip tekrar dene." };
-  }
+  if (!(await d.auth.hesapSil(hesap.id, hesap.kullaniciAdi))) return { ok: false, status: 409, error: m.degisti };
   return { ok: true };
 }
