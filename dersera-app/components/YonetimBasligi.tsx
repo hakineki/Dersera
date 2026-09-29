@@ -11,6 +11,7 @@ export const YONETIM_BOLUMLERI = [
   { href: "/yonetim/ogrenme", ad: "Öğrenme" },
   { href: "/yonetim/okul-havuzu", ad: "Okul havuzları" },
   { href: "/yonetim/kopya-kaydi", ad: "Kopya kaydı" },
+  { href: "/yonetim/yz-maliyet", ad: "YZ maliyeti" },
 ] as const;
 
 export default function YonetimBasligi({ baslik, genislik = "max-w-4xl" }: { baslik: string; genislik?: string }) {

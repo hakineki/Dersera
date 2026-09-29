@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { ImageGenerateParamsNonStreaming } from "openai/resources/images";
+import { yzKullanimKaydet } from "@/lib/yzMaliyetKaydi";
 
 // Görsel üretimi: OpenAI GPT Image (oyun üretimiyle aynı OpenAI hesabı) → WebP'ye sıkıştırma (sharp) → Vercel Blob.
 // Yapay zekâ çağrıları tek servis sınırı arkasındadır; bu dosya görselin tek sağlayıcı noktasıdır.
@@ -57,6 +58,7 @@ export async function openaiGorsel(istem: string, istemci?: GorselIstemcisi, tim
     throw new GorselHatasi("saglayici", err instanceof Error ? err.message : String(err));
   }
   const veri = r.data?.[0]?.b64_json;
+  if (veri) await yzKullanimKaydet({ model: gorselModeli(), gorsel: 1, kalite: gorselKalitesi() });
   if (!veri) throw new GorselHatasi("saglayici", "görsel dönmedi");
   return Buffer.from(veri, "base64");
 }

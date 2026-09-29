@@ -1,3 +1,4 @@
+import { yzTuruIle } from "@/lib/yzMaliyetKaydi";
 import { randomUUID } from "crypto";
 import type { GameDefinition } from "@/lib/composer/definition";
 import { GORSEL_HEDEF, GORSEL_IS_ID } from "@/lib/gorsel";
@@ -76,7 +77,7 @@ export async function gorselUret(d: GorselDeps, hesapId: string, isId: string, n
       const sure = new Promise<never>((_, red) => {
         zamanlayici = setTimeout(() => red(new GorselHatasi("zaman", "üretim süresi aşıldı")), URETIM_SURESI_MS);
       });
-      url = await Promise.race([d.uret(isId, hedef, is.hedefler.find((h) => h.hedef === hedef)!.istem), sure]);
+      url = await Promise.race([yzTuruIle("gorsel", () => d.uret(isId, hedef, is.hedefler.find((h) => h.hedef === hedef)!.istem)), sure]);
     } catch (err) {
       // İstem ve görsel loglanmaz; yalnız neden.
       console.error(`[gorsel] ${hedef} üretilemedi: ${err instanceof GorselHatasi ? err.neden : "beklenmeyen"}`, err instanceof Error ? err.message : err);
