@@ -2,8 +2,11 @@ import { OTURUM_CEREZI, OTURUM_SURESI_MS } from "@/lib/auth";
 import { KOPYA_SAKLAMA } from "@/lib/denetimKaydi";
 import { GAME_RETENTION_MS } from "@/lib/gamesStore";
 import { GIZLILIK_BOLUMLERI, GIZLILIK_SURUMU, VERI_SORUMLUSU } from "@/lib/gizlilik";
+import { KATILIM_SAKLAMA_MS } from "@/lib/istatistikService";
 import { HAREKET_SAKLAMA } from "@/lib/krediStore";
 import { MODERASYON } from "@/lib/moderasyon";
+import { OGRENME } from "@/lib/ogrenme";
+import { TABLO_TTL_MS } from "@/lib/ogrenmeTakibiStore";
 import { RESULTS_RETENTION_MS } from "@/lib/resultsStore";
 import { YEDEK_SAKLAMA_GUN } from "@/lib/yedekDepo";
 
@@ -25,6 +28,7 @@ describe("gizlilik ve KVKK aydınlatma metni", () => {
     expect(bolum("Veri sorumlusu")).toContain(VERI_SORUMLUSU.eposta);
     expect(bolum("Hakların")).toContain(VERI_SORUMLUSU.eposta);
     expect(bolum("Hakların")).toMatch(/md\. 11/);
+    expect(bolum("Hakların")).toMatch(/md\. 14/);
     expect(bolum("Kimlere ve nereye aktarılıyor")).toMatch(/md\. 9/);
     expect(GIZLILIK_SURUMU).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
@@ -32,7 +36,10 @@ describe("gizlilik ve KVKK aydınlatma metni", () => {
   it("saklama süreleri koddakiyle aynı", () => {
     const s = bolum("Saklama süreleri");
     expect(RESULTS_RETENTION_MS / GUN).toBe(7);
-    expect(s).toContain("Öğrenci sonuçları: 7 gün");
+    expect(KATILIM_SAKLAMA_MS / GUN).toBe(7);
+    expect(s).toContain("Öğrenci sonuçları ve istatistikteki öğrenci özeti: 7 gün");
+    expect(s).toContain(`aylık sayaçları: ${TABLO_TTL_MS / GUN} gün`);
+    expect(s).toContain(`son ${OGRENME.talimatSaklama} talimat`);
     expect(GAME_RETENTION_MS / GUN).toBe(1);
     expect(s).toContain("bitiminden 1 gün sonra");
     expect(s).toContain(`Oturum: ${OTURUM_SURESI_MS / GUN} gün`);
