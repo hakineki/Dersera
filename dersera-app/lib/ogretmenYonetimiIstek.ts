@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { denemeOnKontrol, hataliDenemeKaydet, jsonGovde, kokenReddi } from "@/lib/authRequest";
 import { getAuthStore, type Hesap } from "@/lib/authStore";
 import { getDenetimKaydiStore } from "@/lib/denetimKaydi";
+import { epostaGonder } from "@/lib/eposta";
+import { getEpostaStore } from "@/lib/epostaStore";
 import { getKoleksiyonStore } from "@/lib/koleksiyonStore";
 import { getKrediStore } from "@/lib/krediStore";
 import { getLibraryStore } from "@/lib/libraryStore";
@@ -26,6 +28,8 @@ export const yonetimDeps = (): OgretmenYonetimiDeps => ({
   denetim: getDenetimKaydiStore(),
   takip: getOgrenmeTakibiStore(),
   topluluk: getToplulukStore(),
+  eposta: getEpostaStore(),
+  gonder: (e) => epostaGonder(e),
   islemler: getYonetimIslemKaydiStore(),
   yoneticiMi: (h) => yoneticiMi(h),
 });

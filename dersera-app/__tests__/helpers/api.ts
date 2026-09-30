@@ -64,6 +64,15 @@ export async function buildApi() {
     ogretmenAski: typeof import("@/app/api/yonetim/ogretmenler/[id]/aski/route");
     ogretmenSil: typeof import("@/app/api/yonetim/ogretmenler/[id]/sil/route");
     yonetimIslemKaydi: typeof import("@/lib/yonetimIslemKaydi");
+    eposta: typeof import("@/app/api/auth/eposta/route");
+    epostaKaldir: typeof import("@/app/api/auth/eposta/kaldir/route");
+    epostaDogrula: typeof import("@/app/api/auth/eposta/dogrula/route");
+    sifirlamaIste: typeof import("@/app/api/auth/sifre-sifirlama/iste/route");
+    sifreSifirla: typeof import("@/app/api/auth/sifre-sifirlama/route");
+    ogretmenSifirlama: typeof import("@/app/api/yonetim/ogretmenler/[id]/sifirlama/route");
+    epostaModul: typeof import("@/lib/eposta");
+    epostaStore: typeof import("@/lib/epostaStore");
+    epostaIstek: typeof import("@/lib/epostaIstek");
     okullar: typeof import("@/app/api/yonetim/okullar/route");
     okulYonetim: typeof import("@/app/api/yonetim/okullar/[id]/route");
     okulDevret: typeof import("@/app/api/yonetim/okullar/[id]/devret/route");
@@ -146,6 +155,15 @@ export async function buildApi() {
       ogretmenAski: await import("@/app/api/yonetim/ogretmenler/[id]/aski/route"),
       ogretmenSil: await import("@/app/api/yonetim/ogretmenler/[id]/sil/route"),
       yonetimIslemKaydi: await import("@/lib/yonetimIslemKaydi"),
+      eposta: await import("@/app/api/auth/eposta/route"),
+      epostaKaldir: await import("@/app/api/auth/eposta/kaldir/route"),
+      epostaDogrula: await import("@/app/api/auth/eposta/dogrula/route"),
+      sifirlamaIste: await import("@/app/api/auth/sifre-sifirlama/iste/route"),
+      sifreSifirla: await import("@/app/api/auth/sifre-sifirlama/route"),
+      ogretmenSifirlama: await import("@/app/api/yonetim/ogretmenler/[id]/sifirlama/route"),
+      epostaModul: await import("@/lib/eposta"),
+      epostaStore: await import("@/lib/epostaStore"),
+      epostaIstek: await import("@/lib/epostaIstek"),
       okullar: await import("@/app/api/yonetim/okullar/route"),
       okulYonetim: await import("@/app/api/yonetim/okullar/[id]/route"),
       okulDevret: await import("@/app/api/yonetim/okullar/[id]/devret/route"),

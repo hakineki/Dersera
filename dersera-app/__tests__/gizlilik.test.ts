@@ -9,6 +9,7 @@ import { OGRENME } from "@/lib/ogrenme";
 import { TABLO_TTL_MS } from "@/lib/ogrenmeTakibiStore";
 import { RESULTS_RETENTION_MS } from "@/lib/resultsStore";
 import { YEDEK_SAKLAMA_GUN } from "@/lib/yedekDepo";
+import { DOGRULAMA_SURESI_MS, SIFIRLAMA_SURESI_MS } from "@/lib/epostaService";
 import { ISLEM_SAKLAMA } from "@/lib/yonetimIslemKaydi";
 
 // Aydınlatma metni koddaki gerçek saklama süreleri ve çerezle aynı kalmalı: süre değişirse bu test metni güncellemeyi hatırlatır.
@@ -48,6 +49,10 @@ describe("gizlilik ve KVKK aydınlatma metni", () => {
     expect(s).toContain(`son ${HAREKET_SAKLAMA} hareket`);
     expect(s).toContain(`son ${KOPYA_SAKLAMA.toLocaleString("tr-TR")} kayıt`);
     expect(s).toContain(`Şifreli gece yedeği: ${YEDEK_SAKLAMA_GUN} gün`);
+    expect([DOGRULAMA_SURESI_MS / 3_600_000, SIFIRLAMA_SURESI_MS / 3_600_000]).toEqual([24, 1]);
+    expect(s).toContain("Doğrulama bağlantısı 24 saat, şifre sıfırlama bağlantısı 1 saat");
+    expect(bolum("Kimlere ve nereye aktarılıyor")).toMatch(/Resend Inc.: e-posta gönderimi/);
+    expect(bolum("Hangi verileri işliyoruz")).toContain("E-posta (isteğe bağlı)");
     expect(s).toContain(`Yönetim işlem kaydı: son ${ISLEM_SAKLAMA} işlem`);
     expect(s).toContain("Askı kaydı ve gerekçesi: hesap silinene kadar");
     expect(s).toMatch(/okul kapatılınca okul kaydı, davet kodu, üyelikler, okul kütüphanesindeki paylaşımlar ve okulun kredi hakkı ile öğretmen başı sınırı silinir; okulun aylık kredi kullanım sayaçları .* 40 günde/);

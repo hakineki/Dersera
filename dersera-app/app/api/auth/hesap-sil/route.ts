@@ -3,6 +3,7 @@ import { oturumKapat } from "@/lib/auth";
 import { getAuthStore } from "@/lib/authStore";
 import { denemeOnKontrol, hataliDenemeKaydet, istekHesabi, jsonGovde, kokenReddi, oturumBelirteci, oturumCereziSil, oturumGerekli } from "@/lib/authRequest";
 import { getDenetimKaydiStore } from "@/lib/denetimKaydi";
+import { getEpostaStore } from "@/lib/epostaStore";
 import { hesabiSil } from "@/lib/hesapSilme";
 import { getKoleksiyonStore } from "@/lib/koleksiyonStore";
 import { getKrediStore } from "@/lib/krediStore";
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
         denetim: getDenetimKaydiStore(),
         takip: getOgrenmeTakibiStore(),
         topluluk: getToplulukStore(),
+        eposta: getEpostaStore(),
         yoneticiMi: (h) => yoneticiMi(h),
       },
       hesap,

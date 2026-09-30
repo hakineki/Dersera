@@ -26,6 +26,9 @@ export const SAGLIK_DEGISKENLERI = {
   yedekAnahtari: ["YEDEK_ANAHTARI"],
   zamanlayici: ["CRON_SECRET"],
   davetKodu: ["KAYIT_DAVET_KODU"],
+  epostaAnahtari: ["RESEND_API_KEY"],
+  epostaGonderen: ["EPOSTA_GONDEREN"],
+  siteAdresi: ["DERSERA_SITE_ADRESI"],
 } as const;
 
 export type Saglik = { kaliciDepo: boolean } & Record<keyof typeof SAGLIK_DEGISKENLERI, boolean>;
