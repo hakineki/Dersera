@@ -24,7 +24,8 @@ function hedefSirasi(input: ResolvedInput): string[] {
 }
 
 export function bosSablon(input: ResolvedInput): GameDefinition {
-  const recipe = buildRecipe(input.sure, input.deneyim, input.alan);
+  // Boş şablon mekân rotası değildir: okulda öğretmen numaralı QR duraklarını kendisi yazar (eski tarif).
+  const recipe = buildRecipe(input.sure, input.deneyim, input.alan, false);
   const n = recipe.anaGorev.max;
   const sigan = (ilk: number) => Math.max(1, Math.min(recipe.secim.min, Math.floor((n - ilk + 1) / BLOK)));
   const ilkBlok = sigan(1) > sigan(2) ? 1 : 2;

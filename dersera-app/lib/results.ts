@@ -33,7 +33,7 @@ export function parseLeaderboardEntry(body: unknown): LeaderboardEntry | null {
   const nickname = typeof body.nickname === "string" ? body.nickname.trim() : "";
   if (!NICKNAME_PATTERN.test(nickname)) return null;
 
-  const { netSeconds, penaltySeconds, hintsUsed, completedAt, stopDetails } = body;
+  const { netSeconds, penaltySeconds, hintsUsed, completedAt, stopDetails, konumCezaSaniye } = body;
   if (
     !isCount(netSeconds, MAX_SECONDS) ||
     !isCount(penaltySeconds, MAX_SECONDS) ||
@@ -44,6 +44,10 @@ export function parseLeaderboardEntry(body: unknown): LeaderboardEntry | null {
   }
 
   const entry: LeaderboardEntry = { nickname, netSeconds, penaltySeconds, hintsUsed, completedAt };
+  if (konumCezaSaniye !== undefined) {
+    if (!isCount(konumCezaSaniye, MAX_SECONDS) || konumCezaSaniye > penaltySeconds) return null;
+    entry.konumCezaSaniye = konumCezaSaniye;
+  }
 
   if (stopDetails !== undefined) {
     if (!isPlainObject(stopDetails)) return null;

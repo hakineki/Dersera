@@ -73,10 +73,13 @@ ${hedefler}`;
     input.dersler.length > 1
       ? "\nBu oyun disiplinler arasıdır: yukarıdaki derslerin HER BİRİ en az bir ana görevde çalışılsın ve hikâye dersleri tek bir gizemde birleştirsin.\n"
       : "";
-  // İzinli QR listesi mekân rotasında kullanılmaz (QR'ları motor sırayla atar); imza eski üretim yollarıyla aynı kalır.
-  void izinliQrIdleri;
-  const okul = input.alan === "okul";
-  const qr = okul ? `\nOkul mekânları (mekan_id: ad):\n${MEKANLAR.map((m) => `${m.id}: ${m.ad}`).join("\n")}` : "";
+  // Mekân rotasında QR'ları motor sırayla atar, model mekânı listeden seçer; eski okul oyununda (güncelleme) QR listesi.
+  const okul = recipe.rota;
+  const qr = okul
+    ? `\nOkul mekânları (mekan_id: ad):\n${MEKANLAR.map((m) => `${m.id}: ${m.ad}`).join("\n")}`
+    : input.alan === "okul"
+      ? `\nKullanılabilir QR durakları (yalnızca bunları kullan, her durağa farklı bir QR ver):\n${izinliQrIdleri.join(", ")}`
+      : "";
 
   const profil = PROFILLER[yasProfiliOf(input.sinif)];
   return `Aşağıdaki seçimlerle bir Dersera oyunu tasarla.
@@ -113,6 +116,7 @@ ${
   okul
     ? `- Mekân rotası: bütün duraklar sahne_turu "gorev", secimler boş dizi; her durağın varsayilan_sonraki_durak_id alanı bir sonraki durak, son durağınki boş.
 - Takımlar farklı duraklardan başlayıp rotayı döngüsel dolaşır: her durağın hikâyesi kendi başına anlaşılır olsun; "önceki durakta", "az önce" gibi sıraya bağlı atıf yapma. Olay, toplanan kanıtlar ve finalde birleşir.
+- Bu oyunda dallanma ve seçim sahnesi YOKTUR; yukarıdaki dallanma ve "ilk durak başlangıçtır" ilkeleri bu oyunda uygulanmaz. Her kanıt her takımın geçtiği bir durakta kazanılır.
 - Her durak farklı bir mekânda geçer (mekan_id listeden, tekrarsız); hikâye o mekânın havasını kullanır.`
     : `- Dallar kısa olsun ve bir "birlesme" durağında yeniden birleşsin: her dalın son durağı varsayilan_sonraki_durak_id ile birleşme durağına bağlanır. Seçim sahneleri ve son durak dışında her durağın varsayilan_sonraki_durak_id alanı doludur; hiçbir durak kopuk kalmaz.`
 }
@@ -124,7 +128,7 @@ ${
 - Boş/yok değerleri için boş metin ("") kullan: odul_id, varsayilan_sonraki_durak_id (son duraklarda ve seçim sahnelerinde), qr_durak_id, mekan_id (tek sınıfta).
 
 ${ekKuralBolumu(input.ekKurallar)}Metinleri kısa tut (oyun hızlı üretilmeli): hikaye_metni en fazla ${okul ? 3 : 2} cümle; soru tek cümle; ipuçları, destek açıklaması ve sonraki durak tarifi tek kısa cümle; seçenekler birkaç kelime.
-Görev türlerini konuya uygun biçimde çeşitlendir. Durak id'leri d1, d2, ...; nesne id'leri n1, n2, ... biçiminde olsun. İlk durak başlangıçtır.`;
+Görev türlerini konuya uygun biçimde çeşitlendir. Durak id'leri d1, d2, ...; nesne id'leri n1, n2, ... biçiminde olsun.${okul ? "" : " İlk durak başlangıçtır."}`;
 }
 
 // Parçalı çağrılarda prompt iki parçadır: tüm aşamalarda aynı olan ortak kısım (müfredat, seçimler, kurallar)

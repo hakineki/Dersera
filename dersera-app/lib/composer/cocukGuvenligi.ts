@@ -156,7 +156,7 @@ export function cocukGuvenligiTara(def: GameDefinition): GuvenlikEslesmesi[] {
       ["durak adı", d.isim],
       ["hikâye", d.hikaye_metni],
       ["yol tarifi", d.mekan.sonraki_durak_tarifi],
-      ["konum bilmecesi", d.mekan.yer ? [d.mekan.yer.nokta, d.mekan.yer.bilmece, d.mekan.yer.ipucu_1, d.mekan.yer.ipucu_2] : []],
+      ["konum bilmecesi", d.mekan.yer ? [d.mekan.yer.mekan_adi, d.mekan.yer.nokta, d.mekan.yer.bilmece, d.mekan.yer.ipucu_1, d.mekan.yer.ipucu_2] : []],
       ["soru", g.soru],
       ["seçenekler", [...g.secenekler, g.dogru_cevap]],
       ["ipuçları", [g.ipucu_1, g.ipucu_2]],

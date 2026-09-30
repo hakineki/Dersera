@@ -24,7 +24,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ code: s
     switch (result.status) {
       case "joined":
         await katilimKaydet(code, nickname.trim());
-        return NextResponse.json({ playerToken: result.playerToken }, { status: 201 });
+        return NextResponse.json({ playerToken: result.playerToken, sira: result.sira }, { status: 201 });
       case "taken":
         return NextResponse.json({ error: "Bu takma ad bu oyunda kullanımda" }, { status: 409 });
       case "not-found":

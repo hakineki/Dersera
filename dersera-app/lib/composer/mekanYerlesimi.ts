@@ -11,17 +11,23 @@ function sira(anahtar: string, n: number): number {
   return parseInt(createHash("sha256").update(anahtar).digest("hex").slice(0, 8), 16) % n;
 }
 
+// Model kimliği ya da adı yazabilir ("kutuphane", "Kütüphane", "spor salonu"): büyük/küçük harf ve boşluk/tire farkı
+// gözetilmeden eşleştirilir.
+const mekanAnahtari = (s: string) => s.trim().toLocaleLowerCase("tr-TR").replace(/[\s_-]+/g, "-");
+const ARAMA = new Map(MEKANLAR.flatMap((m) => [[mekanAnahtari(m.id), m.id], [mekanAnahtari(m.ad), m.id]]));
+
 export function mekanlariAta(istenen: string[]): string[] {
   const kullanilan = new Set<string>();
-  const secilen = istenen.map((id) => {
-    const m = mekanOf(id.trim());
-    if (!m || kullanilan.has(m.id)) return null;
-    kullanilan.add(m.id);
-    return m.id;
+  const secilen = istenen.map((girdi) => {
+    const id = ARAMA.get(mekanAnahtari(girdi)) ?? mekanOf(girdi.trim())?.id;
+    if (!id || kullanilan.has(id)) return null;
+    kullanilan.add(id);
+    return id;
   });
-  return secilen.map((id) => {
+  return secilen.map((id, i) => {
     if (id) return id;
-    const bos = MEKANLAR.find((m) => !kullanilan.has(m.id))!;
+    // Listedeki ilk boş mekân; liste biterse (doğrulayıcının durak sınırı bunu önler) sırayla yeniden kullanılır.
+    const bos = MEKANLAR.find((m) => !kullanilan.has(m.id)) ?? MEKANLAR[i % MEKANLAR.length];
     kullanilan.add(bos.id);
     return bos.id;
   });

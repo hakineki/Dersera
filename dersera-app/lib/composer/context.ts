@@ -14,13 +14,15 @@ export function validationContext(input: {
   sure: number;
   ogrenmeCiktilari: OgrenmeCiktisi[];
   hedefDersleri?: Record<string, string[]>;
+  // Mekân rotası tarifi: yeni üretimde okul alanından, var olan oyunda tanımdan (meta.rota) gelir.
+  rota?: boolean;
 }): ValidationContext {
   return {
     izinliHedefler: input.ogrenmeCiktilari.map((o) => o.kod),
     alan: input.alan,
     deneyim: input.deneyim,
     izinliQrIdleri: IZINLI_QR_IDLERI,
-    recipe: buildRecipe(input.sure, input.deneyim, input.alan),
+    recipe: buildRecipe(input.sure, input.deneyim, input.alan, input.rota ?? input.alan === "okul"),
     hedefDersleri: input.hedefDersleri,
   };
 }

@@ -11,6 +11,7 @@ import type { KrediDurumu } from "@/lib/kredi";
 import { gorselAdresi, KAPAK } from "@/lib/gorsel";
 import GorselResim from "@/components/GorselResim";
 import YerlesimListesi from "@/components/YerlesimListesi";
+import { rotaMi } from "@/lib/composer/mekanRotasi";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI, GOREV_TUR_ADI } from "./labels";
 
 // Görsel zenginleştirmenin istemcideki durumu (ComposerClient): not, oluşturmada görsel başlatılamadığında.
@@ -213,7 +214,7 @@ export default function ComposerPreview({
         </div>
       )}
 
-      {definition.meta.rota === "mekan" && <YerlesimListesi def={definition} />}
+      {rotaMi(definition) && <YerlesimListesi def={definition} />}
 
       <section aria-label="Duraklar" className="space-y-2">
         <h2 className="font-semibold text-gray-800">Duraklar</h2>

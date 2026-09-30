@@ -86,7 +86,9 @@ export async function publishGame(
   return null;
 }
 
-export type JoinResult = { status: "joined"; playerToken: string } | { status: "taken" | "not-found" };
+// sira: katılım sırası (1'den). Mekân rotasında takımın başlangıç durağı buradan dağıtılır; eşzamanlı iki katılım aynı
+// sırayı alabilir (yalnız başlangıç noktası aynı olur).
+export type JoinResult = { status: "joined"; playerToken: string; sira: number } | { status: "taken" | "not-found" };
 
 export async function joinGame(
   store: GamesStore,
@@ -100,7 +102,7 @@ export async function joinGame(
   // Yeni oyuncunun soru açması ise istemcide kod ekranında engellenir.
   const playerToken = createAdminToken();
   const added = await store.addPlayer(code, nickname, await hashToken(playerToken), now, game.expiresAt);
-  return added ? { status: "joined", playerToken } : { status: "taken" };
+  return added ? { status: "joined", playerToken, sira: await store.playerCount(code) } : { status: "taken" };
 }
 
 // Sonuç yalnızca o takma adla katılan cihazın anahtarıyla kabul edilir: başkasının sonucu ezilemez.

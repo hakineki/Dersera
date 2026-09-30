@@ -3,7 +3,13 @@ import { MEKANLAR } from "@/data/mekanlar";
 import { cocukGuvenligiTara } from "@/lib/composer/cocukGuvenligi";
 import { validationContext } from "@/lib/composer/context";
 import type { GameDefinition } from "@/lib/composer/definition";
-import { baslangicSec, kanitSayisi, sonrakiRotaDuragi, taramaSonucu } from "@/lib/composer/mekanRotasi";
+import { baslangicSec, kanitSayisi, konumCezasi, sonrakiRotaDuragi, taramaSonucu } from "@/lib/composer/mekanRotasi";
+import { buildUserPrompt } from "@/lib/composer/prompt";
+import { bosSablon } from "@/lib/composer/sablon";
+import { createMemoryGamesStore } from "@/lib/gamesStore";
+import { joinGame } from "@/lib/gamesService";
+import { parseLeaderboardEntry } from "@/lib/results";
+import { yanlisSayisi } from "@/lib/gameState";
 import { konumYeri, mekanlariAta } from "@/lib/composer/mekanYerlesimi";
 import { toDefinition, type ModelOutput } from "@/lib/composer/modelOutput";
 import { buildRecipe } from "@/lib/composer/recipe";
@@ -34,6 +40,10 @@ describe("mekân yerleşimi (sunucu)", () => {
     expect(a[3]).toBe("bahce");
     expect(new Set(a).size).toBe(5);
     expect(a.every((id) => MEKANLAR.some((m) => m.id === id))).toBe(true);
+    // Model adı yazsa da eşleşir (büyük/küçük harf, boşluk/tire/alt çizgi farkı gözetilmez).
+    expect(mekanlariAta(["Kütüphane", "spor salonu", "SPOR_SALONU", "Fen Laboratuvarı"])).toEqual(["kutuphane", "spor-salonu", expect.any(String), "fen-laboratuvari"]);
+    // Liste biterse (durak sınırı normalde önler) çökmez.
+    expect(mekanlariAta(Array(25).fill(""))).toHaveLength(25);
   });
 
   it("konum yeri mekânın bankasından ve aynı anahtar için hep aynı bilmece", () => {
@@ -57,6 +67,28 @@ describe("okul oyunu → mekân rotası", () => {
     expect(def.duraklar.map((d) => d.mekan.qr_durak_id)).toEqual(["qr-1", "qr-2", "qr-3", "qr-4", "qr-5", "qr-6", "qr-7", "qr-8"]);
     expect(def.duraklar.map((d) => d.mekan.yer?.mekan_id)).toEqual(["kutuphane", "bahce", "kantin", "spor-salonu", "fen-laboratuvari", "koridor", "merdivenler", "sinif"]);
     expect(def.duraklar.every((d) => d.mekan.sonraki_durak_tarifi === "" && d.mekan.yer!.bilmece.length > 10)).toBe(true);
+  });
+
+  it("boş şablon mekân rotası değildir: okulda eski tarif (seçim bloğu, numaralı QR) ve rota alanları yok", () => {
+    const sablon = bosSablon(okul);
+    expect(sablon.meta.rota).toBeUndefined();
+    expect(sablon.duraklar.some((d) => d.sahne_turu === "secim")).toBe(true);
+    expect(sablon.duraklar.every((d) => d.mekan.yer === undefined && d.mekan.qr_durak_id !== null)).toBe(true);
+    const eski = buildRecipe(40, "macera", "okul", false);
+    expect([eski.rota, eski.secim.min > 0]).toEqual([false, true]);
+    expect(eski.alan).toContain("QR");
+  });
+
+  it("istem: mekân rotasında QR listesi ve 'ilk durak başlangıçtır' yok; eski okul oyununun güncellemesinde QR listesi var", () => {
+    const rota = buildUserPrompt(okul, buildRecipe(40, "macera", "okul"), ["qr-1", "qr-2"]);
+    expect(rota).toContain("kutuphane: Kütüphane");
+    expect(rota).toContain("dallanma ve seçim sahnesi YOKTUR");
+    expect(rota).not.toContain("İlk durak başlangıçtır");
+    expect(rota).not.toContain("qr-1, qr-2");
+    const eski = buildUserPrompt(okul, buildRecipe(40, "macera", "okul", false), ["qr-1", "qr-2"]);
+    expect(eski).toContain("qr-1, qr-2");
+    expect(eski).toContain("İlk durak başlangıçtır");
+    expect(eski).not.toContain("kutuphane: Kütüphane");
   });
 
   it("doğrulamadan geçer; tek sınıf oyunu eskisi gibi kalır", () => {
@@ -98,6 +130,10 @@ describe("doğrulayıcı: mekân rotası kuralları", () => {
     tekrar.duraklar[3].mekan.yer = { ...tekrar.duraklar[2].mekan.yer! };
     expect(kodlar(tekrar)).toContain("rota-mekan-tekrar");
 
+    const ad = rotaOyunu();
+    ad.duraklar[1].mekan.yer = { ...ad.duraklar[1].mekan.yer!, mekan_adi: "Gizli mahzen" };
+    expect(kodlar(ad)).toContain("rota-yer-eksik");
+
     const ayni = rotaOyunu();
     ayni.duraklar[0].mekan.yer = { ...ayni.duraklar[0].mekan.yer!, ipucu_2: ayni.duraklar[0].mekan.yer!.ipucu_1 };
     expect(kodlar(ayni)).toContain("rota-ipucu-ayni");
@@ -118,8 +154,10 @@ describe("doğrulayıcı: mekân rotası kuralları", () => {
 describe("oynatıcı: döngüsel rota ve tarama", () => {
   it("başlangıç rastgele seçilir; rota başlangıçtan döngüsel ilerler, hepsi bitince final", () => {
     const def = rotaOyunu();
-    expect(baslangicSec(def, () => 0)).toBe("d1");
-    expect(baslangicSec(def, () => 0.99)).toBe("d8");
+    // Katılım sırası: 1.–8. takım farklı duraklardan başlar, 9. takım başa döner; sıra yoksa rastgele.
+    expect([1, 2, 3, 4, 5, 6, 7, 8, 9].map((s) => baslangicSec(def, s))).toEqual(["d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d1"]);
+    expect(baslangicSec(def, null, () => 0)).toBe("d1");
+    expect(baslangicSec(def, null, () => 0.99)).toBe("d8");
     expect(sonrakiRotaDuragi(def, "d6", tamam(["d6"]))).toBe("d7");
     expect(sonrakiRotaDuragi(def, "d8", tamam(["d6", "d7", "d8"]))).toBe("d1");
     expect(sonrakiRotaDuragi(def, "d5", tamam(["d6", "d7", "d8", "d1", "d2", "d3", "d4", "d5"]))).toBeNull();
@@ -149,6 +187,32 @@ describe("oynatıcı: döngüsel rota ve tarama", () => {
     // Oyunda olmayan QR da yanlış yer; başka hedef için aynı QR yeniden cezalıdır.
     expect(taramaSonucu(def, "d3", 17, {})).toMatchObject({ tur: "yanlis", ceza: true });
     expect(taramaSonucu(def, "d4", 5, {}, ["d3:5"])).toMatchObject({ tur: "yanlis", ceza: true });
+    // Başlangıç: oyuna başka bir QR okutarak katılan takım cezalandırılmaz; başlangıç yerinin QR'ı varıştır.
+    expect(taramaSonucu(def, "d3", 5, {}, [], true)).toEqual({ tur: "yoksay" });
+    expect(taramaSonucu(def, "d3", 3, {}, [], true)).toEqual({ tur: "varis" });
+  });
+
+  it("konum cezası ayrı sayılır: öğretmenin yanlış cevap sayısı ipucu ve yanlış QR cezasıyla şişmez", () => {
+    expect(konumCezasi({ yol: [], hedef: null, ipucu: { d1: 2, d2: 1 }, yanlis: ["d1:4"] })).toBe(120);
+    expect(konumCezasi({ yol: [], hedef: null })).toBe(0);
+    const temel = { nickname: "kasif", netSeconds: 600, hintsUsed: 1, completedAt: 1_790_000_000_000 };
+    // 1 yanlış cevap (15 sn) + 2 ipucu ve 1 yanlış QR (90 sn).
+    const e = parseLeaderboardEntry({ ...temel, penaltySeconds: 105, konumCezaSaniye: 90 })!;
+    expect(e.konumCezaSaniye).toBe(90);
+    expect(yanlisSayisi(e)).toBe(1);
+    expect(yanlisSayisi(parseLeaderboardEntry({ ...temel, penaltySeconds: 45 })!)).toBe(3);
+    expect(parseLeaderboardEntry({ ...temel, penaltySeconds: 30, konumCezaSaniye: 60 })).toBeNull();
+    expect(parseLeaderboardEntry({ ...temel, penaltySeconds: 30, konumCezaSaniye: -1 })).toBeNull();
+  });
+
+  it("katılım sırası sunucudan gelir (1, 2, …); alınmış takma ad sıra almaz", async () => {
+    const store = createMemoryGamesStore();
+    const kod = "ABC-123";
+    await store.create({ code: kod, adminTokenHash: "x", createdAt: 1, expiresAt: Date.now() + 3_600_000, stops: [] } as never, Date.now());
+    const a = await joinGame(store, kod, "ayse");
+    const b = await joinGame(store, kod, "bora");
+    expect([a, b].map((r) => (r.status === "joined" ? r.sira : null))).toEqual([1, 2]);
+    expect((await joinGame(store, kod, "ayse")).status).toBe("taken");
   });
 
   it("varış ipucu ve ceza kaydını korur; sahne kaydı yeniden yüklenince ipucu ve yanlış taramalar kalır, bozuklar atılır", () => {

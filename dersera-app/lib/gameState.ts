@@ -10,6 +10,7 @@ export const STORAGE_KEYS = {
   PENALTY: "dersera:penalty",
   LEADERBOARD: "dersera:leaderboard",
   SAHNE_YOLU: "dersera:sahne-yolu",
+  TAKIM_SIRASI: "dersera:takim-sirasi",
 } as const;
 
 export interface StopProgress {
@@ -26,7 +27,12 @@ export interface LeaderboardEntry {
   hintsUsed: number;
   completedAt: number;
   stopDetails?: Record<string, { hintsUsed: number; completedAt: number }>;
+  // Mekân rotasında ipucu ve yanlış QR cezası (penaltySeconds içinde); öğretmenin "yanlış cevap" sayısından düşülür.
+  konumCezaSaniye?: number;
 }
+
+// Öğretmen tablosundaki yanlış cevap sayısı: her yanlış cevap 15 sn; mekân rotasının konum cezaları sayılmaz.
+export const yanlisSayisi = (e: LeaderboardEntry): number => Math.round(Math.max(0, e.penaltySeconds - (e.konumCezaSaniye ?? 0)) / 15);
 
 function safeGet(key: string): string | null {
   try {
@@ -111,6 +117,16 @@ export function loadSceneState(): SceneState {
 
 export function saveSceneState(state: SceneState): void {
   safeSet(STORAGE_KEYS.SAHNE_YOLU, JSON.stringify(state));
+}
+
+// Bu cihazın (takımın) oyuna katılım sırası: mekân rotasında başlangıç durağı buradan seçilir.
+export function loadTakimSirasi(): number | null {
+  const n = Number(safeGet(STORAGE_KEYS.TAKIM_SIRASI));
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+export function saveTakimSirasi(sira: number): void {
+  safeSet(STORAGE_KEYS.TAKIM_SIRASI, String(sira));
 }
 
 export function loadEndTime(): number | null {
@@ -232,6 +248,7 @@ export function clearGameState(): void {
       STORAGE_KEYS.END_TIME,
       STORAGE_KEYS.PENALTY,
       STORAGE_KEYS.SAHNE_YOLU,
+      STORAGE_KEYS.TAKIM_SIRASI,
     ].forEach((k) => localStorage.removeItem(k));
   } catch {
     /* ignore */

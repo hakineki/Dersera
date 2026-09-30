@@ -10,6 +10,7 @@ import { GameDefinitionSchema, type GameDefinition } from "@/lib/composer/defini
 import { buildGuncellemePrompt, guncellemeUygula } from "@/lib/composer/guncelleme";
 import { describeKonular, resolveKonular, type DersKonu, type ResolvedInput } from "@/lib/composer/input";
 import { IZINLI_QR_IDLERI, validationContext } from "@/lib/composer/context";
+import { rotaMi } from "@/lib/composer/mekanRotasi";
 import { buildRecipe } from "@/lib/composer/recipe";
 import { validateGame, type ValidationResult } from "@/lib/composer/validator";
 
@@ -155,14 +156,15 @@ export async function yapayZekaylaGuncelle(
   timeoutMs = GUNCELLEME_SURE_MS
 ): Promise<ComposeResult & { guncellenen: string[] }> {
   return yzTuruIle("guncelleme", async () => {
-    const recipe = buildRecipe(input.sure, input.deneyim, input.alan);
+    // Var olan oyunun kuralları: eski okul oyunu mekân rotası kurallarını almaz.
+    const recipe = buildRecipe(input.sure, input.deneyim, input.alan, rotaMi(def));
     const prompt = { ortak: buildUserPrompt(input, recipe, IZINLI_QR_IDLERI), asama: buildGuncellemePrompt(def, idler, talimat) };
     const cikti = await ureticiSec(client).duzelt(prompt, duzeltmeToken(idler.length), timeoutMs);
     const { definition, guncellenen } = guncellemeUygula(def, cikti, idler);
     if (guncellenen.length === 0) throw new ComposeError("invalid-output", "Güncellenecek duraklar yanıtta yok");
     const parsed = GameDefinitionSchema.safeParse(definition);
     if (!parsed.success) throw new ComposeError("invalid-output", `Güncelleme oyun şemasına uymadı: ${parsed.error.issues[0]?.path.join(".")}`);
-    return { definition: parsed.data, validation: validateGame(parsed.data, validationContext(input)), guncellenen };
+    return { definition: parsed.data, validation: validateGame(parsed.data, validationContext({ ...input, rota: rotaMi(parsed.data) })), guncellenen };
   });
 }
 
@@ -174,6 +176,6 @@ export function revalidate(def: GameDefinition, dersler: DersKonu[]): Validation
   if (d.dersAdi !== def.meta.ders || d.konuAdi !== def.meta.konu) return null;
   return validateGame(
     def,
-    validationContext({ alan: def.meta.alan, deneyim: def.meta.deneyim, sure: def.meta.sure_dk, ogrenmeCiktilari: d.ogrenmeCiktilari, hedefDersleri: d.hedefDersleri })
+    validationContext({ alan: def.meta.alan, deneyim: def.meta.deneyim, sure: def.meta.sure_dk, rota: rotaMi(def), ogrenmeCiktilari: d.ogrenmeCiktilari, hedefDersleri: d.hedefDersleri })
   );
 }

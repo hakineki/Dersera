@@ -1,5 +1,6 @@
 import { MEKANLAR } from "@/data/mekanlar";
 import { answerFormatError } from "@/lib/composer/answers";
+import { rotaMi } from "@/lib/composer/mekanRotasi";
 import type { GameDefinition } from "@/lib/composer/definition";
 import type { Recipe } from "@/lib/composer/recipe";
 
@@ -141,15 +142,16 @@ export function validateGame(def: GameDefinition, ctx: ValidationContext): Valid
   }
 
   // Mekân rotası: seçim sahnesi yok (rota döngüsel); her durak farklı ve bilinen bir mekânda, dolu bir konum bilmecesiyle.
-  const rota = def.meta.rota === "mekan";
+  const rota = rotaMi(def);
   if (rota) {
     if (def.meta.alan !== "okul") hata("rota-alan", "Mekân rotası yalnız okul macerasında kullanılabilir.");
-    const bilinen = new Set(MEKANLAR.map((m) => m.id));
+    // Öğrenci mekân adını görür: ad yalnız listedeki adla aynı olabilir (serbest metin içerik kapısı dışında kalmasın).
+    const bilinen = new Map(MEKANLAR.map((m) => [m.id, m.ad]));
     const mekanlar: string[] = [];
     for (const d of def.duraklar) {
       if (d.sahne_turu === "secim" || d.secimler.length > 0) hata("rota-secim", `"${d.isim}" mekân rotasında seçim sahnesi olamaz.`, d.id);
       const y = d.mekan.yer;
-      if (!y || !bilinen.has(y.mekan_id) || [y.mekan_adi, y.nokta, y.bilmece, y.ipucu_1, y.ipucu_2].some((s) => !s.trim())) {
+      if (!y || bilinen.get(y.mekan_id) !== y.mekan_adi || [y.nokta, y.bilmece, y.ipucu_1, y.ipucu_2].some((s) => !s.trim())) {
         hata("rota-yer-eksik", `"${d.isim}" durağının mekânı ya da konum bilmecesi eksik.`, d.id);
       } else {
         mekanlar.push(y.mekan_id);

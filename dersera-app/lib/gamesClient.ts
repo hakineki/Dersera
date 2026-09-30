@@ -59,7 +59,7 @@ export async function endGameRequest(code: string, adminToken: string): Promise<
   }
 }
 
-export type JoinResponse = { status: "joined"; playerToken: string } | { status: "taken" } | { status: "error" };
+export type JoinResponse = { status: "joined"; playerToken: string; sira: number | null } | { status: "taken" } | { status: "error" };
 
 // "error" (ağ yok vb.) oyunu durdurmaz; sonuç gönderilmeden önce katılım yeniden denenir, olmazsa sonuç kodu yedektir.
 export async function joinGameRequest(code: string, nickname: string): Promise<JoinResponse> {
@@ -70,8 +70,9 @@ export async function joinGameRequest(code: string, nickname: string): Promise<J
       body: JSON.stringify({ nickname }),
     });
     if (res.status === 409) return { status: "taken" };
-    const token = res.ok ? ((await res.json()) as { playerToken?: string }).playerToken : undefined;
-    return token ? { status: "joined", playerToken: token } : { status: "error" };
+    const json = res.ok ? ((await res.json()) as { playerToken?: string; sira?: unknown }) : {};
+    const sira = typeof json.sira === "number" && Number.isInteger(json.sira) && json.sira > 0 ? json.sira : null;
+    return json.playerToken ? { status: "joined", playerToken: json.playerToken, sira } : { status: "error" };
   } catch {
     return { status: "error" };
   }
