@@ -46,7 +46,7 @@ describe("okul mekânları ve konum bilmeceleri", () => {
     }
   });
 
-  it("bilmece noktanın adını vermez", () => {
+  it("bilmece ve 1. ipucu noktanın adını vermez", () => {
     // Noktada geçip adı vermeyen genel yer kelimeleri.
     const GENEL = new Set([
       "kapı", "kapısı", "kapının", "duvar", "duvarı", "yanı", "yanındaki", "altı", "altındaki", "üstü", "kenarı", "kenar",
