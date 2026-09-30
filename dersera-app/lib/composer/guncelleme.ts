@@ -25,6 +25,7 @@ export function durakCiktisiOf(d: Durak): DurakCiktisi {
     sahne_turu: d.sahne_turu,
     hikaye_metni: d.hikaye_metni,
     qr_durak_id: d.mekan.qr_durak_id ?? "",
+    mekan_id: d.mekan.yer?.mekan_id ?? "",
     sonraki_durak_tarifi: d.mekan.sonraki_durak_tarifi,
     gorev_turu: g.tur,
     ogrenme_hedefi: g.ogrenme_hedefi,

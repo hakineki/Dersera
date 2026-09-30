@@ -20,6 +20,7 @@ import { endGameRequest, fetchGame, publishGameRequest } from "@/lib/gamesClient
 import type { TeacherGame } from "@/lib/teacherGame";
 import AySecici from "./AySecici";
 import Ikon from "@/components/Ikon";
+import YerlesimListesi from "@/components/YerlesimListesi";
 import { IKON_KUTUSU } from "./OgretmenMenusu";
 
 const ALL_DERSLER = Object.keys(DERS_ADI) as Ders[];
@@ -136,6 +137,9 @@ function ActiveGame({
         </div>
       </div>
 
+      {game.definition?.meta.rota === "mekan" ? (
+        <YerlesimListesi def={game.definition} />
+      ) : (
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <p className="px-4 py-2.5 text-xs font-semibold text-gray-500 bg-gray-50 border-b border-gray-100">
           {game.definition ? `Sahneler (${game.stops.length})` : `Durak sırası (${game.stops.length} durak)`}
@@ -154,6 +158,7 @@ function ActiveGame({
           ))}
         </ol>
       </div>
+      )}
 
       {error && (
         <p role="alert" className="text-sm text-red-600">

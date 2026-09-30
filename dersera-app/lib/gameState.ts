@@ -88,6 +88,10 @@ export function markStopComplete(stopId: string, hintsUsed: number): void {
 export interface SceneState {
   yol: string[];
   hedef: string | null;
+  // Mekân rotası: hedef başına açılan konum ipucu sayısı ve cezası kesilmiş yanlış taramalar ("hedef:qr"); sayfa
+  // yenilense de ceza ikinci kez kesilmez.
+  ipucu?: Record<string, number>;
+  yanlis?: string[];
 }
 
 export function loadSceneState(): SceneState {
@@ -95,7 +99,9 @@ export function loadSceneState(): SceneState {
     const raw = safeGet(STORAGE_KEYS.SAHNE_YOLU);
     const p = raw ? (JSON.parse(raw) as Partial<SceneState>) : null;
     if (p && Array.isArray(p.yol) && p.yol.every((x) => typeof x === "string") && (p.hedef === null || typeof p.hedef === "string")) {
-      return { yol: p.yol, hedef: p.hedef };
+      const ipucu = p.ipucu && typeof p.ipucu === "object" ? Object.fromEntries(Object.entries(p.ipucu).filter(([, n]) => n === 1 || n === 2)) : undefined;
+      const yanlis = Array.isArray(p.yanlis) ? p.yanlis.filter((x): x is string => typeof x === "string") : undefined;
+      return { yol: p.yol, hedef: p.hedef, ...(ipucu && { ipucu }), ...(yanlis && { yanlis }) };
     }
   } catch {
     /* bozuk kayıt: baştan */

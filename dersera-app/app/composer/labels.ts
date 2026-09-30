@@ -17,7 +17,7 @@ export const DENEYIM_SECENEKLERI = [
 
 export const ALAN_SECENEKLERI = [
   { key: "sinif", ikon: "🏫", ad: "Tek Sınıf", aciklama: "Sınıftan çıkmadan, sanal sahnelerle" },
-  { key: "okul", ikon: "🗺️", ad: "Okul Macerası", aciklama: "QR kütüphanesindeki duraklarla" },
+  { key: "okul", ikon: "🗺️", ad: "Okul Macerası", aciklama: "Okulun mekânlarında, konum bilmeceleriyle" },
 ] as const;
 
 export const CEVAP_BICIMI: Record<GorevTuru, string> = {

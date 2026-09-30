@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { yasProfiliOf, type YasProfili } from "@/lib/yasProfili";
 import { arrive, choose, currentStep, durakById, FINAL_ID, inventory, needsScan, qrOf } from "@/lib/composer/scene";
-import type { GameDefinition } from "@/lib/composer/definition";
+import type { Durak, GameDefinition } from "@/lib/composer/definition";
+import { baslangicSec, KONUM_IPUCU_CEZASI, rotaMi, taramaSonucu, YANLIS_QR_CEZASI } from "@/lib/composer/mekanRotasi";
 import { gorselAdresi, KAPAK } from "@/lib/gorsel";
 import GorselResim from "@/components/GorselResim";
 import { secenekleriKaristir } from "@/lib/karistir";
@@ -60,6 +61,54 @@ function SahneGorseli({ def, hedef, alt, className }: { def: GameDefinition; hed
   return src ? <GorselResim src={src} alt={alt} className={className} /> : null;
 }
 const devam = "w-full bg-white text-indigo-900 font-bold py-3 rounded-xl";
+
+// Mekân rotası: sıradaki yerin konum bilmecesi. Mekânın adı söylenir, QR'ın mekânda nerede olduğunu bilmece anlatır;
+// ipuçları süre cezasıyla açılır. QR numarası gösterilmez (yeri bulmak oyunun parçası).
+function KonumKarti({
+  durak,
+  baslangic,
+  ipucu,
+  onIpucu,
+  uyari,
+  onVaris,
+}: {
+  durak: Durak;
+  baslangic: boolean;
+  ipucu: number;
+  onIpucu: () => void;
+  uyari: string | null;
+  onVaris?: () => void;
+}) {
+  const y = durak.mekan.yer;
+  if (!y) return null;
+  return (
+    <div className={kart}>
+      <p className="text-yellow-200 text-xs font-bold uppercase tracking-wide mb-1">{baslangic ? "🧭 Başlangıç noktan" : "🧭 Sıradaki yer"}</p>
+      <p className="text-white font-bold text-lg mb-3">📍 {y.mekan_adi}</p>
+      <p className="text-white/90 text-base leading-relaxed italic mb-4">“{y.bilmece}”</p>
+      {ipucu >= 1 && <p className="text-sm text-white/85 bg-white/10 rounded-lg px-3 py-2 mb-2">💡 {y.ipucu_1}</p>}
+      {ipucu >= 2 && <p className="text-sm text-white/85 bg-white/10 rounded-lg px-3 py-2 mb-2">💡 {y.ipucu_2}</p>}
+      {uyari && (
+        <p role="alert" className="text-sm font-semibold text-red-100 bg-red-500/25 rounded-lg px-3 py-2 mb-2">
+          {uyari}
+        </p>
+      )}
+      <p className="text-white/70 text-sm mt-3">Noktayı bulunca oradaki QR kodu tara.</p>
+      <div className="flex flex-wrap gap-2 mt-3">
+        {ipucu < 2 && (
+          <button type="button" onClick={onIpucu} className="text-sm font-semibold text-white border border-white/30 rounded-lg px-3 py-2 hover:bg-white/10">
+            {ipucu === 0 ? "İpucu al" : "Bir ipucu daha"} (+{KONUM_IPUCU_CEZASI} sn)
+          </button>
+        )}
+        {onVaris && (
+          <button type="button" onClick={onVaris} className="text-sm font-semibold bg-white text-indigo-900 rounded-lg px-3 py-2">
+            QR&apos;ı taradım say (demo)
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const PUAN_ETIKETI = ["Hiç beğenmedim", "Beğenmedim", "Fena değil", "Beğendim", "Çok beğendim"];
 const puanBayragi = (gameCode: string, nickname: string) => `dersera:puan-verildi:${gameCode}:${nicknameKey(nickname)}`;
@@ -159,7 +208,16 @@ export default function ComposerPlayer({
   demo?: DemoKontrolu;
 }) {
   useKokYazi(def.meta.sinif);
-  const [scene, setScene] = useState<SceneState>(() => kayit.sahne());
+  const [scene, setScene] = useState<SceneState>(() => {
+    const s = kayit.sahne();
+    if (!rotaMi(def) || s.yol.length > 0 || s.hedef) return s;
+    // Mekân rotası: bu cihazın (takımın) başlangıç durağı bir kez seçilir ve saklanır.
+    const ilk = { ...s, hedef: baslangicSec(def) };
+    kayit.sahneYaz(ilk);
+    return ilk;
+  });
+  const [uyari, setUyari] = useState<string | null>(null);
+  const taramaIslendi = useRef(false);
   const [progress, setProgress] = useState<GameProgress>(() => kayit.ilerleme());
   const [ceza, setCeza] = useState(() => kayit.ceza());
   const [bitis, setBitis] = useState<number | null>(() => kayit.bitis());
@@ -187,11 +245,46 @@ export default function ComposerPlayer({
 
   // Okul macerasında hedefin QR'ı az önce tarandıysa varış otomatik gerçekleşir.
   useEffect(() => {
-    if (step.tur === "gecis" && needsScan(def, step.hedef) && qr === qrOf(def, step.hedef)) {
+    if (!rotaMi(def) && step.tur === "gecis" && needsScan(def, step.hedef) && qr === qrOf(def, step.hedef)) {
       const t = setTimeout(() => guncelle(arrive(scene, step.hedef)));
       return () => clearTimeout(t);
     }
   }, [step, qr, def, scene, guncelle]);
+
+  // Mekân rotası: sayfayı açan tarama bir kez değerlendirilir. Hedefin QR'ı → varış; çözülmüş bir yerin QR'ı → uyarı;
+  // başka bir QR → "Burası değil" ve (bu hedef ve QR için bir kez) süre cezası. Varıştan sonra aynı adres yeniden
+  // değerlendirilmez.
+  useEffect(() => {
+    if (!rotaMi(def) || taramaIslendi.current) return;
+    if (qr === null || step.tur !== "gecis" || step.hedef === FINAL_ID) {
+      taramaIslendi.current = true;
+      return;
+    }
+    const hedef = step.hedef;
+    // İşaret zamanlayıcının içinde konur: geliştirmede efekt iki kez çalışıp ilk zamanlayıcı iptal edilse de tarama işlenir.
+    const t = setTimeout(() => {
+      if (taramaIslendi.current) return;
+      taramaIslendi.current = true;
+      const s = taramaSonucu(def, hedef, qr, progress, scene.yanlis);
+      if (s.tur === "varis") return guncelle(arrive(scene, hedef));
+      if (s.tur === "cozulmus") return setUyari("Bu yeri zaten çözdün. Bilmeceyi yeniden oku.");
+      if (s.ceza) {
+        kayit.cezaEkle(YANLIS_QR_CEZASI);
+        setCeza((c) => c + YANLIS_QR_CEZASI);
+        guncelle({ ...scene, yanlis: [...(scene.yanlis ?? []), s.anahtar] });
+      }
+      setUyari(`Burası değil! Bu QR başka bir yere ait; bilmeceyi yeniden oku. (+${YANLIS_QR_CEZASI} sn)`);
+    });
+    return () => clearTimeout(t);
+  }, [def, qr, step, scene, progress, kayit, guncelle]);
+
+  function konumIpucu(hedef: string) {
+    const n = scene.ipucu?.[hedef] ?? 0;
+    if (n >= 2) return;
+    kayit.cezaEkle(KONUM_IPUCU_CEZASI);
+    setCeza((c) => c + KONUM_IPUCU_CEZASI);
+    guncelle({ ...scene, ipucu: { ...scene.ipucu, [hedef]: n + 1 } });
+  }
 
   const entry: LeaderboardEntry | null = bitis ? buildLeaderboardEntry(nickname, startTime, bitis, ceza, progress) : null;
 
@@ -277,7 +370,8 @@ export default function ComposerPlayer({
                 <p className="text-yellow-200 text-sm font-semibold">🎯 {def.oyun_amaci}</p>
               </div>
             ) : (
-              step.hedef !== FINAL_ID && (
+              step.hedef !== FINAL_ID &&
+              !rotaMi(def) && (
                 <div className={kart}>
                   <p className="text-white/85 text-sm">{step.onceki.mekan.sonraki_durak_tarifi}</p>
                 </div>
@@ -297,6 +391,16 @@ export default function ComposerPlayer({
                   Finale geç
                 </button>
               </div>
+            ) : rotaMi(def) && durakById(def, step.hedef)?.mekan.yer ? (
+              <KonumKarti
+                key={step.hedef}
+                durak={durakById(def, step.hedef)!}
+                baslangic={step.onceki === null}
+                ipucu={scene.ipucu?.[step.hedef] ?? 0}
+                onIpucu={() => konumIpucu(step.hedef)}
+                uyari={uyari}
+                onVaris={demo ? () => guncelle(arrive(scene, step.hedef)) : undefined}
+              />
             ) : needsScan(def, step.hedef) ? (
               <div className={`${kart} text-center`}>
                 <p className="text-4xl mb-2" aria-hidden="true">📱</p>

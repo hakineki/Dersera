@@ -1,6 +1,7 @@
 import type { Durak, GameDefinition } from "@/lib/composer/definition";
 import type { GameProgress, SceneState } from "@/lib/gameState";
 import type { Stop } from "@/data/stops";
+import { rotaMi, sonrakiRotaDuragi } from "@/lib/composer/mekanRotasi";
 
 // Sahne oynatıcısının saf durum makinesi. Yanlış cevap rotayı değiştirmez (ipucu → ipucu → destek görevin içindedir);
 // rota yalnızca seçim sahnelerindeki oyuncu kararıyla değişir.
@@ -29,6 +30,8 @@ export function currentStep(def: GameDefinition, state: SceneState, progress: Ga
   // Geri dönüşlü rotada tamamlanmış sahneye yeniden gelinirse görev tekrarlanmaz.
   if (!progress[durak.id]) return { tur: "gorev", durak };
   if (state.hedef) return { tur: "gecis", hedef: state.hedef, onceki: durak };
+  // Mekân rotası döngüseldir: sıradaki tamamlanmamış durak; hepsi bittiyse final.
+  if (rotaMi(def)) return { tur: "gecis", hedef: sonrakiRotaDuragi(def, durak.id, progress) ?? FINAL_ID, onceki: durak };
   if (durak.sahne_turu === "secim") return { tur: "secim", durak };
   return { tur: "gecis", hedef: durak.varsayilan_sonraki_durak_id ?? FINAL_ID, onceki: durak };
 }
@@ -38,7 +41,7 @@ export function choose(state: SceneState, hedef: string): SceneState {
 }
 
 export function arrive(state: SceneState, hedef: string): SceneState {
-  return { yol: [...state.yol, hedef], hedef: null };
+  return { ...state, yol: [...state.yol, hedef], hedef: null };
 }
 
 export function qrOf(def: GameDefinition, durakId: string): number | null {

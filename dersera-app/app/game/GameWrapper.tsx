@@ -24,6 +24,7 @@ import NicknameEntry from "./[stop]/NicknameEntry";
 import GameClient from "./GameClient";
 import CodeEntry from "./CodeEntry";
 import ComposerPlayer from "./composer/ComposerPlayer";
+import { rotaMi } from "@/lib/composer/mekanRotasi";
 import { qrOf } from "@/lib/composer/scene";
 
 type View =
@@ -101,7 +102,8 @@ export default function GameWrapper() {
         setNickname(loadNickname() ?? "");
         setStartTime(loadStartTime() ?? 0);
         const baslangicQr = qrOf(g.definition, g.definition.duraklar[0].id);
-        const basta = qr === null || qr === baslangicQr;
+        // Mekân rotasında takımlar farklı duraklardan başlar: taranan her QR doğrudan oyuna götürür (varış orada denetlenir).
+        const basta = qr === null || (!rotaMi(g.definition) && qr === baslangicQr);
         setView({ kind: basta && !finished && isGameActive(g) ? "choice" : "game" });
         return;
       }

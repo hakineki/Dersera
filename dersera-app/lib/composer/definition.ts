@@ -48,6 +48,17 @@ export const GorevSchema = z.object({
   odul_id: z.string().nullable().describe("Görev tamamlanınca kazanılan envanter öğesinin id'si ya da null"),
 });
 
+// Mekân rotası (okul macerası): durağın QR kodunun okulda yapıştırıldığı yer ve oraya götüren konum bilmecesi. Bilmece
+// hazır bankadan gelir (data/konumBilmeceleri.ts); oyuncu bir önceki görevi bitirince bu bilmeceyle bu durağı arar.
+export const KonumYeriSchema = z.object({
+  mekan_id: z.string(),
+  mekan_adi: z.string(),
+  nokta: z.string(),
+  bilmece: z.string(),
+  ipucu_1: z.string(),
+  ipucu_2: z.string(),
+});
+
 export const DurakSchema = z.object({
   id: z.string().describe("Kısa, benzersiz, küçük harf id: d1, d2, ..."),
   isim: z.string(),
@@ -57,6 +68,8 @@ export const DurakSchema = z.object({
     tur: z.enum(["sanal", "qr"]),
     qr_durak_id: z.string().nullable().describe("Okul macerasında verilen QR id'lerinden biri; tek sınıfta null"),
     sonraki_durak_tarifi: z.string(),
+    // Yalnız mekân rotası oyunlarında (meta.rota = "mekan").
+    yer: KonumYeriSchema.optional(),
   }),
   gorev: GorevSchema,
   secimler: z
@@ -108,6 +121,9 @@ export const GameDefinitionSchema = z.object({
     // çıktısında yoktur (meta girdiden kurulur). Öğrenme döngüsü yapay zekâ üretiminin kalitesini ölçtüğü için bu oyunlar
     // sinyallere girmez. İstemcinin beyanıdır: yalnız bu sayaçları etkiler, yayın kapılarını değiştirmez.
     olusturma: z.literal("sablon").optional(),
+    // Mekân rotası: duraklar okulun gerçek mekânlarında, konum bilmecesiyle bulunur; rota döngüseldir ve her takım farklı
+    // bir duraktan başlayıp hepsini dolaştıktan sonra finale varır (lib/composer/mekanRotasi.ts). Eski oyunlarda yoktur.
+    rota: z.literal("mekan").optional(),
   }),
   hikaye_giris: z.string(),
   oyun_amaci: z.string(),
@@ -122,3 +138,4 @@ export type GameDefinition = z.infer<typeof GameDefinitionSchema>;
 export type Durak = z.infer<typeof DurakSchema>;
 export type Gorev = z.infer<typeof GorevSchema>;
 export type Final = z.infer<typeof FinalSchema>;
+export type KonumYeri = z.infer<typeof KonumYeriSchema>;

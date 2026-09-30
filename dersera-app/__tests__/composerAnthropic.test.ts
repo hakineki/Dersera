@@ -96,14 +96,16 @@ describe("composeGame", () => {
     expect(calls[0].body).not.toHaveProperty("thinking");
   });
 
-  it("okul macerasında yalnız QR kütüphanesindeki id'leri verir", async () => {
+  it("okul macerasında (mekân rotası) okul mekânlarını listeler, seçim sahnesi istemez, QR listesi vermez", async () => {
     const okul = resolvedInput({ sinif: 11, ders: "matematik", sure: 60, deneyim: "macera", alan: "okul" });
     const { client, calls } = fakeClient(toModelOutput(makeDefinition(okul)));
     await composeGame(okul, buildRecipe(60, "macera", "okul"), IZINLI_QR_IDLERI, client);
     const user = promptOf(calls[0].body);
-    expect(user).toContain("qr-1, qr-2");
-    expect(user).toContain("qr-20");
-    expect(user).not.toContain("qr-21");
+    expect(user).toContain("kutuphane: Kütüphane");
+    expect(user).toContain("okul-kapisi: Okul kapısı");
+    expect(user).toContain("Seçim sahnesi: KULLANMA");
+    expect(user).toContain("mekan_id");
+    expect(user).not.toContain("qr-1, qr-2");
   });
 });
 
@@ -148,10 +150,10 @@ describe("toDefinition", () => {
     expect(r.definition.duraklar[r.definition.duraklar.length - 1].varsayilan_sonraki_durak_id).toBeNull();
   });
 
-  it("okul macerasında QR id'sini taşır, tek sınıfta QR'ı yok sayar", () => {
+  it("okul macerasında QR'ı sırayla atar ve mekânı bağlar, tek sınıfta QR'ı yok sayar", () => {
     const okul = resolvedInput({ sinif: 11, ders: "matematik", sure: 60, deneyim: "macera", alan: "okul" });
     const r = toDefinition(toModelOutput(makeDefinition(okul)), okul);
-    expect(r.ok && r.definition.duraklar[0].mekan).toEqual({ tur: "qr", qr_durak_id: "qr-1", sonraki_durak_tarifi: expect.any(String) });
+    expect(r.ok && r.definition.duraklar[0].mekan).toEqual({ tur: "qr", qr_durak_id: "qr-1", sonraki_durak_tarifi: "", yer: expect.objectContaining({ mekan_id: expect.any(String) }) });
     const out = toModelOutput(makeDefinition(input));
     out.duraklar[0].qr_durak_id = "qr-5";
     const s = toDefinition(out, input);

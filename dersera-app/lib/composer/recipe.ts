@@ -1,4 +1,5 @@
 import type { Alan, Deneyim } from "@/lib/composer/input";
+import { kanitSayisi } from "@/lib/composer/mekanRotasi";
 
 export interface Aralik {
   min: number;
@@ -49,7 +50,7 @@ const ALAN: Record<Alan, string> = {
   sinif:
     "Tek sınıf: öğrenci sınıftan çıkmaz; duraklar sanal sahnelerdir (mekan.tur = \"sanal\", qr_durak_id = null). QR kullanma.",
   okul:
-    "Okul macerası: her durak verilen QR listesinden farklı bir QR'a bağlanır (mekan.tur = \"qr\"). Fiziksel mekân adı uydurma; tarifte yalnızca QR numarasını kullan.",
+    "Okul macerası (mekân rotası): her durak aşağıdaki okul mekânları listesinden FARKLI bir mekânda geçer; durağın mekan_id alanına o mekânın kimliğini birebir yaz. Durağın hikâyesi o mekânda geçer ve mekânı adıyla anabilir. Öğrenciyi bir sonraki mekâna oyun motoru bir konum bilmecesiyle yönlendirir: sonraki_durak_tarifi ve qr_durak_id alanlarını boş bırak.",
 };
 
 // Her seçilen dersin en az bir görevi olacağından ders sayısı, sürenin en fazla durak sayısını aşamaz.
@@ -57,6 +58,17 @@ export function maxDersSayisi(sure: number): number {
   return GOREV_ARALIGI[sure]?.max ?? 0;
 }
 
+// Mekân rotasında seçim sahnesi yoktur (takımlar farklı duraklardan başlar, rota döngüseldir); kanıt sayısı durak
+// sayısından gelir (8 durakta 3) ve final bu kanıtları birleştirir.
 export function buildRecipe(sure: number, deneyim: Deneyim, alan: Alan): Recipe {
-  return { anaGorev: GOREV_ARALIGI[sure], ...DENEYIM[deneyim], alan: ALAN[alan] };
+  const anaGorev = GOREV_ARALIGI[sure];
+  const temel = { anaGorev, ...DENEYIM[deneyim], alan: ALAN[alan] };
+  if (alan !== "okul" || !anaGorev) return temel;
+  const kanit = kanitSayisi(anaGorev.max);
+  return {
+    ...temel,
+    secim: { min: 0, max: 0 },
+    nesne: { min: kanit, max: kanit },
+    final: `${temel.final} Final, oyun boyunca toplanan ${kanit} kanıtın hepsini birleştirir.`,
+  };
 }
