@@ -1,5 +1,5 @@
 // Okul mekânları ve konum bilmeceleri: oyunda bir sonraki durağın QR kodu mekânın belirli bir noktasına yapıştırılır;
-// oyuncu o noktayı bilmeceyle bulur. Takılırsa önce 1. ipucu (daha açık), sonra 2. ipucu (neredeyse söyler) açılır.
+// oyuncu o noktayı bilmeceyle bulur. Takılırsa önce 1. ipucu (daha açık), sonra 2. ipucu (noktayı adıyla söyler) açılır.
 // Banka hazır metindir; rehber (yapay zekâ) uygun bilmeceyi seçer, gerekirse sınıf düzeyine göre soruya çevirir, ama
 // gösterdiği nokta değişmez. Öğretmen düzenlerken mekânın diğer bilmecelerinden birini seçebilir.
 // İstemci de okur: ağır modül içe aktarmamalı.

@@ -1,5 +1,4 @@
-import type { KonumBilmecesi, Mekan } from "@/lib/mekan";
-import { KONUM_BILMECELERI } from "./konumBilmeceleri";
+import type { Mekan } from "@/lib/mekan";
 
 // Okulda bulunabilecek mekânlar (öğretmenin rota seçimindeki liste). Sıra, listede görünen sıradır.
 export const MEKANLAR: Mekan[] = [
@@ -20,13 +19,9 @@ export const MEKANLAR: Mekan[] = [
   { id: "rehberlik-servisi", ad: "Rehberlik servisi önü", emoji: "🧭" },
   { id: "idare-onu", ad: "İdare odaları önü", emoji: "🗂️", ayrintiOrnegi: "Müdür yardımcısı odası önü" },
   { id: "ogretmenler-odasi", ad: "Öğretmenler odası önü", emoji: "☕" },
-  { id: "toren-alani", ad: "Tören alanı", emoji: "🇹🇷" },
+  { id: "toren-alani", ad: "Tören alanı", emoji: "📣" },
   { id: "duyuru-panosu", ad: "Duyuru panosu", emoji: "📌" },
   { id: "okul-kapisi", ad: "Okul kapısı", emoji: "🔑" },
 ];
 
-export const BILMECELER: KonumBilmecesi[] = KONUM_BILMECELERI;
-
 export const mekanOf = (id: string): Mekan | null => MEKANLAR.find((m) => m.id === id) ?? null;
-export const mekanBilmeceleri = (mekanId: string): KonumBilmecesi[] => BILMECELER.filter((b) => b.mekanId === mekanId);
-export const bilmeceOf = (id: string): KonumBilmecesi | null => BILMECELER.find((b) => b.id === id) ?? null;

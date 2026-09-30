@@ -1,6 +1,7 @@
 import { metinleriTara } from "@/lib/composer/cocukGuvenligi";
 import { MEKAN_SINIRLARI as S } from "@/lib/mekan";
-import { BILMECELER, MEKANLAR, mekanBilmeceleri, mekanOf } from "@/data/mekanlar";
+import { KONUM_BILMECELERI as BILMECELER, mekanBilmeceleri } from "@/data/konumBilmeceleri";
+import { MEKANLAR, mekanOf } from "@/data/mekanlar";
 
 describe("okul mekânları ve konum bilmeceleri", () => {
   it("20 mekân; kimlikler tekil ve kısa-çizgili küçük harf", () => {
@@ -43,6 +44,42 @@ describe("okul mekânları ve konum bilmeceleri", () => {
       }
       expect(new Set([b.bilmece, b.ipucu1, b.ipucu2]).size).toBe(3);
     }
+  });
+
+  it("bilmece noktanın adını vermez", () => {
+    // Noktada geçip adı vermeyen genel yer kelimeleri.
+    const GENEL = new Set([
+      "kapı", "kapısı", "kapının", "duvar", "duvarı", "yanı", "yanındaki", "altı", "altındaki", "üstü", "kenarı", "kenar",
+      "köşe", "köşesi", "yüzü", "önü", "içi", "arkası", "arkalığı", "ucu", "bölümü", "sınıf", "sınıfı", "masası",
+      "masasının", "levhası", "tabelası",
+    ]);
+    // kullanıcı onaylı: kütüphane metinleri olduğu gibi kalır.
+    const ONAYLI = new Set(["kutuphane-3", "kutuphane-4", "kutuphane-6", "kutuphane-8", "kutuphane-9"]);
+    const kucuk = (s: string) => s.toLocaleLowerCase("tr-TR");
+    const sizintilar: string[] = [];
+    for (const b of BILMECELER) {
+      if (ONAYLI.has(b.id)) continue;
+      const metin = kucuk(`${b.bilmece} ${b.ipucu1}`);
+      const kelimeler = kucuk(b.nokta)
+        .split(/[^a-zçğıöşüâîû]+/u)
+        .filter((k) => k.length >= 4 && !GENEL.has(k));
+      for (const k of kelimeler) if (metin.includes(k.slice(0, 5))) sizintilar.push(`${b.id}: ${k.slice(0, 5)}`);
+    }
+    expect(sizintilar).toEqual([]);
+  });
+
+  it("aynı nokta tüm dosyada en fazla 4 kez geçer", () => {
+    const kucuk = (s: string) => s.toLocaleLowerCase("tr-TR");
+    const kelimeler = (s: string) => kucuk(s).split(/[^a-zçğıöşüâîû]+/u).filter(Boolean);
+    const sayac = new Map<string, string[]>();
+    for (const b of BILMECELER) {
+      // Mekân adı sözcüklerini (ilk 5 harfe göre) çıkar: "Kantin kapısının yanı" ile "Yemekhane kapısının yanı" aynı sayılır.
+      const adKokleri = new Set(kelimeler(mekanOf(b.mekanId)?.ad ?? "").filter((k) => k.length >= 3).map((k) => k.slice(0, 5)));
+      const anahtar = kelimeler(b.nokta).filter((k) => !adKokleri.has(k.slice(0, 5))).join(" ");
+      sayac.set(anahtar, [...(sayac.get(anahtar) ?? []), b.id]);
+    }
+    const fazla = [...sayac].filter(([, idler]) => idler.length > 4).map(([anahtar, idler]) => `${anahtar}: ${idler.join(", ")}`);
+    expect(fazla).toEqual([]);
   });
 
   it("çocuk güvenliği taramasında hiçbir eşleşme yok", () => {
