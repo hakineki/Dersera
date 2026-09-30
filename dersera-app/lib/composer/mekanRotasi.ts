@@ -23,6 +23,11 @@ export function baslangicSec(def: GameDefinition, sira: number | null, rastgele:
   return def.duraklar[i].id;
 }
 
+// Açılıştaki kayıtta başlangıç henüz seçilmemişse bu açılış takımın katılımıdır: başlangıç burada seçilir ve katılımı
+// açan başka bir QR taraması cezasız yok sayılır. Sonraki açılışlarda (başlangıç kayıtlı) yanlış QR cezalıdır.
+export const katilimAcilisiMi = (def: GameDefinition, kayit: SceneState): boolean =>
+  rotaMi(def) && kayit.yol.length === 0 && !kayit.hedef;
+
 // Süreye eklenmiş konum cezaları (ipucu ve yanlış QR); öğretmenin yanlış cevap sayısından düşülür.
 export function konumCezasi(s: SceneState): number {
   const ipucu = Object.values(s.ipucu ?? {}).reduce((a, b) => a + b, 0);

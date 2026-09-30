@@ -4,7 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { yasProfiliOf, type YasProfili } from "@/lib/yasProfili";
 import { arrive, choose, currentStep, durakById, FINAL_ID, inventory, needsScan, qrOf } from "@/lib/composer/scene";
 import type { Durak, GameDefinition } from "@/lib/composer/definition";
-import { baslangicSec, KONUM_IPUCU_CEZASI, konumCezasi, rotaMi, taramaSonucu, YANLIS_QR_CEZASI } from "@/lib/composer/mekanRotasi";
+import { baslangicSec, katilimAcilisiMi, KONUM_IPUCU_CEZASI, konumCezasi, rotaMi, taramaSonucu, YANLIS_QR_CEZASI } from "@/lib/composer/mekanRotasi";
+import { gorselAdresi, KAPAK } from "@/lib/gorsel";
+import GorselResim from "@/components/GorselResim";
+import { secenekleriKaristir } from "@/lib/karistir";
+import { buildResultCode, formatElapsed, nicknameKey, type GameProgress, type LeaderboardEntry, type SceneState } from "@/lib/gameState";
+import { yerelOyunKaydi, type OyunKaydi } from "@/lib/oyunKaydi";
+import { buildLeaderboardEntry, sendPlayerRating, sendPlayerResult } from "@/lib/playerResult";
+import TaskView from "./TaskView";
 
 // İşlenen taramanın numarası adresten silinir: sayfa yenilenince, geri tuşunda ya da eski sekme açılınca aynı tarama
 // yeniden değerlendirilmez (ceza iki kez kesilmez, varıştan sonra yersiz uyarı çıkmaz).
@@ -18,13 +25,6 @@ function taramayiAdrestenSil() {
     /* adres değiştirilemezse tarama yalnız bu açılışta değerlendirilmiş olur */
   }
 }
-import { gorselAdresi, KAPAK } from "@/lib/gorsel";
-import GorselResim from "@/components/GorselResim";
-import { secenekleriKaristir } from "@/lib/karistir";
-import { buildResultCode, formatElapsed, nicknameKey, type GameProgress, type LeaderboardEntry, type SceneState } from "@/lib/gameState";
-import { yerelOyunKaydi, type OyunKaydi } from "@/lib/oyunKaydi";
-import { buildLeaderboardEntry, sendPlayerRating, sendPlayerResult } from "@/lib/playerResult";
-import TaskView from "./TaskView";
 
 // Yaş profiline göre zemin (docs/URUN-BAGLAMI.md §5): lise daha olgun ve atmosferik, ortaokul canlı.
 const ZEMIN: Record<YasProfili, string> = {
@@ -223,13 +223,13 @@ export default function ComposerPlayer({
   useKokYazi(def.meta.sinif);
   // Açılıştaki kayıt: mekân rotasında başlangıç henüz seçilmediyse bu açılış katılımdır (katılım taraması cezasız).
   const [ilkKayit] = useState<SceneState>(() => kayit.sahne());
-  const katilimAcilisi = rotaMi(def) && ilkKayit.yol.length === 0 && !ilkKayit.hedef;
+  const katilimAcilisi = katilimAcilisiMi(def, ilkKayit);
   // Mekân rotası: bu cihazın (takımın) başlangıç durağı katılım sırasından seçilir (aşağıda saklanır).
   const [scene, setScene] = useState<SceneState>(() => (katilimAcilisi ? { ...ilkKayit, hedef: baslangicSec(def, kayit.takimSirasi()) } : ilkKayit));
   useEffect(() => {
     const kayitli = kayit.sahne();
-    if (katilimAcilisi && kayitli.yol.length === 0 && !kayitli.hedef) kayit.sahneYaz(scene);
-  }, [katilimAcilisi, kayit, scene]);
+    if (katilimAcilisi && katilimAcilisiMi(def, kayitli)) kayit.sahneYaz(scene);
+  }, [def, katilimAcilisi, kayit, scene]);
   const [uyari, setUyari] = useState<string | null>(null);
   const taramaIslendi = useRef(false);
   const [progress, setProgress] = useState<GameProgress>(() => kayit.ilerleme());

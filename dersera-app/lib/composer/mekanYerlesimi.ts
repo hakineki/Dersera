@@ -16,10 +16,13 @@ function sira(anahtar: string, n: number): number {
 const mekanAnahtari = (s: string) => s.trim().toLocaleLowerCase("tr-TR").replace(/[\s_-]+/g, "-");
 const ARAMA = new Map(MEKANLAR.flatMap((m) => [[mekanAnahtari(m.id), m.id], [mekanAnahtari(m.ad), m.id]]));
 
+// Modelin yazdığı mekânın kimliği; listede yoksa undefined.
+export const mekanKimligi = (girdi: string): string | undefined => ARAMA.get(mekanAnahtari(girdi)) ?? mekanOf(girdi.trim())?.id;
+
 export function mekanlariAta(istenen: string[]): string[] {
   const kullanilan = new Set<string>();
   const secilen = istenen.map((girdi) => {
-    const id = ARAMA.get(mekanAnahtari(girdi)) ?? mekanOf(girdi.trim())?.id;
+    const id = mekanKimligi(girdi);
     if (!id || kullanilan.has(id)) return null;
     kullanilan.add(id);
     return id;

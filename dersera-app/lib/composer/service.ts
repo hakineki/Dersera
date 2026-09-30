@@ -52,7 +52,7 @@ function degerlendir(raw: ModelOutput, input: ResolvedInput): ComposeResult {
   if (!converted.ok) throw new ComposeError("invalid-output", `Çıktı oyun şemasına uymadı: ${converted.error}`);
   const { definition, notlar } = onar(converted.definition);
   const validation = validateGame(definition, validationContext(input));
-  validation.uyarilar.unshift(...notlar.map((mesaj) => ({ kod: "otomatik-duzeltme", mesaj })));
+  validation.uyarilar.unshift(...[...converted.notlar, ...notlar].map((mesaj) => ({ kod: "otomatik-duzeltme", mesaj })));
   return { definition, validation };
 }
 

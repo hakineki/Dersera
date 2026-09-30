@@ -3,10 +3,11 @@ import { MEKANLAR } from "@/data/mekanlar";
 import { cocukGuvenligiTara } from "@/lib/composer/cocukGuvenligi";
 import { validationContext } from "@/lib/composer/context";
 import type { GameDefinition } from "@/lib/composer/definition";
-import { baslangicSec, kanitSayisi, konumCezasi, sonrakiRotaDuragi, taramaSonucu } from "@/lib/composer/mekanRotasi";
+import { baslangicSec, kanitSayisi, katilimAcilisiMi, konumCezasi, sonrakiRotaDuragi, taramaSonucu } from "@/lib/composer/mekanRotasi";
 import { buildUserPrompt } from "@/lib/composer/prompt";
 import { bosSablon } from "@/lib/composer/sablon";
-import { createMemoryGamesStore } from "@/lib/gamesStore";
+import { createMemoryGamesStore, createRedisGamesStore } from "@/lib/gamesStore";
+import { createLuaRedis } from "./helpers/luaRedis";
 import { joinGame } from "@/lib/gamesService";
 import { parseLeaderboardEntry } from "@/lib/results";
 import { yanlisSayisi } from "@/lib/gameState";
@@ -67,6 +68,17 @@ describe("okul oyunu → mekân rotası", () => {
     expect(def.duraklar.map((d) => d.mekan.qr_durak_id)).toEqual(["qr-1", "qr-2", "qr-3", "qr-4", "qr-5", "qr-6", "qr-7", "qr-8"]);
     expect(def.duraklar.map((d) => d.mekan.yer?.mekan_id)).toEqual(["kutuphane", "bahce", "kantin", "spor-salonu", "fen-laboratuvari", "koridor", "merdivenler", "sinif"]);
     expect(def.duraklar.every((d) => d.mekan.sonraki_durak_tarifi === "" && d.mekan.yer!.bilmece.length > 10)).toBe(true);
+  });
+
+  it("model mekânı listede yoksa ya da tekrarlandıysa değişir ve öğretmene not düşülür; adla yazılan mekân not almaz", () => {
+    const r = toDefinition(modelCiktisi(["kutuphane", "uzay-ussu", "kutuphane", "Spor Salonu", "fen-laboratuvari", "koridor", "merdivenler", "sinif"]), okul);
+    if (!r.ok) throw new Error(r.error);
+    expect(r.notlar).toHaveLength(2);
+    expect(r.notlar[0]).toContain("uzay-ussu");
+    expect(r.notlar[1]).toContain("(kutuphane)");
+    expect(r.definition.duraklar[3].mekan.yer?.mekan_id).toBe("spor-salonu");
+    const temiz = toDefinition(modelCiktisi(["kutuphane", "bahce", "kantin", "spor-salonu", "fen-laboratuvari", "koridor", "merdivenler", "sinif"]), okul);
+    expect(temiz.ok && temiz.notlar).toEqual([]);
   });
 
   it("boş şablon mekân rotası değildir: okulda eski tarif (seçim bloğu, numaralı QR) ve rota alanları yok", () => {
@@ -205,6 +217,36 @@ describe("oynatıcı: döngüsel rota ve tarama", () => {
     expect(parseLeaderboardEntry({ ...temel, penaltySeconds: 30, konumCezaSaniye: -1 })).toBeNull();
   });
 
+  it("katılım açılışı: yalnız başlangıcı henüz seçilmemiş rota kaydı (başlangıç seçilince sonraki açılışlar katılım değil)", () => {
+    const def = rotaOyunu();
+    expect(katilimAcilisiMi(def, { yol: [], hedef: null })).toBe(true);
+    expect(katilimAcilisiMi(def, { yol: [], hedef: "d3" })).toBe(false);
+    expect(katilimAcilisiMi(def, { yol: ["d3"], hedef: null })).toBe(false);
+    const klasik = toDefinition(toModelOutput(makeDefinition(resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "macera", alan: "sinif" }), 8)), resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "macera", alan: "sinif" }));
+    expect(klasik.ok && katilimAcilisiMi(klasik.definition, { yol: [], hedef: null })).toBe(false);
+  });
+
+  it("aynı anda katılan takımlar farklı sıra alır (gecikmeli Redis, atomik sayaç)", async () => {
+    const redis = createLuaRedis();
+    // Her komut 1-15 ms gecikir: istekler iç içe geçer (eski HSETNX + HLEN yolunda aynı sıra çıkıyordu).
+    let tohum = 7;
+    const gecikme = () => ((tohum = (tohum * 1103515245 + 12345) % 2 ** 31) % 15) + 1;
+    const command: typeof redis.command = async (args) => {
+      await new Promise((r) => setTimeout(r, gecikme()));
+      return redis.command(args);
+    };
+    const store = createRedisGamesStore(command);
+    const kod = "ABC-123";
+    const now = Date.now();
+    await store.create({ code: kod, adminTokenHash: "x", createdAt: now, expiresAt: now + 3_600_000, stops: [] } as never, now);
+    const sonuc = await Promise.all(Array.from({ length: 8 }, (_, i) => joinGame(store, kod, `takim${i + 1}`, now)));
+    const siralar = sonuc.map((r) => (r.status === "joined" ? r.sira : null));
+    expect([...siralar].sort((a, b) => a! - b!)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    // 8 takım 8 duraklı rotada 8 farklı yerden başlar.
+    expect(new Set(siralar.map((s) => baslangicSec(rotaOyunu(), s))).size).toBe(8);
+    expect(await store.playerCount(kod)).toBe(8);
+  });
+
   it("katılım sırası sunucudan gelir (1, 2, …); alınmış takma ad sıra almaz", async () => {
     const store = createMemoryGamesStore();
     const kod = "ABC-123";
@@ -213,6 +255,8 @@ describe("oynatıcı: döngüsel rota ve tarama", () => {
     const b = await joinGame(store, kod, "bora");
     expect([a, b].map((r) => (r.status === "joined" ? r.sira : null))).toEqual([1, 2]);
     expect((await joinGame(store, kod, "ayse")).status).toBe("taken");
+    const c = await joinGame(store, kod, "cem");
+    expect(c.status === "joined" && c.sira).toBe(3);
   });
 
   it("varış ipucu ve ceza kaydını korur; sahne kaydı yeniden yüklenince ipucu ve yanlış taramalar kalır, bozuklar atılır", () => {

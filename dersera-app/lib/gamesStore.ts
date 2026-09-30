@@ -24,10 +24,13 @@ export interface GamesStore {
   addPlayer(code: string, nickname: string, tokenHash: string, now: number, expiresAt: number): Promise<boolean>;
   playerTokenHash(code: string, nickname: string): Promise<string | null>;
   playerCount(code: string): Promise<number>;
+  // Katılım sırası: her çağrıda atomik olarak bir artar (1, 2, …); aynı anda katılan takımlar farklı sıra alır.
+  siraAl(code: string, now: number, expiresAt: number): Promise<number>;
 }
 
 const gameKey = (code: string) => `dersera:game:${code}`;
 const playersKey = (code: string) => `dersera:game:${code}:players`;
+const siraKey = (code: string) => `dersera:game:${code}:sira`;
 
 function ttlMs(expiresAt: number, now: number): number {
   return Math.max(1000, expiresAt + GAME_RETENTION_MS - now);
@@ -36,11 +39,13 @@ function ttlMs(expiresAt: number, now: number): number {
 export function createMemoryGamesStore(): GamesStore {
   const games = new Map<string, { game: StoredGame; until: number }>();
   const players = new Map<string, Map<string, string>>();
+  const siralar = new Map<string, number>();
   const live = (code: string) => {
     const hit = games.get(code);
     if (hit && hit.until <= Date.now()) {
       games.delete(code);
       players.delete(code);
+      siralar.delete(code);
       return undefined;
     }
     return hit;
@@ -72,6 +77,11 @@ export function createMemoryGamesStore(): GamesStore {
     async playerCount(code) {
       return players.get(code)?.size ?? 0;
     },
+    async siraAl(code) {
+      const n = (siralar.get(code) ?? 0) + 1;
+      siralar.set(code, n);
+      return n;
+    },
   };
 }
 
@@ -99,6 +109,12 @@ export function createRedisGamesStore(command: RedisCommand): GamesStore {
     },
     async playerCount(code) {
       return Number(await command(["HLEN", playersKey(code)]));
+    },
+    async siraAl(code, now, expiresAt) {
+      // INCR atomiktir: eşzamanlı katılımların her biri ayrı değer alır (HSETNX ile HLEN arasındaki yarış yok).
+      const n = Number(await command(["INCR", siraKey(code)]));
+      await command(["PEXPIRE", siraKey(code), ttlMs(expiresAt, now)]);
+      return n;
     },
   };
 }

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { GameDefinitionSchema, type GameDefinition } from "@/lib/composer/definition";
 import type { ResolvedInput } from "@/lib/composer/input";
-import { konumYeri, mekanlariAta } from "@/lib/composer/mekanYerlesimi";
+import { konumYeri, mekanKimligi, mekanlariAta } from "@/lib/composer/mekanYerlesimi";
+import { mekanOf } from "@/data/mekanlar";
 
 // Modelin doldurduğu düz şema. Anthropic yapılandırılmış çıktıyı bir dilbilgisine derler; iç içe nesneler,
 // null (anyOf) ve enum'lar dilbilgisini büyütür ve "compiled grammar is too large" hatasına yol açar.
@@ -129,10 +130,16 @@ const KOD = /([A-ZÇĞİÖŞÜ]{1,5}(?:\.[A-ZÇĞİÖŞÜ]{1,5})*(?:\.\s?)?)?\d+
 export const hedefKodu = (s: string) => s.match(KOD)?.[0].replace(/\s+/g, "") ?? s.trim();
 
 // Okul macerası mekân rotasıdır: rota doğrusaldır (seçim sahnesi yok; oynatıcı döngüsel dolaştırır), her durak sırayla
-// bir QR'a bağlanır (qr-1, qr-2, …) ve modelin seçtiği mekânın konum bilmecelerinden birini alır.
-function rotayaCevir(out: ModelOutput): ModelOutput {
+// bir QR'a bağlanır (qr-1, qr-2, …) ve modelin seçtiği mekânın konum bilmecelerinden birini alır. Modelin mekânı listede
+// yoksa ya da tekrarlandıysa değiştirilir ve öğretmene not düşülür (hikâye başka mekânı anlatıyor olabilir).
+function rotayaCevir(out: ModelOutput): { out: ModelOutput; notlar: string[] } {
   const mekanlar = mekanlariAta(out.duraklar.map((d) => d.mekan_id));
-  return {
+  const notlar = out.duraklar.flatMap((d, i) =>
+    mekanKimligi(d.mekan_id) === mekanlar[i]
+      ? []
+      : [`${d.isim}: yapay zekânın seçtiği mekân (${d.mekan_id.trim() || "boş"}) listede yok ya da tekrarlandı; yerine ${mekanOf(mekanlar[i])?.ad ?? mekanlar[i]} atandı. Hikâyenin bu mekânla uyuştuğunu kontrol edin.`]
+  );
+  const donusmus: ModelOutput = {
     ...out,
     duraklar: out.duraklar.map((d, i) => ({
       ...d,
@@ -144,12 +151,17 @@ function rotayaCevir(out: ModelOutput): ModelOutput {
       varsayilan_sonraki_durak_id: out.duraklar[i + 1]?.id ?? "",
     })),
   };
+  return { out: donusmus, notlar };
 }
 
 // Düz çıktı → GameDefinition. meta modelden değil doğrulanmış girdiden gelir; mekân türü oyun alanından çıkar.
-export function toDefinition(ham: ModelOutput, input: ResolvedInput): { ok: true; definition: GameDefinition } | { ok: false; error: string } {
+// notlar: dönüşümde yapılan ve öğretmenin görmesi gereken değişiklikler (otomatik düzeltme uyarısı olur).
+export function toDefinition(
+  ham: ModelOutput,
+  input: ResolvedInput
+): { ok: true; definition: GameDefinition; notlar: string[] } | { ok: false; error: string } {
   const rota = input.alan === "okul";
-  const out = rota ? rotayaCevir(ham) : ham;
+  const { out, notlar } = rota ? rotayaCevir(ham) : { out: ham, notlar: [] };
   const candidate = {
     meta: {
       baslik: out.baslik,
@@ -202,5 +214,5 @@ export function toDefinition(ham: ModelOutput, input: ResolvedInput): { ok: true
     const issue = parsed.error.issues[0];
     return { ok: false, error: `${issue.path.join(".")}: ${issue.message}` };
   }
-  return { ok: true, definition: parsed.data };
+  return { ok: true, definition: parsed.data, notlar };
 }
