@@ -100,10 +100,10 @@ describe("öğretmen tarafı: koşul onayı, topluluk açma sınırı, kopya kay
   const ac = (id: string, c: string) => api.toplulukOyun.GET(cerezli(new Request(`http://localhost/api/topluluk/${id}`), c), api.idParams(id));
 
   it("kullanım koşulları onaylanmadan hesap açılmaz; onay sürümüyle kaydedilir", async () => {
-    const r = await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi: "ogretmen9", sifre: "gizli-sifre-1" }));
+    const r = await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi: "ogretmen9", sifre: "gizli-sifre-1", eposta: "ogretmen@okul.test" }));
     expect(r.status).toBe(422);
     expect((await r.json()).error).toMatch(/kullanım koşullarını onaylaman/);
-    expect((await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi: "ogretmen9", sifre: "gizli-sifre-1", kosulOnayi: "evet" }))).status).toBe(422);
+    expect((await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi: "ogretmen9", sifre: "gizli-sifre-1", kosulOnayi: "evet", eposta: "ogretmen@okul.test" }))).status).toBe(422);
     const c = await hesapAc(api, "ogretmen9");
     expect(c).toBeTruthy();
     const id = (await api.authStore.getAuthStore().idByAd("ogretmen9"))!;
@@ -115,7 +115,7 @@ describe("öğretmen tarafı: koşul onayı, topluluk açma sınırı, kopya kay
     const yaz = depo.kosulOnayiYaz.bind(depo);
     const hata = jest.spyOn(console, "error").mockImplementation(() => {});
     const bozuk = jest.spyOn(depo, "kosulOnayiYaz").mockRejectedValueOnce(new Error("anlık")).mockImplementation(yaz);
-    const kaydol = (ad: string) => api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi: ad, sifre: "gizli-sifre-1", kosulOnayi: true }));
+    const kaydol = (ad: string) => api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi: ad, sifre: "gizli-sifre-1", kosulOnayi: true, eposta: "ogretmen@okul.test" }));
     expect((await kaydol("ogretmen7")).status).toBe(201);
     expect(await depo.kosulOnayi((await api.authStore.getAuthStore().idByAd("ogretmen7"))!)).toMatchObject({ surum: KOSUL_SURUMU });
 

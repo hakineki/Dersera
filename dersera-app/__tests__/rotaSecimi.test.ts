@@ -165,7 +165,7 @@ describe("hazır bilmeceler ucu (düzenleyici)", () => {
 
   it("oturumsuz istek reddedilir; öğretmen bilinen mekânın 10 bilmecesini alır, bilinmeyen mekân 400", async () => {
     expect((await iste("kantin", null)).status).toBe(401);
-    const kayit = await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi: "ogretmen1", sifre: "gizli-sifre-1", kosulOnayi: true }));
+    const kayit = await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi: "ogretmen1", sifre: "gizli-sifre-1", kosulOnayi: true, eposta: "ogretmen@okul.test" }));
     const cerez = oturumCerezi(kayit);
     const res = await iste("kantin", cerez);
     expect(res.status).toBe(200);

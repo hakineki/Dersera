@@ -16,7 +16,7 @@ import OkulTab from "./OkulTab";
 import OgrenmeTakibiTab from "./OgrenmeTakibiTab";
 import OgretmenMenusu, { IKON_KUTUSU, type MenuBaglantisi } from "./OgretmenMenusu";
 import Ikon, { type IkonAdi } from "@/components/Ikon";
-import { cikisYap, epostaDurumuAl, epostaKaydet, epostaSil, eskiYerelGirisiTemizle, girisYap, hesabimiSil, kayitOl, kullaniciAdiDegistir, oturumBilgisi, sifirlamaIste, sifreDegistir, type EpostaDurumu, type HesapOzeti } from "@/lib/authClient";
+import { cikisYap, dogrulamaYenidenGonder, epostaDurumuAl, epostaKaydet, eskiYerelGirisiTemizle, girisYap, hesabimiSil, kayitOl, kullaniciAdiDegistir, oturumBilgisi, sifirlamaIste, sifreDegistir, type EpostaDurumu, type HesapOzeti } from "@/lib/authClient";
 import { eskiKutuphaneSayisi, eskiKutuphaneyiTasi } from "@/lib/libraryClient";
 import {
   clearPilotInfo,
@@ -49,6 +49,7 @@ function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: Hesa
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
   const [davet, setDavet] = useState("");
+  const [eposta, setEposta] = useState("");
   const [kosulOnayi, setKosulOnayi] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -61,7 +62,7 @@ function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: Hesa
       return;
     }
     setLoading(true);
-    const r = mod === "giris" ? await girisYap(username, password) : await kayitOl(username, password, davet, kosulOnayi);
+    const r = mod === "giris" ? await girisYap(username, password) : await kayitOl(username, password, davet, kosulOnayi, eposta.trim());
     setLoading(false);
     if ("error" in r) setError(r.error);
     else onLogin(r.hesap);
@@ -120,6 +121,23 @@ function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: Hesa
                 <input id="sifre2" type="password" value={password2} onChange={(e) => setPassword2(e.target.value)} autoComplete="new-password" className={alan} placeholder="••••••••" />
                 <p className="text-xs text-purple-300 mt-1">En az {SIFRE_MIN_ISTEMCI} karakter.</p>
               </div>
+              <div>
+                <label htmlFor="kayit-eposta" className="block text-sm text-purple-200 mb-1.5">E-posta</label>
+                <input
+                  id="kayit-eposta"
+                  type="email"
+                  value={eposta}
+                  onChange={(e) => setEposta(e.target.value)}
+                  autoComplete="email"
+                  required
+                  aria-describedby="kayit-eposta-aciklama"
+                  className={alan}
+                  placeholder="ayse@okul.k12.tr"
+                />
+                <p id="kayit-eposta-aciklama" className="text-xs text-purple-300 mt-1">
+                  Şifreni unutursan sıfırlama bağlantısı bu adrese gelir; doğrulama bağlantısı gönderilir. Başka bir amaçla kullanılmaz.
+                </p>
+              </div>
               {davetGerekli && (
                 <div>
                   <label htmlFor="davet" className="block text-sm text-purple-200 mb-1.5">Davet Kodu</label>
@@ -153,7 +171,7 @@ function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: Hesa
 
           <button
             type="submit"
-            disabled={loading || !username.trim() || !password || (mod === "kayit" && (!password2 || !kosulOnayi))}
+            disabled={loading || !username.trim() || !password || (mod === "kayit" && (!password2 || !eposta.trim() || !kosulOnayi))}
             className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:text-white/40 text-white font-semibold py-3 rounded-xl text-sm transition-colors"
           >
             {loading ? "Kontrol ediliyor..." : mod === "giris" ? "Giriş Yap" : "Hesap Oluştur"}
@@ -495,7 +513,19 @@ function Mesaj({ msg }: { msg: { type: "ok" | "err"; text: string } | null }) {
   );
 }
 
-function AyarlarTab({ hesap, onHesap, onCikis }: { hesap: HesapOzeti; onHesap: (h: HesapOzeti) => void; onCikis: () => void }) {
+function AyarlarTab({
+  hesap,
+  onHesap,
+  onCikis,
+  eposta,
+  onEposta,
+}: {
+  hesap: HesapOzeti;
+  onHesap: (h: HesapOzeti) => void;
+  onCikis: () => void;
+  eposta: EpostaDurumu | null | undefined;
+  onEposta: (e: EpostaDurumu | null) => void;
+}) {
   const [yeniAd, setYeniAd] = useState("");
   const [adSifre, setAdSifre] = useState("");
   const [adMsg, setAdMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -610,7 +640,7 @@ function AyarlarTab({ hesap, onHesap, onCikis }: { hesap: HesapOzeti; onHesap: (
       </div>
 
 
-      <EpostaAyari />
+      <EpostaAyari durum={eposta} onDurum={onEposta} />
 
       <div className="border-t border-gray-200 pt-6">
         <h3 className="font-semibold text-gray-700 mb-4">Kullanıcı Adını Değiştir</h3>
@@ -666,21 +696,13 @@ function AyarlarTab({ hesap, onHesap, onCikis }: { hesap: HesapOzeti; onHesap: (
   );
 }
 
-// İsteğe bağlı e-posta: yalnız doğrulandıktan sonra ve yalnız şifre sıfırlama bağlantısı için kullanılır.
-function EpostaAyari() {
-  const [durum, setDurum] = useState<EpostaDurumu | null | undefined>(undefined);
+// E-posta (zorunlu; eski hesaplar burada ekler): yalnız doğrulandıktan sonra ve yalnız şifre sıfırlama bağlantısı için
+// kullanılır. Kaldırılamaz, değiştirilir. Durum panelin üstündeki uyarıyla ortaktır.
+function EpostaAyari({ durum, onDurum }: { durum: EpostaDurumu | null | undefined; onDurum: (e: EpostaDurumu | null) => void }) {
   const [adres, setAdres] = useState("");
   const [sifre, setSifre] = useState("");
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [bekliyor, setBekliyor] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(async () => {
-      const r = await epostaDurumuAl();
-      setDurum("error" in r ? null : r.eposta);
-    });
-    return () => clearTimeout(t);
-  }, []);
 
   async function kaydet(e: React.FormEvent) {
     e.preventDefault();
@@ -690,27 +712,16 @@ function EpostaAyari() {
     setBekliyor(false);
     setSifre("");
     if ("error" in r) return setMsg({ type: "err", text: r.error });
-    setDurum(r.eposta);
+    onDurum(r.eposta);
     setAdres("");
     setMsg(r.eposta.dogrulandi ? { type: "ok", text: "Bu adres zaten doğrulanmış." } : { type: "ok", text: `${r.eposta.adres} adresine doğrulama bağlantısı gönderildi (24 saat geçerli).` });
   }
 
-  async function kaldir() {
-    setBekliyor(true);
-    setMsg(null);
-    const r = await epostaSil(sifre);
-    setBekliyor(false);
-    setSifre("");
-    if ("error" in r) return setMsg({ type: "err", text: r.error });
-    setDurum(null);
-    setMsg({ type: "ok", text: "E-posta kaldırıldı." });
-  }
-
   const girdi = "w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500";
   return (
-    <div className="border-t border-gray-200 pt-6">
-      <h3 className="font-semibold text-gray-700 mb-1">E-posta (isteğe bağlı)</h3>
-      <p className="text-xs text-gray-500 mb-4">Şifreni unutursan sıfırlama bağlantısı yalnız doğrulanmış bu adrese gönderilir. Başka bir amaçla kullanılmaz.</p>
+    <div id="eposta" className="border-t border-gray-200 pt-6 scroll-mt-24">
+      <h3 className="font-semibold text-gray-700 mb-1">E-posta</h3>
+      <p className="text-xs text-gray-500 mb-4">Şifreni unutursan sıfırlama bağlantısı yalnız doğrulanmış bu adrese gönderilir. Başka bir amaçla kullanılmaz. Kaldırılamaz; değiştirebilirsin.</p>
       {durum && (
         <p className="text-sm mb-3">
           <span className="font-medium break-all">{durum.adres}</span>{" "}
@@ -731,18 +742,65 @@ function EpostaAyari() {
           <input id="eposta-sifre" type="password" value={sifre} onChange={(e) => setSifre(e.target.value)} autoComplete="current-password" className={girdi} />
         </div>
         <Mesaj msg={msg} />
-        <div className="flex gap-2">
-          <button type="submit" disabled={bekliyor || !adres.trim() || !sifre} className="flex-1 bg-indigo-600 disabled:bg-indigo-300 text-white font-semibold py-2 rounded-lg text-sm hover:bg-indigo-700">
-            Doğrulama bağlantısı gönder
-          </button>
-          {durum && (
-            <button type="button" onClick={kaldir} disabled={bekliyor || !sifre} className="px-3 text-sm text-red-600 disabled:text-red-300 border border-red-200 rounded-lg">
-              Kaldır
-            </button>
-          )}
-        </div>
+        <button type="submit" disabled={bekliyor || !adres.trim() || !sifre} className="w-full bg-indigo-600 disabled:bg-indigo-300 text-white font-semibold py-2 rounded-lg text-sm hover:bg-indigo-700">
+          {durum ? "Adresi değiştir ve doğrulama bağlantısı gönder" : "E-postayı ekle ve doğrulama bağlantısı gönder"}
+        </button>
       </form>
     </div>
+  );
+}
+
+// Panelin üstünde kalıcı uyarı (her sekmede): e-posta yoksa eklemeye, doğrulanmamışsa gelen kutusuna yönlendirir. Şifre
+// kurtarma yalnız doğrulanmış e-postayla yapılabildiği için uyarı doğrulanana kadar kalır.
+function EpostaUyarisi({ durum, onAyarlar }: { durum: EpostaDurumu | null | undefined; onAyarlar: () => void }) {
+  const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [bekliyor, setBekliyor] = useState(false);
+  if (durum === undefined || durum?.dogrulandi) return null;
+
+  async function yenidenGonder() {
+    setBekliyor(true);
+    setMsg(null);
+    const r = await dogrulamaYenidenGonder();
+    setBekliyor(false);
+    setMsg("error" in r ? { type: "err", text: r.error } : { type: "ok", text: `${r.adres} adresine doğrulama bağlantısı yeniden gönderildi (24 saat geçerli).` });
+  }
+
+  const dugme = "text-sm font-semibold rounded-lg px-3 py-1.5 border border-amber-300 bg-white text-amber-900 hover:bg-amber-100 disabled:opacity-60";
+  return (
+    <section aria-label="E-posta uyarısı" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 print:hidden">
+      {durum === null ? (
+        <>
+          <p className="font-semibold">Hesabına e-posta ekle</p>
+          <p className="mt-0.5">E-posta artık her hesapta zorunlu: şifreni unutursan sıfırlama bağlantısı bu adrese gelir.</p>
+          <div className="mt-2">
+            <button type="button" onClick={onAyarlar} className={dugme}>
+              E-posta ekle
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="font-semibold">E-postanı doğrula</p>
+          <p className="mt-0.5">
+            <span className="font-medium break-all">{durum.adres}</span> adresine gönderilen bağlantıyı aç (gelmediyse istenmeyen e-posta klasörüne bak).
+            Doğrulanmadan şifre sıfırlama bağlantısı gönderilemez.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button type="button" onClick={yenidenGonder} disabled={bekliyor} className={dugme}>
+              {bekliyor ? "Gönderiliyor…" : "Bağlantıyı yeniden gönder"}
+            </button>
+            <button type="button" onClick={onAyarlar} className={dugme}>
+              Adresi değiştir
+            </button>
+          </div>
+        </>
+      )}
+      {msg && (
+        <p role={msg.type === "err" ? "alert" : "status"} className={`mt-2 text-sm ${msg.type === "err" ? "text-red-700" : "text-green-800"}`}>
+          {msg.text}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -819,6 +877,8 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   const [tasimaMesaji, setTasimaMesaji] = useState("");
   const [ready, setReady] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>(baslangicSekmesi);
+  // Öğretmenin e-posta durumu (undefined: henüz okunmadı). Üst uyarı ve Ayarlar'daki e-posta bölümü paylaşır.
+  const [eposta, setEposta] = useState<EpostaDurumu | null | undefined>(undefined);
   const [selectedAylar, setSelectedAylar] = useState<string[]>(["eylul"]);
   const [teacherGame, setTeacherGame] = useState<TeacherGame | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -841,6 +901,22 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
 
   // Hesap öncesinde bu tarayıcıda kaydedilmiş kütüphane varsa öğretmene sorulur (ortak bilgisayarda başkasına ait olabilir).
   const hesapAdi = hesap?.kullaniciAdi ?? null;
+
+  // E-posta durumu hesap değişince okunur; önceki hesabın adresi bir an bile görünmesin diye önce sıfırlanır. Okunamazsa
+  // (bağlantı hatası) uyarı gösterilmez.
+  useEffect(() => {
+    let iptal = false;
+    const t = setTimeout(async () => {
+      setEposta(undefined);
+      if (!hesapAdi) return;
+      const r = await epostaDurumuAl();
+      if (!iptal) setEposta("error" in r ? undefined : r.eposta);
+    });
+    return () => {
+      iptal = true;
+      clearTimeout(t);
+    };
+  }, [hesapAdi]);
   useEffect(() => {
     if (!hesapAdi) return;
     let iptal = false;
@@ -1044,6 +1120,13 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
 
       {/* İçerik — telefonda alt çubuğun altında kalmaması için alt boşluk */}
       <div className="max-w-4xl mx-auto px-4 pt-6 pb-24 sm:pb-6 print:px-0">
+        <EpostaUyarisi
+          durum={eposta}
+          onAyarlar={() => {
+            setActiveTab("ayarlar");
+            setTimeout(() => document.getElementById("eposta")?.scrollIntoView({ behavior: "smooth" }), 50);
+          }}
+        />
         {menuSekmesi && (
           <h2 className="sm:hidden flex items-center gap-2 text-lg font-bold text-gray-900 mb-4">
             <span className={`${IKON_KUTUSU} bg-indigo-50 text-indigo-700`}>
@@ -1120,7 +1203,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
             </div>
           ))}
         {activeTab === "ayarlar" && (
-          <AyarlarTab hesap={hesap} onHesap={setHesap} onCikis={cikis} />
+          <AyarlarTab hesap={hesap} onHesap={setHesap} onCikis={cikis} eposta={eposta} onEposta={setEposta} />
         )}
       </div>
 

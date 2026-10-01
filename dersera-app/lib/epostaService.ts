@@ -6,8 +6,8 @@ import type { Eposta } from "@/lib/eposta";
 import type { EpostaStore } from "@/lib/epostaStore";
 import { hashToken } from "@/lib/gamesService";
 
-// Öğretmenin isteğe bağlı e-postası ve şifre sıfırlama. E-posta yalnız doğrulandıktan sonra ve yalnız şifre sıfırlama
-// bağlantısı göndermek için kullanılır. Bağlantılar tek kullanımlıktır; e-posta tarayıcıları bağlantıyı önceden açsa da
+// Öğretmenin e-postası (kayıtta zorunlu; eski hesaplar panelden ekler) ve şifre sıfırlama. E-posta yalnız doğrulandıktan
+// sonra ve yalnız şifre sıfırlama bağlantısı göndermek için kullanılır. Bağlantılar tek kullanımlıktır; e-posta tarayıcıları bağlantıyı önceden açsa da
 // tüketilmesin diye bağlantı yalnız sayfayı açar, işlem sayfadaki düğmeyle (POST) yapılır. Belirteç bağlantının #
 // kısmında taşınır (sunucu kayıtlarına düşmez).
 
@@ -48,16 +48,11 @@ export async function epostaDurumu(d: Pick<EpostaDeps, "eposta">, hesap: Hesap) 
 const hesapEpostaSiniri = (hesapId: string) => checkLimit(`dersera:eposta-gonderim:${hesapId}`, SAAT_MS, HESAP_SAATLIK_EPOSTA);
 const hesapSifirlamaSiniri = (hesapId: string) => checkLimit(`dersera:sifirlama-gonderim:${hesapId}`, SAAT_MS, HESAP_SAATLIK_SIFIRLAMA);
 
-// E-posta ekle ya da değiştir (şifreyle): adres doğrulanmamış yazılır, doğrulama bağlantısı gönderilir. Aynı adres
-// tekrar girilirse doğrulama bağlantısı yeniden gönderilir.
-export async function epostaEkle(d: EpostaDeps, hesap: Hesap, adresGirdi: unknown, sifre: unknown, site: string, now = Date.now()): Promise<AuthSonucu<{ adres: string; dogrulandi: boolean }>> {
-  if (typeof sifre !== "string" || !(await sifreDogru(sifre, hesap.sifreOzeti))) return hata(403, "Şifre hatalı.");
-  const adres = epostaNormal(adresGirdi);
-  if (!adres) return hata(422, "Geçerli bir e-posta adresi yaz.");
-  const su = await d.eposta.oku(hesap.id);
-  if (su?.dogrulandi && su.adres === adres) return { ok: true, value: { adres, dogrulandi: true } };
-  if (!(await hesapEpostaSiniri(hesap.id))) return hata(429, "Çok fazla e-posta istendi. Bir saat sonra tekrar dene.");
-  await d.eposta.yaz(hesap.id, { adres, dogrulandi: false, zaman: now }, su?.dogrulandi ? adresOzeti(su.adres) : null);
+export const EPOSTA_ISTENIR = "Geçerli bir e-posta adresi yaz. Şifreni unutursan sıfırlama bağlantısı bu adrese gelir.";
+const COK_EPOSTA = "Çok fazla e-posta istendi. Bir saat sonra tekrar dene.";
+
+// Doğrulama bağlantısı (24 saat, tek kullanımlık) adrese gönderilir.
+async function dogrulamaBaglantisiGonder(d: EpostaDeps, hesap: Hesap, adres: string, site: string): Promise<void> {
   const belirtec = yeniBelirtec();
   await d.eposta.belirtecYaz(await hashToken(belirtec), { tur: "dogrulama", hesapId: hesap.id, adres }, DOGRULAMA_SURESI_MS);
   await d.gonder({
@@ -65,14 +60,36 @@ export async function epostaEkle(d: EpostaDeps, hesap: Hesap, adresGirdi: unknow
     konu: "Dersera: e-posta adresini doğrula",
     metin: `Merhaba ${hesap.kullaniciAdi},\n\nDersera hesabına bu e-posta adresi eklendi. Doğrulamak için bağlantıyı aç ve sayfadaki düğmeye bas (24 saat geçerli):\n\n${site}/eposta-dogrula#t=${belirtec}\n\nBu isteği sen yapmadıysan bu e-postayı yok sayabilirsin.`,
   });
+}
+
+// E-posta ekle ya da değiştir (şifreyle): adres doğrulanmamış yazılır, doğrulama bağlantısı gönderilir. Aynı adres
+// tekrar girilirse doğrulama bağlantısı yeniden gönderilir. E-posta zorunlu olduğu için kaldırılamaz; değiştirilir.
+export async function epostaEkle(d: EpostaDeps, hesap: Hesap, adresGirdi: unknown, sifre: unknown, site: string, now = Date.now()): Promise<AuthSonucu<{ adres: string; dogrulandi: boolean }>> {
+  if (typeof sifre !== "string" || !(await sifreDogru(sifre, hesap.sifreOzeti))) return hata(403, "Şifre hatalı.");
+  const adres = epostaNormal(adresGirdi);
+  if (!adres) return hata(422, EPOSTA_ISTENIR);
+  const su = await d.eposta.oku(hesap.id);
+  if (su?.dogrulandi && su.adres === adres) return { ok: true, value: { adres, dogrulandi: true } };
+  if (!(await hesapEpostaSiniri(hesap.id))) return hata(429, COK_EPOSTA);
+  await d.eposta.yaz(hesap.id, { adres, dogrulandi: false, zaman: now }, su?.dogrulandi ? adresOzeti(su.adres) : null);
+  await dogrulamaBaglantisiGonder(d, hesap, adres, site);
   return { ok: true, value: { adres, dogrulandi: false } };
 }
 
-export async function epostaKaldir(d: Pick<EpostaDeps, "eposta">, hesap: Hesap, sifre: unknown): Promise<AuthSonucu<null>> {
-  if (typeof sifre !== "string" || !(await sifreDogru(sifre, hesap.sifreOzeti))) return hata(403, "Şifre hatalı.");
+// Kayıtta verilen e-posta (adres epostaNormal'dan geçmiş): hesap bu istekte açıldı, adres doğrulanmamış yazılır.
+// Doğrulama bağlantısı ayrıca gönderilir (dogrulamaYenidenGonder); gönderilemese de adres kalır, öğretmen panelden yeniden ister.
+export async function kayitEpostasiYaz(d: Pick<EpostaDeps, "eposta">, hesap: Hesap, adres: string, now = Date.now()): Promise<void> {
+  await d.eposta.yaz(hesap.id, { adres, dogrulandi: false, zaman: now }, null);
+}
+
+// Doğrulanmamış adrese doğrulama bağlantısını (yeniden) gönderir; şifre istemez (oturum yeter, adres değişmez).
+export async function dogrulamaYenidenGonder(d: EpostaDeps, hesap: Hesap, site: string): Promise<AuthSonucu<{ adres: string }>> {
   const su = await d.eposta.oku(hesap.id);
-  if (su) await d.eposta.kaldir(hesap.id, su.dogrulandi ? adresOzeti(su.adres) : null);
-  return { ok: true, value: null };
+  if (!su) return hata(404, "Hesabında e-posta yok. Önce e-posta ekle.");
+  if (su.dogrulandi) return hata(409, "E-postan zaten doğrulanmış.");
+  if (!(await hesapEpostaSiniri(hesap.id))) return hata(429, COK_EPOSTA);
+  await dogrulamaBaglantisiGonder(d, hesap, su.adres, site);
+  return { ok: true, value: { adres: su.adres } };
 }
 
 // Doğrulama bağlantısı: oturum gerekmez (başka cihazda açılabilir); belirteç tek kullanımlıktır.

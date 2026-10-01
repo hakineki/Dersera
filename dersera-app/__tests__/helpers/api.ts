@@ -65,7 +65,7 @@ export async function buildApi() {
     ogretmenSil: typeof import("@/app/api/yonetim/ogretmenler/[id]/sil/route");
     yonetimIslemKaydi: typeof import("@/lib/yonetimIslemKaydi");
     eposta: typeof import("@/app/api/auth/eposta/route");
-    epostaKaldir: typeof import("@/app/api/auth/eposta/kaldir/route");
+    epostaYenidenGonder: typeof import("@/app/api/auth/eposta/yeniden-gonder/route");
     epostaDogrula: typeof import("@/app/api/auth/eposta/dogrula/route");
     sifirlamaIste: typeof import("@/app/api/auth/sifre-sifirlama/iste/route");
     sifreSifirla: typeof import("@/app/api/auth/sifre-sifirlama/route");
@@ -157,7 +157,7 @@ export async function buildApi() {
       ogretmenSil: await import("@/app/api/yonetim/ogretmenler/[id]/sil/route"),
       yonetimIslemKaydi: await import("@/lib/yonetimIslemKaydi"),
       eposta: await import("@/app/api/auth/eposta/route"),
-      epostaKaldir: await import("@/app/api/auth/eposta/kaldir/route"),
+      epostaYenidenGonder: await import("@/app/api/auth/eposta/yeniden-gonder/route"),
       epostaDogrula: await import("@/app/api/auth/eposta/dogrula/route"),
       sifirlamaIste: await import("@/app/api/auth/sifre-sifirlama/iste/route"),
       sifreSifirla: await import("@/app/api/auth/sifre-sifirlama/route"),
@@ -224,9 +224,12 @@ export function cerezli(req: Request, cerez: string | null): Request {
   return req;
 }
 
+// Kayıtta zorunlu e-posta (test adresi; doğrulanmamış yazılır).
+export const testEpostasi = (kullaniciAdi: string) => `${kullaniciAdi.replace(/[^a-z0-9._-]/gi, "") || "ogretmen"}@okul.test`;
+
 // Yeni hesap açar ve oturum çerezini döndürür.
 export async function hesapAc(api: Awaited<ReturnType<typeof buildApi>>, kullaniciAdi: string, sifre = "gizli-sifre-1"): Promise<string> {
-  const res = await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi, sifre, kosulOnayi: true }));
+  const res = await api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi, sifre, kosulOnayi: true, eposta: testEpostasi(kullaniciAdi) }));
   if (res.status !== 201) throw new Error(`hesap açılamadı: ${res.status}`);
   return oturumCerezi(res)!;
 }
