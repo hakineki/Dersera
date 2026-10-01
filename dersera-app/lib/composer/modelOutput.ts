@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { GameDefinitionSchema, type GameDefinition, type KonumYeri } from "@/lib/composer/definition";
 import type { ResolvedInput, RotaSecimi } from "@/lib/composer/input";
-import { cevapParcalari, mekanKimligi, rotaYerleri, uyarlamaUygula, type KonumUyarlamasi } from "@/lib/composer/mekanYerlesimi";
+import { cevapParcalari, mekanKimligi, ogretmenNoktasiMi, rotaYerleri, uyarlamaUygula, type KonumUyarlamasi } from "@/lib/composer/mekanYerlesimi";
 import { mekanOf } from "@/data/mekanlar";
 import { katla } from "@/lib/composer/cocukGuvenligi";
 import { yasProfiliOf } from "@/lib/yasProfili";
@@ -60,7 +60,7 @@ export const ModelOutputSchema = z.object({
 
 export type DurakCiktisi = z.infer<typeof DurakCiktisiSchema>;
 // Birleşik çıktıda mekân rotası durağı, rehberin sınıf düzeyine uyarladığı konum bilmecesini de taşır (görev doldurmada
-// ayrı alanlar olarak yazılır; API şemalarına girmez). Yoksa bankadaki metin kullanılır.
+// ayrı alanlar olarak yazılır; API şemalarına girmez). Yoksa bankadaki metin (öğretmen noktasında genel metin) kullanılır.
 export type ModelOutput = Omit<z.infer<typeof ModelOutputSchema>, "duraklar"> & {
   duraklar: (DurakCiktisi & { konum?: KonumUyarlamasi })[];
 };
@@ -187,7 +187,10 @@ export function toDefinition(
   const yerOf = (i: number): KonumYeri => {
     const d = out.duraklar[i];
     const { yer, neden } = uyarlamaUygula(yerler[i], d.konum, profil, cevapParcalari(d.dogru_cevap, d.destek_dogru_cevap));
-    if (neden) console.warn(`[compose] ${d.id} konum bilmecesi uyarlaması kullanılmadı (${neden}); bankadaki metin kaldı`);
+    if (neden) {
+      const kalan = ogretmenNoktasiMi(yerler[i]) ? "öğretmen noktası için genel metin" : "bankadaki metin";
+      console.warn(`[compose] ${d.id} konum bilmecesi uyarlaması kullanılmadı (${neden}); ${kalan} kaldı`);
+    }
     return yer;
   };
   const candidate = {

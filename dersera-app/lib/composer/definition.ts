@@ -49,7 +49,8 @@ export const GorevSchema = z.object({
 });
 
 // Mekân rotası (okul macerası): durağın QR kodunun okulda yapıştırıldığı yer ve oraya götüren konum bilmecesi. Bilmece
-// hazır bankadan gelir (data/konumBilmeceleri.ts); oyuncu bir önceki görevi bitirince bu bilmeceyle bu durağı arar.
+// hazır bankadan gelir (data/konumBilmeceleri.ts) ya da öğretmenin yazdığı noktaya göre rehber yazar; oyuncu bir önceki
+// görevi bitirince bu bilmeceyle bu durağı arar.
 export const KonumYeriSchema = z.object({
   mekan_id: z.string(),
   mekan_adi: z.string(),

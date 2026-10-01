@@ -61,6 +61,12 @@ export const ComposeInputSchema = z
               .max(MEKAN_SINIRLARI.adEnCok)
               .transform((s) => gorunmezleriAt(s).replace(/\s+/g, " ").trim())
               .optional(),
+            // QR'ın yapıştırılacağı nokta (öğretmenin tarifi); varsa rehber bilmeceyi bu noktaya göre yazar.
+            nokta: z
+              .string()
+              .max(MEKAN_SINIRLARI.noktaEnCok)
+              .transform((s) => gorunmezleriAt(s).replace(/\s+/g, " ").trim())
+              .optional(),
           })
           .strict()
           .nullable()
@@ -71,7 +77,7 @@ export const ComposeInputSchema = z
   .strict();
 
 export type ComposeInput = z.infer<typeof ComposeInputSchema>;
-export type RotaSecimi = { mekan_id: string; ad?: string };
+export type RotaSecimi = { mekan_id: string; ad?: string; nokta?: string };
 
 export interface SeciliKonu {
   ders: ProgramDersi;
@@ -154,5 +160,7 @@ function rotaSecimiOf(secim: ComposeInput["rota_secimi"], g: Pick<ComposeInput, 
   const idler = secim.flatMap((s) => (s ? [s.mekan_id] : []));
   if (g.alan !== "okul" || secim.length > buildRecipe(g.sure, g.deneyim, "okul").anaGorev.max) return null;
   if (idler.some((id) => !mekanOf(id)) || new Set(idler).size !== idler.length) return null;
-  return secim.map((s) => s && { mekan_id: s.mekan_id, ...(s.ad && s.ad !== mekanOf(s.mekan_id)!.ad ? { ad: s.ad } : {}) });
+  return secim.map(
+    (s) => s && { mekan_id: s.mekan_id, ...(s.ad && s.ad !== mekanOf(s.mekan_id)!.ad ? { ad: s.ad } : {}), ...(s.nokta ? { nokta: s.nokta } : {}) }
+  );
 }
