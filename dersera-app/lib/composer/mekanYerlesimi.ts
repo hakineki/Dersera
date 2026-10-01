@@ -58,10 +58,27 @@ export function rotaYerleri(baslik: string, duraklar: { id: string; mekan_id: st
     secim.map((s) => s?.mekan_id ?? null)
   );
   return duraklar.map((d, i) => {
+    const s = secim[i];
+    if (s?.nokta) return ogretmenNoktasiYeri(mekanlar[i], s.ad ?? mekanOf(mekanlar[i])!.ad, s.nokta);
     const yer = konumYeri(mekanlar[i], `${baslik}:${d.id}`);
-    const ad = secim[i]?.ad;
-    return ad ? { ...yer, mekan_adi: ad } : yer;
+    return s?.ad ? { ...yer, mekan_adi: s.ad } : yer;
   });
+}
+
+// Öğretmenin yazdığı nokta: bankadan bilmece seçilmez. Son ipucu öğretmenin metnini aynen söyler (takım QR'ı her durumda
+// bulur); bilmece ve 1. ipucunu rehber görev doldurmada bu noktaya göre yazar, yazamazsa (denetimden geçmezse) aşağıdaki
+// genel metin kalır.
+export const ogretmenNoktasiIpucu = (nokta: string) => `QR'ı burada ara: ${nokta}`;
+export const ogretmenNoktasiMi = (y: KonumYeri): boolean => y.ipucu_2 === ogretmenNoktasiIpucu(y.nokta);
+export function ogretmenNoktasiYeri(mekanId: string, mekanAdi: string, nokta: string): KonumYeri {
+  return {
+    mekan_id: mekanId,
+    mekan_adi: mekanAdi,
+    nokta,
+    bilmece: "Bu mekânda öğretmeninin seçtiği bir noktadayım. Etrafına dikkatle bak; gözden kaçan ayrıntılarda saklanırım.",
+    ipucu_1: "Mekânda yavaşça dolaş; masalara, raflara, pencere kenarlarına ve duvarlara yakından bak.",
+    ipucu_2: ogretmenNoktasiIpucu(nokta),
+  };
 }
 
 // Rehberin sınıf düzeyine ve hikâyeye uyarladığı bilmece ve 1. ipucu. 2. ipucu bankadaki gibi kalır: noktayı adıyla

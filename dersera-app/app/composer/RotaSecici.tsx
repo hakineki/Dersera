@@ -8,7 +8,9 @@ export type RotaSatiri = RotaSecimi | null;
 
 // Gönderilecek rota seçimi: durak sayısı kadar satır, boş ad atılır; hiç mekân seçilmediyse undefined (hepsi rehberde).
 export function rotaSecimiGovdesi(deger: RotaSatiri[], durakSayisi: number): RotaSatiri[] | undefined {
-  const satirlar = Array.from({ length: durakSayisi }, (_, i) => deger[i] ?? null).map((s) => s && { mekan_id: s.mekan_id, ...(s.ad?.trim() ? { ad: s.ad.trim() } : {}) });
+  const satirlar = Array.from({ length: durakSayisi }, (_, i) => deger[i] ?? null).map(
+    (s) => s && { mekan_id: s.mekan_id, ...(s.ad?.trim() ? { ad: s.ad.trim() } : {}), ...(s.nokta?.trim() ? { nokta: s.nokta.trim() } : {}) }
+  );
   return satirlar.some(Boolean) ? satirlar : undefined;
 }
 
@@ -23,7 +25,8 @@ export default function RotaSecici({ durakSayisi, deger, onChange }: { durakSayi
       <legend className="text-sm font-semibold text-gray-700 mb-2">Rota: durakların okuldaki yeri</legend>
       <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
         <p className="text-xs text-gray-500 flex-1 min-w-[12rem]">
-          Her durağın okuldaki yerini seç ya da rehbere bırak. Takımlar farklı duraklardan başlar ve rotayı sırayla dolaşır.
+          Her durağın okuldaki yerini seç ya da rehbere bırak. İstersen QR&apos;ı yapıştıracağın noktayı da yaz: rehber bilmeceyi o noktaya göre kurar,
+          son ipucu yazdığın noktayı söyler. Takımlar farklı duraklardan başlar ve rotayı sırayla dolaşır.
         </p>
         <button
           type="button"
@@ -60,7 +63,17 @@ export default function RotaSecici({ durakSayisi, deger, onChange }: { durakSayi
                   maxLength={MEKAN_SINIRLARI.adEnCok}
                   value={s?.ad ?? m.ad}
                   placeholder={m.ayrintiOrnegi ?? m.ad}
-                  onChange={(e) => yaz(i, { mekan_id: m.id, ad: e.target.value })}
+                  onChange={(e) => yaz(i, { ...s, mekan_id: m.id, ad: e.target.value })}
+                />
+              )}
+              {m && (
+                <input
+                  aria-label={`${i + 1}. durağın noktası (isteğe bağlı)`}
+                  className="basis-full ml-8 min-w-0 border border-gray-300 rounded-xl px-3 py-2 text-sm"
+                  maxLength={MEKAN_SINIRLARI.noktaEnCok}
+                  value={s?.nokta ?? ""}
+                  placeholder="Nokta (boşsa rehber seçer), ör. pencere kenarındaki masanın üstü"
+                  onChange={(e) => yaz(i, { ...s, mekan_id: m.id, nokta: e.target.value })}
                 />
               )}
             </li>

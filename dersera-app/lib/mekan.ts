@@ -27,7 +27,8 @@ export const MEKAN_SINIRLARI = {
   enAzBilmece: 10,
   // Öğretmenin mekâna okulda verdiği ad (ör. "10-A sınıfı").
   adEnCok: 40,
-  noktaEnCok: 60,
+  // Öğretmen noktayı kendisi tarif edebilir ("pencere kenarındaki masanın üstündeki mikroskop").
+  noktaEnCok: 100,
   bilmeceEnCok: 320,
   ipucuEnCok: 180,
 } as const;

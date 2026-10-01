@@ -2,7 +2,9 @@ import { getUniteler } from "@/data/mufredat/programlar";
 import { mekanBilmeceleri } from "@/data/konumBilmeceleri";
 import { MEKANLAR } from "@/data/mekanlar";
 import { parseComposeInput } from "@/lib/composer/input";
-import { mekanlariAta, rotaYerleri } from "@/lib/composer/mekanYerlesimi";
+import { mekanlariAta, ogretmenNoktasiMi, rotaYerleri } from "@/lib/composer/mekanYerlesimi";
+import { validationContext } from "@/lib/composer/context";
+import { validateGame } from "@/lib/composer/validator";
 import { toDefinition } from "@/lib/composer/modelOutput";
 import { buildGuncellemePrompt } from "@/lib/composer/guncelleme";
 import { rotaSecimiGovdesi } from "@/app/composer/RotaSecici";
@@ -11,7 +13,7 @@ import { buildRecipe } from "@/lib/composer/recipe";
 import { composeAndValidate } from "@/lib/composer/service";
 import { clearRedisEnv } from "./helpers/fakeRedis";
 import { buildApi, cerezli, jsonRequest, oturumCerezi } from "./helpers/api";
-import { fakeClient, makeDefinition, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
+import { fakeClient, makeDefinition, ornekUyarlama, promptOf, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 
 // Öğretmenin rota seçimi (mekân rotası 3. aşama): oluşturma formunda durakların mekânı ve okuldaki adı; düzenleyicide
 // mekânın hazır bilmecelerinden seçim (oturumlu uç).
@@ -176,5 +178,87 @@ describe("hazır bilmeceler ucu (düzenleyici)", () => {
       (({ id, nokta, bilmece, ipucu1, ipucu2 }) => ({ id, nokta, bilmece, ipucu1, ipucu2 }))(mekanBilmeceleri("kantin")[0])
     );
     expect((await iste("uzay-ussu", cerez)).status).toBe(400);
+  });
+});
+
+describe("öğretmenin yazdığı nokta", () => {
+  const NOKTA = "pencere kenarındaki masanın üstündeki mikroskop";
+  const konu = getUniteler(10, "fizik")[0];
+  const okulGovde = { sinif: 10, dersler: [{ ders: "fizik", konuId: konu.id }], sure: 40, deneyim: "macera", alan: "okul" };
+  const girdi = () => ({
+    ...resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "macera", alan: "okul" }),
+    rota_secimi: [{ mekan_id: "fen-laboratuvari", nokta: NOKTA }],
+  });
+  const ornekCikti = (g: ReturnType<typeof girdi>) => {
+    const o = toModelOutput(makeDefinition(g, 8));
+    o.duraklar.forEach((d, i) => (d.mekan_id = MEKANLAR[i].id));
+    return o;
+  };
+  beforeEach(() => {
+    jest.spyOn(console, "info").mockImplementation(() => {});
+    jest.spyOn(console, "warn").mockImplementation(() => {});
+  });
+  afterEach(() => jest.restoreAllMocks());
+
+  it("girdi: nokta görünmez karakter ve fazla boşluktan arınır; boşsa atılır; 100 karakteri aşarsa reddedilir", () => {
+    const r = parseComposeInput({ ...okulGovde, rota_secimi: [{ mekan_id: "fen-laboratuvari", nokta: "  pencere \u200b kenarındaki   masanın üstü " }, { mekan_id: "kantin", nokta: "   " }] });
+    if (!r.ok) throw new Error(r.error);
+    expect(r.input.rota_secimi).toEqual([{ mekan_id: "fen-laboratuvari", nokta: "pencere kenarındaki masanın üstü" }, { mekan_id: "kantin" }]);
+    expect(parseComposeInput({ ...okulGovde, rota_secimi: [{ mekan_id: "kantin", nokta: "x".repeat(100) }] }).ok).toBe(true);
+    expect(parseComposeInput({ ...okulGovde, rota_secimi: [{ mekan_id: "kantin", nokta: "x".repeat(101) }] }).ok).toBe(false);
+  });
+
+  it("yer: bankadan bilmece seçilmez; nokta ve son ipucu öğretmenin metni, bilmece genel yedek; adı yoksa listedeki ad", () => {
+    const yerler = rotaYerleri("Oyun", [{ id: "d1", mekan_id: "kantin" }, { id: "d2", mekan_id: "kantin" }], [{ mekan_id: "fen-laboratuvari", ad: "Kimya lab", nokta: NOKTA }, null]);
+    expect(yerler[0]).toMatchObject({ mekan_id: "fen-laboratuvari", mekan_adi: "Kimya lab", nokta: NOKTA, ipucu_2: `QR'ı burada ara: ${NOKTA}` });
+    expect(mekanBilmeceleri("fen-laboratuvari").some((b) => b.bilmece === yerler[0].bilmece || b.ipucu1 === yerler[0].ipucu_1)).toBe(false);
+    expect(yerler[0].bilmece).not.toContain("mikroskop");
+    expect([ogretmenNoktasiMi(yerler[0]), ogretmenNoktasiMi(yerler[1])]).toEqual([true, false]);
+    expect(rotaYerleri("Oyun", [{ id: "d1", mekan_id: "" }], [{ mekan_id: "bahce", nokta: "büyük çınarın gövdesi" }])[0].mekan_adi).toBe("Bahçe");
+  });
+
+  it("uçtan uca: istem bu durak için yeni bilmece ister (banka metni yok); tanımda rehberin bilmecesi, öğretmenin noktası ve son ipucu", async () => {
+    const g = girdi();
+    const ornek = ornekCikti(g);
+    const { client, calls } = fakeClient(ornek);
+    const { definition, validation } = await composeAndValidate(g, client);
+    const gorev = calls.map((c) => promptOf(c.body)).find((p) => /döndür: d1, d2, d3\n/.test(p))!;
+    expect(gorev).toContain(`d1 · Fen laboratuvarı · öğretmenin seçtiği nokta: ${NOKTA} · bankada bilmece yok`);
+    expect(gorev).toContain("Öğretmenin noktayı kendisi tarif ettiği durakta bankada metin yoktur");
+    expect(gorev).toMatch(/d2 · .* · nokta: .* · bilmece: /);
+    expect(definition.duraklar[0].mekan.yer).toEqual({
+      mekan_id: "fen-laboratuvari",
+      mekan_adi: "Fen laboratuvarı",
+      nokta: NOKTA,
+      bilmece: ornekUyarlama(definition.duraklar[0].isim).bilmece,
+      ipucu_1: ornekUyarlama(definition.duraklar[0].isim).ipucu_1,
+      ipucu_2: `QR'ı burada ara: ${NOKTA}`,
+    });
+    expect(validation.hatalar.filter((h) => h.kod.startsWith("rota-"))).toEqual([]);
+  });
+
+  it("rehberin bilmecesi denetimden geçmezse genel yedek kalır; oyun yine geçerli, son ipucu noktayı söyler", () => {
+    const g = girdi();
+    const o = ornekCikti(g);
+    o.duraklar[0].konum = { bilmece: "", ipucu_1: "" };
+    const r = toDefinition(o, g);
+    if (!r.ok) throw new Error(r.error);
+    const y = r.definition.duraklar[0].mekan.yer!;
+    expect([ogretmenNoktasiMi(y), y.bilmece]).toEqual([true, "Bu mekânda öğretmeninin seçtiği bir noktadayım. Etrafına dikkatle bak; gözden kaçan ayrıntılarda saklanırım."]);
+    const ctx = validationContext({ ...g, rota: true });
+    expect(validateGame(r.definition, ctx).hatalar.filter((h) => h.kod.startsWith("rota-"))).toEqual([]);
+    // Nokta 100 karaktere kadar geçerli, fazlası doğrulamada "çok uzun".
+    y.nokta = "x".repeat(100);
+    y.ipucu_2 = `QR'ı burada ara: ${y.nokta}`;
+    expect(validateGame(r.definition, ctx).hatalar.map((h) => h.kod)).not.toContain("rota-yer-uzun");
+    y.nokta = "x".repeat(101);
+    expect(validateGame(r.definition, ctx).hatalar.map((h) => h.kod)).toContain("rota-yer-uzun");
+  });
+
+  it("form gövdesi noktayı taşır; boş nokta atılır", () => {
+    expect(rotaSecimiGovdesi([{ mekan_id: "kantin", nokta: " tezgâhın yanı " }, { mekan_id: "bahce", nokta: "  " }], 2)).toEqual([
+      { mekan_id: "kantin", nokta: "tezgâhın yanı" },
+      { mekan_id: "bahce" },
+    ]);
   });
 });
