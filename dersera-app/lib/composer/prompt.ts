@@ -1,7 +1,9 @@
 import { PROGRAM_DERS_ADI } from "@/data/mufredat/programlar";
 import type { ResolvedInput } from "@/lib/composer/input";
 import type { Recipe } from "@/lib/composer/recipe";
-import { PROFILLER, yasProfiliOf } from "@/lib/yasProfili";
+import { PROFILLER, yasProfiliOf, type YasProfili } from "@/lib/yasProfili";
+import type { KonumYeri } from "@/lib/composer/definition";
+import { UYARLAMA_SINIRI } from "@/lib/composer/mekanYerlesimi";
 import type { DurakCiktisi, Iskelet } from "@/lib/composer/modelOutput";
 import { MEKANLAR } from "@/data/mekanlar";
 
@@ -147,7 +149,7 @@ Yalnız bu durakları hataları gidererek yeniden yaz ve duraklar dizisinde dön
 Tüm oyunu DEĞİL, yalnız bu durakları yaz. id, sahne_turu, secimler, varsayilan_sonraki_durak_id, odul_id, qr_durak_id, mekan_id değerlerini ve (hata listesinde öğrenme hedefi hatası yoksa) ogrenme_hedefi kodunu aynen koru; yalnız görev içeriğini (soru, görev türü, seçenekler, doğru cevap, ipuçları, destek görevi) ve gerekirse hikâye metnini değiştir.
 
 Düzeltilecek duraklar (JSON):
-${JSON.stringify(duraklar)}`;
+${JSON.stringify(duraklar, (k, v) => (k === "konum" ? undefined : v))}`;
 }
 
 // Parçalı üretim, 1. adım: oyunun iskeleti. Görev içerikleri sonraki adımda paralel yazılır.
@@ -159,13 +161,42 @@ Durakların soru, seçenek, cevap, ipucu ve destek içeriğini bu adımda YAZMA;
 Görev türünü içeriğe göre seç: eşleştirme ancak en az 3 anlamlı çift çıkıyorsa.`;
 }
 
-// Parçalı üretim, 2. adım: iskeletteki bir grup durağın görev içeriği.
+// Konum bilmecesinin sınıf düzeyine göre yorumu (bankadaki metinler ortaokul düzeyindedir).
+const KONUM_DUZEYI: Record<YasProfili, string> = {
+  PRESCHOOL_3_5: "Okul öncesi: tek kısa cümle, gördüğü ve dokunduğu şeylerle anlat.",
+  PRIMARY_6_10:
+    "İlkokul: en çok iki kısa cümle, cümle başına en çok 10 kelime. Somut, günlük sözcükler; mecaz ve kelime oyunu yok. \"Ben neyim?\" ya da \"Beni nerede bulursun?\" gibi bir soruyla bitebilir. 1. ipucu öğrenciye ne yapacağını açıkça söyler.",
+  MIDDLE_11_14:
+    "Ortaokul: bankadaki düzey; en çok üç kısa cümle. Hikâyenin havasından bir dokunuş ekleyebilirsin.",
+  HIGH_15_18:
+    "Lise: daha dolaylı ve zekice; mecaz, kelime oyunu ya da dersin konusundan bir kavramla bağ kurabilir (görevin cevabı olan kavramla değil), bilmece bir soruya dönüşebilir. Yine de yalnız bu noktaya çıkmalı; en çok üç cümle.",
+};
+
+// Parçalı üretim, 2. adım: iskeletteki bir grup durağın görev içeriği. Mekân rotasında rehber, durağın bankadan
+// seçilen konum bilmecesini sınıf düzeyine ve hikâyeye uyarlar (2. ipucu bankadaki gibi kalır, istenmez).
 export const GOREV_ISARETI = "GÖREV DOLDURMA AŞAMASI";
-export function buildGorevPrompt(iskelet: Iskelet, idler: string[]): string {
+export function buildGorevPrompt(iskelet: Iskelet, idler: string[], konum?: { profil: YasProfili; yerler: Map<string, KonumYeri> } | null): string {
+  const konumBolumu = konum
+    ? `
+
+Konum bilmecesi (konum_bilmece, konum_ipucu_1): her durağa, takımı o durağın QR'ına götüren bir konum bilmecesi verildi (aşağıda bankadaki hâli). Bunu bu oyunun sınıf düzeyine ve hikâyesine göre yeniden yaz:
+- ${KONUM_DUZEYI[konum.profil]}
+- konum_bilmece en çok ${UYARLAMA_SINIRI[konum.profil].bilmece} karakter, konum_ipucu_1 en çok ${UYARLAMA_SINIRI[konum.profil].ipucu} karakter; daha uzunsa kullanılmaz.
+- Bilmece, takım durağa varmadan gösterilir: durağın görevinin cevabını, seçeneklerini ya da çözümünü bilmecede ve ipucunda verme.
+- Aynı mekânı ve aynı noktayı anlat. Noktayı, mekânı değiştirme; başka bir yer, mekân ya da yön ekleme. Noktanın adını bilmecede söyleme.
+- konum_ipucu_1 bilmeceden açıktır ama noktanın adını söylemez; bilmeceyle aynı cümle olmasın. Son ipucu (noktanın adı) bankadaki gibi kalır, yazma.
+${idler
+  .map((id) => {
+    const y = konum.yerler.get(id);
+    return y ? `- ${id} · ${y.mekan_adi} · nokta: ${y.nokta} · bilmece: ${y.bilmece} · 1. ipucu: ${y.ipucu_1} · son ipucu: ${y.ipucu_2}` : "";
+  })
+  .filter(Boolean)
+  .join("\n")}`
+    : "";
   return `${GOREV_ISARETI}: Oyunun iskeleti hazır (JSON):
 ${JSON.stringify(iskelet)}
 
 Yalnız şu durakların görev içeriğini yaz ve duraklar dizisinde döndür: ${idler.join(", ")}
 Her durağın hikâyesine, gorev_ozeti'ne, gorev_turu'na ve ogrenme_hedefi'ne uy. gorev_turu'nu yalnız içerik o türe uymuyorsa değiştir (ör. 3 çift çıkmıyorsa eşleştirme yerine coktan_secmeli).
-Yukarıdaki alan kurallarına (seçenek, öğe, çift sayıları; iki farklı ipucu; destek görevi) birebir uy. Final bu adımda yazılmaz.`;
+Yukarıdaki alan kurallarına (seçenek, öğe, çift sayıları; iki farklı ipucu; destek görevi) birebir uy. Final bu adımda yazılmaz.${konumBolumu}`;
 }

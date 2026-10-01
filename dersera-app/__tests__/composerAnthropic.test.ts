@@ -5,7 +5,7 @@ import { buildUserPrompt, SYSTEM_PROMPT } from "@/lib/composer/prompt";
 import { validateGame } from "@/lib/composer/validator";
 import { fakeClient, makeDefinition, promptOf, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { DuzeltmeSchema, GorevDoldurmaSchema, hedefKodu, IskeletSchema, ModelOutputSchema, toDefinition } from "@/lib/composer/modelOutput";
+import { DuzeltmeSchema, GorevDoldurmaRotaSchema, GorevDoldurmaSchema, hedefKodu, IskeletSchema, ModelOutputSchema, toDefinition } from "@/lib/composer/modelOutput";
 
 const input = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
 const recipe = buildRecipe(40, "dengeli", "sinif");
@@ -115,6 +115,7 @@ describe("composeGame", () => {
 describe.each([
   ["iskelet", IskeletSchema],
   ["görev doldurma", GorevDoldurmaSchema],
+  ["görev doldurma (mekân rotası)", GorevDoldurmaRotaSchema],
   ["düzeltme", DuzeltmeSchema],
   ["tam oyun", ModelOutputSchema],
 ])("model çıktı şeması karmaşıklığı: %s", (_ad, zs) => {

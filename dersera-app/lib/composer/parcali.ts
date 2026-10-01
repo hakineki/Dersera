@@ -1,7 +1,9 @@
 import type { z } from "zod";
 import { ComposeError } from "@/lib/composer/errors";
 import type { ResolvedInput } from "@/lib/composer/input";
+import { rotaYerleri } from "@/lib/composer/mekanYerlesimi";
 import {
+  GorevDoldurmaRotaSchema,
   GorevDoldurmaSchema,
   IskeletSchema,
   type GorevIcerigi,
@@ -10,10 +12,12 @@ import {
 } from "@/lib/composer/modelOutput";
 import { buildGorevPrompt, buildIskeletPrompt, buildUserPrompt, type PromptParcalari } from "@/lib/composer/prompt";
 import type { Recipe } from "@/lib/composer/recipe";
+import { yasProfiliOf } from "@/lib/yasProfili";
 
 // Parçalı üretim: tek büyük çağrı 12 duraklı oyunu süre sınırına sığdıramıyordu (Claude'da durak başına ~3,2k token).
 // 1) İskelet: hikâye, final, envanter ve her durağın rotası, görev türü, öğrenme hedefi ve tek cümlelik görev özeti.
-// 2) Görevler: durakların soru/cevap/ipucu/destek içeriği PARCA'lık gruplar hâlinde PARALEL doldurulur.
+// 2) Görevler: durakların soru/cevap/ipucu/destek içeriği PARCA'lık gruplar hâlinde PARALEL doldurulur. Mekân rotasında
+//    durağın yeri ve bankadaki konum bilmecesi iskeletten sonra belirlenir; rehber bilmeceyi bu adımda sınıf düzeyine uyarlar.
 // Sonuç tek çağrıyla üretilmiş gibi ModelOutput'a birleştirilir; doğrulama, onarım ve düzeltme aynen çalışır.
 
 export type Istek = <S extends z.ZodObject<z.ZodRawShape>>(
@@ -35,7 +39,8 @@ export const YENIDEN_DENEME_BEKLEME_MS = 2_000;
 const DEGISEBILIR_TUR = new Set(["eslestirme", "siralama", "surukle_birak"]);
 
 export const iskeletTokenSiniri = (recipe: Recipe) => 3_000 + recipe.anaGorev.max * 900;
-export const gorevTokenSiniri = (durakSayisi: number) => 1_000 + durakSayisi * 2_500;
+// Mekân rotasında durak başına uyarlanan konum bilmecesi için ek pay.
+export const gorevTokenSiniri = (durakSayisi: number, rota = false) => 1_000 + durakSayisi * (rota ? 2_800 : 2_500);
 
 export function parcalara<T>(liste: T[], boyut = PARCA): T[][] {
   const out: T[][] = [];
@@ -93,6 +98,7 @@ export function birlestir(iskelet: Iskelet, gorevler: GorevIcerigi[]): ModelOutp
         odul_id: d.odul_id,
         secimler: d.secimler,
         varsayilan_sonraki_durak_id: d.varsayilan_sonraki_durak_id,
+        ...(g?.konum_bilmece !== undefined && { konum: { bilmece: g.konum_bilmece, ipucu_1: g.konum_ipucu_1 ?? "" } }),
       };
     }),
   };
@@ -118,13 +124,15 @@ export async function parcaliUret(
   if (kalan < GOREV_MIN_MS) throw new ComposeError("timeout", `İskelet ${Math.round(iskeletMs / 1000)} saniye sürdü; görevler için süre kalmadı`);
 
   const gruplar = parcalara(iskelet.duraklar.map((d) => d.id));
+  const yerler = recipe.rota ? rotaYerleri(iskelet.baslik, iskelet.duraklar) : null;
+  const konum = yerler && { profil: yasProfiliOf(input.sinif), yerler: new Map(iskelet.duraklar.map((d, i) => [d.id, yerler[i]])) };
   const doldur = (ids: string[], maxTokens: number, timeoutMs: number) =>
-    istek(GorevDoldurmaSchema, "dersera_gorevler", { ortak, asama: buildGorevPrompt(iskelet, ids) }, maxTokens, timeoutMs);
+    istek(konum ? GorevDoldurmaRotaSchema : GorevDoldurmaSchema, "dersera_gorevler", { ortak, asama: buildGorevPrompt(iskelet, ids, konum) }, maxTokens, timeoutMs);
   // Düşen grup hemen ve kendi başına bir kez yeniden denenir (diğer grupları beklemez); düzeltme adımının üç yeri
   // boş duraklara harcanmasın. Yapılandırma hatası denenmez; token sınırında kesilen çıktı daha yüksek sınırla denenir.
   const nedenler: string[] = [];
   const grupDoldur = async (ids: string[]) => {
-    const sinir = gorevTokenSiniri(ids.length);
+    const sinir = gorevTokenSiniri(ids.length, recipe.rota);
     try {
       return await doldur(ids, sinir, kalan);
     } catch (err) {
