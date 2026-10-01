@@ -29,7 +29,7 @@ export default function YedekDurumu() {
   const metin = d.yapilandirilmamis
     ? "Yedek: Redis tanımlı değil (yerel ortam)."
     : !s
-      ? "Yedek: henüz hiç alınmadı. YEDEK_ANAHTARI, CRON_SECRET ve BLOB_READ_WRITE_TOKEN tanımlı mı?"
+      ? "Yedek: henüz hiç alınmadı. YEDEK_ANAHTARI, CRON_SECRET ve Blob deposu (BLOB_STORE_ID ya da BLOB_READ_WRITE_TOKEN) tanımlı mı?"
       : s.basarili
         ? `Son yedek: ${zaman(s.tarih)} · ${s.anahtarSayisi.toLocaleString("tr-TR")} kayıt${d.simdi - s.tarih > GECIKME_MS ? " · 36 saatten eski!" : ""}`
         : `Son yedek BAŞARISIZ: ${zaman(s.tarih)}${s.atlanan ? ` · ${s.atlanan} kayıt okunamadı` : ""}${s.hata ? ` · ${s.hata}` : ""}`;

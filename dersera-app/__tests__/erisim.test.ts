@@ -289,6 +289,17 @@ describe("gece yedeği", () => {
     expect(yol).toBe("yedek/dersera-2026-09-25-01-00.bin");
     expect(yedekCoz(veri, anahtar).kayitlar).toEqual([{ k: "dersera:x", t: "string", pttl: -1, v: "v" }]);
     expect(del).toHaveBeenCalledWith(["https://depo/yedek/eski"]);
+
+    // Yeni Blob deposu: Vercel belirteç vermez, yalnız BLOB_STORE_ID ekler (bağlantıyı @vercel/blob OIDC ile kurar).
+    delete env.BLOB_READ_WRITE_TOKEN;
+    env.BLOB_STORE_ID = "store_test";
+    expect(await yedekDepo.yedekAl(now)).toMatchObject({ anahtarSayisi: 1, atlanan: 0 });
+    expect(put).toHaveBeenCalledTimes(2);
+    // İkisi de yoksa (ya da boşsa) yedek alınmaz; neden durum kaydında.
+    env.BLOB_STORE_ID = "  ";
+    await expect(yedekDepo.yedekAl(now)).rejects.toBeInstanceOf(yedekDepo.YedekYapilandirmaHatasi);
+    expect(put).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(durumlar.at(-1)!)).toMatchObject({ basarili: false, hata: expect.stringMatching(/BLOB_STORE_ID/) });
     geri();
     jest.dontMock("@vercel/blob");
     jest.dontMock("@/lib/redis");

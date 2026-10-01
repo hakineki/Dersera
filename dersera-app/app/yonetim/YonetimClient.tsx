@@ -20,7 +20,7 @@ const SAYI_ADI: { key: keyof YonetimOzeti["sayilar"]; ad: string }[] = [
 const SAGLIK_ADI: { key: keyof YonetimOzeti["saglik"]; ad: string; eksik: string }[] = [
   { key: "kaliciDepo", ad: "Kalıcı veritabanı (Redis)", eksik: "Redis bağlı değil: canlıda hiçbir kalıcı işlem çalışmaz." },
   { key: "yapayZeka", ad: "Yapay zekâ anahtarı", eksik: "OPENAI_API_KEY ya da ANTHROPIC_API_KEY yok: oyun oluşturulamaz." },
-  { key: "gorselDepo", ad: "Görsel ve yedek deposu (Blob)", eksik: "BLOB_READ_WRITE_TOKEN yok: görsel ve gece yedeği yazılamaz." },
+  { key: "gorselDepo", ad: "Görsel ve yedek deposu (Blob)", eksik: "Blob deposu bağlı değil (BLOB_STORE_ID ya da BLOB_READ_WRITE_TOKEN yok): görsel ve gece yedeği yazılamaz. Vercel → Storage → Blob deposunu projeye bağlayıp yeniden deploy edin." },
   { key: "yedekAnahtari", ad: "Yedek şifreleme anahtarı", eksik: "YEDEK_ANAHTARI yok: gece yedeği alınmaz." },
   { key: "zamanlayici", ad: "Zamanlanmış görev anahtarı", eksik: "CRON_SECRET yok: gece yedeği tetiklenemez." },
   { key: "davetKodu", ad: "Kayıt davet kodu", eksik: "KAYIT_DAVET_KODU yok: canlıda yeni öğretmen kaydı kapalıdır." },

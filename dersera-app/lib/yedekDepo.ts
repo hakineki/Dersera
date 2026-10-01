@@ -1,3 +1,4 @@
+import { BLOB_EKSIK, blobTanimli } from "@/lib/blobDepo";
 import { redisFromEnv, type RedisCommand } from "@/lib/redis";
 import { yedekAnahtari, yedekIcerigi, yedekSifrele } from "@/lib/yedek";
 
@@ -43,7 +44,7 @@ export async function yedekAl(now = Date.now()): Promise<YedekSonucu> {
   try {
     const anahtar = yedekAnahtari();
     if (!anahtar) throw new YedekYapilandirmaHatasi("YEDEK_ANAHTARI tanımlı değil ya da 32 bayt değil");
-    if (!process.env.BLOB_READ_WRITE_TOKEN?.trim()) throw new YedekYapilandirmaHatasi("BLOB_READ_WRITE_TOKEN tanımlı değil");
+    if (!blobTanimli()) throw new YedekYapilandirmaHatasi(BLOB_EKSIK);
 
     const { atlanan, ...icerik } = await yedekIcerigi(command, now);
     if (atlanan.length) console.error(`[yedek] ${atlanan.length} anahtar okunamadı, atlandı: ${atlanan.slice(0, 20).join(", ")}`);
