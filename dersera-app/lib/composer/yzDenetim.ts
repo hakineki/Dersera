@@ -101,6 +101,7 @@ export function metinBolumleri(def: GameDefinition): { yer: string; baslik: stri
           satir("Durak", d.isim),
           satir("Hikâye", d.hikaye_metni),
           satir("Yol tarifi", d.mekan.sonraki_durak_tarifi),
+          satir("Konum bilmecesi", d.mekan.yer ? `${d.mekan.yer.mekan_adi}: ${d.mekan.yer.nokta}. ${d.mekan.yer.bilmece} ${d.mekan.yer.ipucu_1} ${d.mekan.yer.ipucu_2}` : ""),
           satir("Soru", g.soru),
           satir("Seçenekler", g.secenekler),
           satir("İpucu 1", g.ipucu_1),

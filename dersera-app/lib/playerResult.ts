@@ -22,7 +22,8 @@ export function buildLeaderboardEntry(
   startTime: number,
   endTime: number,
   penaltySeconds: number,
-  progress: GameProgress
+  progress: GameProgress,
+  konumCezaSaniye = 0
 ): LeaderboardEntry {
   const net = Math.floor((endTime - startTime) / 1000);
   return {
@@ -32,6 +33,7 @@ export function buildLeaderboardEntry(
     penaltySeconds,
     hintsUsed: Object.values(progress).reduce((s, p) => s + p.hintsUsed, 0),
     completedAt: endTime,
+    ...(konumCezaSaniye > 0 && { konumCezaSaniye: Math.min(konumCezaSaniye, penaltySeconds) }),
     stopDetails: Object.fromEntries(
       Object.entries(progress).map(([id, p]) => [id, { hintsUsed: p.hintsUsed, completedAt: p.completedAt }])
     ),

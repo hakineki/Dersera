@@ -5,7 +5,7 @@ import DerseraLogo from "@/components/DerseraLogo";
 import Link from "next/link";
 import { fetchResults } from "@/lib/resultsClient";
 import type { Stop } from "@/data/stops";
-import { formatElapsed, buildResultCode, type LeaderboardEntry } from "@/lib/gameState";
+import { formatElapsed, buildResultCode, yanlisSayisi, type LeaderboardEntry } from "@/lib/gameState";
 import { toStops } from "@/lib/games";
 import { definitionPanelStops } from "@/lib/composer/scene";
 import OgrenmeRaporuKarti from "./OgrenmeRaporu";
@@ -232,7 +232,7 @@ function downloadCSV(leaderboard: LeaderboardEntry[], stops: Stop[], gameCode: s
   const rows = leaderboard.map((e, i) => {
     const startTs = e.completedAt - e.netSeconds * 1000;
     const total = e.netSeconds + e.penaltySeconds;
-    const wrongCount = Math.round(e.penaltySeconds / 15);
+    const wrongCount = yanlisSayisi(e);
     const lastStopEntry = e.stopDetails
       ? Object.entries(e.stopDetails).sort((a, b) => b[1].completedAt - a[1].completedAt)[0]
       : null;
@@ -289,7 +289,7 @@ function SiralamaTabs({
   if (selectedEntry) {
     const total = selectedEntry.netSeconds + selectedEntry.penaltySeconds;
     const startTs = selectedEntry.completedAt - selectedEntry.netSeconds * 1000;
-    const wrongCount = Math.round(selectedEntry.penaltySeconds / 15);
+    const wrongCount = yanlisSayisi(selectedEntry);
     const resultCode = buildResultCode(selectedEntry.nickname, total);
 
     return (
@@ -451,7 +451,7 @@ function SiralamaTabs({
             <tbody>
               {leaderboard.map((e, i) => {
                 const total = e.netSeconds + e.penaltySeconds;
-                const wrongCount = Math.round(e.penaltySeconds / 15);
+                const wrongCount = yanlisSayisi(e);
                 const resultCode = buildResultCode(e.nickname, total);
                 return (
                   <tr

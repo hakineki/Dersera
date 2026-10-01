@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   return NextResponse.json({
     kredi: await krediDurumu(hesap.id).catch(() => null),
     definition,
-    validation: validateGame(definition, validationContext(input)),
+    validation: validateGame(definition, validationContext({ ...input, rota: false })),
     guvenlik,
     dersler: input.dersler.map((k) => ({ ders: k.ders, konuId: k.konuId })),
     hedefler: input.ogrenmeCiktilari,

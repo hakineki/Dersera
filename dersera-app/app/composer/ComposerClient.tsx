@@ -21,7 +21,8 @@ import { gorselleriBirlestir } from "@/lib/gorsel";
 import { gorselDurumuGetir, gorselTetikle, type GorselDurumuYaniti } from "@/lib/gorselClient";
 import DurakEditor, { type Duzenlenen } from "./DurakEditor";
 import KaynakGirdisi from "./KaynakGirdisi";
-import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI } from "./labels";
+import { rotaMi } from "@/lib/composer/mekanRotasi";
+import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI, OKUL_SABLON_ACIKLAMA } from "./labels";
 import { maxDersSayisi } from "@/lib/composer/recipe";
 import { SERBEST_NOT_MAX } from "@/lib/composer/limits";
 import { KAYNAK, kaynakNormal } from "@/lib/composer/kaynak";
@@ -438,7 +439,7 @@ export default function ComposerClient({
 
   // Elle düzenlenen tanım istemcide yeniden doğrulanır (sunucu yayında yine doğrular).
   const dogrula = (s: ComposeResponse, def: GameDefinition) =>
-    validateGame(def, validationContext({ alan: def.meta.alan, deneyim: def.meta.deneyim, sure: def.meta.sure_dk, ogrenmeCiktilari: s.hedefler, hedefDersleri: s.hedefDersleri }));
+    validateGame(def, validationContext({ alan: def.meta.alan, deneyim: def.meta.deneyim, sure: def.meta.sure_dk, rota: rotaMi(def), ogrenmeCiktilari: s.hedefler, hedefDersleri: s.hedefDersleri }));
 
   function kaydet(v: Duzenlenen) {
     if (!sonuc) return;
@@ -659,7 +660,7 @@ export default function ComposerClient({
                 </p>
               )}
               <Secim etiket="Deneyim biçimi" secenekler={[...DENEYIM_SECENEKLERI]} deger={deneyim} onChange={setDeneyim} />
-              <Secim etiket="Oyun alanı" secenekler={[...ALAN_SECENEKLERI]} deger={alan} onChange={setAlan} />
+              <Secim etiket="Oyun alanı" secenekler={sablon ? ALAN_SECENEKLERI.map((s) => (s.key === "okul" ? { ...s, aciklama: OKUL_SABLON_ACIKLAMA } : s)) : [...ALAN_SECENEKLERI]} deger={alan} onChange={setAlan} />
               {gorselEtkin && !sablon && (
                 <label className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer ${gorsel ? "border-indigo-600 bg-indigo-50" : "border-gray-200 bg-white"}`}>
                   <input type="checkbox" checked={gorsel} onChange={(e) => setGorsel(e.target.checked)} className="mt-1 h-4 w-4 accent-indigo-600" aria-describedby="gorsel-aciklama" />

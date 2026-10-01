@@ -181,8 +181,17 @@ export default function DurakEditor({
                 ))}
               </fieldset>
             )}
-            {/* Öğrenci her durak geçişinde bu metni görür; boş kalırsa boş bir kart çıkar. */}
-            {v.durak.varsayilan_sonraki_durak_id !== null || v.durak.sahne_turu === "secim" ? (
+            {/* Mekân rotası: durağın QR yeri ve öğrenciyi oraya götüren konum bilmecesi (bilmece seçimi sonraki sürümde). */}
+            {v.durak.mekan.yer ? (
+              <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-sm space-y-1">
+                <p className="text-xs font-semibold text-indigo-700">QR yeri ve konum bilmecesi</p>
+                <p className="font-semibold text-gray-900">
+                  📍 {v.durak.mekan.yer.mekan_adi} — {v.durak.mekan.yer.nokta}
+                </p>
+                <p className="text-gray-700 italic">“{v.durak.mekan.yer.bilmece}”</p>
+              </div>
+            ) : /* Öğrenci her durak geçişinde bu metni görür; boş kalırsa boş bir kart çıkar. */
+            v.durak.varsayilan_sonraki_durak_id !== null || v.durak.sahne_turu === "secim" ? (
               <Alan etiket={v.durak.mekan.tur === "qr" ? "Sonraki durağın tarifi (öğrenci bir sonraki QR'ı nerede bulur)" : "Geçiş metni (öğrenci sonraki sahneye geçerken görür)"}>
                 <input
                   className={input}

@@ -17,6 +17,7 @@ import {
   saveGameSnapshot,
   switchToGame,
   restartGame,
+  saveTakimSirasi,
 } from "@/lib/gameState";
 import { isGameActive, parseQrParam, stopId, toStops, type PublicGame } from "@/lib/games";
 import { fetchGame, joinGameRequest } from "@/lib/gamesClient";
@@ -24,6 +25,7 @@ import NicknameEntry from "./[stop]/NicknameEntry";
 import GameClient from "./GameClient";
 import CodeEntry from "./CodeEntry";
 import ComposerPlayer from "./composer/ComposerPlayer";
+import { rotaMi } from "@/lib/composer/mekanRotasi";
 import { qrOf } from "@/lib/composer/scene";
 
 type View =
@@ -67,6 +69,12 @@ export default function GameWrapper() {
   const joiningRef = useRef(false);
   // İçeriği yüklenemeyen son katılım denemesinin adı: yanıtı kaybolan katılım adı sunucuda ayırmış olabilir.
   const yarimKalanAd = useRef<string | null>(null);
+  // Oyun ekranı bir kez açıldıysa adres değişince (mekân rotası işlenen taramayı adresten siler) "Tekrar hoş geldin"
+  // ekranına dönülmez; o ekran yalnız sayfa ilk açıldığında gösterilir.
+  const oyunda = useRef(false);
+  useEffect(() => {
+    if (view.kind === "game") oyunda.current = true;
+  }, [view.kind]);
 
   const resolve = useCallback(
     (g: PublicGame) => {
@@ -101,8 +109,9 @@ export default function GameWrapper() {
         setNickname(loadNickname() ?? "");
         setStartTime(loadStartTime() ?? 0);
         const baslangicQr = qrOf(g.definition, g.definition.duraklar[0].id);
-        const basta = qr === null || qr === baslangicQr;
-        setView({ kind: basta && !finished && isGameActive(g) ? "choice" : "game" });
+        // Mekân rotasında takımlar farklı duraklardan başlar: taranan her QR doğrudan oyuna götürür (varış orada denetlenir).
+        const basta = qr === null || (!rotaMi(g.definition) && qr === baslangicQr);
+        setView({ kind: !oyunda.current && basta && !finished && isGameActive(g) ? "choice" : "game" });
         return;
       }
 
@@ -177,7 +186,10 @@ export default function GameWrapper() {
     const joined = await joinGameRequest(game.code, nick);
     // Anahtar içerikten önce saklanır: içerik alınamazsa aynı adla yeniden denemede 409 gelir, ama bu cihazın saklı
     // anahtarı sunucuda doğrulanınca içerik yine açılır (öğrenci kendi adından kilitlenmez).
-    if (joined.status === "joined") savePlayerToken(joined.playerToken);
+    if (joined.status === "joined") {
+      savePlayerToken(joined.playerToken);
+      if (joined.sira !== null) saveTakimSirasi(joined.sira);
+    }
     const anahtar = joined.status === "joined" ? joined.playerToken : joined.status === "taken" ? loadPlayerToken() : null;
     // Composer oyununun soruları katılımdan sonra, oyuncu anahtarıyla alınır (kod bilen herkese gönderilmez).
     const icerik = game.icerikKilitli && anahtar ? await fetchGame(game.code, 5000, { ad: nick, anahtar }) : null;

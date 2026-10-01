@@ -10,6 +10,8 @@ import GuncellemePaneli from "./GuncellemePaneli";
 import type { KrediDurumu } from "@/lib/kredi";
 import { gorselAdresi, KAPAK } from "@/lib/gorsel";
 import GorselResim from "@/components/GorselResim";
+import YerlesimListesi from "@/components/YerlesimListesi";
+import { rotaMi } from "@/lib/composer/mekanRotasi";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI, GOREV_TUR_ADI } from "./labels";
 
 // Görsel zenginleştirmenin istemcideki durumu (ComposerClient): not, oluşturmada görsel başlatılamadığında.
@@ -212,6 +214,8 @@ export default function ComposerPreview({
         </div>
       )}
 
+      {rotaMi(definition) && <YerlesimListesi def={definition} />}
+
       <section aria-label="Duraklar" className="space-y-2">
         <h2 className="font-semibold text-gray-800">Duraklar</h2>
         {definition.duraklar.map((d, i) => {
@@ -234,6 +238,11 @@ export default function ComposerPreview({
               <p className="text-xs text-gray-500">
                 <span className="font-mono">{d.gorev.ogrenme_hedefi}</span> {hedefMetni(d.gorev.ogrenme_hedefi)}
               </p>
+              {d.mekan.yer && (
+                <p className="text-xs text-indigo-700 mt-1">
+                  📍 {d.mekan.yer.mekan_adi} — {d.mekan.yer.nokta}
+                </p>
+              )}
               <p className="text-sm text-gray-700 mt-1 line-clamp-2">{d.gorev.soru}</p>
               {d.secimler.length > 0 && (
                 <p className="text-xs text-amber-700 mt-1">{d.secimler.map((s) => `${s.metin} → ${durakAdi(s.hedef_durak_id)}`).join(" · ")}</p>

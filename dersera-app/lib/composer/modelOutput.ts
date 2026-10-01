@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { GameDefinitionSchema, type GameDefinition } from "@/lib/composer/definition";
 import type { ResolvedInput } from "@/lib/composer/input";
+import { konumYeri, mekanKimligi, mekanlariAta } from "@/lib/composer/mekanYerlesimi";
+import { mekanOf } from "@/data/mekanlar";
 
 // Modelin doldurduğu düz şema. Anthropic yapılandırılmış çıktıyı bir dilbilgisine derler; iç içe nesneler,
 // null (anyOf) ve enum'lar dilbilgisini büyütür ve "compiled grammar is too large" hatasına yol açar.
@@ -15,6 +17,8 @@ export const DurakCiktisiSchema = z.object({
   sahne_turu: z.string(),
   hikaye_metni: z.string(),
   qr_durak_id: z.string(),
+  // Okul macerasında (mekân rotası) durağın geçtiği okul mekânının kimliği; tek sınıfta boş.
+  mekan_id: z.string(),
   sonraki_durak_tarifi: z.string(),
   gorev_turu: z.string(),
   ogrenme_hedefi: z.string(),
@@ -62,6 +66,7 @@ export const IskeletDurakSchema = z.object({
   sahne_turu: z.string(),
   hikaye_metni: z.string(),
   qr_durak_id: z.string(),
+  mekan_id: z.string(),
   sonraki_durak_tarifi: z.string(),
   gorev_turu: z.string(),
   ogrenme_hedefi: z.string(),
@@ -124,8 +129,39 @@ const orNull = (s: string) => (s.trim() ? s.trim() : null);
 const KOD = /([A-ZÇĞİÖŞÜ]{1,5}(?:\.[A-ZÇĞİÖŞÜ]{1,5})*(?:\.\s?)?)?\d+(\.\d+)+/u;
 export const hedefKodu = (s: string) => s.match(KOD)?.[0].replace(/\s+/g, "") ?? s.trim();
 
+// Okul macerası mekân rotasıdır: rota doğrusaldır (seçim sahnesi yok; oynatıcı döngüsel dolaştırır), her durak sırayla
+// bir QR'a bağlanır (qr-1, qr-2, …) ve modelin seçtiği mekânın konum bilmecelerinden birini alır. Modelin mekânı listede
+// yoksa ya da tekrarlandıysa değiştirilir ve öğretmene not düşülür (hikâye başka mekânı anlatıyor olabilir).
+function rotayaCevir(out: ModelOutput): { out: ModelOutput; notlar: string[] } {
+  const mekanlar = mekanlariAta(out.duraklar.map((d) => d.mekan_id));
+  const notlar = out.duraklar.flatMap((d, i) =>
+    mekanKimligi(d.mekan_id) === mekanlar[i]
+      ? []
+      : [`${d.isim}: yapay zekânın seçtiği mekân (${d.mekan_id.trim() || "boş"}) listede yok ya da tekrarlandı; yerine ${mekanOf(mekanlar[i])?.ad ?? mekanlar[i]} atandı. Hikâyenin bu mekânla uyuştuğunu kontrol edin.`]
+  );
+  const donusmus: ModelOutput = {
+    ...out,
+    duraklar: out.duraklar.map((d, i) => ({
+      ...d,
+      sahne_turu: "gorev",
+      secimler: [],
+      mekan_id: mekanlar[i],
+      qr_durak_id: `qr-${i + 1}`,
+      sonraki_durak_tarifi: "",
+      varsayilan_sonraki_durak_id: out.duraklar[i + 1]?.id ?? "",
+    })),
+  };
+  return { out: donusmus, notlar };
+}
+
 // Düz çıktı → GameDefinition. meta modelden değil doğrulanmış girdiden gelir; mekân türü oyun alanından çıkar.
-export function toDefinition(out: ModelOutput, input: ResolvedInput): { ok: true; definition: GameDefinition } | { ok: false; error: string } {
+// notlar: dönüşümde yapılan ve öğretmenin görmesi gereken değişiklikler (otomatik düzeltme uyarısı olur).
+export function toDefinition(
+  ham: ModelOutput,
+  input: ResolvedInput
+): { ok: true; definition: GameDefinition; notlar: string[] } | { ok: false; error: string } {
+  const rota = input.alan === "okul";
+  const { out, notlar } = rota ? rotayaCevir(ham) : { out: ham, notlar: [] };
   const candidate = {
     meta: {
       baslik: out.baslik,
@@ -135,6 +171,7 @@ export function toDefinition(out: ModelOutput, input: ResolvedInput): { ok: true
       sure_dk: input.sure,
       deneyim: input.deneyim,
       alan: input.alan,
+      ...(rota && { rota: "mekan" as const }),
     },
     hikaye_giris: out.hikaye_giris,
     oyun_amaci: out.oyun_amaci,
@@ -149,6 +186,7 @@ export function toDefinition(out: ModelOutput, input: ResolvedInput): { ok: true
         tur: input.alan === "okul" ? "qr" : "sanal",
         qr_durak_id: input.alan === "okul" ? orNull(d.qr_durak_id) : null,
         sonraki_durak_tarifi: d.sonraki_durak_tarifi,
+        ...(rota && { yer: konumYeri(d.mekan_id, `${out.baslik}:${d.id}`) }),
       },
       gorev: {
         tur: d.gorev_turu,
@@ -176,5 +214,5 @@ export function toDefinition(out: ModelOutput, input: ResolvedInput): { ok: true
     const issue = parsed.error.issues[0];
     return { ok: false, error: `${issue.path.join(".")}: ${issue.message}` };
   }
-  return { ok: true, definition: parsed.data };
+  return { ok: true, definition: parsed.data, notlar };
 }

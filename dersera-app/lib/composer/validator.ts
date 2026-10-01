@@ -1,4 +1,6 @@
+import { MEKANLAR } from "@/data/mekanlar";
 import { answerFormatError } from "@/lib/composer/answers";
+import { rotaMi } from "@/lib/composer/mekanRotasi";
 import type { GameDefinition } from "@/lib/composer/definition";
 import type { Recipe } from "@/lib/composer/recipe";
 
@@ -139,6 +141,26 @@ export function validateGame(def: GameDefinition, ctx: ValidationContext): Valid
     if (new Set(qrlar).size !== qrlar.length) hata("qr-tekrar", "Aynı QR birden fazla durakta kullanılıyor.");
   }
 
+  // Mekân rotası: seçim sahnesi yok (rota döngüsel); her durak farklı ve bilinen bir mekânda, dolu bir konum bilmecesiyle.
+  const rota = rotaMi(def);
+  if (rota) {
+    if (def.meta.alan !== "okul") hata("rota-alan", "Mekân rotası yalnız okul macerasında kullanılabilir.");
+    // Öğrenci mekân adını görür: ad yalnız listedeki adla aynı olabilir (serbest metin içerik kapısı dışında kalmasın).
+    const bilinen = new Map(MEKANLAR.map((m) => [m.id, m.ad]));
+    const mekanlar: string[] = [];
+    for (const d of def.duraklar) {
+      if (d.sahne_turu === "secim" || d.secimler.length > 0) hata("rota-secim", `"${d.isim}" mekân rotasında seçim sahnesi olamaz.`, d.id);
+      const y = d.mekan.yer;
+      if (!y || bilinen.get(y.mekan_id) !== y.mekan_adi || [y.nokta, y.bilmece, y.ipucu_1, y.ipucu_2].some((s) => !s.trim())) {
+        hata("rota-yer-eksik", `"${d.isim}" durağının mekânı ya da konum bilmecesi eksik.`, d.id);
+      } else {
+        mekanlar.push(y.mekan_id);
+        if (y.ipucu_1.trim() === y.ipucu_2.trim()) hata("rota-ipucu-ayni", `"${d.isim}" konum bilmecesinin iki ipucu aynı.`, d.id);
+      }
+    }
+    if (new Set(mekanlar).size !== mekanlar.length) hata("rota-mekan-tekrar", "Aynı mekân birden fazla durakta kullanılıyor.");
+  }
+
   // Disiplinler arası oyunda seçilen her ders en az bir görevde çalışılmalı.
   if (ctx.hedefDersleri && Object.keys(ctx.hedefDersleri).length > 1) {
     const kullanilan = new Set(def.duraklar.map((d) => d.gorev.ogrenme_hedefi));
@@ -165,7 +187,7 @@ export function validateGame(def: GameDefinition, ctx: ValidationContext): Valid
 
   // Anlamlı seçim
   const secimSahneleri = def.duraklar.filter((d) => d.sahne_turu === "secim" && new Set(d.secimler.map((s) => s.hedef_durak_id)).size >= 2);
-  if (secimSahneleri.length === 0) hata("secim-yok", "Oyunda en az bir gerçek oyuncu kararı (seçim sahnesi) olmalı.");
+  if (secimSahneleri.length === 0 && !rota) hata("secim-yok", "Oyunda en az bir gerçek oyuncu kararı (seçim sahnesi) olmalı.");
 
   // Envanter ve final
   const f = def.final;
@@ -208,7 +230,7 @@ export function validateGame(def: GameDefinition, ctx: ValidationContext): Valid
       const { min, max } = ctx.recipe.anaGorev;
       uyari("gorev-sayisi", `Görev sayısı ${n}; hedef ${min === max ? max : `${min}-${max}`}.`);
     }
-    if (secimSahneleri.length < ctx.recipe.secim.min) {
+    if (!rota && secimSahneleri.length < ctx.recipe.secim.min) {
       uyari("secim-sayisi", `Seçim sayısı ${secimSahneleri.length}; hedef en az ${ctx.recipe.secim.min}.`);
     }
   }

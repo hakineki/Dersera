@@ -20,6 +20,8 @@ import { endGameRequest, fetchGame, publishGameRequest } from "@/lib/gamesClient
 import type { TeacherGame } from "@/lib/teacherGame";
 import AySecici from "./AySecici";
 import Ikon from "@/components/Ikon";
+import YerlesimListesi from "@/components/YerlesimListesi";
+import { rotaMi } from "@/lib/composer/mekanRotasi";
 import { IKON_KUTUSU } from "./OgretmenMenusu";
 
 const ALL_DERSLER = Object.keys(DERS_ADI) as Ders[];
@@ -120,7 +122,9 @@ function ActiveGame({
           <p className="text-indigo-300 text-xs mt-2">
             {game.definition?.meta.alan === "sinif"
               ? "Öğrenciler dersera.vercel.app/game adresine girip bu kodu yazar."
-              : "Öğrenciler QR kodu tarayınca bu kodu girer."}
+              : game.definition && rotaMi(game.definition)
+                ? "Takımlar dersera.vercel.app/game adresine girip bu kodu yazar; her takım ekranındaki başlangıç bilmecesiyle farklı bir mekândan başlar."
+                : "Öğrenciler QR kodu tarayınca bu kodu girer."}
           </p>
         )}
       </div>
@@ -136,6 +140,9 @@ function ActiveGame({
         </div>
       </div>
 
+      {game.definition && rotaMi(game.definition) ? (
+        <YerlesimListesi def={game.definition} />
+      ) : (
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <p className="px-4 py-2.5 text-xs font-semibold text-gray-500 bg-gray-50 border-b border-gray-100">
           {game.definition ? `Sahneler (${game.stops.length})` : `Durak sırası (${game.stops.length} durak)`}
@@ -154,6 +161,7 @@ function ActiveGame({
           ))}
         </ol>
       </div>
+      )}
 
       {error && (
         <p role="alert" className="text-sm text-red-600">

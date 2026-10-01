@@ -17,7 +17,7 @@ export const DENEYIM_SECENEKLERI = [
 
 export const ALAN_SECENEKLERI = [
   { key: "sinif", ikon: "🏫", ad: "Tek Sınıf", aciklama: "Sınıftan çıkmadan, sanal sahnelerle" },
-  { key: "okul", ikon: "🗺️", ad: "Okul Macerası", aciklama: "QR kütüphanesindeki duraklarla" },
+  { key: "okul", ikon: "🗺️", ad: "Okul Macerası", aciklama: "Okulun mekânlarında, konum bilmeceleriyle" },
 ] as const;
 
 export const CEVAP_BICIMI: Record<GorevTuru, string> = {
@@ -28,3 +28,6 @@ export const CEVAP_BICIMI: Record<GorevTuru, string> = {
   eslestirme: "Tüm çiftleri ' | ' ile ayırın (her satır 'sol => sağ').",
   sayisal: "Yalnızca sayı (ör. 12 veya 3,5). Seçenek bırakmayın.",
 };
+
+// Boş şablonda okul oyunu mekân rotası değildir: öğretmen numaralı QR duraklarını kendisi yazar.
+export const OKUL_SABLON_ACIKLAMA = "Numaralı QR duraklarıyla (tarifleri sen yazarsın)";

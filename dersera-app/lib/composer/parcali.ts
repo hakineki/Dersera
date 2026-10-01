@@ -73,6 +73,7 @@ export function birlestir(iskelet: Iskelet, gorevler: GorevIcerigi[]): ModelOutp
         sahne_turu: d.sahne_turu,
         hikaye_metni: d.hikaye_metni,
         qr_durak_id: d.qr_durak_id,
+        mekan_id: d.mekan_id,
         sonraki_durak_tarifi: d.sonraki_durak_tarifi,
         gorev_turu: g?.gorev_turu && DEGISEBILIR_TUR.has(d.gorev_turu) ? g.gorev_turu : d.gorev_turu,
         ogrenme_hedefi: d.ogrenme_hedefi,

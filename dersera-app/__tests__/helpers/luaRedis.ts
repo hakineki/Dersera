@@ -72,6 +72,18 @@ export function createLuaRedis() {
         tablolar.set(a[0], t);
         return yeni;
       }
+      case "HSETNX": {
+        const t = tablolar.get(a[0]) ?? new Map<string, string>();
+        if (t.has(a[1])) return 0;
+        t.set(a[1], a[2]);
+        tablolar.set(a[0], t);
+        return 1;
+      }
+      case "INCR": {
+        const yeni = Number(dizeler.get(a[0]) ?? 0) + 1;
+        dizeler.set(a[0], String(yeni));
+        return yeni;
+      }
       case "HGET":
         return tablolar.get(a[0])?.get(a[1]) ?? null;
       case "HMGET":

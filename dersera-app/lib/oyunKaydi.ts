@@ -5,6 +5,7 @@ import {
   loadPenaltySeconds,
   loadProgress,
   loadSceneState,
+  loadTakimSirasi,
   markStopComplete,
   saveEndTime,
   saveSceneState,
@@ -26,6 +27,8 @@ export interface OyunKaydi {
   bitis(): number | null;
   bitisYaz(t: number): void;
   sonucEkle(e: LeaderboardEntry): void;
+  // Katılım sırası (mekân rotasında başlangıç durağı); demoda yok.
+  takimSirasi(): number | null;
 }
 
 export const yerelOyunKaydi: OyunKaydi = {
@@ -38,6 +41,7 @@ export const yerelOyunKaydi: OyunKaydi = {
   bitis: loadEndTime,
   bitisYaz: saveEndTime,
   sonucEkle: addLeaderboardEntry,
+  takimSirasi: loadTakimSirasi,
 };
 
 export function bellekOyunKaydi(now: () => number = Date.now): OyunKaydi {
@@ -64,5 +68,6 @@ export function bellekOyunKaydi(now: () => number = Date.now): OyunKaydi {
     },
     // Demoda sonuç tablosu yok.
     sonucEkle: () => {},
+    takimSirasi: () => null,
   };
 }

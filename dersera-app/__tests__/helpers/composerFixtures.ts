@@ -107,7 +107,7 @@ export function modelYaniti(out: ModelOutput | null, prompt: string): unknown {
       baslik: out.baslik, hikaye_giris: out.hikaye_giris, oyun_amaci: out.oyun_amaci, ogrenme_hedefleri: out.ogrenme_hedefleri,
       envanter: out.envanter, final: out.final,
       duraklar: out.duraklar.map((d) => ({
-        id: d.id, isim: d.isim, sahne_turu: d.sahne_turu, hikaye_metni: d.hikaye_metni, qr_durak_id: d.qr_durak_id,
+        id: d.id, isim: d.isim, sahne_turu: d.sahne_turu, hikaye_metni: d.hikaye_metni, qr_durak_id: d.qr_durak_id, mekan_id: d.mekan_id,
         sonraki_durak_tarifi: d.sonraki_durak_tarifi, gorev_turu: d.gorev_turu, ogrenme_hedefi: d.ogrenme_hedefi, gorev_ozeti: d.soru,
         odul_id: d.odul_id, secimler: d.secimler, varsayilan_sonraki_durak_id: d.varsayilan_sonraki_durak_id,
       })),
@@ -152,6 +152,7 @@ export function toModelOutput(def: GameDefinition): ModelOutput {
       sahne_turu: d.sahne_turu,
       hikaye_metni: d.hikaye_metni,
       qr_durak_id: d.mekan.qr_durak_id ?? "",
+    mekan_id: d.mekan.yer?.mekan_id ?? "",
       sonraki_durak_tarifi: d.mekan.sonraki_durak_tarifi,
       gorev_turu: d.gorev.tur,
       ogrenme_hedefi: d.gorev.ogrenme_hedefi,

@@ -1,4 +1,5 @@
 import type { Alan, Deneyim } from "@/lib/composer/input";
+import { kanitSayisi } from "@/lib/composer/mekanRotasi";
 
 export interface Aralik {
   min: number;
@@ -13,6 +14,8 @@ export interface Recipe {
   dramaturji: string;
   final: string;
   alan: string;
+  // Mekân rotası (yeni okul macerası): seçim yok, kanıt sayısı durak sayısından, mekân listesi ve konum bilmecesi.
+  rota: boolean;
 }
 
 const GOREV_ARALIGI: Record<number, Aralik> = {
@@ -21,7 +24,7 @@ const GOREV_ARALIGI: Record<number, Aralik> = {
   60: { min: 12, max: 12 },
 };
 
-const DENEYIM: Record<Deneyim, Omit<Recipe, "anaGorev" | "alan">> = {
+const DENEYIM: Record<Deneyim, Omit<Recipe, "anaGorev" | "alan" | "rota">> = {
   macera: {
     secim: { min: 2, max: 3 },
     nesne: { min: 3, max: 5 },
@@ -45,6 +48,10 @@ const DENEYIM: Record<Deneyim, Omit<Recipe, "anaGorev" | "alan">> = {
   },
 };
 
+const ALAN_ROTA =
+  "Okul macerası (mekân rotası): her durak aşağıdaki okul mekânları listesinden FARKLI bir mekânda geçer; durağın mekan_id alanına o mekânın kimliğini birebir yaz. Durağın hikâyesi o mekânda geçer ve mekânı adıyla anabilir. Öğrenciyi bir sonraki mekâna oyun motoru bir konum bilmecesiyle yönlendirir: sonraki_durak_tarifi ve qr_durak_id alanlarını boş bırak.";
+
+// Eski okul oyunları (mekân rotasından önce) ve boş şablon: numaralı QR durakları.
 const ALAN: Record<Alan, string> = {
   sinif:
     "Tek sınıf: öğrenci sınıftan çıkmaz; duraklar sanal sahnelerdir (mekan.tur = \"sanal\", qr_durak_id = null). QR kullanma.",
@@ -57,6 +64,19 @@ export function maxDersSayisi(sure: number): number {
   return GOREV_ARALIGI[sure]?.max ?? 0;
 }
 
-export function buildRecipe(sure: number, deneyim: Deneyim, alan: Alan): Recipe {
-  return { anaGorev: GOREV_ARALIGI[sure], ...DENEYIM[deneyim], alan: ALAN[alan] };
+// Mekân rotasında seçim sahnesi yoktur (takımlar farklı duraklardan başlar, rota döngüseldir); kanıt sayısı durak
+// sayısından gelir (8 durakta 3) ve final bu kanıtları birleştirir. Yeni okul oyunları mekân rotasıdır; eski okul oyunları
+// (güncelleme, yeniden doğrulama) ve boş şablon rota: false ile eski tarifi kullanır.
+export function buildRecipe(sure: number, deneyim: Deneyim, alan: Alan, rota = alan === "okul"): Recipe {
+  const anaGorev = GOREV_ARALIGI[sure];
+  const mekanRotasi = rota && alan === "okul";
+  const temel = { anaGorev, ...DENEYIM[deneyim], alan: mekanRotasi ? ALAN_ROTA : ALAN[alan], rota: mekanRotasi };
+  if (!mekanRotasi || !anaGorev) return temel;
+  const kanit = kanitSayisi(anaGorev.max);
+  return {
+    ...temel,
+    secim: { min: 0, max: 0 },
+    nesne: { min: kanit, max: kanit },
+    final: `${temel.final} Final, oyun boyunca toplanan ${kanit} kanıtın hepsini birleştirir.`,
+  };
 }

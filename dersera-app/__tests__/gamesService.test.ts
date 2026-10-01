@@ -181,6 +181,15 @@ describe("createRedisGamesStore", () => {
     ]);
   });
 
+  it("katılım sırası INCR ile alınır ve oyunla birlikte süresi dolar", async () => {
+    const { command, calls } = recordingCommand((args) => (args[0] === "INCR" ? 4 : 1));
+    expect(await createRedisGamesStore(command).siraAl("ABC-123", 0, game.expiresAt)).toBe(4);
+    expect(calls).toEqual([
+      ["INCR", "dersera:game:ABC-123:sira"],
+      ["PEXPIRE", "dersera:game:ABC-123:sira", ttl],
+    ]);
+  });
+
   it("alınmış takma ad için HSETNX 0 döner ve false verir", async () => {
     const { command } = recordingCommand((args) => (args[0] === "HSETNX" ? 0 : 1));
     expect(await createRedisGamesStore(command).addPlayer("ABC-123", "Kartal", "h", 0, 1)).toBe(false);

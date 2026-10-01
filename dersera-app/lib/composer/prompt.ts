@@ -3,6 +3,7 @@ import type { ResolvedInput } from "@/lib/composer/input";
 import type { Recipe } from "@/lib/composer/recipe";
 import { PROFILLER, yasProfiliOf } from "@/lib/yasProfili";
 import type { DurakCiktisi, Iskelet } from "@/lib/composer/modelOutput";
+import { MEKANLAR } from "@/data/mekanlar";
 
 export const SYSTEM_PROMPT = `Dersera için eğitim oyunu tasarlarsın. Tüm metinler Türkçe.
 - Verilen sınıf, ders, konu ve öğrenme çıktılarının dışına çıkma; yalnız gönderilen müfredat verisini kullan, kod uydurma.
@@ -72,8 +73,11 @@ ${hedefler}`;
     input.dersler.length > 1
       ? "\nBu oyun disiplinler arasıdır: yukarıdaki derslerin HER BİRİ en az bir ana görevde çalışılsın ve hikâye dersleri tek bir gizemde birleştirsin.\n"
       : "";
-  const qr =
-    input.alan === "okul"
+  // Mekân rotasında QR'ları motor sırayla atar, model mekânı listeden seçer; eski okul oyununda (güncelleme) QR listesi.
+  const okul = recipe.rota;
+  const qr = okul
+    ? `\nOkul mekânları (mekan_id: ad):\n${MEKANLAR.map((m) => `${m.id}: ${m.ad}`).join("\n")}`
+    : input.alan === "okul"
       ? `\nKullanılabilir QR durakları (yalnızca bunları kullan, her durağa farklı bir QR ver):\n${izinliQrIdleri.join(", ")}`
       : "";
 
@@ -93,7 +97,7 @@ Oyun alanı: ${ALAN_ADI[input.alan]}
 ${senaryoNotu(input.serbest_not)}${kaynakBolumu(input.kaynak)}
 Oyun yapısı hedefleri:
 - Ana görev (durak) sayısı: ${recipe.anaGorev.min === recipe.anaGorev.max ? `tam ${recipe.anaGorev.max}` : `${recipe.anaGorev.min}-${recipe.anaGorev.max}`}
-- Anlamlı seçim sahnesi: ${recipe.secim.min}-${recipe.secim.max}
+- ${recipe.secim.max === 0 ? "Seçim sahnesi: KULLANMA (rota doğrusal)" : `Anlamlı seçim sahnesi: ${recipe.secim.min}-${recipe.secim.max}`}
 - Kanıt/nesne: ${recipe.nesne.min}-${recipe.nesne.max}
 - Dramaturji: ${recipe.dramaturji}
 - Final: ${recipe.final}
@@ -108,16 +112,23 @@ Alan kuralları:
 - final.ogrenme_hedefleri oyunda çalışılmış en az 2 kod içerir; final.gerekli_nesneler yalnız envanter id'lerinden oluşur.
 - envanter tur: "kanit", "anahtar" ya da "parca". odul_id bir envanter id'si ya da boş metin.
 - Her durak bir görevdir: soru, dogru_cevap, iki ipucu ve destek görevi her durakta doludur. Seçim sahnesi ayrı, boş bir durak değildir; öğrenci önce o durağın görevini çözer, sonra seçim yapar.
-- Dallar kısa olsun ve bir "birlesme" durağında yeniden birleşsin: her dalın son durağı varsayilan_sonraki_durak_id ile birleşme durağına bağlanır. Seçim sahneleri ve son durak dışında her durağın varsayilan_sonraki_durak_id alanı doludur; hiçbir durak kopuk kalmaz.
+${
+  okul
+    ? `- Mekân rotası: bütün duraklar sahne_turu "gorev", secimler boş dizi; her durağın varsayilan_sonraki_durak_id alanı bir sonraki durak, son durağınki boş.
+- Takımlar farklı duraklardan başlayıp rotayı döngüsel dolaşır: her durağın hikâyesi kendi başına anlaşılır olsun; "önceki durakta", "az önce" gibi sıraya bağlı atıf yapma. Olay, toplanan kanıtlar ve finalde birleşir.
+- Bu oyunda dallanma ve seçim sahnesi YOKTUR; yukarıdaki dallanma ve "ilk durak başlangıçtır" ilkeleri bu oyunda uygulanmaz. Her kanıt her takımın geçtiği bir durakta kazanılır.
+- Her durak farklı bir mekânda geçer (mekan_id listeden, tekrarsız); hikâye o mekânın havasını kullanır.`
+    : `- Dallar kısa olsun ve bir "birlesme" durağında yeniden birleşsin: her dalın son durağı varsayilan_sonraki_durak_id ile birleşme durağına bağlanır. Seçim sahneleri ve son durak dışında her durağın varsayilan_sonraki_durak_id alanı doludur; hiçbir durak kopuk kalmaz.`
+}
 - Oyunu sondan başa tasarla: önce finali ve final.gerekli_nesneler listesini yaz, sonra durakları bu nesneleri kazandıracak biçimde kur.
 - final.gerekli_nesneler içindeki HER nesne, en az bir durağın odul_id alanında birebir yer alır. Bu nesneleri yalnız her rotanın geçtiği duraklarda (dallanmadan önce ya da birleşmeden sonra) ver; yalnız bir dalda verilen nesne finalde istenmez.
 - eslestirme çiftlerinde sol taraflar birbirinden, sağ taraflar da birbirinden farklıdır. Konu en az 3 anlamlı çift çıkarmıyorsa (ör. yalnız iki ayet ya da iki kavram) eşleştirme yerine coktan_secmeli kullan.
 - Seçenek, öğe ve çift sayılarına birebir uy; eksik ya da fazla olan görev geçersizdir.
 - Durak sayısı yukarıdaki üst sınırı aşmaz.
-- Boş/yok değerleri için boş metin ("") kullan: odul_id, varsayilan_sonraki_durak_id (son duraklarda ve seçim sahnelerinde), qr_durak_id (tek sınıfta).
+- Boş/yok değerleri için boş metin ("") kullan: odul_id, varsayilan_sonraki_durak_id (son duraklarda ve seçim sahnelerinde), qr_durak_id, mekan_id (tek sınıfta).
 
-${ekKuralBolumu(input.ekKurallar)}Metinleri kısa tut (oyun hızlı üretilmeli): hikaye_metni en fazla 2 cümle; soru tek cümle; ipuçları, destek açıklaması ve sonraki durak tarifi tek kısa cümle; seçenekler birkaç kelime.
-Görev türlerini konuya uygun biçimde çeşitlendir. Durak id'leri d1, d2, ...; nesne id'leri n1, n2, ... biçiminde olsun. İlk durak başlangıçtır.`;
+${ekKuralBolumu(input.ekKurallar)}Metinleri kısa tut (oyun hızlı üretilmeli): hikaye_metni en fazla ${okul ? 3 : 2} cümle; soru tek cümle; ipuçları, destek açıklaması ve sonraki durak tarifi tek kısa cümle; seçenekler birkaç kelime.
+Görev türlerini konuya uygun biçimde çeşitlendir. Durak id'leri d1, d2, ...; nesne id'leri n1, n2, ... biçiminde olsun.${okul ? "" : " İlk durak başlangıçtır."}`;
 }
 
 // Parçalı çağrılarda prompt iki parçadır: tüm aşamalarda aynı olan ortak kısım (müfredat, seçimler, kurallar)
@@ -133,7 +144,7 @@ export function buildDuzeltmePrompt(duraklar: DurakCiktisi[], hatalar: string[])
 ${hatalar.map((h) => `- ${h}`).join("\n")}
 
 Yalnız bu durakları hataları gidererek yeniden yaz ve duraklar dizisinde döndür. Yukarıdaki alan kurallarına birebir uy.
-Tüm oyunu DEĞİL, yalnız bu durakları yaz. id, sahne_turu, secimler, varsayilan_sonraki_durak_id, odul_id, qr_durak_id değerlerini ve (hata listesinde öğrenme hedefi hatası yoksa) ogrenme_hedefi kodunu aynen koru; yalnız görev içeriğini (soru, görev türü, seçenekler, doğru cevap, ipuçları, destek görevi) ve gerekirse hikâye metnini değiştir.
+Tüm oyunu DEĞİL, yalnız bu durakları yaz. id, sahne_turu, secimler, varsayilan_sonraki_durak_id, odul_id, qr_durak_id, mekan_id değerlerini ve (hata listesinde öğrenme hedefi hatası yoksa) ogrenme_hedefi kodunu aynen koru; yalnız görev içeriğini (soru, görev türü, seçenekler, doğru cevap, ipuçları, destek görevi) ve gerekirse hikâye metnini değiştir.
 
 Düzeltilecek duraklar (JSON):
 ${JSON.stringify(duraklar)}`;
@@ -143,7 +154,7 @@ ${JSON.stringify(duraklar)}`;
 export const ISKELET_ISARETI = "İSKELET AŞAMASI";
 export function buildIskeletPrompt(): string {
   return `${ISKELET_ISARETI}: Bu adımda oyunun yalnız iskeletini yaz: başlık, giriş, amaç, öğrenme hedefleri, envanter, final ve durakların rotası.
-Her durak için sahne_turu, hikaye_metni, gorev_turu, ogrenme_hedefi, odul_id, secimler, varsayilan_sonraki_durak_id ve (okulda) qr_durak_id alanlarını doldur.
+Her durak için sahne_turu, hikaye_metni, gorev_turu, ogrenme_hedefi, odul_id, secimler, varsayilan_sonraki_durak_id ve (okulda) mekan_id alanlarını doldur.
 Durakların soru, seçenek, cevap, ipucu ve destek içeriğini bu adımda YAZMA; onun yerine gorev_ozeti alanına görevin öğrenciye ne yaptıracağını tek cümleyle yaz.
 Görev türünü içeriğe göre seç: eşleştirme ancak en az 3 anlamlı çift çıkıyorsa.`;
 }
