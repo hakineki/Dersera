@@ -5,11 +5,13 @@ import { composeAndValidate } from "@/lib/composer/service";
 import { IZINLI_QR_IDLERI } from "@/lib/composer/context";
 import { GOREV_ISARETI, ISKELET_ISARETI } from "@/lib/composer/prompt";
 import type { Iskelet, ModelOutput } from "@/lib/composer/modelOutput";
-import { fakeClient, makeDefinition, modelYaniti, promptOf, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
+import { fakeClient, makeDefinition, modelYaniti, ornekUyarlama, promptOf, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 
 const input60 = resolvedInput({ sinif: 11, ders: "matematik", sure: 60, deneyim: "macera", alan: "okul" });
 const recipe60 = buildRecipe(60, "macera", "okul");
-const oyun12 = toModelOutput(makeDefinition(input60, 12));
+// Okul macerası mekân rotasıdır: görev doldurma, durağın konum bilmecesinin uyarlamasını da döndürür.
+const ham12 = toModelOutput(makeDefinition(input60, 12));
+const oyun12: ModelOutput = { ...ham12, duraklar: ham12.duraklar.map((d) => ({ ...d, konum: ornekUyarlama(d.isim) })) };
 
 beforeEach(() => {
   jest.spyOn(console, "info").mockImplementation(() => {});
@@ -58,8 +60,9 @@ describe("parçalı üretim", () => {
     await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, s.istek, 190_000, Date.now, 0);
     expect(s.kayit[0].maxTokens).toBe(iskeletTokenSiniri(recipe60));
     expect(iskeletTokenSiniri(recipe60)).toBe(3_000 + 12 * 900);
-    expect(s.kayit.slice(1).every((k) => k.maxTokens === gorevTokenSiniri(3))).toBe(true);
-    expect(gorevTokenSiniri(3)).toBe(1_000 + 3 * 2_500);
+    expect(s.kayit.slice(1).every((k) => k.maxTokens === gorevTokenSiniri(3, true))).toBe(true);
+    // Mekân rotasında durak başına konum bilmecesi payı.
+    expect([gorevTokenSiniri(3), gorevTokenSiniri(3, true)]).toEqual([1_000 + 3 * 2_500, 1_000 + 3 * 2_800]);
     expect(parcalara(["d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8"]).map((g) => g.length)).toEqual([3, 3, 2]);
   });
 
@@ -83,7 +86,7 @@ describe("parçalı üretim", () => {
     const out = await parcaliUret(input60, recipe60, IZINLI_QR_IDLERI, kesik.istek, 190_000, Date.now, 0);
     expect(out).toEqual(oyun12);
     const d4 = kesik.kayit.filter((k) => k.prompt.includes("döndür: d4, d5, d6"));
-    expect(d4.map((k) => k.maxTokens)).toEqual([gorevTokenSiniri(3), Math.round(gorevTokenSiniri(3) * 1.5)]);
+    expect(d4.map((k) => k.maxTokens)).toEqual([gorevTokenSiniri(3, true), Math.round(gorevTokenSiniri(3, true) * 1.5)]);
   });
 
   it("kesilme olmayan hatada yeniden denemeden önce kısa beklenir", async () => {

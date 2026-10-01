@@ -86,6 +86,9 @@ export function makeDefinition(input: ResolvedInput, durakSayisi = 6): GameDefin
 }
 
 // Parçalı üretimde her aşamanın yanıtı tam bir örnek oyundan türetilir: iskelet, istenen durakların görevleri ya da (düzeltmede) boş.
+// Mekân rotasında görev doldurma konum bilmecesinin uyarlamasını da ister: durağın kendi uyarlaması (konum) varsa o, yoksa
+// durak adından türeyen örnek metin döner.
+export const ornekUyarlama = (isim: string) => ({ bilmece: `${isim} için uyarlanmış bilmece: beni bul.`, ipucu_1: `${isim} için uyarlanmış ipucu.` });
 export function modelYaniti(out: ModelOutput | null, prompt: string): unknown {
   if (!out) return { yanlis: true };
   if (prompt.includes("Düzeltilecek duraklar")) return { duraklar: [] };
@@ -99,6 +102,10 @@ export function modelYaniti(out: ModelOutput | null, prompt: string): unknown {
           id: d.id, gorev_turu: d.gorev_turu, soru: d.soru, secenekler: d.secenekler, dogru_cevap: d.dogru_cevap, ipucu_1: d.ipucu_1,
           ipucu_2: d.ipucu_2, destek_soru: d.destek_soru, destek_secenekler: d.destek_secenekler, destek_dogru_cevap: d.destek_dogru_cevap,
           destek_aciklama: d.destek_aciklama,
+          ...(prompt.includes("konum_bilmece") && {
+            konum_bilmece: (d.konum ?? ornekUyarlama(d.isim)).bilmece,
+            konum_ipucu_1: (d.konum ?? ornekUyarlama(d.isim)).ipucu_1,
+          }),
         })),
     };
   }

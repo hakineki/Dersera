@@ -1,8 +1,9 @@
 import { z } from "zod";
-import { GameDefinitionSchema, type GameDefinition } from "@/lib/composer/definition";
+import { GameDefinitionSchema, type GameDefinition, type KonumYeri } from "@/lib/composer/definition";
 import type { ResolvedInput } from "@/lib/composer/input";
-import { konumYeri, mekanKimligi, mekanlariAta } from "@/lib/composer/mekanYerlesimi";
+import { mekanKimligi, rotaYerleri, uyarlamaUygula, type KonumUyarlamasi } from "@/lib/composer/mekanYerlesimi";
 import { mekanOf } from "@/data/mekanlar";
+import { yasProfiliOf } from "@/lib/yasProfili";
 
 // Modelin doldurduğu düz şema. Anthropic yapılandırılmış çıktıyı bir dilbilgisine derler; iç içe nesneler,
 // null (anyOf) ve enum'lar dilbilgisini büyütür ve "compiled grammar is too large" hatasına yol açar.
@@ -56,8 +57,12 @@ export const ModelOutputSchema = z.object({
   duraklar: z.array(DurakCiktisiSchema),
 });
 
-export type ModelOutput = z.infer<typeof ModelOutputSchema>;
 export type DurakCiktisi = z.infer<typeof DurakCiktisiSchema>;
+// Birleşik çıktıda mekân rotası durağı, rehberin sınıf düzeyine uyarladığı konum bilmecesini de taşır (görev doldurmada
+// ayrı alanlar olarak yazılır; API şemalarına girmez). Yoksa bankadaki metin kullanılır.
+export type ModelOutput = Omit<z.infer<typeof ModelOutputSchema>, "duraklar"> & {
+  duraklar: (DurakCiktisi & { konum?: KonumUyarlamasi })[];
+};
 
 // Parçalı üretim — iskelet: görev içeriği yok, yerine tek cümlelik görev özeti var.
 export const IskeletDurakSchema = z.object({
@@ -101,8 +106,11 @@ export const GorevIcerigiSchema = z.object({
   destek_dogru_cevap: z.string(),
   destek_aciklama: z.string(),
 });
-export type GorevIcerigi = z.infer<typeof GorevIcerigiSchema>;
 export const GorevDoldurmaSchema = z.object({ duraklar: z.array(GorevIcerigiSchema) });
+// Mekân rotasında görevle birlikte durağın konum bilmecesi de sınıf düzeyine uyarlanır (düz alanlar).
+export const GorevIcerigiRotaSchema = GorevIcerigiSchema.extend({ konum_bilmece: z.string(), konum_ipucu_1: z.string() });
+export const GorevDoldurmaRotaSchema = z.object({ duraklar: z.array(GorevIcerigiRotaSchema) });
+export type GorevIcerigi = z.infer<typeof GorevIcerigiSchema> & Partial<Pick<z.infer<typeof GorevIcerigiRotaSchema>, "konum_bilmece" | "konum_ipucu_1">>;
 
 // Hatalı durakların yeniden yazımı için ikinci, küçük çağrının yanıtı.
 export const DuzeltmeSchema = z.object({ duraklar: z.array(DurakCiktisiSchema) });
@@ -132,8 +140,9 @@ export const hedefKodu = (s: string) => s.match(KOD)?.[0].replace(/\s+/g, "") ??
 // Okul macerası mekân rotasıdır: rota doğrusaldır (seçim sahnesi yok; oynatıcı döngüsel dolaştırır), her durak sırayla
 // bir QR'a bağlanır (qr-1, qr-2, …) ve modelin seçtiği mekânın konum bilmecelerinden birini alır. Modelin mekânı listede
 // yoksa ya da tekrarlandıysa değiştirilir ve öğretmene not düşülür (hikâye başka mekânı anlatıyor olabilir).
-function rotayaCevir(out: ModelOutput): { out: ModelOutput; notlar: string[] } {
-  const mekanlar = mekanlariAta(out.duraklar.map((d) => d.mekan_id));
+function rotayaCevir(out: ModelOutput): { out: ModelOutput; notlar: string[]; yerler: KonumYeri[] } {
+  const yerler = rotaYerleri(out.baslik, out.duraklar);
+  const mekanlar = yerler.map((y) => y.mekan_id);
   const notlar = out.duraklar.flatMap((d, i) =>
     mekanKimligi(d.mekan_id) === mekanlar[i]
       ? []
@@ -151,7 +160,7 @@ function rotayaCevir(out: ModelOutput): { out: ModelOutput; notlar: string[] } {
       varsayilan_sonraki_durak_id: out.duraklar[i + 1]?.id ?? "",
     })),
   };
-  return { out: donusmus, notlar };
+  return { out: donusmus, notlar, yerler };
 }
 
 // Düz çıktı → GameDefinition. meta modelden değil doğrulanmış girdiden gelir; mekân türü oyun alanından çıkar.
@@ -161,7 +170,14 @@ export function toDefinition(
   input: ResolvedInput
 ): { ok: true; definition: GameDefinition; notlar: string[] } | { ok: false; error: string } {
   const rota = input.alan === "okul";
-  const { out, notlar } = rota ? rotayaCevir(ham) : { out: ham, notlar: [] };
+  const { out, notlar, yerler } = rota ? rotayaCevir(ham) : { out: ham, notlar: [], yerler: [] };
+  const profil = yasProfiliOf(input.sinif);
+  // Rehberin uyarlaması denetlenir; uygun değilse bankadaki bilmece kalır (öğretmen notu değil, sunucu kaydı).
+  const yerOf = (i: number): KonumYeri => {
+    const { yer, neden } = uyarlamaUygula(yerler[i], out.duraklar[i].konum, profil);
+    if (neden) console.warn(`[compose] ${out.duraklar[i].id} konum bilmecesi uyarlaması kullanılmadı (${neden}); bankadaki metin kaldı`);
+    return yer;
+  };
   const candidate = {
     meta: {
       baslik: out.baslik,
@@ -177,7 +193,7 @@ export function toDefinition(
     oyun_amaci: out.oyun_amaci,
     ogrenme_hedefleri: out.ogrenme_hedefleri.map(hedefKodu),
     envanter: out.envanter,
-    duraklar: out.duraklar.map((d) => ({
+    duraklar: out.duraklar.map((d, i) => ({
       id: d.id,
       isim: d.isim,
       sahne_turu: d.sahne_turu,
@@ -186,7 +202,7 @@ export function toDefinition(
         tur: input.alan === "okul" ? "qr" : "sanal",
         qr_durak_id: input.alan === "okul" ? orNull(d.qr_durak_id) : null,
         sonraki_durak_tarifi: d.sonraki_durak_tarifi,
-        ...(rota && { yer: konumYeri(d.mekan_id, `${out.baslik}:${d.id}`) }),
+        ...(rota && { yer: yerOf(i) }),
       },
       gorev: {
         tur: d.gorev_turu,
