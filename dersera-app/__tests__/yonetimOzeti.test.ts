@@ -45,6 +45,8 @@ describe("yönetim genel bakışı", () => {
     const eposta = { epostaAnahtari: false, epostaGonderen: false, siteAdresi: false };
     expect(saglikOf({}, false)).toEqual({ kaliciDepo: false, yapayZeka: false, gorselDepo: false, yedekAnahtari: false, zamanlayici: false, davetKodu: false, ...eposta });
     expect(saglikOf({ RESEND_API_KEY: "re", EPOSTA_GONDEREN: "g", DERSERA_SITE_ADRESI: " " }, false)).toMatchObject({ epostaAnahtari: true, epostaGonderen: true, siteAdresi: false });
+    // Blob deposu: yeni bağlantıda yalnız BLOB_STORE_ID (OIDC), eskisinde BLOB_READ_WRITE_TOKEN; biri yeter.
+    expect([saglikOf({ BLOB_STORE_ID: "store_x" }, true).gorselDepo, saglikOf({ BLOB_STORE_ID: " " }, true).gorselDepo]).toEqual([true, false]);
     expect(saglikOf({ ANTHROPIC_API_KEY: "x", BLOB_READ_WRITE_TOKEN: "y", YEDEK_ANAHTARI: "z", CRON_SECRET: "c", KAYIT_DAVET_KODU: "  " }, true)).toEqual({
       ...eposta,
       kaliciDepo: true,

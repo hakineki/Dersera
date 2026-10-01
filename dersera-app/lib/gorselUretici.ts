@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import type { ImageGenerateParamsNonStreaming } from "openai/resources/images";
+import { BLOB_EKSIK, blobTanimli } from "@/lib/blobDepo";
 import { yzKullanimKaydet } from "@/lib/yzMaliyetKaydi";
 
 // Görsel üretimi: OpenAI GPT Image (oyun üretimiyle aynı OpenAI hesabı) → WebP'ye sıkıştırma (sharp) → Vercel Blob.
@@ -26,8 +27,8 @@ export const gorselKalitesi = (): Kalite => {
   return (KALITELER as readonly string[]).includes(k ?? "") ? (k as Kalite) : "low";
 };
 
-// Görsel zenginleştirme yalnız sağlayıcı ve depo anahtarları tanımlıyken sunulur.
-export const gorselEtkin = () => !!process.env.OPENAI_API_KEY?.trim() && !!process.env.BLOB_READ_WRITE_TOKEN?.trim();
+// Görsel zenginleştirme yalnız sağlayıcı anahtarı tanımlı ve Blob deposu bağlıyken sunulur.
+export const gorselEtkin = () => !!process.env.OPENAI_API_KEY?.trim() && blobTanimli();
 
 // Route sınırı 60 sn: sağlayıcı 40 sn, tüm üretim (sıkıştırma ve yükleme dahil) 50 sn içinde biter ya da hata sayılır.
 export const GORSEL_TIMEOUT_MS = 40_000;
@@ -71,7 +72,7 @@ export async function webpYap(veri: Buffer): Promise<Buffer> {
 
 // Adres tahmin edilemesin diye rastgele son ek; görseller değişmez, bir yıl önbelleklenir.
 export async function blobaYaz(yol: string, veri: Buffer): Promise<string> {
-  if (!process.env.BLOB_READ_WRITE_TOKEN?.trim()) throw new GorselHatasi("yapilandirma", "BLOB_READ_WRITE_TOKEN tanımlı değil");
+  if (!blobTanimli()) throw new GorselHatasi("yapilandirma", BLOB_EKSIK);
   const { put } = await import("@vercel/blob");
   const r = await put(yol, veri, {
     access: "public",

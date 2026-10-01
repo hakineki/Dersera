@@ -1,4 +1,5 @@
 import type { AuthStore } from "@/lib/authStore";
+import { BLOB_DEGISKENLERI } from "@/lib/blobDepo";
 import { ayOf } from "@/lib/kredi";
 import type { ModerasyonStore } from "@/lib/moderasyonStore";
 import { raporHesapla } from "@/lib/ogrenme";
@@ -22,7 +23,7 @@ const KUYRUK_OKUMA = 1000;
 
 export const SAGLIK_DEGISKENLERI = {
   yapayZeka: ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"],
-  gorselDepo: ["BLOB_READ_WRITE_TOKEN"],
+  gorselDepo: BLOB_DEGISKENLERI,
   yedekAnahtari: ["YEDEK_ANAHTARI"],
   zamanlayici: ["CRON_SECRET"],
   davetKodu: ["KAYIT_DAVET_KODU"],

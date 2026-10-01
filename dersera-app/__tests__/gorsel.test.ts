@@ -373,3 +373,39 @@ describe("görsel zenginleştirme uçları", () => {
     expect(json.kredi.toplam).toBe(27);
   });
 });
+
+describe("Blob deposu yapılandırması", () => {
+  const env = { ...process.env };
+  afterEach(() => {
+    process.env = { ...env };
+    jest.dontMock("@vercel/blob");
+  });
+
+  it("görseller eski belirteçle de yeni depo kimliğiyle (BLOB_STORE_ID, OIDC) de açılır; ikisi de yoksa kapalı ve yazılmaz", async () => {
+    const put = jest.fn(async (yol: string) => ({ url: `https://depo.public.blob.vercel-storage.com/${yol}` }));
+    let u!: typeof import("@/lib/gorselUretici");
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock("@vercel/blob", () => ({ put }));
+      u = await import("@/lib/gorselUretici");
+    });
+    process.env.OPENAI_API_KEY = "openai-test";
+    delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.BLOB_STORE_ID;
+    expect(u.gorselEtkin()).toBe(false);
+    await expect(u.blobaYaz("gorsel/x.webp", Buffer.from("x"))).rejects.toMatchObject({ neden: "yapilandirma" });
+    process.env.BLOB_STORE_ID = "  ";
+    expect(u.gorselEtkin()).toBe(false);
+    expect(put).not.toHaveBeenCalled();
+
+    process.env.BLOB_STORE_ID = "store_test";
+    expect(u.gorselEtkin()).toBe(true);
+    expect(await u.blobaYaz("gorsel/x.webp", Buffer.from("x"))).toBe("https://depo.public.blob.vercel-storage.com/gorsel/x.webp");
+    expect(put).toHaveBeenCalledWith("gorsel/x.webp", expect.any(Buffer), expect.objectContaining({ access: "public", addRandomSuffix: true }));
+
+    delete process.env.BLOB_STORE_ID;
+    process.env.BLOB_READ_WRITE_TOKEN = "blob-test";
+    expect(u.gorselEtkin()).toBe(true);
+    delete process.env.OPENAI_API_KEY;
+    expect(u.gorselEtkin()).toBe(false);
+  });
+});
