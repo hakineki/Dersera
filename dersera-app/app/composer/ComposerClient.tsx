@@ -23,7 +23,8 @@ import DurakEditor, { type Duzenlenen } from "./DurakEditor";
 import KaynakGirdisi from "./KaynakGirdisi";
 import { rotaMi } from "@/lib/composer/mekanRotasi";
 import { ALAN_SECENEKLERI, DENEYIM_SECENEKLERI, OKUL_SABLON_ACIKLAMA } from "./labels";
-import { maxDersSayisi } from "@/lib/composer/recipe";
+import { buildRecipe, maxDersSayisi } from "@/lib/composer/recipe";
+import RotaSecici, { rotaSecimiGovdesi, type RotaSatiri } from "./RotaSecici";
 import { SERBEST_NOT_MAX } from "@/lib/composer/limits";
 import { KAYNAK, kaynakNormal } from "@/lib/composer/kaynak";
 import { KREDI_KURALLARI, olusturmaMaliyeti, type KrediDurumu } from "@/lib/kredi";
@@ -171,6 +172,8 @@ export default function ComposerClient({
   const [sure, setSure] = useState<20 | 40 | 60>(40);
   const [deneyim, setDeneyim] = useState<"macera" | "dengeli" | "ders">("dengeli");
   const [alan, setAlan] = useState<"sinif" | "okul">("sinif");
+  // Okul macerasının rotası: öğretmenin durak sırasıyla seçtiği mekânlar (null: rehber seçer).
+  const [rota, setRota] = useState<RotaSatiri[]>([]);
   const [onNot, setOnNot] = useState("");
   // Öğretmenin kaynağı yalnız bu sayfanın belleğinde tutulur (saklanmaz).
   const [kaynak, setKaynak] = useState("");
@@ -315,6 +318,9 @@ export default function ComposerClient({
 
   const dersAdi = (key: string) => dersler.find((d) => d.key === key)?.ad ?? key;
   const enFazlaDers = maxDersSayisi(sure);
+  const rotaDurakSayisi = buildRecipe(sure, deneyim, "okul").anaGorev.max;
+  const rotaGovdesi = alan === "okul" && !sablon ? rotaSecimiGovdesi(rota, rotaDurakSayisi) : undefined;
+  const rotaSecilen = rotaGovdesi?.filter(Boolean).length ?? 0;
   const cokDers = secili.length > enFazlaDers;
   // Sunucu en az/en çok sınırını normalleştirilmiş metne uygular; düğme de aynı ölçüye bakar.
   const kaynakUzunlugu = kaynakNormal(kaynak).length;
@@ -369,6 +375,7 @@ export default function ComposerClient({
           ...(onNot.trim() ? { serbest_not: onNot.trim() } : {}),
           ...(kaynakUzunlugu > 0 ? { kaynak: kaynak.trim() } : {}),
           ...(gorselli ? { gorsel: true } : {}),
+          ...(rotaGovdesi ? { rota_secimi: rotaGovdesi } : {}),
         }),
         signal: controller.signal,
       });
@@ -653,7 +660,16 @@ export default function ComposerClient({
               <h2 id="bolum-2" className={BOLUM_BASLIK}>
                 2. Oyunun Tarzını Seç
               </h2>
-              <Secim etiket="Süre" secenekler={[20, 40, 60].map((s) => ({ key: s as 20 | 40 | 60, ad: `${s} dk` }))} deger={sure} onChange={setSure} />
+              <Secim
+                etiket="Süre"
+                secenekler={[20, 40, 60].map((s) => ({ key: s as 20 | 40 | 60, ad: `${s} dk` }))}
+                deger={sure}
+                onChange={(s) => {
+                  setSure(s);
+                  // Rota satırları durak sayısına kırpılır: gizli kalan bir seçim, süre yeniden uzayınca görünen bir seçimle çakışmasın.
+                  setRota((r) => r.slice(0, buildRecipe(s, deneyim, "okul").anaGorev.max));
+                }}
+              />
               {cokDers && (
                 <p role="alert" className="text-sm text-red-600 -mt-3">
                   {sure} dakikalık oyunda en fazla {enFazlaDers} ders seçilebilir. Ders sayısını azaltın ya da süreyi uzatın.
@@ -661,6 +677,7 @@ export default function ComposerClient({
               )}
               <Secim etiket="Deneyim biçimi" secenekler={[...DENEYIM_SECENEKLERI]} deger={deneyim} onChange={setDeneyim} />
               <Secim etiket="Oyun alanı" secenekler={sablon ? ALAN_SECENEKLERI.map((s) => (s.key === "okul" ? { ...s, aciklama: OKUL_SABLON_ACIKLAMA } : s)) : [...ALAN_SECENEKLERI]} deger={alan} onChange={setAlan} />
+              {alan === "okul" && !sablon && <RotaSecici durakSayisi={rotaDurakSayisi} deger={rota} onChange={setRota} />}
               {gorselEtkin && !sablon && (
                 <label className={`flex items-start gap-3 rounded-xl border px-3 py-2.5 cursor-pointer ${gorsel ? "border-indigo-600 bg-indigo-50" : "border-gray-200 bg-white"}`}>
                   <input type="checkbox" checked={gorsel} onChange={(e) => setGorsel(e.target.checked)} className="mt-1 h-4 w-4 accent-indigo-600" aria-describedby="gorsel-aciklama" />
@@ -717,6 +734,18 @@ export default function ComposerClient({
                   {sure} dk · {DENEYIM_SECENEKLERI.find((d) => d.key === deneyim)?.ad} · {ALAN_SECENEKLERI.find((a) => a.key === alan)?.ad}
                   {onNot.trim() && " · Ön not var"}
                 </dd>
+                {alan === "okul" && !sablon && (
+                  <>
+                    <dt className="text-gray-500">Rota</dt>
+                    <dd className="text-gray-900">
+                      {rotaSecilen === 0
+                        ? "Durakların yerini rehber seçecek"
+                        : rotaSecilen === rotaDurakSayisi
+                          ? "Bütün durakların yerini sen seçtin"
+                          : `${rotaSecilen}/${rotaDurakSayisi} durağın yerini sen seçtin; kalanını rehber seçecek`}
+                    </dd>
+                  </>
+                )}
                 {!sablon && <dt className="text-gray-500">Kaynak</dt>}
                 {!sablon && <dd className="text-gray-900">{kaynakUzunlugu > 0 ? `Öğretmen kaynağı (${kaynakUzunlugu.toLocaleString("tr-TR")} karakter)` : "Yok (müfredattan)"}</dd>}
                 {gorselli && (
@@ -824,7 +853,19 @@ export default function ComposerClient({
           />
         )}
       </main>
-      {duzenlenen && <DurakEditor value={duzenlenen} onSave={kaydet} onClose={() => setDuzenlenen(null)} />}
+      {duzenlenen && (
+        <DurakEditor
+          value={duzenlenen}
+          // Mekân rotasında başka duraklarda kullanılan mekânlar düzenleyicide pasiftir (her mekân bir kez).
+          rotaMekanlari={
+            duzenlenen.tur === "durak" && sonuc
+              ? sonuc.definition.duraklar.filter((x) => x.id !== duzenlenen.durak.id).flatMap((x) => (x.mekan.yer ? [x.mekan.yer.mekan_id] : []))
+              : []
+          }
+          onSave={kaydet}
+          onClose={() => setDuzenlenen(null)}
+        />
+      )}
       {demo && sonuc && (
         <div role="dialog" aria-modal="true" aria-label="Öğrenci gözüyle demo" className="fixed inset-0 z-50 overflow-y-auto">
           <OgrenciDemo def={sonuc.definition} onCik={() => setDemo(false)} />

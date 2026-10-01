@@ -1,4 +1,5 @@
 import { MEKANLAR } from "@/data/mekanlar";
+import { MEKAN_SINIRLARI } from "@/lib/mekan";
 import { answerFormatError } from "@/lib/composer/answers";
 import { rotaMi } from "@/lib/composer/mekanRotasi";
 import type { GameDefinition } from "@/lib/composer/definition";
@@ -145,17 +146,23 @@ export function validateGame(def: GameDefinition, ctx: ValidationContext): Valid
   const rota = rotaMi(def);
   if (rota) {
     if (def.meta.alan !== "okul") hata("rota-alan", "Mekân rotası yalnız okul macerasında kullanılabilir.");
-    // Öğrenci mekân adını görür: ad yalnız listedeki adla aynı olabilir (serbest metin içerik kapısı dışında kalmasın).
-    const bilinen = new Map(MEKANLAR.map((m) => [m.id, m.ad]));
+    // Mekân adı öğretmen metnidir ("10-A sınıfı"): burada yalnız dolu ve sınır içinde olduğu denetlenir; içeriği çocuk
+    // güvenliği taraması (cocukGuvenligi) ve yapay zekâ denetimi (yzDenetim) "konum bilmecesi" alanıyla birlikte tarar.
+    const bilinen = new Set(MEKANLAR.map((m) => m.id));
+    const S = MEKAN_SINIRLARI;
     const mekanlar: string[] = [];
     for (const d of def.duraklar) {
       if (d.sahne_turu === "secim" || d.secimler.length > 0) hata("rota-secim", `"${d.isim}" mekân rotasında seçim sahnesi olamaz.`, d.id);
       const y = d.mekan.yer;
-      if (!y || bilinen.get(y.mekan_id) !== y.mekan_adi || [y.nokta, y.bilmece, y.ipucu_1, y.ipucu_2].some((s) => !s.trim())) {
+      // Mekân listeden; adı öğretmen okuluna göre yazabilir ("10-A sınıfı"). Metinler güvenlik taramasından geçer.
+      if (!y || !bilinen.has(y.mekan_id) || [y.mekan_adi, y.nokta, y.bilmece, y.ipucu_1, y.ipucu_2].some((s) => !s.trim())) {
         hata("rota-yer-eksik", `"${d.isim}" durağının mekânı ya da konum bilmecesi eksik.`, d.id);
       } else {
         mekanlar.push(y.mekan_id);
         if (y.ipucu_1.trim() === y.ipucu_2.trim()) hata("rota-ipucu-ayni", `"${d.isim}" konum bilmecesinin iki ipucu aynı.`, d.id);
+        if (y.mekan_adi.length > S.adEnCok || y.nokta.length > S.noktaEnCok || y.bilmece.length > S.bilmeceEnCok || Math.max(y.ipucu_1.length, y.ipucu_2.length) > S.ipucuEnCok) {
+          hata("rota-yer-uzun", `"${d.isim}" durağının mekân adı, noktası, bilmecesi ya da ipucu çok uzun (ad ${S.adEnCok}, nokta ${S.noktaEnCok}, bilmece ${S.bilmeceEnCok}, ipucu ${S.ipucuEnCok} karakter).`, d.id);
+        }
       }
     }
     if (new Set(mekanlar).size !== mekanlar.length) hata("rota-mekan-tekrar", "Aynı mekân birden fazla durakta kullanılıyor.");

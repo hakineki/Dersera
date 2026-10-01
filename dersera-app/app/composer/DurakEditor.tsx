@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import type { Durak, Final } from "@/lib/composer/definition";
+import { useRef, useState } from "react";
+import { MEKANLAR, mekanOf } from "@/data/mekanlar";
+import type { Durak, Final, KonumYeri } from "@/lib/composer/definition";
 import { LIMITLER } from "@/lib/composer/validator";
+import { konumBilmeceleriGetir, type HazirBilmece } from "@/lib/konumBilmeceClient";
+import { MEKAN_SINIRLARI } from "@/lib/mekan";
 import { CEVAP_BICIMI } from "./labels";
 
 export interface OyunBilgisi {
@@ -62,12 +65,124 @@ function GorevAlanlari({ v, setV }: { v: Exclude<Duzenlenen, { tur: "genel" }>; 
   );
 }
 
+const bilmeceUygula = (y: KonumYeri, b: HazirBilmece): KonumYeri => ({ ...y, nokta: b.nokta, bilmece: b.bilmece, ipucu_1: b.ipucu1, ipucu_2: b.ipucu2 });
+
+// Mekân rotası: durağın QR yeri ve öğrenciyi oraya götüren konum bilmecesi. Mekân değişince o mekânın ilk hazır bilmecesi
+// gelir (nokta eski mekânda kalmasın); öğretmen mekânın diğer bilmecelerinden seçer ve metinleri okuluna göre düzeltir.
+function KonumYeriAlani({ yer, kullanilan, onChange }: { yer: KonumYeri; kullanilan: string[]; onChange: (y: KonumYeri) => void }) {
+  const [liste, setListe] = useState<{ mekan: string; bilmeceler: HazirBilmece[] } | null>(null);
+  const [yukleniyor, setYukleniyor] = useState(false);
+  const [hata, setHata] = useState<string | null>(null);
+  // Açılıştaki mekân: değişirse durağın hikâyesi eski mekânı anlatıyor olabilir.
+  const [ilkMekan] = useState(yer.mekan_id);
+  // Bir kez yüklenen liste yeniden istenmez (klavyeyle seçim kutusunda gezinirken her mekân bir kez yüklenir).
+  const onbellek = useRef(new Map<string, HazirBilmece[]>());
+  const S = MEKAN_SINIRLARI;
+  const getir = async (mekanId: string) => {
+    setYukleniyor(true);
+    setHata(null);
+    const b = onbellek.current.get(mekanId) ?? (await konumBilmeceleriGetir(mekanId));
+    if (b?.length) onbellek.current.set(mekanId, b);
+    setYukleniyor(false);
+    if (!b?.length) {
+      setHata("Hazır bilmeceler yüklenemedi; tekrar deneyin.");
+      return null;
+    }
+    setListe({ mekan: mekanId, bilmeceler: b });
+    return b;
+  };
+  const mekanDegistir = async (id: string) => {
+    const m = mekanOf(id);
+    const b = m && (await getir(id));
+    if (m && b) onChange(bilmeceUygula({ ...yer, mekan_id: m.id, mekan_adi: m.ad }, b[0]));
+  };
+  const set = (patch: Partial<KonumYeri>) => onChange({ ...yer, ...patch });
+  const m = mekanOf(yer.mekan_id);
+  return (
+    <fieldset aria-busy={yukleniyor} className="border border-indigo-100 bg-indigo-50/40 rounded-xl p-3 space-y-3">
+      <legend className="text-xs font-semibold text-indigo-700 px-1">QR yeri ve konum bilmecesi</legend>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Alan etiket="Mekân">
+          <select className={`${input} bg-white`} value={yer.mekan_id} disabled={yukleniyor} onChange={(e) => mekanDegistir(e.target.value)}>
+            {MEKANLAR.map((x) => (
+              <option key={x.id} value={x.id} disabled={x.id !== yer.mekan_id && kullanilan.includes(x.id)}>
+                {x.emoji} {x.ad}
+              </option>
+            ))}
+          </select>
+        </Alan>
+        <Alan etiket="Okuldaki adı">
+          <input className={input} maxLength={S.adEnCok} value={yer.mekan_adi} placeholder={m?.ayrintiOrnegi ?? m?.ad} onChange={(e) => set({ mekan_adi: e.target.value })} />
+        </Alan>
+      </div>
+      {yer.mekan_id !== ilkMekan && (
+        <p role="status" className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+          Mekân değişti: durağın hikâye metnini yeni mekâna göre gözden geçir.
+        </p>
+      )}
+      <div className="space-y-2">
+        {yukleniyor && <p role="status" className="sr-only">Bilmeceler yükleniyor</p>}
+        {liste?.mekan === yer.mekan_id ? (
+          <ul className="space-y-1.5 max-h-56 overflow-y-auto" aria-label="Hazır bilmeceler">
+            {liste.bilmeceler.map((b) => {
+              const secili = b.nokta === yer.nokta && b.bilmece === yer.bilmece;
+              return (
+                <li key={b.id}>
+                  <button
+                    type="button"
+                    aria-pressed={secili}
+                    onClick={() => onChange(bilmeceUygula(yer, b))}
+                    className={`w-full text-left rounded-lg border px-3 py-2 text-xs ${secili ? "border-indigo-600 bg-white ring-1 ring-indigo-600" : "border-gray-200 bg-white hover:border-gray-300"}`}
+                  >
+                    <span className="block font-semibold text-gray-900">📍 {b.nokta}</span>
+                    <span className="block text-gray-600 italic">{b.bilmece}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <button
+            type="button"
+            onClick={() => getir(yer.mekan_id)}
+            disabled={yukleniyor}
+            className="text-xs font-semibold text-indigo-700 border border-indigo-200 bg-white rounded-lg px-2.5 py-1.5 disabled:text-gray-400"
+          >
+            {yukleniyor ? "Bilmeceler yükleniyor…" : "Hazır bilmecelerden seç"}
+          </button>
+        )}
+        {hata && (
+          <p role="alert" className="text-xs text-red-600">
+            {hata}
+          </p>
+        )}
+        <p className="text-[11px] text-gray-500">Hazır bilmeceler ortaokul düzeyinde yazıldı; seçtikten sonra sınıfına göre sadeleştirebilirsin.</p>
+      </div>
+      <Alan etiket="QR'ın yapıştırılacağı nokta">
+        <input className={input} maxLength={S.noktaEnCok} value={yer.nokta} onChange={(e) => set({ nokta: e.target.value })} />
+      </Alan>
+      <Alan etiket="Konum bilmecesi">
+        <textarea className={input} rows={3} maxLength={S.bilmeceEnCok} value={yer.bilmece} onChange={(e) => set({ bilmece: e.target.value })} />
+      </Alan>
+      <Alan etiket="Konum ipucu 1 (daha açık)">
+        <input className={input} maxLength={S.ipucuEnCok} value={yer.ipucu_1} onChange={(e) => set({ ipucu_1: e.target.value })} />
+      </Alan>
+      <Alan etiket="Son ipucu (noktayı söyler)">
+        <input className={input} maxLength={S.ipucuEnCok} value={yer.ipucu_2} onChange={(e) => set({ ipucu_2: e.target.value })} />
+      </Alan>
+    </fieldset>
+  );
+}
+
 export default function DurakEditor({
   value,
+  rotaMekanlari = [],
   onSave,
   onClose,
 }: {
   value: Duzenlenen;
+  // Mekân rotasında başka duraklarda kullanılan mekânlar (her mekân bir kez).
+  rotaMekanlari?: string[];
   onSave: (v: Duzenlenen) => void;
   onClose: () => void;
 }) {
@@ -181,15 +296,13 @@ export default function DurakEditor({
                 ))}
               </fieldset>
             )}
-            {/* Mekân rotası: durağın QR yeri ve öğrenciyi oraya götüren konum bilmecesi (bilmece seçimi sonraki sürümde). */}
+            {/* Mekân rotası: durağın QR yeri ve öğrenciyi oraya götüren konum bilmecesi. */}
             {v.durak.mekan.yer ? (
-              <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-sm space-y-1">
-                <p className="text-xs font-semibold text-indigo-700">QR yeri ve konum bilmecesi</p>
-                <p className="font-semibold text-gray-900">
-                  📍 {v.durak.mekan.yer.mekan_adi} — {v.durak.mekan.yer.nokta}
-                </p>
-                <p className="text-gray-700 italic">“{v.durak.mekan.yer.bilmece}”</p>
-              </div>
+              <KonumYeriAlani
+                yer={v.durak.mekan.yer}
+                kullanilan={rotaMekanlari}
+                onChange={(yer) => setV((cur) => (cur.tur === "durak" ? { ...cur, durak: { ...cur.durak, mekan: { ...cur.durak.mekan, yer } } } : cur))}
+              />
             ) : /* Öğrenci her durak geçişinde bu metni görür; boş kalırsa boş bir kart çıkar. */
             v.durak.varsayilan_sonraki_durak_id !== null || v.durak.sahne_turu === "secim" ? (
               <Alan etiket={v.durak.mekan.tur === "qr" ? "Sonraki durağın tarifi (öğrenci bir sonraki QR'ı nerede bulur)" : "Geçiş metni (öğrenci sonraki sahneye geçerken görür)"}>

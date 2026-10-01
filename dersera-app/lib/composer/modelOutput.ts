@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { GameDefinitionSchema, type GameDefinition, type KonumYeri } from "@/lib/composer/definition";
-import type { ResolvedInput } from "@/lib/composer/input";
+import type { ResolvedInput, RotaSecimi } from "@/lib/composer/input";
 import { cevapParcalari, mekanKimligi, rotaYerleri, uyarlamaUygula, type KonumUyarlamasi } from "@/lib/composer/mekanYerlesimi";
 import { mekanOf } from "@/data/mekanlar";
+import { katla } from "@/lib/composer/cocukGuvenligi";
 import { yasProfiliOf } from "@/lib/yasProfili";
 
 // Modelin doldurduğu düz şema. Anthropic yapılandırılmış çıktıyı bir dilbilgisine derler; iç içe nesneler,
@@ -138,16 +139,26 @@ const KOD = /([A-ZÇĞİÖŞÜ]{1,5}(?:\.[A-ZÇĞİÖŞÜ]{1,5})*(?:\.\s?)?)?\d+
 export const hedefKodu = (s: string) => s.match(KOD)?.[0].replace(/\s+/g, "") ?? s.trim();
 
 // Okul macerası mekân rotasıdır: rota doğrusaldır (seçim sahnesi yok; oynatıcı döngüsel dolaştırır), her durak sırayla
-// bir QR'a bağlanır (qr-1, qr-2, …) ve modelin seçtiği mekânın konum bilmecelerinden birini alır. Modelin mekânı listede
-// yoksa ya da tekrarlandıysa değiştirilir ve öğretmene not düşülür (hikâye başka mekânı anlatıyor olabilir).
-function rotayaCevir(out: ModelOutput): { out: ModelOutput; notlar: string[]; yerler: KonumYeri[] } {
-  const yerler = rotaYerleri(out.baslik, out.duraklar);
+// bir QR'a bağlanır (qr-1, qr-2, …) ve öğretmenin seçtiği ya da (rehbere bırakılan durakta) modelin seçtiği mekânın konum
+// bilmecelerinden birini alır. Model öğretmenin mekânından başka bir yer yazdıysa, ya da kendi seçtiği mekân listede yoksa
+// veya tekrarlandıysa öğretmene not düşülür (hikâye başka mekânı anlatıyor olabilir).
+function rotayaCevir(out: ModelOutput, secim: (RotaSecimi | null)[] = []): { out: ModelOutput; notlar: string[]; yerler: KonumYeri[] } {
+  const yerler = rotaYerleri(out.baslik, out.duraklar, secim);
   const mekanlar = yerler.map((y) => y.mekan_id);
-  const notlar = out.duraklar.flatMap((d, i) =>
-    mekanKimligi(d.mekan_id) === mekanlar[i]
+  // Model öğretmenin mekânını okuldaki adıyla da yazabilir ("10-A sınıfı").
+  const uydu = (yazilan: string, i: number) => mekanKimligi(yazilan) === mekanlar[i] || (!!secim[i]?.ad && katla(yazilan.trim()) === katla(secim[i]!.ad!));
+  // Model daha az durak yazdıysa öğretmenin sondaki seçimleri oyuna girmez.
+  const dusen = secim.slice(out.duraklar.length).flatMap((s) => (s ? [s.ad ?? mekanOf(s.mekan_id)?.ad ?? s.mekan_id] : []));
+  const notlar = [
+    ...(dusen.length ? [`Oyun ${out.duraklar.length} durakla üretildi; rotada seçtiğiniz ${dusen.join(", ")} oyuna girmedi.`] : []),
+    ...out.duraklar.flatMap((d, i) =>
+    uydu(d.mekan_id, i)
       ? []
-      : [`${d.isim}: yapay zekânın seçtiği mekân (${d.mekan_id.trim() || "boş"}) listede yok ya da tekrarlandı; yerine ${mekanOf(mekanlar[i])?.ad ?? mekanlar[i]} atandı. Hikâyenin bu mekânla uyuştuğunu kontrol edin.`]
-  );
+      : secim[i]
+        ? [`${d.isim}: rotada seçtiğiniz ${yerler[i].mekan_adi} kullanıldı; yapay zekâ başka bir mekân (${d.mekan_id.trim() || "boş"}) yazmıştı. Hikâyenin bu mekânla uyuştuğunu kontrol edin.`]
+        : [`${d.isim}: yapay zekânın seçtiği mekân (${d.mekan_id.trim() || "boş"}) listede yok ya da tekrarlandı; yerine ${mekanOf(mekanlar[i])?.ad ?? mekanlar[i]} atandı. Hikâyenin bu mekânla uyuştuğunu kontrol edin.`]
+    ),
+  ];
   const donusmus: ModelOutput = {
     ...out,
     duraklar: out.duraklar.map((d, i) => ({
@@ -170,7 +181,7 @@ export function toDefinition(
   input: ResolvedInput
 ): { ok: true; definition: GameDefinition; notlar: string[] } | { ok: false; error: string } {
   const rota = input.alan === "okul";
-  const { out, notlar, yerler } = rota ? rotayaCevir(ham) : { out: ham, notlar: [], yerler: [] };
+  const { out, notlar, yerler } = rota ? rotayaCevir(ham, input.rota_secimi) : { out: ham, notlar: [], yerler: [] };
   const profil = yasProfiliOf(input.sinif);
   // Rehberin uyarlaması denetlenir; uygun değilse bankadaki bilmece kalır (öğretmen notu değil, sunucu kaydı).
   const yerOf = (i: number): KonumYeri => {

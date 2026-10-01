@@ -44,6 +44,12 @@ export function durakCiktisiOf(d: Durak): DurakCiktisi {
   };
 }
 
+// Mekân rotasında durağın okuldaki yeri (öğretmenin verdiği adla, ör. "10-A sınıfı"): yeniden yazılan hikâye bu yerde geçer.
+function yerSatiri(duraklar: Durak[]): string {
+  const yerler = duraklar.flatMap((d) => (d.mekan.yer ? [`${d.id}: ${d.mekan.yer.mekan_adi}`] : []));
+  return yerler.length ? `Durakların okuldaki yeri (hikâye bu yerde geçer, yeri değiştirme): ${yerler.join("; ")}\n\n` : "";
+}
+
 // Öğretmen talimatı istenen değişikliği tarif eder; oyunun kurallarını ve yapısını değiştiremez.
 export function buildGuncellemePrompt(def: GameDefinition, idler: string[], talimat: string): string {
   const hedef = def.duraklar.filter((d) => idler.includes(d.id));
@@ -63,7 +69,7 @@ id, sahne_turu, secimler içindeki hedef_durak_id, varsayilan_sonraki_durak_id, 
 Değiştirebileceklerin: durak adı, hikâye metni, yol tarifi, seçim metinleri, görev türü ve görev içeriği (soru, seçenekler, doğru cevap, ipuçları, destek görevi).
 Öğrenme hedefi aynı kalmalı; görev bu hedefi çalıştırmaya devam etmeli.
 
-Güncellenecek duraklar (JSON):
+${yerSatiri(hedef)}Güncellenecek duraklar (JSON):
 ${JSON.stringify(hedef.map(durakCiktisiOf))}`;
 }
 

@@ -94,6 +94,7 @@ export async function buildApi() {
     krediService: typeof import("@/lib/krediService");
     ogrenmeTakibi: typeof import("@/app/api/ogrenme-takibi/route");
     ogrenmeTakibiStore: typeof import("@/lib/ogrenmeTakibiStore");
+    konumBilmeceleri: typeof import("@/app/api/compose/konum-bilmeceleri/route");
   };
   await jest.isolateModulesAsync(async () => {
     mods = {
@@ -185,6 +186,7 @@ export async function buildApi() {
       krediService: await import("@/lib/krediService"),
       ogrenmeTakibi: await import("@/app/api/ogrenme-takibi/route"),
       ogrenmeTakibiStore: await import("@/lib/ogrenmeTakibiStore"),
+      konumBilmeceleri: await import("@/app/api/compose/konum-bilmeceleri/route"),
     };
   });
   return {

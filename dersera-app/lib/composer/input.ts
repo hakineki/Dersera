@@ -8,7 +8,9 @@ import {
   type ProgramDersi,
   type Unite,
 } from "@/data/mufredat/programlar";
-import { maxDersSayisi } from "@/lib/composer/recipe";
+import { buildRecipe, maxDersSayisi } from "@/lib/composer/recipe";
+import { mekanOf } from "@/data/mekanlar";
+import { MEKAN_SINIRLARI } from "@/lib/mekan";
 
 export const SURELER = [20, 40, 60] as const;
 export const DENEYIMLER = ["macera", "dengeli", "ders"] as const;
@@ -47,10 +49,29 @@ export const ComposeInputSchema = z
     kaynak: z.string().max(KAYNAK.enCok).transform(kaynakNormal).optional(),
     // Görsel zenginleştirme (lib/gorsel.ts); yalnız true anlamlıdır.
     gorsel: z.boolean().optional(),
+    // Okul macerası (mekân rotası): öğretmenin durak sırasıyla seçtiği mekânlar; null olan durağın mekânını rehber seçer.
+    // ad mekânın okuldaki adıdır (ör. "10-A sınıfı"); yoksa listedeki ad kullanılır. Her mekân bir kez.
+    rota_secimi: z
+      .array(
+        z
+          .object({
+            mekan_id: z.string().max(40),
+            ad: z
+              .string()
+              .max(MEKAN_SINIRLARI.adEnCok)
+              .transform((s) => gorunmezleriAt(s).replace(/\s+/g, " ").trim())
+              .optional(),
+          })
+          .strict()
+          .nullable()
+      )
+      .max(12)
+      .optional(),
   })
   .strict();
 
 export type ComposeInput = z.infer<typeof ComposeInputSchema>;
+export type RotaSecimi = { mekan_id: string; ad?: string };
 
 export interface SeciliKonu {
   ders: ProgramDersi;
@@ -107,11 +128,31 @@ export function parseComposeInput(body: unknown): InputResult {
   if (parsed.data.dersler.length > enFazla) {
     return { ok: false, error: `${parsed.data.sure} dakikalık oyunda en fazla ${enFazla} ders seçilebilir.` };
   }
+  const { serbest_not, kaynak, gorsel, rota_secimi, ...secimler } = parsed.data;
+  const rota = rotaSecimiOf(rota_secimi, parsed.data);
+  if (rota === null) return { ok: false, error: "Geçersiz rota seçimi." };
   const r = resolveKonular(parsed.data.sinif, parsed.data.dersler);
   if (!r.ok) return r;
-  const { serbest_not, kaynak, gorsel, ...secimler } = parsed.data;
   return {
     ok: true,
-    input: { ...secimler, ...(serbest_not ? { serbest_not } : {}), ...(kaynak ? { kaynak } : {}), ...(gorsel ? { gorsel } : {}), dersler: r.konular, ...describeKonular(r.konular) },
+    input: {
+      ...secimler,
+      ...(serbest_not ? { serbest_not } : {}),
+      ...(kaynak ? { kaynak } : {}),
+      ...(gorsel ? { gorsel } : {}),
+      ...(rota ? { rota_secimi: rota } : {}),
+      dersler: r.konular,
+      ...describeKonular(r.konular),
+    },
   };
+}
+
+// Rota seçimi yalnız okul macerasında, durak sayısını aşmadan, bilinen ve tekrarsız mekânlarla geçerlidir (null: geçersiz).
+// Hiç mekân seçilmediyse (hepsi rehbere) yok sayılır; listedeki adla aynı ya da boş ad atılır.
+function rotaSecimiOf(secim: ComposeInput["rota_secimi"], g: Pick<ComposeInput, "alan" | "sure" | "deneyim">): (RotaSecimi | null)[] | undefined | null {
+  if (!secim?.some(Boolean)) return undefined;
+  const idler = secim.flatMap((s) => (s ? [s.mekan_id] : []));
+  if (g.alan !== "okul" || secim.length > buildRecipe(g.sure, g.deneyim, "okul").anaGorev.max) return null;
+  if (idler.some((id) => !mekanOf(id)) || new Set(idler).size !== idler.length) return null;
+  return secim.map((s) => s && { mekan_id: s.mekan_id, ...(s.ad && s.ad !== mekanOf(s.mekan_id)!.ad ? { ad: s.ad } : {}) });
 }
