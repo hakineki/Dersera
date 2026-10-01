@@ -60,41 +60,54 @@ export interface KonumUyarlamasi {
   ipucu_1: string;
 }
 
-// Uyarlamanın üst sınırı (karakter): bankada bilmece en çok 133, 1. ipucu en çok 116 karakterdir; lisede daha dolaylı
-// ve hikâyeye bağlı bilmeceye yer kalır, ilkokulda kısa tutulur.
+// Uyarlamanın üst sınırı (karakter; istemde modele de söylenir): bankada bilmece en çok 133, 1. ipucu en çok 116
+// karakterdir. İlkokulun "iki cümle, cümle başına en çok 10 kelime" kuralı ~150 karaktere varır (Türkçede kelime başına
+// ~7 karakter); lisede daha dolaylı ve hikâyeye bağlı bilmeceye yer kalır.
 export const UYARLAMA_SINIRI: Record<YasProfili, { bilmece: number; ipucu: number }> = {
-  PRESCHOOL_3_5: { bilmece: 140, ipucu: 120 },
-  PRIMARY_6_10: { bilmece: 140, ipucu: 120 },
+  PRESCHOOL_3_5: { bilmece: 170, ipucu: 130 },
+  PRIMARY_6_10: { bilmece: 170, ipucu: 130 },
   MIDDLE_11_14: { bilmece: 200, ipucu: 150 },
   HIGH_15_18: { bilmece: 240, ipucu: 160 },
 };
 
-// Başka bir mekânı adıyla anan uyarlama takımı yanlış yere gönderebilir. Ayırt edici adlar (ekli hâlleri de içerir);
-// sınıf, koridor ve merdiven bilmecelerde genel sözcük olarak geçtiği için sayılmaz.
-const AYIRT_EDICI: Record<string, string> = {
-  kutuphane: "kütüphane",
-  bahce: "bahçe",
-  "spor-salonu": "spor salon",
-  kantin: "kantin",
-  yemekhane: "yemekhane",
-  "fen-laboratuvari": "laboratuvar",
-  "bilisim-sinifi": "bilişim",
-  "muzik-sinifi": "müzik sınıf",
-  "resim-atolyesi": "resim atölye",
-  "konferans-salonu": "konferans",
-  "giris-holu": "giriş hol",
-  "rehberlik-servisi": "rehberlik",
-  "idare-onu": "idare",
-  "ogretmenler-odasi": "öğretmenler oda",
-  "toren-alani": "tören alan",
-  "duyuru-panosu": "duyuru pano",
-  "okul-kapisi": "okul kapı",
+// Başka bir mekânı adıyla anan uyarlama takımı yanlış yere gönderebilir. Ayırt edici adlar ve yaygın söylenişleri (ekli
+// hâlleri de içerir: "kantine", "okulun kapısından"); sınıf, koridor ve merdiven bilmecelerde genel sözcük olarak geçtiği
+// için sayılmaz. "idare et", "konferans vermek" gibi gündelik kullanımlar eşleşmesin diye adlar dar tutulur.
+const AYIRT_EDICI: Record<string, string[]> = {
+  kutuphane: ["kütüphane"],
+  bahce: ["bahçe"],
+  "spor-salonu": ["spor salon"],
+  kantin: ["kantin"],
+  yemekhane: ["yemekhane"],
+  "fen-laboratuvari": ["laboratuvar", "laboratuar"],
+  "bilisim-sinifi": ["bilişim"],
+  "muzik-sinifi": ["müzik sınıf", "müzik oda"],
+  "resim-atolyesi": ["resim atölye"],
+  "konferans-salonu": ["konferans salon"],
+  "giris-holu": ["giriş hol"],
+  "rehberlik-servisi": ["rehberlik serv", "rehberlik oda"],
+  "idare-onu": ["idare oda", "müdür oda"],
+  "ogretmenler-odasi": ["öğretmenler oda", "öğretmen oda"],
+  "toren-alani": ["tören alan"],
+  "duyuru-panosu": ["duyuru pano"],
+  "okul-kapisi": ["okul kapı", "okulun kapı"],
 };
+
+// Görevin cevabı: rehber bilmeceyi dersin kavramıyla bağlarken durağın görev cevabını önceden verebilir (bilmece takım
+// o durağa varmadan gösterilir). Cevabın parçaları (sıralama/eşleştirme öğeleri) ayrı denetlenir; 4 karakterden kısa
+// parçalar ("A", "12") gündelik metinde de geçtiği için sayılmaz.
+export const cevapParcalari = (...cevaplar: string[]): string[] =>
+  cevaplar.flatMap((c) => c.split(/\||=>/)).map((p) => katla(p).replace(/\s+/g, " ").trim()).filter((p) => p.length >= 4);
 
 const ayni = (a: string, b: string) => katla(a).replace(/\s+/g, " ").trim() === katla(b).replace(/\s+/g, " ").trim();
 
 // Uyarlamayı denetleyip uygular. Uygun değilse bankadaki yer aynen kalır; neden sunucu kaydı içindir.
-export function uyarlamaUygula(yer: KonumYeri, u: KonumUyarlamasi | undefined, profil: YasProfili): { yer: KonumYeri; neden: string | null } {
+export function uyarlamaUygula(
+  yer: KonumYeri,
+  u: KonumUyarlamasi | undefined,
+  profil: YasProfili,
+  cevaplar: string[] = []
+): { yer: KonumYeri; neden: string | null } {
   if (!u) return { yer, neden: null };
   const bilmece = u.bilmece.trim();
   const ipucu1 = u.ipucu_1.trim();
@@ -105,8 +118,13 @@ export function uyarlamaUygula(yer: KonumYeri, u: KonumUyarlamasi | undefined, p
   if (ayni(bilmece, ipucu1) || ayni(ipucu1, yer.ipucu_2)) return reddet("ipucu aynı");
   const banka = katla([yer.nokta, yer.bilmece, yer.ipucu_1, yer.ipucu_2].join(" "));
   const yeni = katla(`${bilmece} ${ipucu1}`);
-  const baskaYer = Object.entries(AYIRT_EDICI).find(([id, ad]) => id !== yer.mekan_id && yeni.includes(katla(ad)) && !banka.includes(katla(ad)));
+  const yeniAd = (ad: string) => yeni.includes(katla(ad)) && !banka.includes(katla(ad));
+  const baskaYer = Object.entries(AYIRT_EDICI).find(([id, adlar]) => id !== yer.mekan_id && adlar.some(yeniAd));
   if (baskaYer) return reddet(`başka mekân: ${baskaYer[0]}`);
+  // Noktanın adı yalnız son ipucunda söylenir; bilmece ya da 1. ipucu söylerse bilmece çözülmeden biter.
+  const nokta = katla(yer.nokta).replace(/["“”']/g, "").trim();
+  if (yeni.includes(nokta) && !katla(`${yer.bilmece} ${yer.ipucu_1}`).includes(nokta)) return reddet("nokta adı");
+  if (cevaplar.some((c) => yeni.includes(c) && !banka.includes(c))) return reddet("cevap");
   if (metinleriTara([{ metin: bilmece, yer: "bilmece" }, { metin: ipucu1, yer: "ipucu" }]).length > 0) return reddet("güvenlik");
   return { yer: { ...yer, bilmece, ipucu_1: ipucu1 }, neden: null };
 }

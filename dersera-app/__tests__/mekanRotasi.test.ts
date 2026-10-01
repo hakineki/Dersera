@@ -2,7 +2,7 @@ import { mekanBilmeceleri } from "@/data/konumBilmeceleri";
 import { MEKANLAR } from "@/data/mekanlar";
 import { cocukGuvenligiTara } from "@/lib/composer/cocukGuvenligi";
 import { IZINLI_QR_IDLERI, validationContext } from "@/lib/composer/context";
-import type { GameDefinition } from "@/lib/composer/definition";
+import type { GameDefinition, KonumYeri } from "@/lib/composer/definition";
 import { baslangicSec, kanitSayisi, katilimAcilisiMi, konumCezasi, sonrakiRotaDuragi, taramaSonucu } from "@/lib/composer/mekanRotasi";
 import { buildUserPrompt } from "@/lib/composer/prompt";
 import { bosSablon } from "@/lib/composer/sablon";
@@ -12,7 +12,7 @@ import { joinGame } from "@/lib/gamesService";
 import { parseLeaderboardEntry } from "@/lib/results";
 import { yanlisSayisi } from "@/lib/gameState";
 import type { ResolvedInput } from "@/lib/composer/input";
-import { konumYeri, mekanlariAta, rotaYerleri, uyarlamaUygula } from "@/lib/composer/mekanYerlesimi";
+import { cevapParcalari, konumYeri, mekanlariAta, rotaYerleri, UYARLAMA_SINIRI, uyarlamaUygula } from "@/lib/composer/mekanYerlesimi";
 import { GorevDoldurmaRotaSchema, GorevDoldurmaSchema, toDefinition, type ModelOutput } from "@/lib/composer/modelOutput";
 import { parcaliUret, type Istek } from "@/lib/composer/parcali";
 import { composeAndValidate } from "@/lib/composer/service";
@@ -20,7 +20,7 @@ import { buildRecipe } from "@/lib/composer/recipe";
 import { arrive, currentStep, FINAL_ID } from "@/lib/composer/scene";
 import { validateGame } from "@/lib/composer/validator";
 import { loadSceneState, saveSceneState, type GameProgress } from "@/lib/gameState";
-import { fakeClient, makeDefinition, modelYaniti, ornekUyarlama, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
+import { fakeClient, makeDefinition, modelYaniti, ornekUyarlama, promptOf, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 
 const okul = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "macera", alan: "okul" });
 const tamam = (ids: string[]): GameProgress => Object.fromEntries(ids.map((id) => [id, { completedAt: 1, hintsUsed: 0 }]));
@@ -316,6 +316,40 @@ describe("konum bilmecesinin sınıf düzeyine uyarlanması (rehber)", () => {
     expect(red({ ...iyi, bilmece: "Sen aptal değilsin, beni bulursun." }).neden).toBe("güvenlik");
   });
 
+  it("ilkokulun kelime kuralına uyan iki cümlelik bilmece (20 kelime) sınıra takılmaz", () => {
+    const b = "Kalın ansiklopediler yan yana dizilmiş, her birinin sırtında numaralar parlıyor. Bilgi arayan öğrenciler önümde durur, sen de beni bulabilir misin?";
+    expect(b.split(/\s+/)).toHaveLength(20);
+    expect(b.length).toBeGreaterThan(140);
+    expect(uyarlamaUygula(yer, { ...iyi, bilmece: b }, "PRIMARY_6_10").neden).toBeNull();
+  });
+
+  it("bilmece görevin cevabını önceden verirse reddedilir; kısa parçalar ve bankada zaten geçenler sayılmaz", () => {
+    expect(cevapParcalari("Kırılma", "A | Işık => Kırılma | b")).toEqual(["kirilma", "işik", "kirilma"]);
+    expect(cevapParcalari("12", "Evt")).toEqual([]);
+    const u = { bilmece: "Işık camdan geçerken kırılmaya uğrar; ben o camın önündeyim.", ipucu_1: iyi.ipucu_1 };
+    expect(uyarlamaUygula(yer, u, "HIGH_15_18", cevapParcalari("Kırılma")).neden).toBe("cevap");
+    expect(uyarlamaUygula(yer, u, "HIGH_15_18", cevapParcalari("Yansıma")).neden).toBeNull();
+    const kitapli = { ...yer, ipucu_1: "Kırılma konusu kitaplarının yanına bak." };
+    expect(uyarlamaUygula(kitapli, u, "HIGH_15_18", cevapParcalari("Kırılma")).neden).toBeNull();
+  });
+
+  it("noktanın adı yalnız son ipucunda: bilmece ya da 1. ipucu söylerse reddedilir", () => {
+    const sabit: KonumYeri = {
+      mekan_id: "kutuphane", mekan_adi: "Kütüphane", nokta: "Ansiklopedi rafı",
+      bilmece: "Tek bir kitapta değil, cilt cilt dizilirim.", ipucu_1: "Numaralı kalın kitapları bul.", ipucu_2: "Ansiklopedilerin dizili olduğu rafa bak.",
+    };
+    expect(uyarlamaUygula(sabit, { ...iyi, bilmece: "Cevap basit: ansiklopedi rafına git." }, "MIDDLE_11_14").neden).toBe("nokta adı");
+    expect(uyarlamaUygula(sabit, { ...iyi, ipucu_1: "Ansiklopedi rafında ara." }, "MIDDLE_11_14").neden).toBe("nokta adı");
+    expect(uyarlamaUygula(sabit, iyi, "MIDDLE_11_14").neden).toBeNull();
+  });
+
+  it("mekân adlarının yaygın söylenişleri yakalanır; gündelik kullanımlar ('idare et') yakalanmaz", () => {
+    const red = (bilmece: string) => uyarlamaUygula(yer, { ...iyi, bilmece }, "MIDDLE_11_14").neden;
+    expect(red("Okulun kapısından girince kitapların arasında beni bul.")).toBe("başka mekân: okul-kapisi");
+    expect(red("Öğretmen odasının önünden geçme, kitapların arasında beni bul.")).toBe("başka mekân: ogretmenler-odasi");
+    expect(red("Az ışıkla idare et, kitapların arasında beni bul.")).toBeNull();
+  });
+
   it("bankadaki metin başka mekânı zaten anıyorsa uyarlama da anabilir", () => {
     const bahce = { ...konumYeri("bahce", "Oyun:d2"), ipucu_1: "Kantinin arkasındaki ağaçlara bak." };
     const u = { bilmece: "Kantinin ardında yeşil bir köşe var. Beni bul.", ipucu_1: "Ağaçların olduğu yere git." };
@@ -353,6 +387,9 @@ describe("üretimde konum bilmecesi uyarlaması (parçalı akış)", () => {
     expect(gorevler.every((g) => g.sema === GorevDoldurmaRotaSchema)).toBe(true);
     const ilk = gorevler.find((g) => /döndür: d1, d2, d3\n/.test(g.prompt))!.prompt;
     expect(ilk).toContain("İlkokul: en çok iki kısa cümle");
+    // Denetimin sınırları ve cevap yasağı modele de söylenir.
+    expect(ilk).toContain(`konum_bilmece en çok ${UYARLAMA_SINIRI.PRIMARY_6_10.bilmece} karakter, konum_ipucu_1 en çok ${UYARLAMA_SINIRI.PRIMARY_6_10.ipucu} karakter`);
+    expect(ilk).toContain("durağın görevinin cevabını, seçeneklerini ya da çözümünü bilmecede ve ipucunda verme");
     expect(ilk).toContain(`d1 · ${yerler[0].mekan_adi} · nokta: ${yerler[0].nokta} · bilmece: ${yerler[0].bilmece}`);
     expect(ilk).not.toContain(yerler[3].bilmece);
     expect(out.duraklar.map((d) => d.konum)).toEqual(ornek.duraklar.map((d) => ornekUyarlama(d.isim)));
@@ -381,11 +418,42 @@ describe("üretimde konum bilmecesi uyarlaması (parçalı akış)", () => {
     const { ornek, out } = await parcaliIle(ilkokul);
     const yerler = rotaYerleri(ornek.baslik, ornek.duraklar);
     out.duraklar[0].konum = { bilmece: "", ipucu_1: "x" };
+    // Görevin cevabını veren uyarlama (cevap durağın kendi görevinden alınır).
+    out.duraklar[1].dogru_cevap = "Fotosentez";
+    out.duraklar[1].konum = { bilmece: "Fotosentez yapan yaprakların yanında beni bul.", ipucu_1: "Yeşil yapraklara bak." };
     const r = toDefinition(out, ilkokul);
     if (!r.ok) throw new Error(r.error);
     expect(r.definition.duraklar[0].mekan.yer).toEqual(yerler[0]);
-    expect(r.definition.duraklar[1].mekan.yer?.bilmece).toBe(ornekUyarlama(ornek.duraklar[1].isim).bilmece);
+    expect(r.definition.duraklar[1].mekan.yer).toEqual(yerler[1]);
+    expect(r.definition.duraklar[2].mekan.yer?.bilmece).toBe(ornekUyarlama(ornek.duraklar[2].isim).bilmece);
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("d1 konum bilmecesi uyarlaması kullanılmadı (boş)"));
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("d2 konum bilmecesi uyarlaması kullanılmadı (cevap)"));
+  });
+
+  it("düzeltme turu konum uyarlamasını ve mekânı korur; düzeltme istemine konum gitmez", async () => {
+    const ornek = toModelOutput(makeDefinition(ilkokul, 8));
+    ornek.duraklar.forEach((d, i) => (d.mekan_id = MEKANLAR[i].id));
+    // d2'nin görevi boş gelir (soru-bos) → düzeltme çağrısı; model o çağrıda mekânı da değiştirmeye çalışır.
+    ornek.duraklar[1].soru = "";
+    const duzeltmeIstemleri: string[] = [];
+    const client = {
+      messages: {
+        create: async (body: never) => {
+          const prompt = promptOf(body);
+          const y = prompt.includes("Düzeltilecek duraklar")
+            ? (duzeltmeIstemleri.push(prompt), { duraklar: [{ ...ornek.duraklar[1], soru: "Yeni soru?", mekan_id: "kantin" }] })
+            : modelYaniti(ornek, prompt);
+          return { model: "test", stop_reason: "end_turn", usage: { output_tokens: 1 }, content: [{ type: "text", text: JSON.stringify(y) }] };
+        },
+      },
+    } as never;
+    const { definition, validation } = await composeAndValidate(ilkokul, client);
+    expect(duzeltmeIstemleri).toHaveLength(1);
+    expect(duzeltmeIstemleri[0].split("Düzeltilecek duraklar (JSON):")[1]).not.toContain('"konum"');
+    expect(validation.hatalar.filter((h) => h.kod === "soru-bos")).toEqual([]);
+    expect(definition.duraklar[1].gorev.soru).toBe("Yeni soru?");
+    const yerler = rotaYerleri(ornek.baslik, ornek.duraklar);
+    definition.duraklar.forEach((d, i) => expect(d.mekan.yer).toEqual({ ...yerler[i], ...ornekUyarlama(d.isim) }));
   });
 
   it("uçtan uca (sahte istemci): ilkokul okul macerası uyarlanmış bilmecelerle doğrulamadan geçer", async () => {

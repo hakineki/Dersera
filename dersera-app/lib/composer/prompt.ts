@@ -3,6 +3,7 @@ import type { ResolvedInput } from "@/lib/composer/input";
 import type { Recipe } from "@/lib/composer/recipe";
 import { PROFILLER, yasProfiliOf, type YasProfili } from "@/lib/yasProfili";
 import type { KonumYeri } from "@/lib/composer/definition";
+import { UYARLAMA_SINIRI } from "@/lib/composer/mekanYerlesimi";
 import type { DurakCiktisi, Iskelet } from "@/lib/composer/modelOutput";
 import { MEKANLAR } from "@/data/mekanlar";
 
@@ -148,7 +149,7 @@ Yalnız bu durakları hataları gidererek yeniden yaz ve duraklar dizisinde dön
 Tüm oyunu DEĞİL, yalnız bu durakları yaz. id, sahne_turu, secimler, varsayilan_sonraki_durak_id, odul_id, qr_durak_id, mekan_id değerlerini ve (hata listesinde öğrenme hedefi hatası yoksa) ogrenme_hedefi kodunu aynen koru; yalnız görev içeriğini (soru, görev türü, seçenekler, doğru cevap, ipuçları, destek görevi) ve gerekirse hikâye metnini değiştir.
 
 Düzeltilecek duraklar (JSON):
-${JSON.stringify(duraklar)}`;
+${JSON.stringify(duraklar, (k, v) => (k === "konum" ? undefined : v))}`;
 }
 
 // Parçalı üretim, 1. adım: oyunun iskeleti. Görev içerikleri sonraki adımda paralel yazılır.
@@ -168,7 +169,7 @@ const KONUM_DUZEYI: Record<YasProfili, string> = {
   MIDDLE_11_14:
     "Ortaokul: bankadaki düzey; en çok üç kısa cümle. Hikâyenin havasından bir dokunuş ekleyebilirsin.",
   HIGH_15_18:
-    "Lise: daha dolaylı ve zekice; mecaz, kelime oyunu ya da dersin konusundan bir kavramla bağ kurabilir, bilmece bir soruya dönüşebilir. Yine de yalnız bu noktaya çıkmalı; en çok üç cümle.",
+    "Lise: daha dolaylı ve zekice; mecaz, kelime oyunu ya da dersin konusundan bir kavramla bağ kurabilir (görevin cevabı olan kavramla değil), bilmece bir soruya dönüşebilir. Yine de yalnız bu noktaya çıkmalı; en çok üç cümle.",
 };
 
 // Parçalı üretim, 2. adım: iskeletteki bir grup durağın görev içeriği. Mekân rotasında rehber, durağın bankadan
@@ -180,6 +181,8 @@ export function buildGorevPrompt(iskelet: Iskelet, idler: string[], konum?: { pr
 
 Konum bilmecesi (konum_bilmece, konum_ipucu_1): her durağa, takımı o durağın QR'ına götüren bir konum bilmecesi verildi (aşağıda bankadaki hâli). Bunu bu oyunun sınıf düzeyine ve hikâyesine göre yeniden yaz:
 - ${KONUM_DUZEYI[konum.profil]}
+- konum_bilmece en çok ${UYARLAMA_SINIRI[konum.profil].bilmece} karakter, konum_ipucu_1 en çok ${UYARLAMA_SINIRI[konum.profil].ipucu} karakter; daha uzunsa kullanılmaz.
+- Bilmece, takım durağa varmadan gösterilir: durağın görevinin cevabını, seçeneklerini ya da çözümünü bilmecede ve ipucunda verme.
 - Aynı mekânı ve aynı noktayı anlat. Noktayı, mekânı değiştirme; başka bir yer, mekân ya da yön ekleme. Noktanın adını bilmecede söyleme.
 - konum_ipucu_1 bilmeceden açıktır ama noktanın adını söylemez; bilmeceyle aynı cümle olmasın. Son ipucu (noktanın adı) bankadaki gibi kalır, yazma.
 ${idler

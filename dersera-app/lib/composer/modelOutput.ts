@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { GameDefinitionSchema, type GameDefinition, type KonumYeri } from "@/lib/composer/definition";
 import type { ResolvedInput } from "@/lib/composer/input";
-import { mekanKimligi, rotaYerleri, uyarlamaUygula, type KonumUyarlamasi } from "@/lib/composer/mekanYerlesimi";
+import { cevapParcalari, mekanKimligi, rotaYerleri, uyarlamaUygula, type KonumUyarlamasi } from "@/lib/composer/mekanYerlesimi";
 import { mekanOf } from "@/data/mekanlar";
 import { yasProfiliOf } from "@/lib/yasProfili";
 
@@ -174,8 +174,9 @@ export function toDefinition(
   const profil = yasProfiliOf(input.sinif);
   // Rehberin uyarlaması denetlenir; uygun değilse bankadaki bilmece kalır (öğretmen notu değil, sunucu kaydı).
   const yerOf = (i: number): KonumYeri => {
-    const { yer, neden } = uyarlamaUygula(yerler[i], out.duraklar[i].konum, profil);
-    if (neden) console.warn(`[compose] ${out.duraklar[i].id} konum bilmecesi uyarlaması kullanılmadı (${neden}); bankadaki metin kaldı`);
+    const d = out.duraklar[i];
+    const { yer, neden } = uyarlamaUygula(yerler[i], d.konum, profil, cevapParcalari(d.dogru_cevap, d.destek_dogru_cevap));
+    if (neden) console.warn(`[compose] ${d.id} konum bilmecesi uyarlaması kullanılmadı (${neden}); bankadaki metin kaldı`);
     return yer;
   };
   const candidate = {
