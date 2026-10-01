@@ -1,6 +1,6 @@
 import { depoKomutu, type RedisCommand } from "@/lib/redis";
 
-// Öğretmenin isteğe bağlı e-postası ve tek kullanımlık bağlantı belirteçleri. Anahtarlar:
+// Öğretmenin e-postası (kayıtta zorunlu) ve tek kullanımlık bağlantı belirteçleri. Anahtarlar:
 //   hesap → e-posta kaydı; doğrulanmış adresin özeti → hesap (bir adres yalnız bir hesapta doğrulanır);
 //   belirteç özeti → belirteç (süreli, alınınca silinir). Belirtecin ve adresin kendisi anahtarda durmaz, özeti durur.
 

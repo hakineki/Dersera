@@ -4,6 +4,9 @@ import { getAuthStore } from "@/lib/authStore";
 import { denemeOnKontrol, jsonGovde, kokenReddi, oturumBelirteci, oturumCereziYaz } from "@/lib/authRequest";
 import { getDenetimKaydiStore } from "@/lib/denetimKaydi";
 import { KOSUL_SURUMU } from "@/lib/kosullar";
+import { siteAdresi } from "@/lib/eposta";
+import { epostaDeps } from "@/lib/epostaIstek";
+import { dogrulamaYenidenGonder, EPOSTA_ISTENIR, epostaNormal, kayitEpostasiYaz } from "@/lib/epostaService";
 
 export async function POST(req: Request) {
   const red = kokenReddi(req) ?? (await denemeOnKontrol(req, "kayit"));
@@ -11,6 +14,9 @@ export async function POST(req: Request) {
   const b = await jsonGovde(req);
   // Kullanım koşulları onaylanmadan hesap açılmaz (onay sürümüyle kaydedilir).
   if (b.kosulOnayi !== true) return NextResponse.json({ error: "Hesap açmak için kullanım koşullarını onaylaman gerekiyor." }, { status: 422 });
+  // E-posta zorunlu: şifre unutulursa sıfırlama bağlantısı (doğrulandıktan sonra) bu adrese gider.
+  const adres = epostaNormal(b.eposta);
+  if (!adres) return NextResponse.json({ error: EPOSTA_ISTENIR }, { status: 422 });
   try {
     const store = getAuthStore();
     const r = await kayitOl(store, b.kullaniciAdi, b.sifre, b.davetKodu);
@@ -23,9 +29,21 @@ export async function POST(req: Request) {
       .kosulOnayiYaz(r.value.id, onay)
       .catch(() => denetim.kosulOnayiYaz(r.value.id, onay))
       .catch((err) => console.error("[auth] koşul onayı yazılamadı", r.value.id, onay, err instanceof Error ? err.message : err));
+    // E-posta doğrulanmamış yazılır ve doğrulama bağlantısı gönderilir. Hesap açıldığı için ikisinden biri olmazsa da kayıt
+    // başarılıdır: öğretmen panelde uyarıyı görür, adresi ekler ya da bağlantıyı yeniden ister. Yanıttaki eposta yalnız
+    // adres yazıldıysa doludur.
+    let eposta: { adres: string; dogrulandi: false; gonderildi: boolean } | null = null;
+    try {
+      const d = epostaDeps();
+      await kayitEpostasiYaz(d, r.value, adres);
+      eposta = { adres, dogrulandi: false, gonderildi: false };
+      eposta.gonderildi = (await dogrulamaYenidenGonder(d, r.value, siteAdresi(req))).ok;
+    } catch (err) {
+      console.error("[auth] kayıt e-postası yazılamadı ya da gönderilemedi", r.value.id, err instanceof Error ? err.message : err);
+    }
     // Bu tarayıcıda açık önceki oturum kapatılır.
     await oturumKapat(store, oturumBelirteci(req));
-    return oturumCereziYaz(NextResponse.json({ hesap: hesapOzeti(r.value) }, { status: 201 }), await oturumAc(store, r.value));
+    return oturumCereziYaz(NextResponse.json({ hesap: hesapOzeti(r.value), eposta }, { status: 201 }), await oturumAc(store, r.value));
   } catch (err) {
     console.error("[auth] kayıt hatası", err instanceof Error ? err.message : err);
     return NextResponse.json({ error: "Hesap şu anda oluşturulamadı." }, { status: 503 });

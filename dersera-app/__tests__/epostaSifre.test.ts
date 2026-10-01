@@ -1,9 +1,11 @@
 import { epostaGonder, EpostaYapilandirilmadiError, siteAdresi, type Eposta } from "@/lib/eposta";
 import { createMemoryEpostaStore, createRedisEpostaStore } from "@/lib/epostaStore";
-import { adresOzeti, DOGRULAMA_SURESI_MS, epostaNormal, SIFIRLAMA_ISTENDI, SIFIRLAMA_SURESI_MS } from "@/lib/epostaService";
+import { adresOzeti, DOGRULAMA_SURESI_MS, EPOSTA_ISTENIR, epostaNormal, SIFIRLAMA_ISTENDI, SIFIRLAMA_SURESI_MS } from "@/lib/epostaService";
 import { buildApi, cerezli, hesapAc, jsonRequest, oturumCerezi } from "./helpers/api";
 import { clearRedisEnv } from "./helpers/fakeRedis";
 import { createLuaRedis } from "./helpers/luaRedis";
+import { existsSync } from "fs";
+import { join } from "path";
 
 const SIFRE = "gizli-sifre-1";
 const YENI = "yepyeni-sifre-7";
@@ -98,6 +100,8 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
     ayse = await hesapAc(api, "ayse");
     bora = await hesapAc(api, "bora");
     ayseId = (await api.authStore.getAuthStore().idByAd("ayse"))!;
+    // Kayıtta verilen (doğrulanmamış) adreslere giden doğrulama e-postaları; testler kendi gönderimlerine bakar.
+    giden = [];
   });
   afterEach(() => jest.restoreAllMocks());
   afterAll(() => {
@@ -112,6 +116,9 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
   const sifirla = (t: string, yeniSifre: string) => api.sifreSifirla.POST(jsonRequest("/api/auth/sifre-sifirlama", { t, yeniSifre }));
   const ben = async (c: string) => (await (await api.ben.GET(cerezli(new Request("http://localhost/api/auth/ben"), c))).json()).hesap;
   const giris = (ad: string, sifre: string) => api.giris.POST(jsonRequest("/api/auth/giris", { kullaniciAdi: ad, sifre }));
+  const kayit = (kullaniciAdi: string, eposta?: unknown) =>
+    api.kayit.POST(jsonRequest("/api/auth/kayit", { kullaniciAdi, sifre: SIFRE, kosulOnayi: true, ...(eposta !== undefined && { eposta }) }));
+  const yenidenGonder = (c: string | null) => api.epostaYenidenGonder.POST(cerezli(jsonRequest("/api/auth/eposta/yeniden-gonder", {}), c));
   const dogrulanmisEkle = async (c: string, adres: string) => {
     expect((await epostaEkle(c, adres)).status).toBe(200);
     expect((await dogrula(belirtecOf(giden.at(-1)!))).status).toBe(200);
@@ -126,7 +133,69 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
     req.headers.set("sec-fetch-site", "cross-site");
     expect((await api.eposta.POST(req)).status).toBe(403);
     expect(giden).toEqual([]);
-    expect(await durum(ayse)).toBeNull();
+    // Kayıtta verilen adres değişmedi (doğrulanmamış).
+    expect(await durum(ayse)).toEqual({ adres: "ayse@okul.test", dogrulandi: false });
+  });
+
+  it("kayıtta e-posta zorunlu: yoksa ya da geçersizse 422 ve hesap açılmaz", async () => {
+    for (const eposta of [undefined, "", "gecersiz", 5, "a b@okul.tr"]) {
+      const r = await kayit("cem", eposta);
+      expect([r.status, (await r.json()).error, r.headers.get("set-cookie")]).toEqual([422, EPOSTA_ISTENIR, null]);
+    }
+    expect(await api.authStore.getAuthStore().idByAd("cem")).toBeNull();
+    expect(giden).toEqual([]);
+  });
+
+  it("kayıt: adres doğrulanmamış yazılır, doğrulama bağlantısı gider; bağlantıyla doğrulanır", async () => {
+    const r = await kayit("cem", " Cem@Okul.TR ");
+    expect(r.status).toBe(201);
+    expect((await r.json()).eposta).toEqual({ adres: "cem@okul.tr", dogrulandi: false, gonderildi: true });
+    const cem = oturumCerezi(r)!;
+    expect(giden.map((e) => [e.kime, e.konu])).toEqual([["cem@okul.tr", "Dersera: e-posta adresini doğrula"]]);
+    expect(giden[0].metin).toContain("Merhaba cem");
+    expect(await durum(cem)).toEqual({ adres: "cem@okul.tr", dogrulandi: false });
+    expect((await dogrula(belirtecOf(giden[0]))).status).toBe(200);
+    expect(await durum(cem)).toEqual({ adres: "cem@okul.tr", dogrulandi: true });
+  });
+
+  it("kayıt: doğrulama e-postası gönderilemese de hesap açılır, adres kalır; panelden yeniden gönderilir", async () => {
+    jest.spyOn(api.epostaModul, "epostaGonder").mockRejectedValueOnce(new Error("Resend 500"));
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    const r = await kayit("cem", "cem@okul.tr");
+    expect(r.status).toBe(201);
+    expect((await r.json()).eposta).toEqual({ adres: "cem@okul.tr", dogrulandi: false, gonderildi: false });
+    const cem = oturumCerezi(r)!;
+    expect(await durum(cem)).toEqual({ adres: "cem@okul.tr", dogrulandi: false });
+    expect(giden).toEqual([]);
+    const y = await yenidenGonder(cem);
+    expect([y.status, await y.json()]).toEqual([200, { adres: "cem@okul.tr" }]);
+    expect(giden.map((e) => e.kime)).toEqual(["cem@okul.tr"]);
+  });
+
+  it("kayıt: e-posta deposu yazılamazsa da hesap açılır; yanıtta adres kaydedilmiş gibi görünmez, panel 'e-posta ekle' der", async () => {
+    jest.spyOn(api.epostaStore.getEpostaStore(), "yaz").mockRejectedValueOnce(new Error("Redis yok"));
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    const r = await kayit("cem", "cem@okul.tr");
+    expect([r.status, (await r.json()).eposta]).toEqual([201, null]);
+    expect(await durum(oturumCerezi(r)!)).toBeNull();
+    expect(giden).toEqual([]);
+  });
+
+  it("yeniden gönder: oturum ve köken ister; doğrulanmışa 409, e-postasız (eski) hesaba 404; sınır kayıttaki gönderimle ortak", async () => {
+    expect((await yenidenGonder(null)).status).toBe(401);
+    const capraz = cerezli(jsonRequest("/api/auth/eposta/yeniden-gonder", {}), ayse);
+    capraz.headers.set("sec-fetch-site", "cross-site");
+    expect((await api.epostaYenidenGonder.POST(capraz)).status).toBe(403);
+    // Kayıttaki 1 gönderim + 4 yeniden gönderim = saatlik 5; altıncısı 429.
+    for (let i = 0; i < 4; i++) expect((await yenidenGonder(ayse)).status).toBe(200);
+    expect((await yenidenGonder(ayse)).status).toBe(429);
+    expect(giden).toHaveLength(4);
+    expect((await dogrula(belirtecOf(giden.at(-1)!))).status).toBe(200);
+    expect((await yenidenGonder(ayse)).status).toBe(409);
+    // E-posta zorunlu olmadan önce açılmış hesap: kayıt yok.
+    await api.epostaStore.getEpostaStore().kaldir((await api.authStore.getAuthStore().idByAd("bora"))!, null);
+    expect(await durum(bora)).toBeNull();
+    expect((await yenidenGonder(bora)).status).toBe(404);
   });
 
   it("ekle → doğrulama e-postası → doğrula (tek kullanımlık); aynı adres başka hesapta doğrulanamaz", async () => {
@@ -186,7 +255,7 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
     expect((await sifirla("x".repeat(43), "baska-sifre-8")).status).toBe(400);
   });
 
-  it("kaldır ve değiştir: eski adres artık sıfırlama göndermez; hesap silinince e-posta ve dizin gider", async () => {
+  it("değiştir: eski adres artık sıfırlama göndermez; kaldırma ucu yok; hesap silinince e-posta ve dizin gider", async () => {
     await dogrulanmisEkle(ayse, "ayse@okul.tr");
     await dogrulanmisEkle(ayse, "yeni@okul.tr");
     giden = [];
@@ -195,14 +264,9 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
     await bekle();
     expect(giden.map((e) => e.kime)).toEqual(["yeni@okul.tr"]);
 
-    expect((await api.epostaKaldir.POST(cerezli(jsonRequest("/api/auth/eposta/kaldir", { sifre: "yanlis-sifre-9" }), ayse))).status).toBe(403);
-    expect((await api.epostaKaldir.POST(cerezli(jsonRequest("/api/auth/eposta/kaldir", { sifre: SIFRE }), ayse))).status).toBe(200);
-    expect(await durum(ayse)).toBeNull();
-    giden = [];
-    await iste("yeni@okul.tr");
-    await iste("ayse");
-    await bekle();
-    expect(giden).toEqual([]);
+    // E-posta zorunlu: kaldırma ucu yok (adres yalnız değiştirilir).
+    expect(existsSync(join(process.cwd(), "app/api/auth/eposta/kaldir"))).toBe(false);
+    expect(await durum(ayse)).toEqual({ adres: "yeni@okul.tr", dogrulandi: true });
 
     await dogrulanmisEkle(ayse, "son@okul.tr");
     expect((await api.hesapSil.POST(cerezli(jsonRequest("/api/auth/hesap-sil", { sifre: SIFRE }), ayse))).status).toBe(200);
@@ -238,16 +302,16 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
     expect(giden).toHaveLength(4);
   });
 
-  it("hesap başına saatte en çok 5 e-posta", async () => {
-    for (let i = 0; i < 5; i++) expect((await epostaEkle(ayse, `a${i}@okul.tr`)).status).toBe(200);
+  it("hesap başına saatte en çok 5 e-posta (kayıttaki doğrulama e-postası da sayılır)", async () => {
+    for (let i = 0; i < 4; i++) expect((await epostaEkle(ayse, `a${i}@okul.tr`)).status).toBe(200);
     expect((await epostaEkle(ayse, "a9@okul.tr")).status).toBe(429);
-    expect(giden).toHaveLength(5);
+    expect(giden).toHaveLength(4);
   });
 
   it("canlıda yapılandırma yoksa açık hata (503), hesap bilgisi sızmaz", async () => {
     jest.restoreAllMocks();
     // Depolar önceden açılır (canlıda Redis vardır); eksik olan yalnız e-posta yapılandırması.
-    expect(await durum(ayse)).toBeNull();
+    expect(await durum(ayse)).toEqual({ adres: "ayse@okul.test", dogrulandi: false });
     const eski = process.env.NODE_ENV;
     const YAPILANDIRMA_YOK = [503, { error: "E-posta gönderimi şu anda kullanılamıyor. Platform yöneticisine yaz." }];
     try {
@@ -258,6 +322,7 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
         const s = await iste(g);
         expect([s.status, await s.json()]).toEqual(YAPILANDIRMA_YOK);
       }
+      expect([(await yenidenGonder(ayse)).status]).toEqual([503]);
     } finally {
       (process.env as Record<string, string | undefined>).NODE_ENV = eski;
     }
@@ -265,6 +330,7 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
 
   it("yönetici sıfırlama bağlantısı: yetki, gerekçe, işlem kaydı; bağlantı çalışır; ayrıntıda yalnız e-posta var/yok", async () => {
     const yonetici = await hesapAc(api, "platform1");
+    giden = [];
     const uret = (c: string | null, id: string, neden: unknown, sifre = SIFRE) => api.ogretmenSifirlama.POST(cerezli(jsonRequest(`/api/yonetim/ogretmenler/${id}/sifirlama`, { neden, sifre }), c), api.idParams(id));
     expect((await uret(null, ayseId, "unuttu")).status).toBe(401);
     expect((await uret(bora, ayseId, "unuttu")).status).toBe(403);
@@ -277,7 +343,7 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
     const r = await uret(yonetici, ayseId, "Şifresini unuttu, e-postası yok");
     const { baglanti, bildirildi } = await r.json();
     expect(baglanti).toMatch(/^http:\/\/localhost\/sifre-sifirla#t=[A-Za-z0-9_-]{40,}$/);
-    // E-postası yok: bildirim gitmez.
+    // E-postası doğrulanmamış: bildirim gitmez.
     expect([bildirildi, giden]).toEqual([false, []]);
     expect((await sifirla(new URL(baglanti).hash.slice(3), YENI)).status).toBe(200);
     expect((await giris("ayse", YENI)).status).toBe(200);

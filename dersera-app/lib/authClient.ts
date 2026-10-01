@@ -41,8 +41,8 @@ export async function oturumBilgisi(): Promise<{ hesap: HesapOzeti | null; davet
 }
 
 export const girisYap = (kullaniciAdi: string, sifre: string) => gonder("/api/auth/giris", { kullaniciAdi, sifre });
-export const kayitOl = (kullaniciAdi: string, sifre: string, davetKodu: string, kosulOnayi: boolean) =>
-  gonder("/api/auth/kayit", { kullaniciAdi, sifre, davetKodu, kosulOnayi });
+export const kayitOl = (kullaniciAdi: string, sifre: string, davetKodu: string, kosulOnayi: boolean, eposta: string) =>
+  gonder("/api/auth/kayit", { kullaniciAdi, sifre, davetKodu, kosulOnayi, eposta });
 export const sifreDegistir = (mevcutSifre: string, yeniSifre: string) => gonder("/api/auth/sifre", { mevcutSifre, yeniSifre });
 export const kullaniciAdiDegistir = (yeniKullaniciAdi: string, sifre: string) => gonder("/api/auth/ad", { yeniKullaniciAdi, sifre });
 // Başarıda sunucu oturum çerezini de siler.
@@ -65,7 +65,7 @@ export interface EpostaDurumu {
 }
 export const epostaDurumuAl = () => istek<{ eposta: EpostaDurumu | null }>("/api/auth/eposta");
 export const epostaKaydet = (adres: string, sifre: string) => istek<{ eposta: EpostaDurumu }>("/api/auth/eposta", { adres, sifre });
-export const epostaSil = (sifre: string) => istek<{ ok: true }>("/api/auth/eposta/kaldir", { sifre });
+export const dogrulamaYenidenGonder = () => istek<{ adres: string }>("/api/auth/eposta/yeniden-gonder", {});
 export const epostaDogrula = (t: string) => istek<{ adres: string }>("/api/auth/eposta/dogrula", { t });
 export const sifirlamaIste = (girdi: string) => istek<{ mesaj: string }>("/api/auth/sifre-sifirlama/iste", { girdi });
 export const sifreSifirla = (t: string, yeniSifre: string) => istek<{ ok: true }>("/api/auth/sifre-sifirlama", { t, yeniSifre });

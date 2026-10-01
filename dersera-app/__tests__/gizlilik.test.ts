@@ -52,7 +52,7 @@ describe("gizlilik ve KVKK aydınlatma metni", () => {
     expect([DOGRULAMA_SURESI_MS / 3_600_000, SIFIRLAMA_SURESI_MS / 3_600_000]).toEqual([24, 1]);
     expect(s).toContain("Doğrulama bağlantısı 24 saat, şifre sıfırlama bağlantısı 1 saat");
     expect(bolum("Kimlere ve nereye aktarılıyor")).toMatch(/Resend Inc.: e-posta gönderimi/);
-    expect(bolum("Hangi verileri işliyoruz")).toContain("E-posta (isteğe bağlı)");
+    expect(bolum("Hangi verileri işliyoruz")).toContain("E-posta: hesap açarken istenir");
     expect(s).toContain(`Yönetim işlem kaydı: son ${ISLEM_SAKLAMA} işlem`);
     expect(s).toContain("Askı kaydı ve gerekçesi: hesap silinene kadar");
     expect(s).toMatch(/okul kapatılınca okul kaydı, davet kodu, üyelikler, okul kütüphanesindeki paylaşımlar ve okulun kredi hakkı ile öğretmen başı sınırı silinir; okulun aylık kredi kullanım sayaçları .* 40 günde/);
