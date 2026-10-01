@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { GameDefinitionSchema, type GameDefinition, type KonumYeri } from "@/lib/composer/definition";
-import type { ResolvedInput } from "@/lib/composer/input";
+import type { ResolvedInput, RotaSecimi } from "@/lib/composer/input";
 import { cevapParcalari, mekanKimligi, rotaYerleri, uyarlamaUygula, type KonumUyarlamasi } from "@/lib/composer/mekanYerlesimi";
 import { mekanOf } from "@/data/mekanlar";
 import { yasProfiliOf } from "@/lib/yasProfili";
@@ -140,13 +140,15 @@ export const hedefKodu = (s: string) => s.match(KOD)?.[0].replace(/\s+/g, "") ??
 // Okul macerası mekân rotasıdır: rota doğrusaldır (seçim sahnesi yok; oynatıcı döngüsel dolaştırır), her durak sırayla
 // bir QR'a bağlanır (qr-1, qr-2, …) ve modelin seçtiği mekânın konum bilmecelerinden birini alır. Modelin mekânı listede
 // yoksa ya da tekrarlandıysa değiştirilir ve öğretmene not düşülür (hikâye başka mekânı anlatıyor olabilir).
-function rotayaCevir(out: ModelOutput): { out: ModelOutput; notlar: string[]; yerler: KonumYeri[] } {
-  const yerler = rotaYerleri(out.baslik, out.duraklar);
+function rotayaCevir(out: ModelOutput, secim: (RotaSecimi | null)[] = []): { out: ModelOutput; notlar: string[]; yerler: KonumYeri[] } {
+  const yerler = rotaYerleri(out.baslik, out.duraklar, secim);
   const mekanlar = yerler.map((y) => y.mekan_id);
   const notlar = out.duraklar.flatMap((d, i) =>
     mekanKimligi(d.mekan_id) === mekanlar[i]
       ? []
-      : [`${d.isim}: yapay zekânın seçtiği mekân (${d.mekan_id.trim() || "boş"}) listede yok ya da tekrarlandı; yerine ${mekanOf(mekanlar[i])?.ad ?? mekanlar[i]} atandı. Hikâyenin bu mekânla uyuştuğunu kontrol edin.`]
+      : secim[i]
+        ? [`${d.isim}: rotada seçtiğiniz ${yerler[i].mekan_adi} kullanıldı; yapay zekâ başka bir mekân (${d.mekan_id.trim() || "boş"}) yazmıştı. Hikâyenin bu mekânla uyuştuğunu kontrol edin.`]
+        : [`${d.isim}: yapay zekânın seçtiği mekân (${d.mekan_id.trim() || "boş"}) listede yok ya da tekrarlandı; yerine ${mekanOf(mekanlar[i])?.ad ?? mekanlar[i]} atandı. Hikâyenin bu mekânla uyuştuğunu kontrol edin.`]
   );
   const donusmus: ModelOutput = {
     ...out,
@@ -170,7 +172,7 @@ export function toDefinition(
   input: ResolvedInput
 ): { ok: true; definition: GameDefinition; notlar: string[] } | { ok: false; error: string } {
   const rota = input.alan === "okul";
-  const { out, notlar, yerler } = rota ? rotayaCevir(ham) : { out: ham, notlar: [], yerler: [] };
+  const { out, notlar, yerler } = rota ? rotayaCevir(ham, input.rota_secimi) : { out: ham, notlar: [], yerler: [] };
   const profil = yasProfiliOf(input.sinif);
   // Rehberin uyarlaması denetlenir; uygun değilse bankadaki bilmece kalır (öğretmen notu değil, sunucu kaydı).
   const yerOf = (i: number): KonumYeri => {

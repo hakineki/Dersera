@@ -3,6 +3,7 @@ import { mekanBilmeceleri } from "@/data/konumBilmeceleri";
 import { MEKANLAR, mekanOf } from "@/data/mekanlar";
 import { katla, metinleriTara } from "@/lib/composer/cocukGuvenligi";
 import type { KonumYeri } from "@/lib/composer/definition";
+import type { RotaSecimi } from "@/lib/composer/input";
 import type { YasProfili } from "@/lib/yasProfili";
 
 // Sunucu tarafı: mekân rotasında her durağa okul mekânı ve o mekânın konum bilmecelerinden biri atanır. Model mekânı
@@ -21,9 +22,12 @@ const ARAMA = new Map(MEKANLAR.flatMap((m) => [[mekanAnahtari(m.id), m.id], [mek
 // Modelin yazdığı mekânın kimliği; listede yoksa undefined.
 export const mekanKimligi = (girdi: string): string | undefined => ARAMA.get(mekanAnahtari(girdi)) ?? mekanOf(girdi.trim())?.id;
 
-export function mekanlariAta(istenen: string[]): string[] {
-  const kullanilan = new Set<string>();
-  const secilen = istenen.map((girdi) => {
+// sabit: öğretmenin seçtiği mekânlar (durak sırasıyla; null olanı model seçer). Önceden ayrılır; modelin seçimi bunlarla
+// çakışırsa ilk boş mekânla değişir.
+export function mekanlariAta(istenen: string[], sabit: (string | null)[] = []): string[] {
+  const kullanilan = new Set(sabit.slice(0, istenen.length).filter((id): id is string => !!id));
+  const secilen = istenen.map((girdi, i) => {
+    if (sabit[i]) return sabit[i];
     const id = mekanKimligi(girdi);
     if (!id || kullanilan.has(id)) return null;
     kullanilan.add(id);
@@ -46,11 +50,18 @@ export function konumYeri(mekanId: string, anahtar: string): KonumYeri {
   return { mekan_id: m.id, mekan_adi: m.ad, nokta: b.nokta, bilmece: b.bilmece, ipucu_1: b.ipucu1, ipucu_2: b.ipucu2 };
 }
 
-// Rotanın yerleri: modelin seçtiği mekânlar atanır, her durağa o mekânın bankasından bir bilmece seçilir. Görev doldurma
-// (rehber bilmeceyi uyarlar) ve tanıma dönüşüm aynı girdiden aynı yerleri bulur.
-export function rotaYerleri(baslik: string, duraklar: { id: string; mekan_id: string }[]): KonumYeri[] {
-  const mekanlar = mekanlariAta(duraklar.map((d) => d.mekan_id));
-  return duraklar.map((d, i) => konumYeri(mekanlar[i], `${baslik}:${d.id}`));
+// Rotanın yerleri: öğretmenin seçtiği mekânlar (ve okuldaki adları) sabit, kalanını model seçer; her durağa o mekânın
+// bankasından bir bilmece seçilir. Görev doldurma (rehber bilmeceyi uyarlar) ve tanıma dönüşüm aynı girdiden aynı yerleri bulur.
+export function rotaYerleri(baslik: string, duraklar: { id: string; mekan_id: string }[], secim: (RotaSecimi | null)[] = []): KonumYeri[] {
+  const mekanlar = mekanlariAta(
+    duraklar.map((d) => d.mekan_id),
+    secim.map((s) => s?.mekan_id ?? null)
+  );
+  return duraklar.map((d, i) => {
+    const yer = konumYeri(mekanlar[i], `${baslik}:${d.id}`);
+    const ad = secim[i]?.ad;
+    return ad ? { ...yer, mekan_adi: ad } : yer;
+  });
 }
 
 // Rehberin sınıf düzeyine ve hikâyeye uyarladığı bilmece ve 1. ipucu. 2. ipucu bankadaki gibi kalır: noktayı adıyla

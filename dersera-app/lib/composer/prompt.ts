@@ -5,7 +5,7 @@ import { PROFILLER, yasProfiliOf, type YasProfili } from "@/lib/yasProfili";
 import type { KonumYeri } from "@/lib/composer/definition";
 import { UYARLAMA_SINIRI } from "@/lib/composer/mekanYerlesimi";
 import type { DurakCiktisi, Iskelet } from "@/lib/composer/modelOutput";
-import { MEKANLAR } from "@/data/mekanlar";
+import { MEKANLAR, mekanOf } from "@/data/mekanlar";
 
 export const SYSTEM_PROMPT = `Dersera için eğitim oyunu tasarlarsın. Tüm metinler Türkçe.
 - Verilen sınıf, ders, konu ve öğrenme çıktılarının dışına çıkma; yalnız gönderilen müfredat verisini kullan, kod uydurma.
@@ -78,7 +78,7 @@ ${hedefler}`;
   // Mekân rotasında QR'ları motor sırayla atar, model mekânı listeden seçer; eski okul oyununda (güncelleme) QR listesi.
   const okul = recipe.rota;
   const qr = okul
-    ? `\nOkul mekânları (mekan_id: ad):\n${MEKANLAR.map((m) => `${m.id}: ${m.ad}`).join("\n")}`
+    ? `\nOkul mekânları (mekan_id: ad):\n${MEKANLAR.map((m) => `${m.id}: ${m.ad}`).join("\n")}${rotaSecimiBolumu(input.rota_secimi, recipe.anaGorev.max)}`
     : input.alan === "okul"
       ? `\nKullanılabilir QR durakları (yalnızca bunları kullan, her durağa farklı bir QR ver):\n${izinliQrIdleri.join(", ")}`
       : "";
@@ -131,6 +131,19 @@ ${
 
 ${ekKuralBolumu(input.ekKurallar)}Metinleri kısa tut (oyun hızlı üretilmeli): hikaye_metni en fazla ${okul ? 3 : 2} cümle; soru tek cümle; ipuçları, destek açıklaması ve sonraki durak tarifi tek kısa cümle; seçenekler birkaç kelime.
 Görev türlerini konuya uygun biçimde çeşitlendir. Durak id'leri d1, d2, ...; nesne id'leri n1, n2, ... biçiminde olsun.${okul ? "" : " İlk durak başlangıçtır."}`;
+}
+
+// Öğretmenin belirlediği rota: seçilen durakların mekânı (ve okuldaki adı) sabittir, kalanını rehber seçer. Sunucu
+// iskeletten sonra bu seçimi yine uygular; istem, hikâyenin o mekânda geçmesi içindir.
+function rotaSecimiBolumu(secim: ResolvedInput["rota_secimi"], durakSayisi: number): string {
+  if (!secim?.some(Boolean)) return "";
+  const satirlar = Array.from({ length: durakSayisi }, (_, i) => {
+    const s = secim[i];
+    const m = s && mekanOf(s.mekan_id);
+    if (!m) return `d${i + 1}: rehber seçer (listeden, öğretmenin seçmediği bir mekân)`;
+    return `d${i + 1}: ${m.id} (${m.ad}${s.ad ? `; okuldaki adı "${s.ad.replace(/"/g, "'")}"` : ""})`;
+  });
+  return `\nÖğretmen rotayı belirledi (durak sırasıyla). Bu mekânları aynı sırayla ve aynen kullan; durağın hikâyesi o mekânda geçsin:\n${satirlar.join("\n")}`;
 }
 
 // Parçalı çağrılarda prompt iki parçadır: tüm aşamalarda aynı olan ortak kısım (müfredat, seçimler, kurallar)

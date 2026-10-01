@@ -25,6 +25,8 @@ export interface KonumBilmecesi {
 
 export const MEKAN_SINIRLARI = {
   enAzBilmece: 10,
+  // Öğretmenin mekâna okulda verdiği ad (ör. "10-A sınıfı").
+  adEnCok: 40,
   noktaEnCok: 60,
   bilmeceEnCok: 320,
   ipucuEnCok: 180,

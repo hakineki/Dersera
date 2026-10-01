@@ -145,9 +145,17 @@ describe("doğrulayıcı: mekân rotası kuralları", () => {
     tekrar.duraklar[3].mekan.yer = { ...tekrar.duraklar[2].mekan.yer! };
     expect(kodlar(tekrar)).toContain("rota-mekan-tekrar");
 
+    // Mekânın okuldaki adını öğretmen yazabilir ("10-A sınıfı"); boş ad ya da sınırı aşan metin reddedilir.
     const ad = rotaOyunu();
-    ad.duraklar[1].mekan.yer = { ...ad.duraklar[1].mekan.yer!, mekan_adi: "Gizli mahzen" };
+    ad.duraklar[1].mekan.yer = { ...ad.duraklar[1].mekan.yer!, mekan_adi: "Arka bahçe" };
+    expect(kodlar(ad).filter((k) => k.startsWith("rota-"))).toEqual([]);
+    ad.duraklar[1].mekan.yer = { ...ad.duraklar[1].mekan.yer!, mekan_adi: "  " };
     expect(kodlar(ad)).toContain("rota-yer-eksik");
+    const uzun = rotaOyunu();
+    uzun.duraklar[1].mekan.yer = { ...uzun.duraklar[1].mekan.yer!, mekan_adi: "x".repeat(41) };
+    expect(kodlar(uzun)).toContain("rota-yer-uzun");
+    uzun.duraklar[1].mekan.yer = { ...uzun.duraklar[1].mekan.yer!, mekan_adi: "Arka bahçe", bilmece: "x".repeat(321) };
+    expect(kodlar(uzun)).toContain("rota-yer-uzun");
 
     const ayni = rotaOyunu();
     ayni.duraklar[0].mekan.yer = { ...ayni.duraklar[0].mekan.yer!, ipucu_2: ayni.duraklar[0].mekan.yer!.ipucu_1 };
