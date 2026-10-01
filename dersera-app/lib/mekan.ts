@@ -32,3 +32,11 @@ export const MEKAN_SINIRLARI = {
   bilmeceEnCok: 320,
   ipucuEnCok: 180,
 } as const;
+
+// Öğretmenin rota satırında yazdığı nokta: son ipucu onun metnini aynen söyler (takım QR'ı her durumda bulur).
+export const ogretmenNoktasiIpucu = (nokta: string) => `QR'ı burada ara: ${nokta}`;
+
+// Düzenle'de nokta değişince son ipucu öğretmen noktası kalıbındaysa onunla birlikte güncellenir (basılı kart ve son ipucu
+// aynı yeri söylesin); elle yazılmış son ipucuna dokunulmaz.
+export const noktaDegisikligi = (yer: { nokta: string; ipucu_2: string }, nokta: string): { nokta: string; ipucu_2?: string } =>
+  yer.ipucu_2 === ogretmenNoktasiIpucu(yer.nokta) ? { nokta, ipucu_2: ogretmenNoktasiIpucu(nokta) } : { nokta };

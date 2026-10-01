@@ -5,7 +5,7 @@ import { MEKANLAR, mekanOf } from "@/data/mekanlar";
 import type { Durak, Final, KonumYeri } from "@/lib/composer/definition";
 import { LIMITLER } from "@/lib/composer/validator";
 import { konumBilmeceleriGetir, type HazirBilmece } from "@/lib/konumBilmeceClient";
-import { MEKAN_SINIRLARI } from "@/lib/mekan";
+import { MEKAN_SINIRLARI, noktaDegisikligi } from "@/lib/mekan";
 import { CEVAP_BICIMI } from "./labels";
 
 export interface OyunBilgisi {
@@ -159,7 +159,7 @@ function KonumYeriAlani({ yer, kullanilan, onChange }: { yer: KonumYeri; kullani
         <p className="text-[11px] text-gray-500">Hazır bilmeceler ortaokul düzeyinde yazıldı; seçtikten sonra sınıfına göre sadeleştirebilirsin.</p>
       </div>
       <Alan etiket="QR'ın yapıştırılacağı nokta">
-        <input className={input} maxLength={S.noktaEnCok} value={yer.nokta} onChange={(e) => set({ nokta: e.target.value })} />
+        <input className={input} maxLength={S.noktaEnCok} value={yer.nokta} onChange={(e) => set(noktaDegisikligi(yer, e.target.value))} />
       </Alan>
       <Alan etiket="Konum bilmecesi">
         <textarea className={input} rows={3} maxLength={S.bilmeceEnCok} value={yer.bilmece} onChange={(e) => set({ bilmece: e.target.value })} />

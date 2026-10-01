@@ -4,6 +4,7 @@ import { MEKANLAR, mekanOf } from "@/data/mekanlar";
 import { katla, metinleriTara } from "@/lib/composer/cocukGuvenligi";
 import type { KonumYeri } from "@/lib/composer/definition";
 import type { RotaSecimi } from "@/lib/composer/input";
+import { ogretmenNoktasiIpucu } from "@/lib/mekan";
 import type { YasProfili } from "@/lib/yasProfili";
 
 // Sunucu tarafı: mekân rotasında her durağa okul mekânı ve o mekânın konum bilmecelerinden biri atanır. Öğretmenin
@@ -51,7 +52,8 @@ export function konumYeri(mekanId: string, anahtar: string): KonumYeri {
 }
 
 // Rotanın yerleri: öğretmenin seçtiği mekânlar (ve okuldaki adları) sabit, kalanını model seçer; her durağa o mekânın
-// bankasından bir bilmece seçilir. Görev doldurma (rehber bilmeceyi uyarlar) ve tanıma dönüşüm aynı girdiden aynı yerleri bulur.
+// bankasından bir bilmece seçilir (öğretmen noktayı yazdıysa seçilmez: ogretmenNoktasiYeri). Görev doldurma (rehber
+// bilmeceyi uyarlar ya da yazar) ve tanıma dönüşüm aynı girdiden aynı yerleri bulur.
 export function rotaYerleri(baslik: string, duraklar: { id: string; mekan_id: string }[], secim: (RotaSecimi | null)[] = []): KonumYeri[] {
   const mekanlar = mekanlariAta(
     duraklar.map((d) => d.mekan_id),
@@ -68,7 +70,6 @@ export function rotaYerleri(baslik: string, duraklar: { id: string; mekan_id: st
 // Öğretmenin yazdığı nokta: bankadan bilmece seçilmez. Son ipucu öğretmenin metnini aynen söyler (takım QR'ı her durumda
 // bulur); bilmece ve 1. ipucunu rehber görev doldurmada bu noktaya göre yazar, yazamazsa (denetimden geçmezse) aşağıdaki
 // genel metin kalır.
-export const ogretmenNoktasiIpucu = (nokta: string) => `QR'ı burada ara: ${nokta}`;
 export const ogretmenNoktasiMi = (y: KonumYeri): boolean => y.ipucu_2 === ogretmenNoktasiIpucu(y.nokta);
 export function ogretmenNoktasiYeri(mekanId: string, mekanAdi: string, nokta: string): KonumYeri {
   return {
@@ -76,7 +77,7 @@ export function ogretmenNoktasiYeri(mekanId: string, mekanAdi: string, nokta: st
     mekan_adi: mekanAdi,
     nokta,
     bilmece: "Bu mekânda öğretmeninin seçtiği bir noktadayım. Etrafına dikkatle bak; gözden kaçan ayrıntılarda saklanırım.",
-    ipucu_1: "Mekânda yavaşça dolaş; masalara, raflara, pencere kenarlarına ve duvarlara yakından bak.",
+    ipucu_1: "Mekânda yavaşça dolaş; çevrendeki eşyalara ve köşelere yakından bak.",
     ipucu_2: ogretmenNoktasiIpucu(nokta),
   };
 }
@@ -128,8 +129,12 @@ export const cevapParcalari = (...cevaplar: string[]): string[] =>
   cevaplar.flatMap((c) => c.split(/\||=>/)).map((p) => katla(p).replace(/\s+/g, " ").trim()).filter((p) => p.length >= 4);
 
 const ayni = (a: string, b: string) => katla(a).replace(/\s+/g, " ").trim() === katla(b).replace(/\s+/g, " ").trim();
+const kacis = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// Sözcük başında geçiyor mu: Türkçe ekler sayılır ("masa" → "masanın"), sözcük içi sayılmaz ("su" → "bulursun").
+const sozcukBasinda = (metin: string, aranan: string) => new RegExp(`(^|[^\\p{L}\\p{N}])${kacis(aranan)}`, "u").test(metin);
 
-// Uyarlamayı denetleyip uygular. Uygun değilse bankadaki yer aynen kalır; neden sunucu kaydı içindir.
+// Uyarlamayı denetleyip uygular. Uygun değilse gelen yer aynen kalır (bankadaki metin ya da öğretmen noktasında genel
+// metin); neden sunucu kaydı içindir.
 export function uyarlamaUygula(
   yer: KonumYeri,
   u: KonumUyarlamasi | undefined,
@@ -144,14 +149,18 @@ export function uyarlamaUygula(
   if (!bilmece || !ipucu1) return reddet("boş");
   if (bilmece.length > sinir.bilmece || ipucu1.length > sinir.ipucu) return reddet("uzun");
   if (ayni(bilmece, ipucu1) || ayni(ipucu1, yer.ipucu_2)) return reddet("ipucu aynı");
-  const banka = katla([yer.nokta, yer.bilmece, yer.ipucu_1, yer.ipucu_2].join(" "));
+  // Bankada zaten geçen sözcükler (başka mekân adı, cevap) muaftır. Öğretmen noktasında bilmece ve 1. ipucu genel yedek
+  // metindir, muafiyet yalnız öğretmenin tarifinden gelir.
+  const ogretmen = ogretmenNoktasiMi(yer);
+  const banka = katla((ogretmen ? [yer.nokta] : [yer.nokta, yer.bilmece, yer.ipucu_1, yer.ipucu_2]).join(" "));
   const yeni = katla(`${bilmece} ${ipucu1}`);
   const yeniAd = (ad: string) => yeni.includes(katla(ad)) && !banka.includes(katla(ad));
   const baskaYer = Object.entries(AYIRT_EDICI).find(([id, adlar]) => id !== yer.mekan_id && adlar.some(yeniAd));
   if (baskaYer) return reddet(`başka mekân: ${baskaYer[0]}`);
   // Noktanın adı yalnız son ipucunda söylenir; bilmece ya da 1. ipucu söylerse bilmece çözülmeden biter.
   const nokta = katla(yer.nokta).replace(/["“”']/g, "").trim();
-  if (yeni.includes(nokta) && !katla(`${yer.bilmece} ${yer.ipucu_1}`).includes(nokta)) return reddet("nokta adı");
+  const bankaBilmecesi = ogretmen ? "" : katla(`${yer.bilmece} ${yer.ipucu_1}`);
+  if (sozcukBasinda(yeni, nokta) && !bankaBilmecesi.includes(nokta)) return reddet("nokta adı");
   if (cevaplar.some((c) => yeni.includes(c) && !banka.includes(c))) return reddet("cevap");
   if (metinleriTara([{ metin: bilmece, yer: "bilmece" }, { metin: ipucu1, yer: "ipucu" }]).length > 0) return reddet("güvenlik");
   return { yer: { ...yer, bilmece, ipucu_1: ipucu1 }, neden: null };
