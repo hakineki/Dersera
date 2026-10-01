@@ -24,3 +24,20 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Yerleşim baskısı (components/YerlesimBaskisi): ekranda görünmez; "Yazdır" ile baskıda sayfanın yerine yalnız o basılır. */
+#yerlesim-baski {
+  display: none;
+}
+@media print {
+  html.yerlesim-baskida body {
+    display: block;
+    background: #fff;
+  }
+  html.yerlesim-baskida body > *:not(#yerlesim-baski) {
+    display: none !important;
+  }
+  html.yerlesim-baskida #yerlesim-baski {
+    display: block;
+  }
+}

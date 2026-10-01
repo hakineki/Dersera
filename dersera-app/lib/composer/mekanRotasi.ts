@@ -12,6 +12,23 @@ export const YANLIS_QR_CEZASI = 30;
 
 export const rotaMi = (def: GameDefinition): boolean => def.meta.rota === "mekan";
 
+// Öğretmenin yerleşim listesi ve basılı çıktısı: QR numarası sırasıyla her kartın yapıştırılacağı yer. Sıra dolaşma
+// sırası değildir (takımlar farklı kartlardan başlar).
+export interface YerlesimSatiri {
+  durakId: string;
+  qr: number;
+  mekan: string;
+  nokta: string;
+}
+export function yerlesimSatirlari(def: GameDefinition): YerlesimSatiri[] {
+  return def.duraklar
+    .flatMap((d) => {
+      const qr = Number(d.mekan.qr_durak_id?.replace(/^qr-/, ""));
+      return d.mekan.yer && Number.isInteger(qr) && qr > 0 ? [{ durakId: d.id, qr, mekan: d.mekan.yer.mekan_adi, nokta: d.mekan.yer.nokta }] : [];
+    })
+    .sort((a, b) => a.qr - b.qr);
+}
+
 // Tarif: durak sayısına göre toplanacak kanıt (8 durakta 3).
 export const kanitSayisi = (durak: number): number => Math.max(2, Math.round((durak * 3) / 8));
 
