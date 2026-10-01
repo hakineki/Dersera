@@ -6,9 +6,9 @@ import type { KonumYeri } from "@/lib/composer/definition";
 import type { RotaSecimi } from "@/lib/composer/input";
 import type { YasProfili } from "@/lib/yasProfili";
 
-// Sunucu tarafı: mekân rotasında her durağa okul mekânı ve o mekânın konum bilmecelerinden biri atanır. Model mekânı
-// listeden seçer; geçersiz ya da tekrarlanan mekân listedeki ilk boş mekânla değiştirilir. Bilmece, oyun başlığı ve
-// durak kimliğinden türeyen bir sırayla seçilir (aynı oyun için her seferinde aynı).
+// Sunucu tarafı: mekân rotasında her durağa okul mekânı ve o mekânın konum bilmecelerinden biri atanır. Öğretmenin
+// seçtiği mekânlar sabittir; kalan duraklarda model listeden seçer, geçersiz ya da tekrarlanan mekân listedeki ilk boş
+// mekânla değiştirilir. Bilmece, oyun başlığı ve durak kimliğinden türeyen bir sırayla seçilir (aynı oyun için her seferinde aynı).
 
 function sira(anahtar: string, n: number): number {
   return parseInt(createHash("sha256").update(anahtar).digest("hex").slice(0, 8), 16) % n;

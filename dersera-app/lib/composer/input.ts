@@ -59,7 +59,7 @@ export const ComposeInputSchema = z
             ad: z
               .string()
               .max(MEKAN_SINIRLARI.adEnCok)
-              .transform((s) => gorunmezleriAt(s.replace(/\s+/g, " ")).trim())
+              .transform((s) => gorunmezleriAt(s).replace(/\s+/g, " ").trim())
               .optional(),
           })
           .strict()

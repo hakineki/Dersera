@@ -146,7 +146,8 @@ export function validateGame(def: GameDefinition, ctx: ValidationContext): Valid
   const rota = rotaMi(def);
   if (rota) {
     if (def.meta.alan !== "okul") hata("rota-alan", "Mekân rotası yalnız okul macerasında kullanılabilir.");
-    // Öğrenci mekân adını görür: ad yalnız listedeki adla aynı olabilir (serbest metin içerik kapısı dışında kalmasın).
+    // Mekân adı öğretmen metnidir ("10-A sınıfı"): burada yalnız dolu ve sınır içinde olduğu denetlenir; içeriği çocuk
+    // güvenliği taraması (cocukGuvenligi) ve yapay zekâ denetimi (yzDenetim) "konum bilmecesi" alanıyla birlikte tarar.
     const bilinen = new Set(MEKANLAR.map((m) => m.id));
     const S = MEKAN_SINIRLARI;
     const mekanlar: string[] = [];

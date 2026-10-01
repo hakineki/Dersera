@@ -660,7 +660,16 @@ export default function ComposerClient({
               <h2 id="bolum-2" className={BOLUM_BASLIK}>
                 2. Oyunun Tarzını Seç
               </h2>
-              <Secim etiket="Süre" secenekler={[20, 40, 60].map((s) => ({ key: s as 20 | 40 | 60, ad: `${s} dk` }))} deger={sure} onChange={setSure} />
+              <Secim
+                etiket="Süre"
+                secenekler={[20, 40, 60].map((s) => ({ key: s as 20 | 40 | 60, ad: `${s} dk` }))}
+                deger={sure}
+                onChange={(s) => {
+                  setSure(s);
+                  // Rota satırları durak sayısına kırpılır: gizli kalan bir seçim, süre yeniden uzayınca görünen bir seçimle çakışmasın.
+                  setRota((r) => r.slice(0, buildRecipe(s, deneyim, "okul").anaGorev.max));
+                }}
+              />
               {cokDers && (
                 <p role="alert" className="text-sm text-red-600 -mt-3">
                   {sure} dakikalık oyunda en fazla {enFazlaDers} ders seçilebilir. Ders sayısını azaltın ya da süreyi uzatın.

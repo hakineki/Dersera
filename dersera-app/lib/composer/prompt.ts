@@ -75,7 +75,8 @@ ${hedefler}`;
     input.dersler.length > 1
       ? "\nBu oyun disiplinler arasıdır: yukarıdaki derslerin HER BİRİ en az bir ana görevde çalışılsın ve hikâye dersleri tek bir gizemde birleştirsin.\n"
       : "";
-  // Mekân rotasında QR'ları motor sırayla atar, model mekânı listeden seçer; eski okul oyununda (güncelleme) QR listesi.
+  // Mekân rotasında QR'ları motor sırayla atar; mekânı öğretmen seçer ya da (rehbere bırakılan durakta) model listeden
+  // seçer. Eski okul oyununda (güncelleme) QR listesi.
   const okul = recipe.rota;
   const qr = okul
     ? `\nOkul mekânları (mekan_id: ad):\n${MEKANLAR.map((m) => `${m.id}: ${m.ad}`).join("\n")}${rotaSecimiBolumu(input.rota_secimi, recipe.anaGorev.max)}`

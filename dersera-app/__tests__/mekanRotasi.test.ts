@@ -19,6 +19,7 @@ import { composeAndValidate } from "@/lib/composer/service";
 import { buildRecipe } from "@/lib/composer/recipe";
 import { arrive, currentStep, FINAL_ID } from "@/lib/composer/scene";
 import { validateGame } from "@/lib/composer/validator";
+import { yonetisimDegerlendir } from "@/lib/composer/yonetisim";
 import { loadSceneState, saveSceneState, type GameProgress } from "@/lib/gameState";
 import { fakeClient, makeDefinition, modelYaniti, ornekUyarlama, promptOf, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 
@@ -296,6 +297,13 @@ describe("güvenlik taraması", () => {
     expect(cocukGuvenligiTara(def)).toEqual([]);
     def.duraklar[0].mekan.yer = { ...def.duraklar[0].mekan.yer!, ipucu_2: "Rafın yanındaki kutuya bak, aptal." };
     expect(cocukGuvenligiTara(def).some((e) => e.yer.includes("konum bilmecesi"))).toBe(true);
+  });
+
+  it("öğretmenin yazdığı mekân adı (serbest metin) da taranır; engelleyen ifade yayını durdurur", () => {
+    const def = rotaOyunu();
+    def.duraklar[1].mekan.yer = { ...def.duraklar[1].mekan.yer!, mekan_adi: "Siktir sınıfı" };
+    expect(cocukGuvenligiTara(def).some((e) => e.engel && e.durakId === def.duraklar[1].id && e.yer.includes("konum bilmecesi"))).toBe(true);
+    expect(yonetisimDegerlendir(def, validateGame(def, validationContext({ ...okul, rota: true }))).karar).toBe("BLOCK");
   });
 });
 

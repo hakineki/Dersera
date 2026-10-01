@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { MEKANLAR, mekanOf } from "@/data/mekanlar";
 import type { Durak, Final, KonumYeri } from "@/lib/composer/definition";
 import { LIMITLER } from "@/lib/composer/validator";
@@ -73,11 +73,16 @@ function KonumYeriAlani({ yer, kullanilan, onChange }: { yer: KonumYeri; kullani
   const [liste, setListe] = useState<{ mekan: string; bilmeceler: HazirBilmece[] } | null>(null);
   const [yukleniyor, setYukleniyor] = useState(false);
   const [hata, setHata] = useState<string | null>(null);
+  // Açılıştaki mekân: değişirse durağın hikâyesi eski mekânı anlatıyor olabilir.
+  const [ilkMekan] = useState(yer.mekan_id);
+  // Bir kez yüklenen liste yeniden istenmez (klavyeyle seçim kutusunda gezinirken her mekân bir kez yüklenir).
+  const onbellek = useRef(new Map<string, HazirBilmece[]>());
   const S = MEKAN_SINIRLARI;
   const getir = async (mekanId: string) => {
     setYukleniyor(true);
     setHata(null);
-    const b = await konumBilmeceleriGetir(mekanId);
+    const b = onbellek.current.get(mekanId) ?? (await konumBilmeceleriGetir(mekanId));
+    if (b?.length) onbellek.current.set(mekanId, b);
     setYukleniyor(false);
     if (!b?.length) {
       setHata("Hazır bilmeceler yüklenemedi; tekrar deneyin.");
@@ -94,7 +99,7 @@ function KonumYeriAlani({ yer, kullanilan, onChange }: { yer: KonumYeri; kullani
   const set = (patch: Partial<KonumYeri>) => onChange({ ...yer, ...patch });
   const m = mekanOf(yer.mekan_id);
   return (
-    <fieldset className="border border-indigo-100 bg-indigo-50/40 rounded-xl p-3 space-y-3">
+    <fieldset aria-busy={yukleniyor} className="border border-indigo-100 bg-indigo-50/40 rounded-xl p-3 space-y-3">
       <legend className="text-xs font-semibold text-indigo-700 px-1">QR yeri ve konum bilmecesi</legend>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Alan etiket="Mekân">
@@ -110,7 +115,13 @@ function KonumYeriAlani({ yer, kullanilan, onChange }: { yer: KonumYeri; kullani
           <input className={input} maxLength={S.adEnCok} value={yer.mekan_adi} placeholder={m?.ayrintiOrnegi ?? m?.ad} onChange={(e) => set({ mekan_adi: e.target.value })} />
         </Alan>
       </div>
+      {yer.mekan_id !== ilkMekan && (
+        <p role="status" className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5">
+          Mekân değişti: durağın hikâye metnini yeni mekâna göre gözden geçir.
+        </p>
+      )}
       <div className="space-y-2">
+        {yukleniyor && <p role="status" className="sr-only">Bilmeceler yükleniyor</p>}
         {liste?.mekan === yer.mekan_id ? (
           <ul className="space-y-1.5 max-h-56 overflow-y-auto" aria-label="Hazır bilmeceler">
             {liste.bilmeceler.map((b) => {
