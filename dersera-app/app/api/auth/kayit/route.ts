@@ -30,11 +30,13 @@ export async function POST(req: Request) {
       .catch(() => denetim.kosulOnayiYaz(r.value.id, onay))
       .catch((err) => console.error("[auth] koşul onayı yazılamadı", r.value.id, onay, err instanceof Error ? err.message : err));
     // E-posta doğrulanmamış yazılır ve doğrulama bağlantısı gönderilir. Hesap açıldığı için ikisinden biri olmazsa da kayıt
-    // başarılıdır: öğretmen panelde uyarıyı görür, adresi ekler ya da bağlantıyı yeniden ister.
-    const eposta = { adres, dogrulandi: false, gonderildi: false };
+    // başarılıdır: öğretmen panelde uyarıyı görür, adresi ekler ya da bağlantıyı yeniden ister. Yanıttaki eposta yalnız
+    // adres yazıldıysa doludur.
+    let eposta: { adres: string; dogrulandi: false; gonderildi: boolean } | null = null;
     try {
       const d = epostaDeps();
       await kayitEpostasiYaz(d, r.value, adres);
+      eposta = { adres, dogrulandi: false, gonderildi: false };
       eposta.gonderildi = (await dogrulamaYenidenGonder(d, r.value, siteAdresi(req))).ok;
     } catch (err) {
       console.error("[auth] kayıt e-postası yazılamadı ya da gönderilemedi", r.value.id, err instanceof Error ? err.message : err);

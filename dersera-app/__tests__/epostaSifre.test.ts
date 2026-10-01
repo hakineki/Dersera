@@ -4,6 +4,8 @@ import { adresOzeti, DOGRULAMA_SURESI_MS, EPOSTA_ISTENIR, epostaNormal, SIFIRLAM
 import { buildApi, cerezli, hesapAc, jsonRequest, oturumCerezi } from "./helpers/api";
 import { clearRedisEnv } from "./helpers/fakeRedis";
 import { createLuaRedis } from "./helpers/luaRedis";
+import { existsSync } from "fs";
+import { join } from "path";
 
 const SIFRE = "gizli-sifre-1";
 const YENI = "yepyeni-sifre-7";
@@ -170,6 +172,15 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
     expect(giden.map((e) => e.kime)).toEqual(["cem@okul.tr"]);
   });
 
+  it("kayıt: e-posta deposu yazılamazsa da hesap açılır; yanıtta adres kaydedilmiş gibi görünmez, panel 'e-posta ekle' der", async () => {
+    jest.spyOn(api.epostaStore.getEpostaStore(), "yaz").mockRejectedValueOnce(new Error("Redis yok"));
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    const r = await kayit("cem", "cem@okul.tr");
+    expect([r.status, (await r.json()).eposta]).toEqual([201, null]);
+    expect(await durum(oturumCerezi(r)!)).toBeNull();
+    expect(giden).toEqual([]);
+  });
+
   it("yeniden gönder: oturum ve köken ister; doğrulanmışa 409, e-postasız (eski) hesaba 404; sınır kayıttaki gönderimle ortak", async () => {
     expect((await yenidenGonder(null)).status).toBe(401);
     const capraz = cerezli(jsonRequest("/api/auth/eposta/yeniden-gonder", {}), ayse);
@@ -254,7 +265,7 @@ describe("e-posta ve şifre sıfırlama uçları", () => {
     expect(giden.map((e) => e.kime)).toEqual(["yeni@okul.tr"]);
 
     // E-posta zorunlu: kaldırma ucu yok (adres yalnız değiştirilir).
-    expect("epostaKaldir" in api).toBe(false);
+    expect(existsSync(join(process.cwd(), "app/api/auth/eposta/kaldir"))).toBe(false);
     expect(await durum(ayse)).toEqual({ adres: "yeni@okul.tr", dogrulandi: true });
 
     await dogrulanmisEkle(ayse, "son@okul.tr");

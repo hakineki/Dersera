@@ -63,7 +63,7 @@ export const GIZLILIK_BOLUMLERI: GizlilikBolumu[] = [
     liste: [
       "Öğrenci sonuçları ve istatistikteki öğrenci özeti: 7 gün. Oyuna katılan takma adlar, bitirme ve puan bilgisi ve oyun kaydı: oyun süresi bitiminden 1 gün sonra silinir.",
       "Oturum: 30 gün ya da çıkış yapana kadar.",
-      "E-posta adresi: hesabını silene kadar (Ayarlar'dan değiştirebilirsin; değiştirince eski adres silinir). Doğrulama bağlantısı 24 saat, şifre sıfırlama bağlantısı 1 saat sonra geçersiz olur ve silinir; ikisi de tek kullanımlıktır.",
+      "E-posta adresi: hesabını silene kadar (Ayarlar'dan değiştirebilirsin; değiştirince eski adres silinir, bekleyen doğrulama bağlantısındaki kopyası en geç 24 saatte). Doğrulama bağlantısı 24 saat, şifre sıfırlama bağlantısı 1 saat sonra geçersiz olur ve silinir; ikisi de tek kullanımlıktır.",
       "Güvenlik sayaçları (IP ve kullanıcı adı içeren): 1 dakika ile 1 saat; günlük kullanım sınırları: 24 saat.",
       "Moderasyon kayıtları: 30 gün. Kredi aylık kullanımı: 40 gün; kredi hareketleri: son 100 hareket.",
       "Öğrenme takibi ve öğrenme döngüsü aylık sayaçları: 400 gün. Kimliksiz talimat metinleri: son 200 talimat.",

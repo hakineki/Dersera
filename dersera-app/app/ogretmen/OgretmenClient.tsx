@@ -135,7 +135,7 @@ function LoginScreen({ onLogin, davetGerekli, kayitKapali }: { onLogin: (h: Hesa
                   placeholder="ayse@okul.k12.tr"
                 />
                 <p id="kayit-eposta-aciklama" className="text-xs text-purple-300 mt-1">
-                  Şifreni unutursan sıfırlama bağlantısı bu adrese gelir; doğrulama bağlantısı gönderilir. Başka bir amaçla kullanılmaz.
+                  Şifreni unutursan sıfırlama bağlantısı bu adrese gelir; doğrulama bağlantısı gönderilir. Yalnız doğrulama ve şifre sıfırlamayla ilgili e-postalar için kullanılır.
                 </p>
               </div>
               {davetGerekli && (
@@ -721,7 +721,7 @@ function EpostaAyari({ durum, onDurum }: { durum: EpostaDurumu | null | undefine
   return (
     <div id="eposta" className="border-t border-gray-200 pt-6 scroll-mt-24">
       <h3 className="font-semibold text-gray-700 mb-1">E-posta</h3>
-      <p className="text-xs text-gray-500 mb-4">Şifreni unutursan sıfırlama bağlantısı yalnız doğrulanmış bu adrese gönderilir. Başka bir amaçla kullanılmaz. Kaldırılamaz; değiştirebilirsin.</p>
+      <p className="text-xs text-gray-500 mb-4">Şifreni unutursan sıfırlama bağlantısı yalnız doğrulanmış bu adrese gönderilir. Yalnız doğrulama ve şifre sıfırlamayla ilgili e-postalar için kullanılır. Kaldırılamaz; değiştirebilirsin.</p>
       {durum && (
         <p className="text-sm mb-3">
           <span className="font-medium break-all">{durum.adres}</span>{" "}
@@ -752,7 +752,15 @@ function EpostaAyari({ durum, onDurum }: { durum: EpostaDurumu | null | undefine
 
 // Panelin üstünde kalıcı uyarı (her sekmede): e-posta yoksa eklemeye, doğrulanmamışsa gelen kutusuna yönlendirir. Şifre
 // kurtarma yalnız doğrulanmış e-postayla yapılabildiği için uyarı doğrulanana kadar kalır.
-function EpostaUyarisi({ durum, onAyarlar }: { durum: EpostaDurumu | null | undefined; onAyarlar: () => void }) {
+function EpostaUyarisi({
+  durum,
+  onDurum,
+  onAyarlar,
+}: {
+  durum: EpostaDurumu | null | undefined;
+  onDurum: (e: EpostaDurumu | null) => void;
+  onAyarlar: () => void;
+}) {
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [bekliyor, setBekliyor] = useState(false);
   if (durum === undefined || durum?.dogrulandi) return null;
@@ -761,8 +769,15 @@ function EpostaUyarisi({ durum, onAyarlar }: { durum: EpostaDurumu | null | unde
     setBekliyor(true);
     setMsg(null);
     const r = await dogrulamaYenidenGonder();
+    if ("error" in r) {
+      // Ör. adres başka sekmede doğrulandı ("zaten doğrulanmış"): güncel durum okunur; doğrulandıysa uyarı kalkar.
+      const g = await epostaDurumuAl();
+      setBekliyor(false);
+      if (!("error" in g) && (g.eposta === null || g.eposta.dogrulandi || g.eposta.adres !== durum?.adres)) return onDurum(g.eposta);
+      return setMsg({ type: "err", text: r.error });
+    }
     setBekliyor(false);
-    setMsg("error" in r ? { type: "err", text: r.error } : { type: "ok", text: `${r.adres} adresine doğrulama bağlantısı yeniden gönderildi (24 saat geçerli).` });
+    setMsg({ type: "ok", text: `${r.adres} adresine doğrulama bağlantısı yeniden gönderildi (24 saat geçerli).` });
   }
 
   const dugme = "text-sm font-semibold rounded-lg px-3 py-1.5 border border-amber-300 bg-white text-amber-900 hover:bg-amber-100 disabled:opacity-60";
@@ -782,8 +797,8 @@ function EpostaUyarisi({ durum, onAyarlar }: { durum: EpostaDurumu | null | unde
         <>
           <p className="font-semibold">E-postanı doğrula</p>
           <p className="mt-0.5">
-            <span className="font-medium break-all">{durum.adres}</span> adresine gönderilen bağlantıyı aç (gelmediyse istenmeyen e-posta klasörüne bak).
-            Doğrulanmadan şifre sıfırlama bağlantısı gönderilemez.
+            <span className="font-medium break-all">{durum.adres}</span> adresini doğrula: e-postadaki bağlantıyı aç (gelmediyse istenmeyen e-posta
+            klasörüne bak ya da bağlantıyı yeniden gönder). Doğrulanmadan şifre sıfırlama bağlantısı gönderilemez.
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button type="button" onClick={yenidenGonder} disabled={bekliyor} className={dugme}>
@@ -902,8 +917,7 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
   // Hesap öncesinde bu tarayıcıda kaydedilmiş kütüphane varsa öğretmene sorulur (ortak bilgisayarda başkasına ait olabilir).
   const hesapAdi = hesap?.kullaniciAdi ?? null;
 
-  // E-posta durumu hesap değişince okunur; önceki hesabın adresi bir an bile görünmesin diye önce sıfırlanır. Okunamazsa
-  // (bağlantı hatası) uyarı gösterilmez.
+  // E-posta durumu hesap değişince okunur (okunana kadar uyarı yok). Okunamazsa (bağlantı hatası) uyarı gösterilmez.
   useEffect(() => {
     let iptal = false;
     const t = setTimeout(async () => {
@@ -917,6 +931,25 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
       clearTimeout(t);
     };
   }, [hesapAdi]);
+  // Doğrulama bağlantısı çoğunlukla başka sekmede ya da telefonda açılır: doğrulanmamışken panele dönülünce (sekme
+  // görünür ya da pencere odaklı olunca) durum yeniden okunur, uyarı kendiliğinden kalkar.
+  const epostaDogrulandi = eposta?.dogrulandi === true;
+  useEffect(() => {
+    if (!hesapAdi || epostaDogrulandi) return;
+    let iptal = false;
+    const yenile = async () => {
+      if (document.visibilityState !== "visible") return;
+      const r = await epostaDurumuAl();
+      if (!iptal && !("error" in r)) setEposta(r.eposta);
+    };
+    window.addEventListener("focus", yenile);
+    document.addEventListener("visibilitychange", yenile);
+    return () => {
+      iptal = true;
+      window.removeEventListener("focus", yenile);
+      document.removeEventListener("visibilitychange", yenile);
+    };
+  }, [hesapAdi, epostaDogrulandi]);
   useEffect(() => {
     if (!hesapAdi) return;
     let iptal = false;
@@ -1121,10 +1154,17 @@ export default function OgretmenClient({ baslangicSekmesi = "oyun" }: { baslangi
       {/* İçerik — telefonda alt çubuğun altında kalmaması için alt boşluk */}
       <div className="max-w-4xl mx-auto px-4 pt-6 pb-24 sm:pb-6 print:px-0">
         <EpostaUyarisi
+          // Adres değişince uyarının iç mesajı (ör. eski adrese "yeniden gönderildi") sıfırlansın.
+          key={eposta?.adres ?? "yok"}
           durum={eposta}
+          onDurum={setEposta}
           onAyarlar={() => {
             setActiveTab("ayarlar");
-            setTimeout(() => document.getElementById("eposta")?.scrollIntoView({ behavior: "smooth" }), 50);
+            setTimeout(() => {
+              const azHareket = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+              document.getElementById("eposta")?.scrollIntoView({ behavior: azHareket ? "auto" : "smooth" });
+              document.getElementById("eposta-adres")?.focus({ preventScroll: true });
+            }, 50);
           }}
         />
         {menuSekmesi && (
