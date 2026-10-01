@@ -284,6 +284,11 @@ describe("öğretmenin yazdığı nokta", () => {
     const su = ogretmenNoktasiYeri("bahce", "Bahçe", "su");
     expect(uyarlamaUygula(su, { bilmece: "Bahçede serin bir yerde beni bulursun.", ipucu_1: ipucu }, "MIDDLE_11_14").neden).toBeNull();
     expect(uyarlamaUygula(su, { bilmece: "Suyun aktığı yerde beni bulursun.", ipucu_1: ipucu }, "MIDDLE_11_14").neden).toBe("nokta adı");
+    // Kesme işareti farkı (düz ' ya da telefonun ’) tarifin aynen tekrarını gizlemez.
+    const bust = ogretmenNoktasiYeri("giris-holu", "Giriş holü", "Atatürk'ün büstü");
+    expect(uyarlamaUygula(bust, { bilmece: "Atatürk'ün büstü yanında beklerim.", ipucu_1: ipucu }, "MIDDLE_11_14").neden).toBe("nokta adı");
+    expect(uyarlamaUygula(bust, { bilmece: "Atatürk’ün büstü yanında beklerim.", ipucu_1: ipucu }, "MIDDLE_11_14").neden).toBe("nokta adı");
+    expect(uyarlamaUygula(bust, { bilmece: "Büyük önderin heykeli yanında beklerim.", ipucu_1: ipucu }, "MIDDLE_11_14").neden).toBeNull();
     // Görev cevabı: yedek metinde geçen bir sözcük de cevapsa reddedilir; öğretmenin tarifinde geçen cevap muaftır.
     expect(uyarlamaUygula(yer, { bilmece: "Köşelere bak, saklandığım yeri bulursun.", ipucu_1: ipucu }, "MIDDLE_11_14", cevapParcalari("Köşe")).neden).toBe("cevap");
     expect(uyarlamaUygula(ogretmenNoktasiYeri("sinif", "Sınıf", "kürenin altı"), { bilmece: "Dünyanın minyatürü yanında saklanırım.", ipucu_1: "Küre gibi yuvarlak bir şeye bak." }, "MIDDLE_11_14", cevapParcalari("Küre")).neden).toBeNull();

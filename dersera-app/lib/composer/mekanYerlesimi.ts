@@ -158,9 +158,11 @@ export function uyarlamaUygula(
   const baskaYer = Object.entries(AYIRT_EDICI).find(([id, adlar]) => id !== yer.mekan_id && adlar.some(yeniAd));
   if (baskaYer) return reddet(`başka mekân: ${baskaYer[0]}`);
   // Noktanın adı yalnız son ipucunda söylenir; bilmece ya da 1. ipucu söylerse bilmece çözülmeden biter.
-  const nokta = katla(yer.nokta).replace(/["“”']/g, "").trim();
-  const bankaBilmecesi = ogretmen ? "" : katla(`${yer.bilmece} ${yer.ipucu_1}`);
-  if (sozcukBasinda(yeni, nokta) && !bankaBilmecesi.includes(nokta)) return reddet("nokta adı");
+  // Tırnak ve kesme işaretleri (telefonun yazdığı ’ dahil) karşılaştırmada sayılmaz: "Atatürk'ün" = "Atatürk’ün".
+  const tirnaksiz = (s: string) => katla(s).replace(/["“”'’‘]/g, "").trim();
+  const nokta = tirnaksiz(yer.nokta);
+  const bankaBilmecesi = ogretmen ? "" : tirnaksiz(`${yer.bilmece} ${yer.ipucu_1}`);
+  if (sozcukBasinda(tirnaksiz(`${bilmece} ${ipucu1}`), nokta) && !bankaBilmecesi.includes(nokta)) return reddet("nokta adı");
   if (cevaplar.some((c) => yeni.includes(c) && !banka.includes(c))) return reddet("cevap");
   if (metinleriTara([{ metin: bilmece, yer: "bilmece" }, { metin: ipucu1, yer: "ipucu" }]).length > 0) return reddet("güvenlik");
   return { yer: { ...yer, bilmece, ipucu_1: ipucu1 }, neden: null };
