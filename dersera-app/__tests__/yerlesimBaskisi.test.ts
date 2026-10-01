@@ -4,6 +4,7 @@ import type { GameDefinition } from "@/lib/composer/definition";
 import { konumYeri } from "@/lib/composer/mekanYerlesimi";
 import { yerlesimSatirlari } from "@/lib/composer/mekanRotasi";
 import YerlesimBaskisi, { sayfalaraBol } from "@/components/YerlesimBaskisi";
+import { sayfayiBas, type BaskiPenceresi } from "@/lib/baski";
 import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
 
 // Mekân rotasının basılı yerleşim çıktısı: liste sayfası ve oyunun QR kartları (kesilecek yer şeridiyle).
@@ -39,6 +40,47 @@ describe("yerleşim satırları", () => {
   });
 });
 
+describe("yazdırma akışı", () => {
+  // Masaüstü tarayıcılar gibi: print() engelleyicidir ve afterprint print() dönmeden gelir. olayGelsin false ise olay hiç
+  // gelmez (bazı mobil tarayıcılar).
+  function pencere(olayGelsin = true) {
+    const hedef = new EventTarget();
+    const sinif = new Set<string>();
+    const anlik: boolean[] = [];
+    const p: BaskiPenceresi = {
+      print: () => {
+        anlik.push(sinif.has("baski"));
+        if (olayGelsin) hedef.dispatchEvent(new Event("afterprint"));
+      },
+      addEventListener: (t, f, s) => hedef.addEventListener(t, f, s),
+      removeEventListener: (t, f) => hedef.removeEventListener(t, f),
+    };
+    const kok = { add: (s: string) => sinif.add(s), remove: (s: string) => sinif.delete(s) };
+    return { p, kok, sinif, anlik, hedef };
+  }
+
+  it("sınıf baskıdan önce eklenir; print içinde gelen afterprint yakalanır ve temizler; ikinci baskı da aynı", () => {
+    const w = pencere();
+    let biten = 0;
+    sayfayiBas(w.kok, w.p, "baski", () => biten++);
+    expect([w.anlik, w.sinif.has("baski"), biten]).toEqual([[true], false, 1]);
+    sayfayiBas(w.kok, w.p, "baski", () => biten++);
+    expect([w.anlik, w.sinif.has("baski"), biten]).toEqual([[true, true], false, 2]);
+  });
+
+  it("afterprint hiç gelmezse sınıf kalır; iptal eski dinleyiciyi kaldırır, sonraki olay yalnız bir kez temizler", () => {
+    const w = pencere(false);
+    let biten = 0;
+    const iptal = sayfayiBas(w.kok, w.p, "baski", () => biten++);
+    expect(w.sinif.has("baski")).toBe(true);
+    iptal();
+    sayfayiBas(w.kok, w.p, "baski", () => biten++);
+    w.hedef.dispatchEvent(new Event("afterprint"));
+    w.hedef.dispatchEvent(new Event("afterprint"));
+    expect([w.sinif.has("baski"), biten]).toEqual([false, 1]);
+  });
+});
+
 describe("basılı çıktı", () => {
   const def = rotaOyunu();
   const satirlar = yerlesimSatirlari(def);
@@ -50,6 +92,7 @@ describe("basılı çıktı", () => {
     expect(html).toContain("ABC-123");
     expect((html.match(/<tr class="break-inside-avoid">/g) ?? []).length).toBe(8);
     expect((html.match(/aria-label="Yapıştırıldı kutusu"/g) ?? []).length).toBe(8);
+    expect((html.match(/<th scope="col"/g) ?? []).length).toBe(4);
     for (const s of satirlar) expect(html).toContain(s.nokta);
     expect(html).toContain("10-A sınıfı");
   });

@@ -1,13 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import dynamic from "next/dynamic";
 import type { GameDefinition } from "@/lib/composer/definition";
 import { yerlesimSatirlari } from "@/lib/composer/mekanRotasi";
+import { sayfayiBas } from "@/lib/baski";
 
-// Baskı görünümü QR çizimini (qrcode) içerir; yalnız "Yazdır" basılınca yüklenir.
-const YerlesimBaskisi = dynamic(() => import("./YerlesimBaskisi"), { ssr: false });
+type BaskiBileseni = (typeof import("./YerlesimBaskisi"))["default"];
 
 // Baskıda sayfanın yerine yalnız baskı görünümü basılsın (app/globals.css).
 const BASKI_SINIFI = "yerlesim-baskida";
@@ -16,22 +15,42 @@ const BASKI_SINIFI = "yerlesim-baskida";
 // başladığı için dolaşma sırası değildir. "Yazdır" yerleşim listesini ve oyunun kartlarını (kesilecek yer şeridiyle) basar.
 export default function YerlesimListesi({ def, kod }: { def: GameDefinition; kod?: string }) {
   const satirlar = yerlesimSatirlari(def);
+  // Baskı görünümü QR çizimini (qrcode) içerir; ilk "Yazdır"da yüklenir. Yüklenemezse sayfa çökmez, uyarı görünür.
+  const [Baski, setBaski] = useState<BaskiBileseni | null>(null);
+  const [yukleniyor, setYukleniyor] = useState(false);
+  const [hata, setHata] = useState<string | null>(null);
   // Her "Yazdır" baskı görünümünü yeniden açar (çizilince yazdırma penceresi açılır); baskı bitince kapanır.
-  const [baski, setBaski] = useState(0);
+  const [baskiNo, setBaskiNo] = useState(0);
+  const iptal = useRef<(() => void) | null>(null);
+
   const yazdir = useCallback(() => {
-    document.documentElement.classList.add(BASKI_SINIFI);
-    window.print();
+    iptal.current?.();
+    iptal.current = sayfayiBas(document.documentElement.classList, window, BASKI_SINIFI, () => setBaskiNo(0));
   }, []);
-  useEffect(() => {
-    if (!baski) return;
-    const bitti = () => {
+  useEffect(
+    () => () => {
+      iptal.current?.();
       document.documentElement.classList.remove(BASKI_SINIFI);
-      setBaski(0);
-    };
-    window.addEventListener("afterprint", bitti);
-    return () => window.removeEventListener("afterprint", bitti);
-  }, [baski]);
-  useEffect(() => () => document.documentElement.classList.remove(BASKI_SINIFI), []);
+    },
+    []
+  );
+
+  async function yazdirTikla() {
+    setHata(null);
+    if (!Baski) {
+      setYukleniyor(true);
+      try {
+        const m = await import("./YerlesimBaskisi");
+        setBaski(() => m.default);
+      } catch {
+        setHata("Yazdırma görünümü yüklenemedi; sayfayı yenileyip tekrar deneyin.");
+        return;
+      } finally {
+        setYukleniyor(false);
+      }
+    }
+    setBaskiNo((n) => n + 1);
+  }
 
   if (satirlar.length === 0) return null;
   return (
@@ -40,13 +59,20 @@ export default function YerlesimListesi({ def, kod }: { def: GameDefinition; kod
         <p className="text-xs font-semibold text-gray-600">QR yerleşim listesi · oyun başlamadan kartları bu noktalara yapıştır</p>
         <button
           type="button"
-          onClick={() => setBaski((n) => n + 1)}
+          onClick={yazdirTikla}
+          disabled={yukleniyor}
           title="Yerleşim listesi ve bu oyunun QR kartları (A4)"
-          className="shrink-0 text-xs font-semibold text-indigo-600 hover:underline print:hidden"
+          className="shrink-0 text-xs font-semibold text-indigo-600 hover:underline disabled:text-gray-400 print:hidden"
         >
-          🖨 Yazdır
+          <span aria-hidden="true">🖨 </span>
+          {yukleniyor ? "Hazırlanıyor…" : "Yazdır"}
         </button>
       </div>
+      {hata && (
+        <p role="alert" className="px-4 py-2 text-xs text-red-600 border-b border-gray-100">
+          {hata}
+        </p>
+      )}
       <ol>
         {satirlar.map((s) => (
           <li key={s.durakId} className="flex items-start gap-3 px-4 py-2.5 border-b border-gray-50 last:border-0 text-sm">
@@ -61,7 +87,7 @@ export default function YerlesimListesi({ def, kod }: { def: GameDefinition; kod
       <p className="px-4 py-2 text-[11px] text-gray-500 bg-gray-50">
         Okulunda bu nokta yoksa QR&apos;ı mekânın benzer ve kolay bulunur bir yerine yapıştır; öğrenci bilmeceden sonra iki ipucuyla yönlendirilir. Kartlar göz hizasında, kuru ve güvenli bir yerde olsun. &quot;Yazdır&quot; listeyi ve bu oyunun kartlarını (yapıştırma yeriyle) basar.
       </p>
-      {baski > 0 && createPortal(<YerlesimBaskisi key={baski} baslik={def.meta.baslik} kod={kod} satirlar={satirlar} onHazir={yazdir} />, document.body)}
+      {baskiNo > 0 && Baski && createPortal(<Baski key={baskiNo} baslik={def.meta.baslik} kod={kod} satirlar={satirlar} onHazir={yazdir} />, document.body)}
     </section>
   );
 }

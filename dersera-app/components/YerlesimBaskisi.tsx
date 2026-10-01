@@ -41,10 +41,10 @@ export default function YerlesimBaskisi({ baslik, kod, satirlar, onHazir }: { ba
         <table className="w-full mt-4 border-collapse text-[11pt]">
           <thead>
             <tr className="text-left text-[9pt] uppercase tracking-wide text-gray-600">
-              <th className="border border-gray-400 px-2 py-1.5 w-[16mm]">QR</th>
-              <th className="border border-gray-400 px-2 py-1.5">Mekân</th>
-              <th className="border border-gray-400 px-2 py-1.5">Nokta</th>
-              <th className="border border-gray-400 px-2 py-1.5 w-[24mm]">Yapıştırıldı</th>
+              <th scope="col" className="border border-gray-400 px-2 py-1.5 w-[16mm]">QR</th>
+              <th scope="col" className="border border-gray-400 px-2 py-1.5">Mekân</th>
+              <th scope="col" className="border border-gray-400 px-2 py-1.5">Nokta</th>
+              <th scope="col" className="border border-gray-400 px-2 py-1.5 w-[24mm]">Yapıştırıldı</th>
             </tr>
           </thead>
           <tbody>
