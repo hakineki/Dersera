@@ -176,7 +176,7 @@ Görev türünü içeriğe göre seç: eşleştirme ancak en az 3 anlamlı çift
 }
 
 // Konum bilmecesinin sınıf düzeyine göre yorumu (bankadaki metinler ortaokul düzeyindedir).
-const KONUM_DUZEYI: Record<YasProfili, string> = {
+export const KONUM_DUZEYI: Record<YasProfili, string> = {
   PRESCHOOL_3_5: "Okul öncesi: tek kısa cümle, gördüğü ve dokunduğu şeylerle anlat.",
   PRIMARY_6_10:
     "İlkokul: en çok iki kısa cümle, cümle başına en çok 10 kelime. Somut, günlük sözcükler; mecaz ve kelime oyunu yok. \"Ben neyim?\" ya da \"Beni nerede bulursun?\" gibi bir soruyla bitebilir. 1. ipucu öğrenciye ne yapacağını açıkça söyler.",

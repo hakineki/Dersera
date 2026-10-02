@@ -116,6 +116,10 @@ export type GorevIcerigi = z.infer<typeof GorevIcerigiSchema> & Partial<Pick<z.i
 // Hatalı durakların yeniden yazımı için ikinci, küçük çağrının yanıtı.
 export const DuzeltmeSchema = z.object({ duraklar: z.array(DurakCiktisiSchema) });
 export type Duzeltme = z.infer<typeof DuzeltmeSchema>;
+// Yapay zekâyla güncelleme, mekân rotasında: durakla birlikte konum da yazılabilir (boş metin = değişmez; konumGuncelle).
+export const GuncellemeRotaSchema = z.object({
+  duraklar: z.array(DurakCiktisiSchema.extend({ konum_nokta: z.string(), konum_bilmece: z.string(), konum_ipucu_1: z.string() })),
+});
 
 // Modelin ham JSON metni → şemadaki tip. Kesik ya da şemaya uymayan metin hata döner.
 export function parseJsonText<S extends z.ZodType>(text: string, schema: S): { ok: true; output: z.output<S> } | { ok: false; error: string } {

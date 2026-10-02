@@ -53,8 +53,9 @@ export default function GuncellemePaneli({
       </summary>
       <div className="mt-3 space-y-3">
         <p className="text-xs text-gray-600">
-          Seçtiğin durakları talimatına göre yapay zekâ yeniden yazar. Rota, ödüller ve öğrenme hedefleri aynı kalır. Küçük değişiklikler için durağa
-          tıklayıp elle düzenlemek ücretsizdir.
+          Seçtiğin durakları talimatına göre yapay zekâ yeniden yazar. Rota, ödüller ve öğrenme hedefleri aynı kalır.
+          {definition.meta.rota === "mekan" && " Okul macerasında konum bilmecesini ve QR noktasını da isteyebilirsin (ör. “kantindeki simit tepsisi için bilmece yaz”); mekân aynı kalır."}{" "}
+          Küçük değişiklikler için durağa tıklayıp elle düzenlemek ücretsizdir.
         </p>
         <fieldset disabled={calisiyor}>
           <legend className="text-sm font-semibold text-gray-700 mb-1">

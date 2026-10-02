@@ -9,7 +9,7 @@ import { validationContext } from "@/lib/composer/context";
 import type { GameDefinition } from "@/lib/composer/definition";
 import type { YzDenetim } from "@/lib/composer/yzDenetim";
 import { guncellemeyiBirlestir } from "@/lib/composer/guncellemeBirlestir";
-import { validateGame, type ValidationResult } from "@/lib/composer/validator";
+import { validateGame, type ValidationIssue, type ValidationResult } from "@/lib/composer/validator";
 import { oturumBilgisi, type HesapOzeti } from "@/lib/authClient";
 import { saveTeacherGame } from "@/lib/teacherGame";
 import { kutuphaneOyunu, kutuphaneyeKaydet, toplulukOyunu } from "@/lib/libraryClient";
@@ -480,7 +480,10 @@ export default function ComposerClient({
         if (!s) return s;
         if (s.definition === gonderilen) return { ...s, definition: yeniTanim, validation: json.validation, guvenlik: json.guvenlik, guvenlikTanimi: yeniTanim };
         const def = guncellemeyiBirlestir(s.definition, yeniTanim, json.guncellenen as string[]);
-        return { ...s, definition: def, validation: dogrula(s, def) };
+        const v = dogrula(s, def);
+        // Güncellemenin konum notları (kullanılmayan ya da doldurulan konum bilmecesi) birleştirmede de görünsün.
+        const notlar = ((json.validation?.uyarilar ?? []) as ValidationIssue[]).filter((u) => u.kod === "konum-guncelleme");
+        return { ...s, definition: def, validation: { ...v, uyarilar: [...notlar, ...v.uyarilar] } };
       });
       if (kutuphaneId) setKutuphaneDurumu("degisti");
       return null;

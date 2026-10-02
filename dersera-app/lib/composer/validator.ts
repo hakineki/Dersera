@@ -156,7 +156,11 @@ export function validateGame(def: GameDefinition, ctx: ValidationContext): Valid
       const y = d.mekan.yer;
       // Mekân listeden; adı öğretmen okuluna göre yazabilir ("10-A sınıfı"). Metinler güvenlik taramasından geçer.
       if (!y || !bilinen.has(y.mekan_id) || [y.mekan_adi, y.nokta, y.bilmece, y.ipucu_1, y.ipucu_2].some((s) => !s.trim())) {
-        hata("rota-yer-eksik", `"${d.isim}" durağının mekânı ya da konum bilmecesi eksik.`, d.id);
+        const cozum =
+          y && bilinen.has(y.mekan_id)
+            ? `Düzenle'den hazır bilmece seç ya da durağı seçip Dersera'yla güncelle (ör. "simit tepsisi için bilmece yaz").`
+            : "Düzenle'den durağın mekânını ve hazır bir bilmece seç.";
+        hata("rota-yer-eksik", `"${d.isim}" durağının mekânı ya da konum bilmecesi eksik. ${cozum}`, d.id);
       } else {
         mekanlar.push(y.mekan_id);
         if (y.ipucu_1.trim() === y.ipucu_2.trim()) hata("rota-ipucu-ayni", `"${d.isim}" konum bilmecesinin iki ipucu aynı.`, d.id);
