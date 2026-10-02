@@ -2,7 +2,7 @@ import type { GameDefinition } from "@/lib/composer/definition";
 import { buildGuncellemePrompt, durakCiktisiOf, guncellemeUygula } from "@/lib/composer/guncelleme";
 import { guncellemeyiBirlestir } from "@/lib/composer/guncellemeBirlestir";
 import { toDefinition, type DurakCiktisi } from "@/lib/composer/modelOutput";
-import { ogretmenNoktasiYeri, type KonumGuncellemesi } from "@/lib/composer/mekanYerlesimi";
+import { cevapParcalari, ogretmenNoktasiYeri, type KonumGuncellemesi } from "@/lib/composer/mekanYerlesimi";
 import { validationContext } from "@/lib/composer/context";
 import { validateGame } from "@/lib/composer/validator";
 import { mekanBilmeceleri } from "@/data/konumBilmeceleri";
@@ -232,17 +232,22 @@ describe("güncelleme: mekân rotasında konum bilmecesi", () => {
     konum_bilmece: "Sabahları susamlı halkalar burada sıra sıra dizilir; beni o sıcak kokunun yanında ara.",
     konum_ipucu_1: "Kantinde yiyeceklerin satıldığı tezgâha yakından bak.",
   };
+  const GENEL = ogretmenNoktasiYeri("kantin", "Kantin", "simit tepsisi");
   const bos = { konum_nokta: "", konum_bilmece: "", konum_ipucu_1: "" };
   const durak = (def: GameDefinition, id: string, k: Partial<KonumGuncellemesi> = {}) => ({ ...durakCiktisiOf(def.duraklar.find((x) => x.id === id)!), ...bos, ...k });
+  const uygula = (def: GameDefinition, k: Partial<KonumGuncellemesi>, id = "d5") => guncellemeUygula(def, { duraklar: [durak(def, id, k)] }, [id]);
   const yanit = (duraklar: unknown[]) => ({ model: "m", stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: JSON.stringify({ duraklar }) }] });
   const ctx = validationContext({ ...okulGirdi, rota: true });
   const rotaHatalari = (def: GameDefinition) => validateGame(def, ctx).hatalar.filter((h) => h.kod.startsWith("rota-"));
+  // Bankadaki kaydı silinmiş durak (öğretmen Düzenle'de bilmeceyi ve 1. ipucunu boşaltmış).
+  const silinmis = (def: GameDefinition, i = 4) => (def.duraklar[i].mekan.yer = { ...def.duraklar[i].mekan.yer!, bilmece: "", ipucu_1: "" });
+  const bankaKaydi = (mekan: string, nokta: string) => mekanBilmeceleri(mekan).find((b) => b.nokta === nokta)!;
   beforeEach(() => jest.spyOn(console, "warn").mockImplementation(() => {}));
   afterEach(() => jest.restoreAllMocks());
 
   it("istem: seçili durağın konumu ve konum kuralları girer; sınıf oyununda konum bölümü yok", () => {
     const def = rotaOyunu();
-    def.duraklar[4].mekan.yer = { ...def.duraklar[4].mekan.yer!, bilmece: "", ipucu_1: "" };
+    silinmis(def);
     const p = buildGuncellemePrompt(def, ["d5"], "Kantindeki simit tepsisi için bir bilmece üretelim");
     expect(p).toContain("Konum bilmecesi (konum_nokta, konum_bilmece, konum_ipucu_1)");
     expect(p).toContain(`- d5 · Kantin · nokta: "${def.duraklar[4].mekan.yer!.nokta}" · bilmece: (boş) · 1. ipucu: (boş)`);
@@ -254,7 +259,7 @@ describe("güncelleme: mekân rotasında konum bilmecesi", () => {
   it("talimattaki nokta: yeni nokta ve rehberin bilmecesi, son ipucu noktayı söyler; mekân ve okuldaki adı değişmez", () => {
     const def = rotaOyunu();
     const once = def.duraklar[4].mekan.yer!;
-    const { definition, notlar } = guncellemeUygula(def, { duraklar: [durak(def, "d5", SIMIT)] }, ["d5"]);
+    const { definition, notlar } = uygula(def, SIMIT);
     expect(definition.duraklar[4].mekan.yer).toEqual({
       mekan_id: "kantin",
       mekan_adi: once.mekan_adi,
@@ -267,61 +272,134 @@ describe("güncelleme: mekân rotasında konum bilmecesi", () => {
     expect(rotaHatalari(definition)).toEqual([]);
   });
 
-  it("konum alanları boş dönerse dolu konum değişmez", () => {
+  it("konum alanları boş dönerse ya da model mevcut konumu aynen döndürürse dolu konum değişmez, not çıkmaz", () => {
     const def = rotaOyunu();
-    const { definition, notlar } = guncellemeUygula(def, { duraklar: [durak(def, "d5")] }, ["d5"]);
-    expect(definition.duraklar[4].mekan.yer).toEqual(def.duraklar[4].mekan.yer);
-    expect(notlar).toEqual([]);
+    const y = def.duraklar[4].mekan.yer!;
+    for (const k of [{}, { konum_nokta: y.nokta, konum_bilmece: y.bilmece, konum_ipucu_1: y.ipucu_1 }]) {
+      const r = uygula(def, k);
+      expect([r.definition.duraklar[4].mekan.yer, r.notlar]).toEqual([y, []]);
+    }
   });
 
-  it("denetimden geçmeyen bilmece kullanılmaz: yeni noktada genel metin kalır, öğretmene not; uzun nokta alınmaz", () => {
+  it("yalnız nokta yazılırsa genel metin kalır ve öğretmen uyarıda görür", () => {
     const def = rotaOyunu();
-    const { definition, notlar } = guncellemeUygula(def, { duraklar: [durak(def, "d5", { ...SIMIT, konum_bilmece: "Simit tepsisinin yanında beni bul!" })] }, ["d5"]);
+    silinmis(def);
+    const { definition, notlar } = uygula(def, { konum_nokta: "simit tepsisi" });
+    expect(definition.duraklar[4].mekan.yer).toMatchObject({ nokta: "simit tepsisi", bilmece: GENEL.bilmece, ipucu_1: GENEL.ipucu_1, ipucu_2: GENEL.ipucu_2 });
+    expect(notlar).toEqual([expect.stringMatching(/konum bilmecesi genel bir metinle dolduruldu/)]);
+  });
+
+  it("denetimden geçmeyen bilmece kullanılmaz: yeni noktada genel metin kalır, öğretmene iki not", () => {
+    const def = rotaOyunu();
+    const { definition, notlar } = uygula(def, { ...SIMIT, konum_bilmece: "Simit tepsisinin yanında beni bul!" });
     const y = definition.duraklar[4].mekan.yer!;
-    expect([y.nokta, y.ipucu_2, y.bilmece]).toEqual(["simit tepsisi", "QR'ı burada ara: simit tepsisi", ogretmenNoktasiYeri("kantin", "Kantin", "simit tepsisi").bilmece]);
-    expect(notlar).toEqual([expect.stringMatching(/konum bilmecesi kullanılmadı \(noktanın adını açıkça söylüyordu\)/)]);
-    const uzun = guncellemeUygula(def, { duraklar: [durak(def, "d5", { konum_nokta: "x".repeat(101) })] }, ["d5"]);
-    expect(uzun.definition.duraklar[4].mekan.yer).toEqual(def.duraklar[4].mekan.yer);
-    expect(uzun.notlar).toEqual([expect.stringMatching(/100 karakteri aşıyordu/)]);
+    expect([y.nokta, y.ipucu_2, y.bilmece]).toEqual(["simit tepsisi", "QR'ı burada ara: simit tepsisi", GENEL.bilmece]);
+    expect(notlar).toEqual([expect.stringMatching(/konum bilmecesi kullanılmadı \(noktanın adını açıkça söylüyordu\)/), expect.stringMatching(/genel bir metinle dolduruldu/)]);
   });
 
-  it("boş kalan konum doldurulur (nokta varsa genel metin, yoksa mekânın hazır bilmecesi); yayına engel kalmaz", () => {
+  it("önerilen nokta denetlenir: uzun, başka mekânda, cevabı içeren ya da uygunsuz nokta alınmaz; o noktaya yazılan bilmece de alınmaz", () => {
     const def = rotaOyunu();
-    def.duraklar[4].mekan.yer = { ...def.duraklar[4].mekan.yer!, bilmece: "", ipucu_1: "" };
+    const y = def.duraklar[4].mekan.yer!;
+    const durumlar: [Partial<KonumGuncellemesi>, RegExp][] = [
+      [{ ...SIMIT, konum_nokta: "simit tepsisinin " + "x".repeat(100) }, /önerilen nokta 100 karakteri aşıyordu/],
+      [{ konum_nokta: "kütüphanedeki ansiklopedi rafı", konum_bilmece: "Kütüphaneye git; kalın kitapların arasında beni ara.", konum_ipucu_1: "Okuma salonuna bak." }, /önerilen nokta başka bir mekândaydı/],
+      [{ ...SIMIT, konum_nokta: "aptal tabelanın arkası" }, /önerilen nokta güvenlik taramasına takıldı/],
+    ];
+    for (const [k, mesaj] of durumlar) {
+      const r = uygula(def, k);
+      expect(r.definition.duraklar[4].mekan.yer).toEqual(y);
+      expect(r.notlar).toEqual([expect.stringMatching(mesaj)]);
+    }
+    // Görevin cevabını içeren nokta (cevap "Dinamometre"): son ipucu cevabı takım durağa varmadan söylerdi.
+    expect(cevapParcalari("Dinamometre")).toEqual(["dinamometre"]);
+    const c = guncellemeUygula(def, { duraklar: [{ ...durak(def, "d5", { ...SIMIT, konum_nokta: "dinamometre rafı" }), dogru_cevap: "Dinamometre" }] }, ["d5"]);
+    expect([c.definition.duraklar[4].mekan.yer, c.notlar]).toEqual([y, [expect.stringMatching(/önerilen nokta görevin cevabını içeriyordu/)]]);
+    // Durağın kendi mekânını ya da okuldaki adını anan nokta başka mekân sayılmaz.
+    expect(uygula(def, { ...SIMIT, konum_nokta: "kantin tezgâhının sağı" }).definition.duraklar[4].mekan.yer!.nokta).toBe("kantin tezgâhının sağı");
+  });
+
+  it("boş kalan konum doldurulur: banka noktasında o kaydın metni, banka dışı noktada genel metin, nokta yoksa mekânın hazır bilmecesi; yayına engel kalmaz", () => {
+    const def = rotaOyunu();
+    silinmis(def);
     def.duraklar[5].mekan.yer = { ...def.duraklar[5].mekan.yer!, nokta: "", bilmece: "", ipucu_1: "", ipucu_2: "" };
+    def.duraklar[6].mekan.yer = { ...def.duraklar[6].mekan.yer!, nokta: "öğretmen masasının çekmecesi", bilmece: "", ipucu_1: "", ipucu_2: "" };
     expect(rotaHatalari(def).map((h) => [h.kod, h.durakId])).toEqual([
       ["rota-yer-eksik", "d5"],
       ["rota-yer-eksik", "d6"],
+      ["rota-yer-eksik", "d7"],
     ]);
     expect(rotaHatalari(def)[0].mesaj).toMatch(/Düzenle'den hazır bilmece seç ya da durağı seçip Dersera'yla güncelle/);
-    const { definition, notlar } = guncellemeUygula(def, { duraklar: [durak(def, "d5"), durak(def, "d6")] }, ["d5", "d6"]);
-    const [y5, y6] = [definition.duraklar[4].mekan.yer!, definition.duraklar[5].mekan.yer!];
-    const genel = ogretmenNoktasiYeri("kantin", y5.mekan_adi, y5.nokta);
-    expect([y5.nokta, y5.bilmece, y5.ipucu_1, y5.ipucu_2]).toEqual([def.duraklar[4].mekan.yer!.nokta, genel.bilmece, genel.ipucu_1, def.duraklar[4].mekan.yer!.ipucu_2]);
-    expect(y6.mekan_id).toBe("yemekhane");
+    const { definition, notlar } = guncellemeUygula(def, { duraklar: [durak(def, "d5"), durak(def, "d6"), durak(def, "d7")] }, ["d5", "d6", "d7"]);
+    const [y5, y6, y7] = [4, 5, 6].map((i) => definition.duraklar[i].mekan.yer!);
+    const b5 = bankaKaydi("kantin", y5.nokta);
+    expect([y5.bilmece, y5.ipucu_1, y5.ipucu_2]).toEqual([b5.bilmece, b5.ipucu1, b5.ipucu2]);
     expect(mekanBilmeceleri("yemekhane").some((b) => b.nokta === y6.nokta && b.bilmece === y6.bilmece && b.ipucu2 === y6.ipucu_2)).toBe(true);
-    expect(notlar).toEqual([expect.stringMatching(/genel bir metinle dolduruldu/), expect.stringMatching(/hazır bilmecelerinden biriyle dolduruldu/)]);
+    const g7 = ogretmenNoktasiYeri("fen-laboratuvari", y7.mekan_adi, "öğretmen masasının çekmecesi");
+    expect([y7.bilmece, y7.ipucu_1, y7.ipucu_2]).toEqual([g7.bilmece, g7.ipucu_1, g7.ipucu_2]);
+    expect(notlar).toEqual([
+      expect.stringMatching(/hazır bilmecelerinden biriyle dolduruldu/),
+      expect.stringMatching(/hazır bilmecelerinden biriyle dolduruldu/),
+      expect.stringMatching(/genel bir metinle dolduruldu/),
+    ]);
     expect(rotaHatalari(definition)).toEqual([]);
+  });
+
+  it("silinmiş konumda rehber yalnız bilmece yazarsa eksik ipucu bankadan tamamlanır; nokta yokken noktasız bilmece alınmaz", () => {
+    const def = rotaOyunu();
+    silinmis(def);
+    const y5 = uygula(def, { konum_bilmece: "Renkli tabakların ve meyvelerin resmi burada asılı; sağlıklı bir köşede saklanırım." }).definition.duraklar[4].mekan.yer!;
+    expect([y5.bilmece, y5.ipucu_1]).toEqual(["Renkli tabakların ve meyvelerin resmi burada asılı; sağlıklı bir köşede saklanırım.", bankaKaydi("kantin", y5.nokta).ipucu1]);
+    def.duraklar[5].mekan.yer = { ...def.duraklar[5].mekan.yer!, nokta: "", bilmece: "", ipucu_1: "", ipucu_2: "" };
+    const y6 = uygula(def, { konum_bilmece: "Bir yerde saklanırım.", konum_ipucu_1: "Etrafa bak." }, "d6").definition.duraklar[5].mekan.yer!;
+    expect(mekanBilmeceleri("yemekhane").some((b) => b.nokta === y6.nokta && b.bilmece === y6.bilmece)).toBe(true);
+  });
+
+  it("mekânı bilinmeyen durakta güncelleme önerilmez", () => {
+    const def = rotaOyunu();
+    def.duraklar[4].mekan.yer = { ...def.duraklar[4].mekan.yer!, mekan_id: "uzay-ussu" };
+    expect(rotaHatalari(def).find((h) => h.durakId === "d5")!.mesaj).toMatch(/Düzenle'den durağın mekânını ve hazır bir bilmece seç\.$/);
   });
 
   it("servis: mekân rotasında konum şemasıyla ister; konum notları uyarı olur; sınıf oyununda şema değişmez", async () => {
     const { yapayZekaylaGuncelle } = await import("@/lib/composer/service");
     const def = rotaOyunu();
-    def.duraklar[4].mekan.yer = { ...def.duraklar[4].mekan.yer!, bilmece: "", ipucu_1: "" };
+    silinmis(def);
     const create = jest.fn().mockResolvedValue(yanit([durak(def, "d5", SIMIT)]));
     const r = await yapayZekaylaGuncelle(def, okulGirdi, ["d5"], "Kantindeki simit tepsisi için bir bilmece üretelim", { messages: { create } } as never);
     expect(JSON.stringify(create.mock.calls[0][0].output_config)).toContain("konum_nokta");
     expect(r.definition.duraklar[4].mekan.yer).toMatchObject({ nokta: "simit tepsisi", bilmece: SIMIT.konum_bilmece, ipucu_2: "QR'ı burada ara: simit tepsisi" });
     expect(rotaHatalari(r.definition)).toEqual([]);
 
-    // Model konumu yazmazsa boş alan doldurulur ve öğretmen uyarıda görür.
+    // Model konumu yazmazsa silinen bilmece bankadan geri gelir ve öğretmen uyarıda görür.
     const r2 = await yapayZekaylaGuncelle(def, okulGirdi, ["d5"], "Soruyu kolaylaştır", { messages: { create: jest.fn().mockResolvedValue(yanit([durak(def, "d5")])) } } as never);
-    expect(r2.validation.uyarilar).toContainEqual({ kod: "konum-guncelleme", mesaj: expect.stringMatching(/genel bir metinle dolduruldu/) });
+    expect(r2.validation.uyarilar).toContainEqual({ kod: "konum-guncelleme", mesaj: expect.stringMatching(/hazır bilmecelerinden biriyle dolduruldu/) });
     expect(rotaHatalari(r2.definition)).toEqual([]);
 
     const sinif = oyun();
     const c2 = jest.fn().mockResolvedValue(yanit([yeniden(durakCiktisiOf(sinif.duraklar[2]))]));
     await yapayZekaylaGuncelle(sinif, girdi, ["d3"], "Zorlaştır", { messages: { create: c2 } } as never);
     expect(JSON.stringify(c2.mock.calls[0][0])).not.toContain("konum_nokta");
+  });
+
+  it("servis (OpenAI): mekân rotasında konum şeması ve ayrı şema adı; sınıf oyununda düzeltme şeması", async () => {
+    const openai = await import("@/lib/composer/openai");
+    const { yapayZekaylaGuncelle } = await import("@/lib/composer/service");
+    const { GuncellemeRotaSchema, DuzeltmeSchema } = await import("@/lib/composer/modelOutput");
+    const env = process.env.OPENAI_API_KEY;
+    process.env.OPENAI_API_KEY = "openai-test";
+    try {
+      const def = rotaOyunu();
+      const istek = jest.spyOn(openai, "yapilandirilmisIstekOpenAI").mockResolvedValueOnce({ duraklar: [durak(def, "d5", SIMIT)] });
+      const r = await yapayZekaylaGuncelle(def, okulGirdi, ["d5"], "Simit tepsisi için bilmece");
+      expect(istek.mock.calls[0].slice(0, 2)).toEqual([GuncellemeRotaSchema, "dersera_guncelleme_rota"]);
+      expect(r.definition.duraklar[4].mekan.yer!.nokta).toBe("simit tepsisi");
+      const sinif = oyun();
+      istek.mockResolvedValueOnce({ duraklar: [yeniden(durakCiktisiOf(sinif.duraklar[2]))] });
+      await yapayZekaylaGuncelle(sinif, girdi, ["d3"], "Zorlaştır");
+      expect(istek.mock.calls[1].slice(0, 2)).toEqual([DuzeltmeSchema, "dersera_duzeltme"]);
+    } finally {
+      if (env === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = env;
+    }
   });
 });

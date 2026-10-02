@@ -111,9 +111,12 @@ const KONUM_NEDENI: Record<string, string> = {
   "nokta adı": "noktanın adını açıkça söylüyordu",
   cevap: "görevin cevabını veriyordu",
   güvenlik: "güvenlik taramasına takıldı",
-  "nokta uzun": `nokta ${MEKAN_SINIRLARI.noktaEnCok} karakteri aşıyordu`,
+  "nokta uzun": `önerilen nokta ${MEKAN_SINIRLARI.noktaEnCok} karakteri aşıyordu`,
+  "nokta cevap": "önerilen nokta görevin cevabını içeriyordu",
+  "nokta güvenlik": "önerilen nokta güvenlik taramasına takıldı",
 };
-const konumNedeni = (n: string) => (n.startsWith("başka mekân") ? "başka bir mekânı anıyordu" : (KONUM_NEDENI[n] ?? n));
+const konumNedeni = (n: string) =>
+  n.startsWith("nokta başka mekân") ? "önerilen nokta başka bir mekândaydı (mekân aynı kalır)" : n.startsWith("başka mekân") ? "başka bir mekânı anıyordu" : (KONUM_NEDENI[n] ?? n);
 
 // Model çıktısını tanıma uygular: yalnız istenen duraklar ve yalnız içerik alanları. Yapıyı bozan değer yok sayılır.
 // Mekân rotasında konum konumGuncelle ile uygulanır; kullanılamayan ya da doldurulan konum için öğretmene not döner.
@@ -143,7 +146,7 @@ export function guncellemeUygula(
       }
       if (k.dolduruldu) {
         const ne = k.dolduruldu === "genel" ? "genel bir metinle" : "mekânın hazır bilmecelerinden biriyle";
-        notlar.push(`"${isim}" durağının boş konum alanları ${ne} dolduruldu; Düzenle'den gözden geçir.`);
+        notlar.push(`"${isim}" durağının konum bilmecesi ${ne} dolduruldu; Düzenle'den gözden geçir.`);
       }
       mekan = { ...mekan, yer: k.yer };
     }

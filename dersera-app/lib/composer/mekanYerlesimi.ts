@@ -179,7 +179,25 @@ export interface KonumGuncellemesi {
   konum_ipucu_1: string;
 }
 
-const tekSatir = (s: string | undefined) => gorunmezleriAt(s ?? "").replace(/\s+/g, " ").trim();
+const tekSatir = (s: string | undefined) =>
+  gorunmezleriAt(s ?? "")
+    .replace(/[\u00AD\u2060-\u2064]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// Modelin önerdiği nokta benimsenmeden denetlenir: noktanın kendisi de öğrenciye gösterilir (son ipucu) ve bilmecenin
+// muafiyet kaynağı olur. Başka bir mekânı anan nokta mekânı fiilen değiştirir; görev cevabını içeren nokta cevabı
+// takım durağa varmadan söyler.
+function noktaNedeni(nokta: string, yer: KonumYeri, cevaplar: string[]): string | null {
+  if (nokta.length > MEKAN_SINIRLARI.noktaEnCok) return "nokta uzun";
+  const n = katla(nokta);
+  const kendi = katla(`${yer.mekan_adi} ${yer.nokta}`);
+  const baska = Object.entries(AYIRT_EDICI).find(([id, adlar]) => id !== yer.mekan_id && adlar.some((a) => n.includes(katla(a)) && !kendi.includes(katla(a))));
+  if (baska) return `nokta başka mekân: ${baska[0]}`;
+  if (cevaplar.some((c) => n.includes(c) && !kendi.includes(c))) return "nokta cevap";
+  if (metinleriTara([{ metin: nokta, yer: "nokta" }]).length > 0) return "nokta güvenlik";
+  return null;
+}
 
 export function konumGuncelle(
   yer: KonumYeri,
@@ -188,37 +206,48 @@ export function konumGuncelle(
   cevaplar: string[],
   anahtar: string
 ): { yer: KonumYeri; neden: string | null; dolduruldu: "genel" | "banka" | null } {
-  let neden: string | null = null;
-  let taban = yer;
   const nokta = tekSatir(k.konum_nokta);
-  if (nokta.length > MEKAN_SINIRLARI.noktaEnCok) neden = "nokta uzun";
-  else if (nokta && katla(nokta) !== katla(yer.nokta.trim())) taban = ogretmenNoktasiYeri(yer.mekan_id, yer.mekan_adi, nokta);
-  const bilmece = tekSatir(k.konum_bilmece);
-  const ipucu1 = tekSatir(k.konum_ipucu_1);
-  let sonuc = taban;
-  if (bilmece || ipucu1) {
-    const r = uyarlamaUygula(taban, { bilmece, ipucu_1: ipucu1 }, profil, cevaplar);
-    sonuc = r.yer;
-    neden = r.neden ?? neden;
+  let taban = yer;
+  if (nokta && katla(nokta) !== katla(yer.nokta.trim())) {
+    // Nokta alınmazsa yeni noktaya göre yazılmış bilmece de alınmaz (eski noktayı anlatmaz).
+    const n = noktaNedeni(nokta, yer, cevaplar);
+    if (n) {
+      const d = eksikleriDoldur(yer, anahtar);
+      return { yer: d.yer, neden: n, dolduruldu: d.kaynak };
+    }
+    taban = ogretmenNoktasiYeri(yer.mekan_id, yer.mekan_adi, nokta);
   }
-  const dolu = eksikleriDoldur(sonuc, anahtar);
-  return { yer: dolu, neden, dolduruldu: dolu === sonuc ? null : sonuc.nokta.trim() ? "genel" : "banka" };
+  // Yeni noktada bilmece yazılmadıysa genel metin kalır: öğretmen bunu da uyarıda görür.
+  const genel = taban !== yer ? ("genel" as const) : null;
+  // Eksik parçalar önce tamamlanır (bankadaki kayıt ya da genel metin); rehberin metni bunun üstüne denetlenir.
+  const tam = eksikleriDoldur(taban, anahtar);
+  const dolduruldu = tam.kaynak ?? genel;
+  // Nokta boşken bankadan seçilen noktayı, nokta vermeden yazılmış bir bilmece anlatmaz.
+  if (!taban.nokta.trim()) return { yer: tam.yer, neden: null, dolduruldu };
+  const bilmece = tekSatir(k.konum_bilmece) || tam.yer.bilmece.trim();
+  const ipucu1 = tekSatir(k.konum_ipucu_1) || tam.yer.ipucu_1.trim();
+  // Değişmeyen metin (model mevcut konumu aynen döndürdü) yeniden denetlenmez.
+  if (ayni(bilmece, tam.yer.bilmece) && ayni(ipucu1, tam.yer.ipucu_1)) return { yer: tam.yer, neden: null, dolduruldu };
+  const r = uyarlamaUygula(tam.yer, { bilmece, ipucu_1: ipucu1 }, profil, cevaplar);
+  return { yer: r.yer, neden: r.neden, dolduruldu: r.neden ? dolduruldu : null };
 }
 
-// Boş kalan konum alanları: nokta yoksa mekânın bankasından bir bilmece, varsa genel metin. Mekân bilinmiyorsa dokunulmaz
-// (doğrulama "konum bilmecesi eksik" der).
-function eksikleriDoldur(y: KonumYeri, anahtar: string): KonumYeri {
+// Boş kalan konum alanları: nokta yoksa mekânın bankasından bir bilmece; nokta bankadaki bir noktaysa o kaydın metni,
+// değilse genel metin. Mekân bilinmiyorsa dokunulmaz (doğrulama "konum bilmecesi eksik" der).
+function eksikleriDoldur(y: KonumYeri, anahtar: string): { yer: KonumYeri; kaynak: "genel" | "banka" | null } {
   const m = mekanOf(y.mekan_id);
-  if (!m) return y;
+  if (!m) return { yer: y, kaynak: null };
   const ad = y.mekan_adi.trim() || m.ad;
-  if (!y.nokta.trim()) return { ...konumYeri(m.id, anahtar), mekan_adi: ad };
-  if ([y.mekan_adi, y.bilmece, y.ipucu_1, y.ipucu_2].every((s) => s.trim())) return y;
-  const g = ogretmenNoktasiYeri(m.id, ad, y.nokta.trim());
-  return {
+  if (!y.nokta.trim()) return { yer: { ...konumYeri(m.id, anahtar), mekan_adi: ad }, kaynak: "banka" };
+  if ([y.mekan_adi, y.bilmece, y.ipucu_1, y.ipucu_2].every((s) => s.trim())) return { yer: y, kaynak: null };
+  const b = mekanBilmeceleri(m.id).find((x) => katla(x.nokta) === katla(y.nokta.trim()));
+  const g = b ? { bilmece: b.bilmece, ipucu_1: b.ipucu1, ipucu_2: b.ipucu2 } : ogretmenNoktasiYeri(m.id, ad, y.nokta.trim());
+  const yeni = {
     ...y,
     mekan_adi: ad,
     bilmece: y.bilmece.trim() ? y.bilmece : g.bilmece,
     ipucu_1: y.ipucu_1.trim() ? y.ipucu_1 : g.ipucu_1,
     ipucu_2: y.ipucu_2.trim() ? y.ipucu_2 : g.ipucu_2,
   };
+  return { yer: yeni, kaynak: b ? "banka" : "genel" };
 }
