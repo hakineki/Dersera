@@ -1,13 +1,13 @@
 import { yzTuruIle } from "@/lib/yzMaliyetKaydi";
 import { composeGame, yapilandirilmisIstek, type ComposeClient } from "@/lib/composer/anthropic";
 import { ComposeError } from "@/lib/composer/errors";
-import { DuzeltmeSchema, toDefinition, type Duzeltme, type ModelOutput } from "@/lib/composer/modelOutput";
+import { DuzeltmeSchema, GuncellemeRotaSchema, toDefinition, type Duzeltme, type ModelOutput } from "@/lib/composer/modelOutput";
 import { buildDuzeltmePrompt, buildUserPrompt, type PromptParcalari } from "@/lib/composer/prompt";
 import { composeGameOpenAI, yapilandirilmisIstekOpenAI } from "@/lib/composer/openai";
 import type { Recipe } from "@/lib/composer/recipe";
 import { onar } from "@/lib/composer/repair";
 import { GameDefinitionSchema, type GameDefinition } from "@/lib/composer/definition";
-import { buildGuncellemePrompt, guncellemeUygula } from "@/lib/composer/guncelleme";
+import { buildGuncellemePrompt, guncellemeUygula, type GuncellemeCiktisi } from "@/lib/composer/guncelleme";
 import { describeKonular, resolveKonular, type DersKonu, type ResolvedInput } from "@/lib/composer/input";
 import { IZINLI_QR_IDLERI, validationContext } from "@/lib/composer/context";
 import { rotaMi } from "@/lib/composer/mekanRotasi";
@@ -31,6 +31,8 @@ export function saglayiciFromEnv(): Saglayici {
 interface Uretici {
   oyun(input: ResolvedInput, recipe: Recipe): Promise<ModelOutput>;
   duzelt(prompt: PromptParcalari, maxTokens: number, timeoutMs: number): Promise<Duzeltme>;
+  // Yapay zekâyla güncelleme: mekân rotasında konum alanlarıyla (GuncellemeRotaSchema), değilse düzeltme şemasıyla.
+  guncelle(prompt: PromptParcalari, maxTokens: number, timeoutMs: number, rota: boolean): Promise<GuncellemeCiktisi>;
 }
 
 function ureticiSec(client?: ComposeClient): Uretici {
@@ -38,11 +40,17 @@ function ureticiSec(client?: ComposeClient): Uretici {
     return {
       oyun: (input, recipe) => composeGame(input, recipe, IZINLI_QR_IDLERI, client),
       duzelt: (prompt, maxTokens, timeoutMs) => yapilandirilmisIstek(DuzeltmeSchema, prompt, maxTokens, client, timeoutMs),
+      guncelle: (prompt, maxTokens, timeoutMs, rota) =>
+        rota ? yapilandirilmisIstek(GuncellemeRotaSchema, prompt, maxTokens, client, timeoutMs) : yapilandirilmisIstek(DuzeltmeSchema, prompt, maxTokens, client, timeoutMs),
     };
   }
   return {
     oyun: (input, recipe) => composeGameOpenAI(input, recipe, IZINLI_QR_IDLERI),
     duzelt: (prompt, maxTokens, timeoutMs) => yapilandirilmisIstekOpenAI(DuzeltmeSchema, "dersera_duzeltme", prompt, maxTokens, undefined, timeoutMs),
+    guncelle: (prompt, maxTokens, timeoutMs, rota) =>
+      rota
+        ? yapilandirilmisIstekOpenAI(GuncellemeRotaSchema, "dersera_guncelleme_rota", prompt, maxTokens, undefined, timeoutMs)
+        : yapilandirilmisIstekOpenAI(DuzeltmeSchema, "dersera_duzeltme", prompt, maxTokens, undefined, timeoutMs),
   };
 }
 
@@ -65,6 +73,8 @@ const DUZELTME_MAX_MS = 90_000;
 // Tek çağrıda en çok 3 durak yeniden yazılır; token sınırı hedef sayısıyla büyür.
 const DUZELTME_EN_COK = 3;
 const duzeltmeToken = (n: number) => 1_500 + n * 3_500;
+// Güncellemede durak başına konum bilmecesi (nokta + bilmece + 1. ipucu) için ek pay.
+const KONUM_TOKEN = 400;
 
 // Düzeltilen durağın yalnız görev içeriği alınır; rota, ödül ve QR ilk çıktıdaki gibi kalır.
 // Öğrenme hedefi yalnız o durakta hedef-disi hatası varsa değişebilir (aksi hâlde ders kapsamı bozulabilir).
@@ -159,12 +169,15 @@ export async function yapayZekaylaGuncelle(
     // Var olan oyunun kuralları: eski okul oyunu mekân rotası kurallarını almaz.
     const recipe = buildRecipe(input.sure, input.deneyim, input.alan, rotaMi(def));
     const prompt = { ortak: buildUserPrompt(input, recipe, IZINLI_QR_IDLERI), asama: buildGuncellemePrompt(def, idler, talimat) };
-    const cikti = await ureticiSec(client).duzelt(prompt, duzeltmeToken(idler.length), timeoutMs);
-    const { definition, guncellenen } = guncellemeUygula(def, cikti, idler);
+    const rota = rotaMi(def);
+    const cikti = await ureticiSec(client).guncelle(prompt, duzeltmeToken(idler.length) + (rota ? idler.length * KONUM_TOKEN : 0), timeoutMs, rota);
+    const { definition, guncellenen, notlar } = guncellemeUygula(def, cikti, idler);
     if (guncellenen.length === 0) throw new ComposeError("invalid-output", "Güncellenecek duraklar yanıtta yok");
     const parsed = GameDefinitionSchema.safeParse(definition);
     if (!parsed.success) throw new ComposeError("invalid-output", `Güncelleme oyun şemasına uymadı: ${parsed.error.issues[0]?.path.join(".")}`);
-    return { definition: parsed.data, validation: validateGame(parsed.data, validationContext({ ...input, rota: rotaMi(parsed.data) })), guncellenen };
+    const validation = validateGame(parsed.data, validationContext({ ...input, rota: rotaMi(parsed.data) }));
+    validation.uyarilar.unshift(...notlar.map((mesaj) => ({ kod: "konum-guncelleme", mesaj })));
+    return { definition: parsed.data, validation, guncellenen };
   });
 }
 

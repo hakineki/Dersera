@@ -1,10 +1,15 @@
 import type { GameDefinition } from "@/lib/composer/definition";
 import { buildGuncellemePrompt, durakCiktisiOf, guncellemeUygula } from "@/lib/composer/guncelleme";
 import { guncellemeyiBirlestir } from "@/lib/composer/guncellemeBirlestir";
-import type { DurakCiktisi } from "@/lib/composer/modelOutput";
+import { toDefinition, type DurakCiktisi } from "@/lib/composer/modelOutput";
+import { ogretmenNoktasiYeri, type KonumGuncellemesi } from "@/lib/composer/mekanYerlesimi";
+import { validationContext } from "@/lib/composer/context";
+import { validateGame } from "@/lib/composer/validator";
+import { mekanBilmeceleri } from "@/data/konumBilmeceleri";
+import { MEKANLAR } from "@/data/mekanlar";
 import { clearRedisEnv } from "./helpers/fakeRedis";
 import { jsonRequest } from "./helpers/api";
-import { makeDefinition, resolvedInput } from "./helpers/composerFixtures";
+import { makeDefinition, resolvedInput, toModelOutput } from "./helpers/composerFixtures";
 import { getUniteler } from "@/data/mufredat/programlar";
 
 const girdi = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "dengeli", alan: "sinif" });
@@ -209,5 +214,114 @@ describe("POST /api/compose/guncelle", () => {
     expect(res.status).toBe(402);
     expect((await res.json()).kredi.toplam).toBe(0);
     expect(spy).not.toHaveBeenCalled();
+  });
+});
+
+describe("güncelleme: mekân rotasında konum bilmecesi", () => {
+  const okulGirdi = resolvedInput({ sinif: 10, ders: "fizik", sure: 40, deneyim: "macera", alan: "okul" });
+  // Duraklar MEKANLAR sırasıyla: d5 kantin, d6 yemekhane.
+  const rotaOyunu = (): GameDefinition => {
+    const o = toModelOutput(makeDefinition(okulGirdi, 8));
+    o.duraklar.forEach((x, i) => (x.mekan_id = MEKANLAR[i].id));
+    const r = toDefinition(o, okulGirdi);
+    if (!r.ok) throw new Error(r.error);
+    return r.definition;
+  };
+  const SIMIT = {
+    konum_nokta: "simit tepsisi",
+    konum_bilmece: "Sabahları susamlı halkalar burada sıra sıra dizilir; beni o sıcak kokunun yanında ara.",
+    konum_ipucu_1: "Kantinde yiyeceklerin satıldığı tezgâha yakından bak.",
+  };
+  const bos = { konum_nokta: "", konum_bilmece: "", konum_ipucu_1: "" };
+  const durak = (def: GameDefinition, id: string, k: Partial<KonumGuncellemesi> = {}) => ({ ...durakCiktisiOf(def.duraklar.find((x) => x.id === id)!), ...bos, ...k });
+  const yanit = (duraklar: unknown[]) => ({ model: "m", stop_reason: "end_turn", usage: {}, content: [{ type: "text", text: JSON.stringify({ duraklar }) }] });
+  const ctx = validationContext({ ...okulGirdi, rota: true });
+  const rotaHatalari = (def: GameDefinition) => validateGame(def, ctx).hatalar.filter((h) => h.kod.startsWith("rota-"));
+  beforeEach(() => jest.spyOn(console, "warn").mockImplementation(() => {}));
+  afterEach(() => jest.restoreAllMocks());
+
+  it("istem: seçili durağın konumu ve konum kuralları girer; sınıf oyununda konum bölümü yok", () => {
+    const def = rotaOyunu();
+    def.duraklar[4].mekan.yer = { ...def.duraklar[4].mekan.yer!, bilmece: "", ipucu_1: "" };
+    const p = buildGuncellemePrompt(def, ["d5"], "Kantindeki simit tepsisi için bir bilmece üretelim");
+    expect(p).toContain("Konum bilmecesi (konum_nokta, konum_bilmece, konum_ipucu_1)");
+    expect(p).toContain(`- d5 · Kantin · nokta: "${def.duraklar[4].mekan.yer!.nokta}" · bilmece: (boş) · 1. ipucu: (boş)`);
+    expect(p).toContain("ve konum bilmecesi (aşağıda)");
+    expect(p).not.toMatch(/- d1 · /);
+    expect(buildGuncellemePrompt(oyun(), ["d3"], "Zorlaştır")).not.toContain("konum_nokta");
+  });
+
+  it("talimattaki nokta: yeni nokta ve rehberin bilmecesi, son ipucu noktayı söyler; mekân ve okuldaki adı değişmez", () => {
+    const def = rotaOyunu();
+    const once = def.duraklar[4].mekan.yer!;
+    const { definition, notlar } = guncellemeUygula(def, { duraklar: [durak(def, "d5", SIMIT)] }, ["d5"]);
+    expect(definition.duraklar[4].mekan.yer).toEqual({
+      mekan_id: "kantin",
+      mekan_adi: once.mekan_adi,
+      nokta: "simit tepsisi",
+      bilmece: SIMIT.konum_bilmece,
+      ipucu_1: SIMIT.konum_ipucu_1,
+      ipucu_2: "QR'ı burada ara: simit tepsisi",
+    });
+    expect(notlar).toEqual([]);
+    expect(rotaHatalari(definition)).toEqual([]);
+  });
+
+  it("konum alanları boş dönerse dolu konum değişmez", () => {
+    const def = rotaOyunu();
+    const { definition, notlar } = guncellemeUygula(def, { duraklar: [durak(def, "d5")] }, ["d5"]);
+    expect(definition.duraklar[4].mekan.yer).toEqual(def.duraklar[4].mekan.yer);
+    expect(notlar).toEqual([]);
+  });
+
+  it("denetimden geçmeyen bilmece kullanılmaz: yeni noktada genel metin kalır, öğretmene not; uzun nokta alınmaz", () => {
+    const def = rotaOyunu();
+    const { definition, notlar } = guncellemeUygula(def, { duraklar: [durak(def, "d5", { ...SIMIT, konum_bilmece: "Simit tepsisinin yanında beni bul!" })] }, ["d5"]);
+    const y = definition.duraklar[4].mekan.yer!;
+    expect([y.nokta, y.ipucu_2, y.bilmece]).toEqual(["simit tepsisi", "QR'ı burada ara: simit tepsisi", ogretmenNoktasiYeri("kantin", "Kantin", "simit tepsisi").bilmece]);
+    expect(notlar).toEqual([expect.stringMatching(/konum bilmecesi kullanılmadı \(noktanın adını açıkça söylüyordu\)/)]);
+    const uzun = guncellemeUygula(def, { duraklar: [durak(def, "d5", { konum_nokta: "x".repeat(101) })] }, ["d5"]);
+    expect(uzun.definition.duraklar[4].mekan.yer).toEqual(def.duraklar[4].mekan.yer);
+    expect(uzun.notlar).toEqual([expect.stringMatching(/100 karakteri aşıyordu/)]);
+  });
+
+  it("boş kalan konum doldurulur (nokta varsa genel metin, yoksa mekânın hazır bilmecesi); yayına engel kalmaz", () => {
+    const def = rotaOyunu();
+    def.duraklar[4].mekan.yer = { ...def.duraklar[4].mekan.yer!, bilmece: "", ipucu_1: "" };
+    def.duraklar[5].mekan.yer = { ...def.duraklar[5].mekan.yer!, nokta: "", bilmece: "", ipucu_1: "", ipucu_2: "" };
+    expect(rotaHatalari(def).map((h) => [h.kod, h.durakId])).toEqual([
+      ["rota-yer-eksik", "d5"],
+      ["rota-yer-eksik", "d6"],
+    ]);
+    expect(rotaHatalari(def)[0].mesaj).toMatch(/Düzenle'den hazır bilmece seç ya da durağı seçip Dersera'yla güncelle/);
+    const { definition, notlar } = guncellemeUygula(def, { duraklar: [durak(def, "d5"), durak(def, "d6")] }, ["d5", "d6"]);
+    const [y5, y6] = [definition.duraklar[4].mekan.yer!, definition.duraklar[5].mekan.yer!];
+    const genel = ogretmenNoktasiYeri("kantin", y5.mekan_adi, y5.nokta);
+    expect([y5.nokta, y5.bilmece, y5.ipucu_1, y5.ipucu_2]).toEqual([def.duraklar[4].mekan.yer!.nokta, genel.bilmece, genel.ipucu_1, def.duraklar[4].mekan.yer!.ipucu_2]);
+    expect(y6.mekan_id).toBe("yemekhane");
+    expect(mekanBilmeceleri("yemekhane").some((b) => b.nokta === y6.nokta && b.bilmece === y6.bilmece && b.ipucu2 === y6.ipucu_2)).toBe(true);
+    expect(notlar).toEqual([expect.stringMatching(/genel bir metinle dolduruldu/), expect.stringMatching(/hazır bilmecelerinden biriyle dolduruldu/)]);
+    expect(rotaHatalari(definition)).toEqual([]);
+  });
+
+  it("servis: mekân rotasında konum şemasıyla ister; konum notları uyarı olur; sınıf oyununda şema değişmez", async () => {
+    const { yapayZekaylaGuncelle } = await import("@/lib/composer/service");
+    const def = rotaOyunu();
+    def.duraklar[4].mekan.yer = { ...def.duraklar[4].mekan.yer!, bilmece: "", ipucu_1: "" };
+    const create = jest.fn().mockResolvedValue(yanit([durak(def, "d5", SIMIT)]));
+    const r = await yapayZekaylaGuncelle(def, okulGirdi, ["d5"], "Kantindeki simit tepsisi için bir bilmece üretelim", { messages: { create } } as never);
+    expect(JSON.stringify(create.mock.calls[0][0].output_config)).toContain("konum_nokta");
+    expect(r.definition.duraklar[4].mekan.yer).toMatchObject({ nokta: "simit tepsisi", bilmece: SIMIT.konum_bilmece, ipucu_2: "QR'ı burada ara: simit tepsisi" });
+    expect(rotaHatalari(r.definition)).toEqual([]);
+
+    // Model konumu yazmazsa boş alan doldurulur ve öğretmen uyarıda görür.
+    const r2 = await yapayZekaylaGuncelle(def, okulGirdi, ["d5"], "Soruyu kolaylaştır", { messages: { create: jest.fn().mockResolvedValue(yanit([durak(def, "d5")])) } } as never);
+    expect(r2.validation.uyarilar).toContainEqual({ kod: "konum-guncelleme", mesaj: expect.stringMatching(/genel bir metinle dolduruldu/) });
+    expect(rotaHatalari(r2.definition)).toEqual([]);
+
+    const sinif = oyun();
+    const c2 = jest.fn().mockResolvedValue(yanit([yeniden(durakCiktisiOf(sinif.duraklar[2]))]));
+    await yapayZekaylaGuncelle(sinif, girdi, ["d3"], "Zorlaştır", { messages: { create: c2 } } as never);
+    expect(JSON.stringify(c2.mock.calls[0][0])).not.toContain("konum_nokta");
   });
 });
